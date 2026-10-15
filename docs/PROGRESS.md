@@ -602,3 +602,45 @@ Michael imports with unchanged base/scene content, while global Heart remains
 selected. Desktop and a 324px narrow page fit without horizontal overflow.
 Viewport overrides were reset, temporary extraction tabs/servers closed, and
 the original studio remains available. No audible listening pass is claimed.
+
+## Milestone 3s: date-aware saved news
+
+Newly assembled news cards, narration/watch pages, MP4 players, workshops, and
+episode ZIP players now share a source-review notice. Fixed as-of and inclusive
+valid-through UTC dates remain visible without JavaScript. A small local date
+check changes the notice to **Source recheck required** after expiry, or a
+conservative date/clock warning when the window is uncertain. Media readiness,
+playback, downloads, editing, original source dates, and source claims remain
+independent of that notice. Nothing fetches sources or renews factual review.
+
+The check runs on load, page return, and once per visible minute. Known expired
+states remain expired after clock rollback; expiry observed during a page session
+is sticky in that session. Repeated decoration can promote a matching notice to
+expired while preserving other review windows. Whole-studio ZIP construction
+still copies the chosen snapshot exactly; older archives remain unchanged.
+
+Astra planned and implemented the shared helper, then independently reviewed the
+integration. Its marker-free player reproduction is fixed by decorating copied
+HTML without relying on the return-link marker. Matching existing notices can
+also be promoted without changing dates. Restrictive copied-player policies
+permit the exact date-check script by SHA-256; existing media and script policies
+retain their behavior. No narration or video rendering was needed.
+
+Full minimum Node 22.13.0 checks/build pass: **147 workflow tests** and five live
+CAP assertions. Focused regressions cover inclusive expiry, UTC offsets, leap
+dates, invalid dates/clocks, overnight updates, sticky expiry, no-script guidance,
+script hashes, idempotence, marker-free players, and all news entry points. A
+controlled same-time rebuild preserves all **91 tutorial files**, all **24 saved
+MP4/WAV/sample files**, all original inputs, and the Kokoro generator fingerprint.
+
+The final studio retains eleven MP4s, eleven episode ZIPs, eleven workshops, two
+voice samples, and **146 matching artifact hashes**. Its 148-member whole-studio
+ZIP passes independent extraction, all member hashes, eleven nested ZIP checks,
+and 231 confined links across 45 HTML files. Native downloads match the archive
+and selected episode ZIP. Extracted players run their date checks and load media
+without CSP errors; native seeking remains paused. Style return selection and a
+news workshop download/import preserve scenes, claims, sources, dates, and Heart
+as the default. Desktop 1280px and phone 390px fit without overflow. A separate
+known-expired fixture verifies conservative rollback behavior in the real browser.
+Temporary test tabs and servers were closed; viewport overrides were reset.
+No audible listening pass, paid generation, or publication occurred.

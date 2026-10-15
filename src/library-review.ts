@@ -5,6 +5,11 @@ import type { LibraryContent, LibraryEntry } from "./library.js";
 import { auditionText, voiceSampleCard } from "./media/voice-audition.js";
 import { kokoroVoice, kokoroVoices } from "./media/voices.js";
 import { availabilityLabels } from "./news/contracts.js";
+import {
+  decorateNewsReviewHtml,
+  enhanceNewsReviewHtml,
+  newsReviewNotice,
+} from "./news/freshness.js";
 import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationFormats, presentationLabel } from "./presentation.js";
 import { escapeHtml as esc } from "./review.js";
@@ -92,7 +97,7 @@ function card(entry: LibraryEntry) {
   ]
     .join(" ")
     .toLowerCase();
-  return `<article class="episode-card" data-kind="${kind}" data-search="${esc(search)}"><div class="episode-art ${kind}"><div class="art-label">${news ? esc(episode.news.event) : "BUILD · RUN · VERIFY"}<span>${news ? "NEWS BRIEF" : "DEVELOPER TUTORIAL"}</span></div>${visual}</div><div class="episode-body"><div class="card-topline"><span class="kind-label">${news ? "SAP news" : "Tutorial"}</span><span class="state ${status.attention ? "attention" : ""}">${esc(status.label)}</span></div><h3>${esc(episode.title)}</h3><p class="delivery-label">${esc(presentationLabel(episode))}</p><p class="recorded-voice">${esc(recordedNarrator(entry))}</p><p class="episode-description">${esc(description)}</p><div class="episode-facts"><span>${preview ? `${preview.durationSeconds.toFixed(1)}s ${preview.kind === "narrated" ? "measured" : "planned"}` : `${episode.targetDurationSeconds}s planned`}</span><span>${episode.sources.length} sources</span><span>${news ? `Checked ${dateLabel(episode.news.asOf)}` : preview ? `${episode.demo.expectedChecks.length} live demo checks` : "Demo check pending"}</span></div>${entry.sourceReviewExpired ? '<p class="recheck-note">Saved media only. Re-read the sources before producing this news short.</p>' : ""}<div class="card-actions">${entry.video ? `<a class="review-link primary" href="${videoLinkFor(entry)}">Watch MP4 <span aria-hidden="true">↗</span></a>` : ""}${preview ? `<a class="review-link" href="${linkFor(entry)}">Review preview <span aria-hidden="true">↗</span></a>` : '<span class="preview-pending">No matching preview yet</span>'}${entry.download ? `<a class="review-link" href="episodes/${encodeURIComponent(episodeSelector(episode))}/episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}<a class="review-link" href="episodes/${encodeURIComponent(episodeSelector(episode))}/edit.html">Revise script</a><span class="avatar-note">Avatar pending</span></div><details class="source-details"><summary>Official sources <span>${episode.sources.length}</span></summary><ul>${episode.sources.map((source) => `<li><a href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.title)} ↗</a><small>Read ${dateLabel(source.retrievedOn)}</small></li>`).join("")}</ul></details></div></article>`;
+  return `<article class="episode-card" data-kind="${kind}" data-search="${esc(search)}"><div class="episode-art ${kind}"><div class="art-label">${news ? esc(episode.news.event) : "BUILD · RUN · VERIFY"}<span>${news ? "NEWS BRIEF" : "DEVELOPER TUTORIAL"}</span></div>${visual}</div><div class="episode-body"><div class="card-topline"><span class="kind-label">${news ? "SAP news" : "Tutorial"}</span><span class="state ${status.attention ? "attention" : ""}">${esc(status.label)}</span></div><h3>${esc(episode.title)}</h3><p class="delivery-label">${esc(presentationLabel(episode))}</p><p class="recorded-voice">${esc(recordedNarrator(entry))}</p><p class="episode-description">${esc(description)}</p><div class="episode-facts"><span>${preview ? `${preview.durationSeconds.toFixed(1)}s ${preview.kind === "narrated" ? "measured" : "planned"}` : `${episode.targetDurationSeconds}s planned`}</span><span>${episode.sources.length} sources</span><span>${news ? `Checked ${dateLabel(episode.news.asOf)}` : preview ? `${episode.demo.expectedChecks.length} live demo checks` : "Demo check pending"}</span></div>${news ? newsReviewNotice(episode.news, entry.sourceReviewExpired) : ""}<div class="card-actions">${entry.video ? `<a class="review-link primary" href="${videoLinkFor(entry)}">Watch MP4 <span aria-hidden="true">↗</span></a>` : ""}${preview ? `<a class="review-link" href="${linkFor(entry)}">Review preview <span aria-hidden="true">↗</span></a>` : '<span class="preview-pending">No matching preview yet</span>'}${entry.download ? `<a class="review-link" href="episodes/${encodeURIComponent(episodeSelector(episode))}/episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}<a class="review-link" href="episodes/${encodeURIComponent(episodeSelector(episode))}/edit.html">Revise script</a><span class="avatar-note">Avatar pending</span></div><details class="source-details"><summary>Official sources <span>${episode.sources.length}</span></summary><ul>${episode.sources.map((source) => `<li><a href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.title)} ↗</a><small>Read ${dateLabel(source.retrievedOn)}</small></li>`).join("")}</ul></details></div></article>`;
 }
 
 function comparisonSection(entries: LibraryEntry[]) {
@@ -153,7 +158,7 @@ export async function createLibraryPages(
 ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}\n<section id="episodes" class="episodes-section"><div class="section-heading"><div><p class="eyebrow">YOUR EPISODES</p><h2>Ready for a closer look</h2></div><span class="section-note">${entries.length} editorial drafts</span></div><div class="library-tools" data-enhancement-only hidden><div class="format-filters" role="group" aria-label="Episode format"><button type="button" data-format="all" aria-pressed="true">All <span>${entries.length}</span></button><button type="button" data-format="tutorial" aria-pressed="false">Tutorials <span>${entries.length - newsCount}</span></button><button type="button" data-format="news" aria-pressed="false">News <span>${newsCount}</span></button></div><div class="episode-search"><label for="episode-search"><span aria-hidden="true">⌕</span><span class="sr-only">Search episodes</span></label><input id="episode-search" type="search" placeholder="Search episodes…" autocomplete="off"><button type="button" id="clear-search" aria-label="Clear search" hidden>×</button></div></div><p class="sr-only" id="filter-status" role="status">${entries.length} episodes</p><div class="episode-grid">${entries.map(card).join("")}</div><div id="no-episodes" class="empty-library" ${entries.length ? "hidden" : ""}><h3>No matching episodes</h3><p>Try another search or choose All.</p><button type="button" id="reset-filters">Reset filters</button></div></section>
 <section id="formats" class="formats-section"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Storytelling formats</h2></div></div><p class="styles-intro">Set the tone to professional, casual, or comic. Explore prepared examples below; new deliveries start with a reviewed script.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section"><div class="section-heading"><div><p class="eyebrow">THE NEXT CONVERSATION</p><h2>Ideas to explore next</h2></div><span class="section-note">Editorial selection · research pending</span></div><div class="ideas-list">${newsIdeas.map((topic, index) => `<details class="idea"><summary><span class="idea-number">${String(index + 1).padStart(2, "0")}</span><span><strong>${esc(topic.title)}</strong><small>${esc(topic.event)}</small></span><span class="research-tag">Research needed</span><span aria-hidden="true">+</span></summary><div class="idea-body"><p>${esc(topic.angle)}</p><p class="idea-sources">Start with ${topic.sourceUrls.map((url, i) => `<a href="${esc(url)}" target="_blank" rel="noreferrer">SAP source ${i + 1} ↗</a>`).join(" · ")}</p></div></details>`).join("")}</div><details class="tutorial-backlog"><summary>Explore ${tutorialIdeas.length} more tutorial ideas <span aria-hidden="true">+</span></summary><div>${tutorialIdeas.map((topic) => `<article><span>${esc(topic.pillar)}</span><h3>${esc(topic.title)}</h3><p>Research and environment verification needed.</p></article>`).join("")}</div></details></section>
 <section id="production" class="production-section"><div><p class="eyebrow">YOUR NEXT SHORT</p><h2>Create, watch, refine.</h2><p>Local narration, captions, and MP4 export are available. Review the saved video and companion draft before sharing.</p></div><div class="production-facts"><div><span>Presenter</span><strong>Stock AI presenter</strong></div><div><span>First-video limit</span><strong>$${(content.budgetCents / 100).toFixed(2)}</strong></div><div><span>Current output</span><strong>${videos ? "Local voice + MP4 exports" : "Local voice previews"}</strong></div><p>${videos ? "Stock avatar animation and publication are pending." : "Final avatar, MP4, and publication are pending."}</p></div></section><footer class="studio-footer"><span>SAP Shorts / Your review workspace</span><span>Saved library · rebuild to include new episodes</span></footer></main></div><script>${script}</script></body></html>`;
-  const files: Record<string, string | Buffer> = { "review.html": html };
+  const files: Record<string, string | Buffer> = { "review.html": enhanceNewsReviewHtml(html) };
   for (const sample of content.voiceCatalog?.samples ?? [])
     files[`voices/${sample.key}/sample.wav`] = sample.audio;
   for (const entry of entries) {
@@ -171,10 +176,17 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}\n<section id=
     if (!entry.preview) continue;
     if (entry.download) files[`${prefix}/episode-package.zip`] = entry.download.bytes;
     for (const [name, bytes] of Object.entries(entry.preview.files))
-      files[`${prefix}/${name}`] = bytes;
+      files[`${prefix}/${name}`] =
+        name === "review.html" && isNewsEpisode(entry.episode)
+          ? decorateNewsReviewHtml(
+              bytes.toString("utf8"),
+              entry.episode.news,
+              entry.sourceReviewExpired,
+            )
+          : bytes;
     if (entry.video) {
       for (const [name, bytes] of Object.entries(entry.video.files)) {
-        files[`${prefix}/video/${name}`] =
+        const copied =
           name === "review.html"
             ? bytes
                 .toString("utf8")
@@ -187,10 +199,20 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}\n<section id=
                   `<div class="links">${entry.download ? `<a href="../episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}`,
                 )
             : bytes;
+        files[`${prefix}/video/${name}`] =
+          name === "review.html" && isNewsEpisode(entry.episode)
+            ? decorateNewsReviewHtml(String(copied), entry.episode.news, entry.sourceReviewExpired)
+            : copied;
       }
     }
     files[`${prefix}/watch.html`] =
       `<!doctype html><html lang="en"><head>${head}<title>${esc(entry.episode.title)} · SAP Shorts</title><style>${css}</style></head><body class="watch-page"><header class="watch-header"><a href="../../review.html${studioReturnFragment(entry)}" class="back-link">← All episodes</a><div><strong>${esc(entry.episode.title)}</strong><span>${esc(presentationLabel(entry.episode))} · ${isNewsEpisode(entry.episode) ? `News · sources checked ${dateLabel(entry.episode.news.asOf)}` : "Tutorial · local demo evidence"}${entry.sourceReviewExpired ? " · source recheck needed" : ""}</span><span class="watch-narrator">${esc(recordedNarrator(entry))}${entry.preview.kind === "narrated" ? ` · ${entry.preview.durationSeconds.toFixed(1)}s` : ""}</span></div>${entry.video ? '<a class="watch-video-link" href="video/review.html">Watch MP4</a>' : ""}<a class="full-preview" href="review.html" target="_blank" rel="noreferrer">Open full preview ↗</a></header><iframe class="episode-frame" src="review.html" title="${esc(entry.episode.title)} episode review"></iframe></body></html>`;
+    if (isNewsEpisode(entry.episode))
+      files[`${prefix}/watch.html`] = decorateNewsReviewHtml(
+        String(files[`${prefix}/watch.html`]),
+        entry.episode.news,
+        entry.sourceReviewExpired,
+      );
   }
   return files;
 }

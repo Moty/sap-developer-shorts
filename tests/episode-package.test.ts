@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { unzipSync } from "fflate";
 import { readContentEpisode } from "../src/contracts.js";
@@ -42,7 +43,7 @@ async function entry(selector = "CAP-02", voice = "af_heart"): Promise<LibraryEn
     "short.mp4": Buffer.from("0000ftyp-test-fixture"),
     "poster.png": Buffer.from("89504e470d0a1a0a", "hex"),
     "review.html": Buffer.from(
-      '<main><!--LIBRARY_BACK--><video controls poster="poster.png"><source src="short.mp4"></video><div class="links"><a href="captions.vtt">Captions</a></div></main>',
+      '<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; media-src \'self\'; img-src \'self\'; style-src \'unsafe-inline\'; base-uri \'none\'"></head><body><main><!--LIBRARY_BACK--><video controls poster="poster.png"><source src="short.mp4"></video><div class="links"><a href="captions.vtt">Captions</a></div></main></body></html>',
     ),
     "captions.vtt": Buffer.from("WEBVTT\n\nTest captions\n"),
     "timing.json": Buffer.from(JSON.stringify(timing)),
@@ -166,13 +167,95 @@ test("news downloads keep fixed source dates, expiry warnings and availability a
   assert.ok(download?.savedNews);
   const expired = extract(download);
   assert.match(String(expired["README.txt"]), /SOURCE RECHECK REQUIRED/);
-  assert.match(String(expired["review.html"]), /source recheck required/);
+  assert.match(String(expired["review.html"]), /Source recheck required/);
   assert.match(String(expired["sources.txt"]), /Availability: planned/);
   assert.equal(
     hash(JSON.stringify(input.episode)),
     originalHash,
     "packaging must not refresh a review date",
   );
+});
+
+test("downloaded news players retain exact media and dates while permitting only the shared date-check script", async () => {
+  const input = await entry("NEWS-02@duo");
+  assert.ok(input.video);
+  const originals = Object.fromEntries(
+    Object.entries(input.video.files).map(([name, bytes]) => [name, Buffer.from(bytes)]),
+  );
+  const members = extract(buildEpisodePackage(input, now));
+  const html = String(members["review.html"]);
+  assert.match(html, /data-news-as-of="2026-10-15"/u);
+  assert.match(html, /data-news-valid-through="2026-10-22"/u);
+  assert.match(html, /Automatic date checks require JavaScript/u);
+  assert.match(html, /AI-generated|Saved media/u);
+  const script = html.match(/<script id="news-review-freshness-script">([\s\S]*?)<\/script>/u)?.[1];
+  assert.ok(script);
+  const digest = createHash("sha256").update(script).digest("base64");
+  const policy = html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/u)?.[1];
+  assert.ok(policy);
+  const source = policy.split(";").find((directive) => directive.trim().startsWith("script-src "));
+  assert.equal(source?.trim(), `script-src 'sha256-${digest}'`);
+  assert.match(policy, /media-src 'self'/u);
+  assert.match(policy, /default-src 'none'/u);
+  for (const name of [
+    "short.mp4",
+    "poster.png",
+    "captions.vtt",
+    "timing.json",
+    "publication-draft.txt",
+  ]) {
+    assert.equal(
+      hash(Buffer.from(members[name] as Uint8Array)),
+      hash(input.video.files[name] as Buffer),
+    );
+    assert.deepEqual(input.video.files[name], originals[name]);
+  }
+  const receipt = JSON.parse(String(members["package-manifest.json"]));
+  assert.equal(
+    receipt.artifactHashes["review.html"],
+    hash(Buffer.from(members["review.html"] as Uint8Array)),
+  );
+  assert.deepEqual(receipt.sourceReview, {
+    asOf: "2026-10-15",
+    validThrough: "2026-10-22",
+    expiredAtPackageBuild: false,
+  });
+  assert.deepEqual(
+    input.video.files,
+    originals,
+    "assembling the package must not alter the original exported files",
+  );
+  const tutorial = await entry("CAP-02");
+  assert.ok(tutorial.video);
+  const tutorialHtml = String(extract(buildEpisodePackage(tutorial, now))["review.html"]);
+  assert.equal(
+    tutorialHtml,
+    (tutorial.video.files["review.html"] as Buffer).toString().replace("<!--LIBRARY_BACK-->", ""),
+  );
+  assert.doesNotMatch(tutorialHtml, /data-news-review-notice|news-review-freshness/u);
+});
+
+test("marker-free saved news players gain the expiry notice and known expired states survive packaging clock rollback", async () => {
+  const input = await entry("NEWS-02");
+  assert.ok(input.video?.receipt);
+  input.video.files["review.html"] = Buffer.from(
+    (input.video.files["review.html"] as Buffer).toString().replace("<!--LIBRARY_BACK-->", ""),
+  );
+  input.video.receipt.artifactHashes["review.html"] = hash(input.video.files["review.html"]);
+  const expired = buildEpisodePackage(input, new Date("2026-10-23T00:00:00Z"));
+  assert.equal(expired?.savedNews, true);
+  const html = String(extract(expired)["review.html"]);
+  assert.match(html, /data-news-expired="true"/u);
+  assert.match(html, /<h2 data-news-review-heading>Source recheck required/u);
+  assert.match(html, /id="news-review-freshness-script"/u);
+  assert.equal((html.match(/data-news-review-notice data-news-as-of=/gu) ?? []).length, 1);
+  input.sourceReviewExpired = true;
+  const rollback = buildEpisodePackage(input, now);
+  assert.equal(rollback?.savedNews, true);
+  assert.match(String(extract(rollback)["review.html"]), /data-news-expired="true"/u);
+  const receipt = JSON.parse(String(extract(rollback)["package-manifest.json"]));
+  assert.equal(receipt.sourceReview.expiredAtPackageBuild, true);
+  assert.equal(receipt.sourceReview.asOf, "2026-10-15");
 });
 
 test("static review links package downloads only when a matching export package exists", async () => {

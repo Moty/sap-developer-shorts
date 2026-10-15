@@ -687,3 +687,81 @@ mainmerge,adminproviderbypass,orunrelatedchanges.
 updated. Astra is now planning ONE next highest-value bounded improvement
 read-only; no source edits active. Inspect its latest response next. Leave
 awakePID76680 and hard06:45audit/07stop+pause deadline unchanged.
+
+04:20 PT continuation: Completion-log a48289d pushed, Node22/24 CI passed
+38726471454. Whole-studio package and134+5checks remain complete.
+
+04:31 PT IN PROGRESS: Astra recommends date-aware source-review notices for
+saved news now that portable studios may be opened after expiry. Shared static
+dates/inclusiveUTCvalid-through/noJSfallback plus local-clock enhancement that
+shows Source recheck required afterexpiry; no claimsofrenewedfactualreview.
+MP4s/playback/download/editing remainavailable, stickyexpiredstate survivesclock
+rollbackwithinpageinstance; invaliddates/clockbeforeasof conservativeuncertain.
+Newstudio/episodeZIP HTMLonly; oldarchivesexactandunchanged; nospeech/rendering.
+
+Astra owns ONLY new src/news/freshness.ts +tests/news-freshness.test.ts, helper
+alreadyondisk/testsworkingnotfrozenyet. APInewsReviewNotice(news,expiredFlag),
+enhanceNewsReviewHtml(html) (no-opwithoutnotice), decorateNewsReviewHtml(html,news,
+expiredFlag) insertsinsidefirstmain/bodyorprependfragmentthenenhances. Marker
+data-news-review-state dated/expired/uncertain; data-news-as-of/valid-through and
+data-news-expired. Uses pageshow/visible/minutetimer fordatechecks, nofetch/store.
+CopiedvideoCSPaddsONLYexactscriptSHA256, preservingotherdirectives/existinginline
+scripts. Parentreviewedfirstcode; askedcallbackreplacertoavoid$replacementtokens.
+
+Parent changes wired src/library-review.ts (news4cards/rootenhance/copiednarration
+andvideo/watchdecorate), src/script-editor.ts (sharedaside/revisiondatesguidance),
+src/episode-package.ts (sharedplayernotice+enhancebeforememberhash), provenance
+registration. Tests/episode-package.test.ts fullHTMLrestrictiveCSPfixture/newexact
+media/hash+CSPcase; tests/studio.test.ts all5newsentrypoints+unchangedtutorial/media
+case; existing script-editor datedtestupdatedtovisibledates. Parent focused
+integrationtests20pass in test-news-freshness-integration.log; initial failures
+were QA Buffer-vs-clonedUint8Array snapshots andobsolete Checkedlabel, corrected.
+No remainingknownfailure; fullchecksNOTYETRUN. WaitforAstrafreeze+testresult,
+inspectdiff, requestindependentintegrationreview. Buildcontrolledlibraryusing
+oldabbe864emanifestbuiltAt toprove7tutorialHTML/all11WAV/MP4bytesidentical, and
+realnowstudioall146hash/11ZIPs; packageandextract/browserchecknewdatednewsplayer
+CSPscriptstate/current+expiredfixture/nativeseek/phone/editorroundtrip. WholeZIP
+muststillcopyexactnewstudio. Then fullminimumcheck/build/commit/push/CI/log.
+Clock04:31PT,06:45finalaudit/07stop+pause remain; boundedawake76680notextended.
+
+04:44 PT: Date-aware news milestone complete locally. Astra's independent
+integration review found marker-free accepted players could miss the ZIPnotice;
+fixedbyremove-marker+decorateHTML andregression. Knownexpiredentryflags nowremain
+expired duringpackagingclockrollback. Astra alsofixedmatchingexistingnotice
+promotionwithoutdatechanges/downgrading/unrelatednoticechanges. Final fullminimum
+Node22.13check/build147workflow+5liveCAP pass in check-news-freshness.log.
+Helper10+package6focusedtests/type/lint pass; parentreviewedall finalchanges.
+
+Controlledbuildsameabbe864ebuiltAt:91tutorialfilesbyte-identical,24MP4/WAV/samples
+byte-identical,125of146totalstudioartifacts unchanged. Originalall146hashesintact,
+Kokorogeneratorcea8b62a...unchanged. Evidence news-freshness-library-evidence.json
+andbuild-news-freshness-evidence.mjs. Final studio library-90ad9967-7551-47c9-b14d-
+8820abdcd414, all146hashes/11ZIPCRC+memberhash checks,11editors/2samples. Port4173
+ownedserver23902; old91300/33652stopped. No synthesis/transcoding/newmediajobs.
+
+Final wholepackage library-package-f4cad4d0-2d22-4b32-bf6a-fd088ddbeb25,
+88135351bytes, SHA126f75fb365e0b18c2fa15351c38f20e6a952551243b9b0324bda61cea275f74.
+Originalmanifest9a80b6ff2761c802350c700806392bdd5c68516f0aef9639e6eb00cfb5fae63e.
+148members/146studiohashes verified, extracted .state/overnight/studio-package-
+102ebz9y/studio,45HTML/231confinedlinks/11nestedZIPs allpass. Native finalZIP
+/Users/I851396/Downloads/sap-shorts-studio (2).zip exactSHA. Port60141server38798;
+old49463stopped. Priorarchives remainvalidunchanged.
+
+Browser: currentnewsduovideo pausedat24.512403s,ready4,noerror; datecheckscript
+ran underexacthashCSP (updatedmessage), nodevice/networksourcechanges. Desktop
+1280/phone390 nooverflow, screenshotsnews-freshness-player-desktop/phone.png.
+Extractedwholeplayer pausednative0.570051sof57.005167ready4, comparisonreturn
+keepsduo. ExtractedindividualNEWSduoZIP playerready4/paused/date-scriptworks,
+noCSPconsoleerrors. Native NEWS-02--duo-v1-883675ce.zip SHA4be1218f... andall9member
+hashes pass. Native newsworkshopdated-news-check importedonlyignored QAfolder:
+baseInputHashec02b315..., exactscenes/claims/sources/asOfOct15 preserved, Heart
+defaultunchanged. KnownexpiredQAfixture promotedexistingnotice retainedexpiry
+withcurrentearlierclock andplayedmediaready4/paused; clearlytestonly, nopublishing.
+Testtabs9/10closed; tempservers20125/41870/1532stopped; viewportreset/main1marked.
+Evidence news-freshness-{browser,import,episode,studio-package}-evidence.json,
+news-freshness-library-hashes.json, news-freshness-extracted-hashes.json.
+
+Nextcommit/push/CI/updateignoredlast-result, thenaskAstrafor nextboundedreview/
+improvement read-onlyplanfirst. About2hoursbefore06:45finalaudit; keep7AMstop+
+pauseautomation andboundedawake76680expiryunchanged. Noaudiblelisten,paidcost,
+providerbypass,sourcefactualrenewal,publishing,mainmerge,orunrelatedchanges.

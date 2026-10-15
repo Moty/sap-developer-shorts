@@ -3,6 +3,7 @@ import { hash } from "./digest.js";
 import { isNewsEpisode } from "./domain.js";
 import type { LibraryEntry } from "./library.js";
 import type { NarrationTiming } from "./media/model.js";
+import { decorateNewsReviewHtml } from "./news/freshness.js";
 import { episodeSelector } from "./presentation.js";
 import { recordedNarrator } from "./studio.js";
 import { assertVideoQuality } from "./video/receipt.js";
@@ -94,7 +95,9 @@ export function buildEpisodePackage(entry: LibraryEntry, now = new Date()): Epis
         .toISOString()
         .slice(0, 10)
     : null;
-  const expired = news ? now.toISOString().slice(0, 10) > (validThrough as string) : false;
+  const expired = news
+    ? entry.sourceReviewExpired || now.toISOString().slice(0, 10) > (validThrough as string)
+    : false;
   const freshness = news
     ? `SOURCE REVIEW: ${news.news.asOf} (UTC date). Valid through ${validThrough} (UTC date).\n${expired ? "SOURCE RECHECK REQUIRED. Saved media only; re-read official sources before presenting this as current news." : "Re-read the official sources before sharing current news, especially after the review expires."}`
     : "Tutorial results refer to the frozen local demo verification used for this export.";
@@ -121,11 +124,11 @@ export function buildEpisodePackage(entry: LibraryEntry, now = new Date()): Epis
   files["README.txt"] = Buffer.from(
     `${entry.episode.title}\n${selector} · revision ${entry.episode.version}\n\nOpen short.mp4 in a media player. The review.html page provides a browser preview, transcript, and source links; serve it locally if your browser restricts local media files.\nNarrator: ${recordedNarrator(entry)}\nMeasured narration: ${timing.durationSeconds.toFixed(3)} seconds\nMP4 duration: ${receipt.quality.durationSeconds.toFixed(3)} seconds\nNarration engine: ${timing.engine ?? "system"}\nCaption alignment: ${timing.alignment ?? "measured system phrase boundaries"}\nAI-generated narration. ${entry.episode.presentation?.format === "dialogue" ? "Fictional AI hosts. " : ""}Stock avatar animation is pending.\nUNPUBLISHED. The companion text is a draft.\n\n${freshness}\n\nExport verified: ${receipt.updatedAt}\nPackage built: ${now.toISOString()}\nSee sources.txt, transcript.txt, timing.json and package-manifest.json for the saved details.\n`,
   );
-  const notice = news
-    ? `<p class="note"><strong>${expired ? "Saved export · source recheck required." : "Dated SAP news export."}</strong> Sources reviewed ${news.news.asOf}; valid through ${validThrough} (UTC dates). Re-read official sources before sharing current news.</p>`
-    : "";
+  const portableReview = (files["review.html"] as Buffer)
+    .toString("utf8")
+    .replace("<!--LIBRARY_BACK-->", "");
   files["review.html"] = Buffer.from(
-    (files["review.html"] as Buffer).toString("utf8").replace("<!--LIBRARY_BACK-->", notice),
+    news ? decorateNewsReviewHtml(portableReview, news.news, expired) : portableReview,
   );
   const artifactHashes = Object.fromEntries(
     Object.entries(files).map(([name, bytes]) => [name, hash(bytes)]),

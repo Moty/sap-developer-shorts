@@ -31,7 +31,24 @@ npm run shorts -- serve ARTIFACT_DIRECTORY
 
 The episode carries a visible `news.asOf` date and a review window of at most seven days. Every source read date and every claim check date must match that as-of date. `preview`, `verify`, media planning, and unfinished media jobs reject expired reviews. General content validation still accepts an old draft so unrelated tutorial work can continue. To renew a review, re-read the sources, revise changed facts and dates, increase the revision, and create a fresh run. Changing a date alone does not constitute research.
 
-A published roadmap date remains planned until a fresh official source confirms release. A source's publication date may be `null` when the page does not supply it; do not infer a date from the URL or retrieval date. “Available now” always refers to the dated source review and its stated scope. The stored HTML shows that date even if viewed later; static previews do not refresh themselves.
+A published roadmap date remains planned until a fresh official source confirms release. A source's publication date may be `null` when the page does not supply it; do not infer a date from the URL or retrieval date. “Available now” always refers to the dated source review and its stated scope. The stored facts and source dates remain a snapshot even if viewed later.
+
+Newly assembled studios and episode ZIP players add a separate source-review
+notice. Cards, narration/watch pages, MP4 players, and script workshops always
+show the as-of and inclusive valid-through UTC dates, including without
+JavaScript. A seven-day review dated October 15 includes all of October 22 UTC;
+October 23 requires rechecking. A small local date check updates the notice on
+load, page return, and at most once per visible minute. It makes no source
+request and does not declare the facts current.
+
+An expired notice says **Source recheck required** while preserving media,
+downloads, and editing. Invalid dates or a device clock before the review date
+show **Check source-review dates**. A known expired build remains expired, and
+expiry observed during the page session survives clock rollback in that session.
+The device clock can still be wrong; the saved dates and manual review guidance
+remain visible. Rebuild an older studio to add this behavior. Whole-studio ZIP
+packaging preserves the chosen snapshot's exact bytes and does not retrofit
+earlier archives or renew the review window.
 
 News stages are `VALIDATED → VERIFYING → SOURCES_CHECKED → PREVIEW_READY`, with failures saved as `FAILED`. Runs save the exact episode, `news-evidence.json`, narration draft, post draft, HTML, layout, source/runtime hashes, and artifact hashes. The news evidence freezes the supplied editorial review; it is not independent proof that the claims are true. An editor must compare the narration and availability wording with the linked sections. There is no automated browser snapshot or article ingestion yet.
 

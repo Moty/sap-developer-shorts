@@ -59,7 +59,15 @@ The collector reads completed preview runs inside the configured artifact root. 
 
 A matching narrated preview is preferred over a newer silent storyboard. Within the same preview kind, the most recent source run is selected. The selection does not compare historical runtime hashes with today's application code: those hashes identify the implementation that created the original output. Modified, incomplete, or mismatched runs are excluded. A damaged media package may fall back to its intact silent storyboard. The library makes no claim to verify arbitrary code changes against an old tutorial run; its technical labels refer to the frozen evidence in that run.
 
-Source review dates remain visible on news cards. A saved news preview can be inspected after its review expires, with a recheck label in the library and player header. This read-only exception does not apply to new media jobs, resumed unfinished jobs, or new news preview preparation. A static saved library retains its build-time freshness assessment; rebuild it before production to refresh the assessment. Re-reading and updating the editorial sources is still a manual task.
+Source review dates remain visible on news cards. A saved news preview can be inspected after its review expires. Newly assembled cards, players, and workshops show a separate source-review notice with fixed as-of and inclusive valid-through UTC dates. A local date check changes the notice to **Source recheck required** after expiry; playback, downloads, and editing stay available. Without JavaScript, the dates and manual recheck guidance remain readable. Invalid dates or a clock before the review date receive a conservative warning. An observed expired state stays expired within that page session, and an expired build remains expired after clock rollback.
+
+The date check runs on load, page return, and once per visible minute. It uses
+the device clock and does not fetch sources, verify current facts, or renew the
+review. Media readiness still describes the saved media, and production still
+checks source age independently. This read-only exception does not apply to new
+media jobs, resumed unfinished jobs, or new news preview preparation. Re-reading
+and updating editorial sources remains manual. Rebuild an older library to add
+the notices; existing saved files and archives remain unchanged.
 
 Each build creates `artifacts/library-<UUID>/` with a root `review.html`, nested episode players, and `library-manifest.json`. The manifest records exact input hashes, source-run references, copied artifact hashes, library inputs/runtime hashes, and the count of excluded run/media packages. Only selected playback files are copied; the job database and unrelated workspace files are not included. Output is assembled in a hidden staging directory and renamed after successful construction. A failed build may leave an ignored hidden staging directory for diagnosis, never a completed library.
 

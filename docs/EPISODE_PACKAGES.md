@@ -34,10 +34,18 @@ models, configuration, and absolute workspace paths are excluded.
 ## Dated news and saved recordings
 
 News downloads include the source-review date and its inclusive valid-through
-date. Packaging does not refresh either date. After expiry, the studio action
+date. Packaging does not refresh either date. When assembled after expiry, the studio action
 says **Download saved package · ZIP**, and the extracted README, source notes,
 and review warn that the sources need rechecking before presenting current news.
 A package remains a frozen saved export, including when its dates later expire.
+
+Newly assembled episode players also compare the device's current UTC date with
+the saved review window. After expiry, an independent **Source recheck required**
+notice appears while the media and downloads remain available. The dates and
+manual recheck guidance are visible without JavaScript. Invalid dates or clocks
+receive a conservative warning; no source request or factual review happens.
+The ZIP's saved dates and manifest remain unchanged. Older ZIPs keep their
+original player; rebuild the studio to create downloads with these notices.
 
 ## Validation and portability
 

@@ -63,6 +63,7 @@ export async function runtimeFiles(): Promise<string[]> {
     "video/cache",
     "video/source",
     "news/contracts",
+    "news/freshness",
     "news/pipeline",
     "news/review",
     "media/model",

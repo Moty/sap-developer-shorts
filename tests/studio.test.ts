@@ -236,3 +236,65 @@ test("new CAP deliveries stay in the gallery while the original comparison and r
   );
   assert.match(String(pages["episodes/CAP-01@countdown/watch.html"]), /review.html#episodes/u);
 });
+
+test("all saved news entry points share dated fallback notices while copied tutorial players and media stay exact", async () => {
+  const news = await entry("NEWS-02@duo");
+  const tutorial = await entry("CAP-02");
+  assert.ok(news.preview);
+  news.preview.files["review.html"] = Buffer.from(
+    "<html><head></head><body><main>Saved narration</main></body></html>",
+  );
+  const review = Buffer.from(
+    "<html><head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; media-src 'self'\"></head><body><main><!--LIBRARY_BACK--><video controls></video><div class=\"links\"></div></main></body></html>",
+  );
+  news.video = {
+    renderKey: "fixture",
+    durationSeconds: 55,
+    files: { "review.html": review, "short.mp4": Buffer.from("exact saved movie") },
+  };
+  const originalNewsFiles = Object.fromEntries(
+    Object.entries(news.preview.files).map(([name, bytes]) => [name, Buffer.from(bytes)]),
+  );
+  const originalVideoFiles = Object.fromEntries(
+    Object.entries(news.video.files).map(([name, bytes]) => [name, Buffer.from(bytes)]),
+  );
+  const pages = await createLibraryPages({
+    entries: [news, tutorial],
+    topics: [],
+    newsTopics: [],
+    budgetCents: 500,
+  });
+  for (const path of [
+    "review.html",
+    "episodes/NEWS-02@duo/review.html",
+    "episodes/NEWS-02@duo/watch.html",
+    "episodes/NEWS-02@duo/video/review.html",
+    "episodes/NEWS-02@duo/edit.html",
+  ]) {
+    const html = String(pages[path]);
+    assert.match(html, /data-news-as-of="2026-10-15"/u, path);
+    assert.match(html, /data-news-valid-through="2026-10-22"/u, path);
+    assert.match(html, /Automatic date checks require JavaScript/u, path);
+    assert.equal((html.match(/id="news-review-freshness-script"/gu) ?? []).length, 1, path);
+  }
+  assert.match(String(pages["episodes/NEWS-02@duo/video/review.html"]), /review.html#episodes/u);
+  assert.match(
+    String(pages["episodes/NEWS-02@duo/edit.html"]),
+    /This revision keeps the source-review dates/u,
+  );
+  assert.deepEqual(pages["episodes/NEWS-02@duo/video/short.mp4"], news.video.files["short.mp4"]);
+  assert.deepEqual(news.preview.files, originalNewsFiles);
+  assert.deepEqual(news.video.files, originalVideoFiles);
+  assert.ok(tutorial.preview);
+  assert.deepEqual(pages["episodes/CAP-02/review.html"], tutorial.preview.files["review.html"]);
+  for (const path of [
+    "episodes/CAP-02/review.html",
+    "episodes/CAP-02/watch.html",
+    "episodes/CAP-02/edit.html",
+  ])
+    assert.doesNotMatch(
+      String(pages[path]),
+      /data-news-review-notice|news-review-freshness/u,
+      path,
+    );
+});

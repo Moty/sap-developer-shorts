@@ -38,7 +38,11 @@ receipt separately from the download page if you want to keep it with the ZIP.
 
 Packaging checks file integrity. It does not re-run a tutorial or re-read news
 sources. News cards and episode downloads retain their saved source-review and
-expiry dates, and a static studio retains its build-time freshness labels.
+expiry dates. Newly assembled studios have a separate date-aware source-review
+notice that uses the viewing device's UTC clock; saved media readiness and
+manifest metadata still describe the original build. Older studio snapshots
+retain their original pages. Packaging copies either snapshot exactly and does
+not add the newer notices to an older archive.
 Re-read the official sources before presenting a saved short as current news.
 Companion posts remain unpublished drafts; avatar animation remains pending.
 

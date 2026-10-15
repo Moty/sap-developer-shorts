@@ -93,6 +93,12 @@ The follow-up [NEWS-02](content/episodes/NEWS-02.json) focuses on Joule Work’s
 
 See [the news workflow](docs/NEWS_WORKFLOW.md), [reusable news script template](templates/news_script_template.md), and [news editor prompt](prompts/v1/news-editor.md). Research is currently an editorial step; this does not automatically discover or rank global SAP news, watch pages, or publish posts.
 
+Newly assembled studios and episode downloads show the news review's inclusive
+UTC dates. When opened after expiry, a separate **Source recheck required** notice
+keeps the saved video available while reminding you to revisit the official
+sources. This date check uses the device clock and does not renew factual review.
+Rebuild a saved studio to include the notices; earlier archives stay unchanged.
+
 ## Generate and resume narration
 
 Use **Revise script** on a studio card to adapt an existing delivery. The workshop

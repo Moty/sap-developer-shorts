@@ -56,7 +56,8 @@ test("workshop escapes edited text and has a readable no-JavaScript fallback", a
     sourceReviewExpired: true,
   });
   assert.match(expired, /Source recheck required/u);
-  assert.match(expired, /Checked 2026-10-15/u);
+  assert.match(expired, /Sources reviewed <strong>2026-10-15<\/strong>/u);
+  assert.match(expired, /review valid through <strong>2026-10-22<\/strong>/u);
 });
 
 async function workshop(selector: string, availableVoices = ["af_heart", "am_michael"]) {
