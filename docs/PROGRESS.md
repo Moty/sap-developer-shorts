@@ -644,3 +644,33 @@ as the default. Desktop 1280px and phone 390px fit without overflow. A separate
 known-expired fixture verifies conservative rollback behavior in the real browser.
 Temporary test tabs and servers were closed; viewport overrides were reset.
 No audible listening pass, paid generation, or publication occurred.
+
+## Milestone 3t: review and restore script changes
+
+The script workshop now offers an optional **Review changes** panel before
+download. It compares the same normalized draft that will be saved with its
+starting script, including invalid edits. Changed titles, voices, scenes, and
+companion posts show Original and Revised wording. Each section can be restored
+without losing the version name or other edits. Scene restore includes its
+headline and all narration/dialogue turns; starting voices restore together.
+
+Astra planned the feature, implemented the browser behavior and focused tests,
+and reviewed integration boundaries. Content is rendered as literal text, the
+panel stays open during editing, restored inputs receive focus, and unchanged
+draft reads preserve review controls. Invalid scripts and duplicate dialogue
+voices still block download. Source claims, dates, base identity, and the global
+Heart default remain fixed.
+
+Full minimum Node 22.13.0 checks/build pass: **152 workflow tests** and five live
+CAP assertions. Real-browser checks cover keyboard access, solo and conversation
+restores, invalid edits, duplicate voices, literal markup, a long multiline post,
+and desktop/390px layouts. Three native downloads import into an isolated test
+folder with exact base identities, sources, claims, dates, and expected edits.
+
+A controlled same-time rebuild leaves **135 non-editor artifacts** and all
+**24 saved MP4/WAV/sample files** byte-identical. The current eleven-workshop
+studio passes all 146 hashes and eleven nested ZIP checks. The 84.1 MiB whole
+studio download matches its verified archive; independent extraction verifies
+148 members, 231 confined links across 45 HTML files, and working comparison and
+restore controls. Prior media, studios, and archives remain intact. No speech
+generation, transcoding, paid cost, or publication was needed.

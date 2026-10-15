@@ -772,3 +772,72 @@ media andolderarchives retained. No activecodeedits. Astra planning ONE next
 bounded enhancement read-only, considering workshopchange-review/reset before
 download; inspectits latestresponse nextcontinuation. About2hours tillaudit;
 06:45finalvalidation/07stop+pause andawake76680expiry unchanged.
+
+04:47 PT continuation: Completion-logd41da05 pushed, Node22/24 CI passed
+38729609862. Started Astra's planned optional workshop Review changes/targeted
+restore, contract .state/overnight/workshop-next-plan.json. No newmedia/content.
+Astra owns ONLY templates/script-editor.js +tests/script-editor.test.ts; parent
+owns src/script-editor.ts markup, templates/script-editor.css, docs/fullchecks/
+browser/realpackages. Helpermarkupdetails#review-changes insidehiddenJSdownload
+controls, beforeDownload; summary#review-changes-summary,count#review-changes-count,
+list#review-changes-list. Classeschange-item/change-values/change-value/change-label/
+restore-change. Desktop2columns/phone1column, prewrappedtextContentonly.
+
+04:50 PT IN PROGRESS: JSfirstimplementationondisk; AstraextendingactualDOMmock
+andtests, NOTFROZENyet. Same readDraft normalizedresult drivescomparisonanddownload,
+invalideditsvisiblebutdownloadvalidationretained. Editedsections title/voicesgroup/
+eachscene/post, excludeversionname. Restoretitle/post/sceneheadline+narrationturns/
+startingvoices atomicgroup; preserveotheredits/version/sourcefacts/dates/global
+Heart. Mounted details staysopen, normalrevalidation+focuscorrespondinginputafter
+restore. Parent reviewedfirstJS; askedrawvoiceIDcomparisonrobustness (notlabels).
+Parentmarkup/CSSdoneandformatted; existing[hidden]!importantlintwarningretained.
+
+NextwaitforAstra freeze/tests, inspectdiff/fullminimumcheck/build, independent
+actualbrowser solo/dialogue/newscompare/restore/invalid/keyboard/literaltext/
+longpost/390px/downloadimport. Controlledsame-time rebuildusing90ad9967builtAt
+shouldleaveall135noneditorartifacts and24mediafilesbyte-identical; all11editors
+shouldchange. Realnowstudio146hash/11ZIPs,wholeZIPexact148member/extractlinks.
+No speech/video rendering. Commit/push/CI/logwhencomplete. Currentactive11studio
+90ad9967 at4173server23902 andwholebundlef4cad4d0 at60141server38798; nochangesyet.
+Clock04:50PT,06:45audit/07stop+pause/awake76680expiry unchanged.
+
+05:09 PT: Workshop review/restore milestone complete locally. Astra froze JS and
+13 workshop tests; independent boundary review found no further issue. The
+unchanged normalized-draft signature keeps review controls stable across blur,
+change, and download reads while validation still runs. Real first-click restore
+after typing worked before and after this refinement; no lost-click browser bug
+is claimed. Parent reviewed final JS/markup/CSS. Full minimum Node22.13 check and
+build pass:152 workflow+5liveCAP, check-workshop-review.log.
+
+Controlled build6b9bb0ca at original90ad9967 builtAt preserves135noneditor artifacts
+and24MP4/WAV/sample files exactly; only11editors change. Original146hashes intact,
+Kokoro fingerprintcea8b62a...unchanged. Current studio cdbb6c9b-cc86-4f06-ab00-
+0f5156a48ee9, all146hash/11ZIPCRC+memberSHA verified, served4173 owned94046.
+Whole bundle be09c7a8-5849-49cd-b1ed-241f2abffd71,88206543bytes,
+SHAe33b1563860e08850c3b5287df7d3a220c6ea350f14e9e7600b23c7ac828cea2;
+originalmanifest8748d84e924616742a89271ba7c055a33638f012fa4f297fbab92a13054bbcf7.
+148members/146studioSHA/exactmanifest/sourceunchanged verified. Extracted
+.state/overnight/studio-package-li75rzlg/studio:146hash/11nestedZIP/45HTML/231links
+pass; extracted workshop opens by keyboard, compares/restores title, retains
+version portable-review-check, focuses title, keeps panelopen/downloadvalid.
+
+Browser solo: first-click restore scene after typing works, retains unrelated
+scene/version/title/voice edits; title/post/voices targeted restores work.
+1497-character multiline post renders literal <em> text, no elements. Invalid
+hook blocks download; desktop1280 and phone390 fit, screenshots workshop-review-
+desktop.png/phone.png inspected. Dialogue duplicate voice blocks, restore voices
+and scene restores exact originals, focuses turn-0-0, keeps other scene/version.
+News restore title retains scene edit and datesOct15throughOct22. Native JSONs
+CAP-02--review-solo-check (1),CAP-01--review-duo-check,NEWS-02--review-news-check
+import only .state/overnight/workshop-review-imports with exact basehash/claims/
+sources/dates; globalHeartunchanged. Pre/post-stability soloJSON bytes identical.
+Native /Users/I851396/Downloads/sap-shorts-studio (3).zip exactarchiveSHA.
+
+Port60141 nowservesbe09bundle owned30814; old38798 and temporary25443 stopped.
+One failed server launch used nonexistent dist/cli.js, corrected to existing
+startPreviewServer via tsx; no files or media changed. Evidence workshop-review-
+{library,browser,import,studio-package}-evidence.json,workshop-review-{library,
+extracted}-hashes.json. Next commit/push/CI/updateignoredlast-result, then Astra
+read-only assessment of ONE bounded improvement. About95minutes before06:45
+audit;07stop+pause andawake76680expiry unchanged. Noaudiblelistening/paidcost/
+providerbypass/publishing/mainmerge/unrelatedchanges.

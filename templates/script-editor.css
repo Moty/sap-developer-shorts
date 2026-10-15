@@ -208,6 +208,66 @@ pre {
   background: #fff;
   font: inherit;
 }
+.change-review {
+  border-top: 1px solid #dfe4db;
+  border-bottom: 1px solid #dfe4db;
+  padding: 16px 0;
+  margin: 20px 0;
+}
+.change-review summary {
+  color: #315548;
+  padding: 4px 0;
+}
+.change-review-help,
+#review-changes-count {
+  color: #60746b;
+  font-size: 13px;
+}
+.change-item {
+  border: 1px solid #dfe4db;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 16px 0;
+  min-width: 0;
+}
+.change-item h3 {
+  margin: 0 0 12px;
+}
+.change-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.change-value {
+  min-width: 0;
+}
+.change-label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #60746b;
+}
+.change-value pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f1f5ed;
+  font:
+    13px / 1.55 ui-sans-serif,
+    system-ui,
+    sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.restore-change {
+  background: #fff;
+  color: #315548;
+  border: 1px solid #93a79a;
+  padding: 10px 14px;
+  font-size: 14px;
+}
 footer {
   font-size: 13px;
   color: #60746b;
@@ -248,5 +308,11 @@ footer {
   }
   h1 {
     letter-spacing: -0.6px;
+  }
+  .change-values {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .change-item {
+    padding: 14px;
   }
 }

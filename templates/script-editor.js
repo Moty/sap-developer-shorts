@@ -6,6 +6,137 @@
   const words = (text) => text.trim().split(/\s+/u).filter(Boolean).length;
   const download = byId("download-script");
   const status = byId("download-status");
+  let reviewedDraft = "";
+  const element = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  function reviewChanges(draft) {
+    const signature = JSON.stringify(draft);
+    if (signature === reviewedDraft) return;
+    const items = [];
+    const section = (title, fields, restoreLabel, restore, focusId) => {
+      const changed = fields.filter((field) => field.changed ?? field.before !== field.after);
+      if (!changed.length) return;
+      const item = element("section", "change-item");
+      item.append(element("h3", "", title));
+      for (const field of changed) {
+        item.append(element("p", "change-label", field.label));
+        const values = element("div", "change-values");
+        for (const [label, text] of [
+          ["Original", field.before],
+          ["Revised", field.after],
+        ]) {
+          const value = element("div", "change-value");
+          value.append(
+            element("span", "change-label", text ? label : `${label} (empty)`),
+            element("pre", "", text),
+          );
+          values.append(value);
+        }
+        item.append(values);
+      }
+      const button = element("button", "restore-change", restoreLabel);
+      button.type = "button";
+      button.addEventListener("click", () => {
+        restore();
+        update();
+        byId(focusId).focus();
+      });
+      item.append(button);
+      items.push(item);
+    };
+    section(
+      "Title",
+      [{ label: "Short title", before: seed.title.trim(), after: draft.title }],
+      "Restore title",
+      () => {
+        byId("draft-title").value = seed.title;
+      },
+      "draft-title",
+    );
+    const voiceLabel = (index, voice) =>
+      Array.from(byId(`speaker-voice-${index}`).options).find((option) => option.value === voice)
+        ?.textContent ?? voice;
+    section(
+      "Voices",
+      draft.presentation.speakers.map((speaker, index) => ({
+        label: `${speaker.name} voice`,
+        before: voiceLabel(index, seed.presentation.speakers[index].voice),
+        after: voiceLabel(index, speaker.voice),
+        changed: seed.presentation.speakers[index].voice !== speaker.voice,
+      })),
+      "Restore starting voices",
+      () => {
+        for (const [index, speaker] of seed.presentation.speakers.entries())
+          byId(`speaker-voice-${index}`).value = speaker.voice;
+      },
+      "speaker-voice-0",
+    );
+    for (const [index, scene] of draft.scenes.entries()) {
+      const original = seed.scenes[index];
+      const fields = [
+        { label: "On-screen headline", before: original.overlay.trim(), after: scene.overlay },
+      ];
+      if (scene.dialogue) {
+        for (const [position, turn] of scene.dialogue.entries()) {
+          const name =
+            seed.presentation.speakers.find((speaker) => speaker.id === turn.speakerId)?.name ??
+            turn.speakerId;
+          fields.push({
+            label: `${name} · turn ${position + 1}`,
+            before: original.dialogue[position].text.trim(),
+            after: turn.text,
+          });
+        }
+      } else
+        fields.push({
+          label: "Narration",
+          before: original.narration.trim(),
+          after: scene.narration,
+        });
+      section(
+        `Scene ${index + 1} · ${scene.id}`,
+        fields,
+        `Restore scene ${index + 1}`,
+        () => {
+          byId(`overlay-${index}`).value = original.overlay;
+          if (original.dialogue) {
+            for (const [position, turn] of original.dialogue.entries())
+              byId(`turn-${index}-${position}`).value = turn.text;
+          } else byId(`narration-${index}`).value = original.narration;
+        },
+        original.dialogue ? `turn-${index}-0` : `narration-${index}`,
+      );
+    }
+    section(
+      "Companion post",
+      [
+        {
+          label: "Companion post draft",
+          before: (seed.publicationText ?? "").trim(),
+          after: draft.publicationText,
+        },
+      ],
+      "Restore post",
+      () => {
+        byId("publication-text").value = seed.publicationText ?? "";
+      },
+      "publication-text",
+    );
+    byId("review-changes-list").replaceChildren(...items);
+    const summary = items.length ? `Review changes (${items.length})` : "Review changes";
+    const count = items.length
+      ? `${items.length} edited ${items.length === 1 ? "section" : "sections"}. Compare the wording and voices before downloading.`
+      : "No wording or voice changes from the starting script. Your new version name is kept separately.";
+    if (byId("review-changes-summary").textContent !== summary)
+      byId("review-changes-summary").textContent = summary;
+    if (byId("review-changes-count").textContent !== count)
+      byId("review-changes-count").textContent = count;
+    reviewedDraft = signature;
+  }
   function readDraft() {
     const draft = structuredClone(seed);
     draft.presentation.variant = byId("variant-name").value.trim();
@@ -72,6 +203,7 @@
     byId("produce-command").textContent =
       `npm run shorts -- produce ${draft.baseEpisodeId}@${draft.presentation.variant} --serve`;
     download.disabled = !!errors.length;
+    reviewChanges(draft);
     return { draft, errors };
   }
   const update = () => {

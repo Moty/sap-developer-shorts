@@ -62,6 +62,13 @@ to the new version; the global default remains unchanged.
 Dialogue turns retain their speakers; their text is joined into narration for
 you. Choose a new lowercase version name and download the revised script.
 
+Use **Review changes** to compare changed fields with their starting values
+before downloading. The count groups edits by title, voices, scene, and post;
+renaming the version alone is kept separate. A scene restore returns its headline
+and all narration/turns together. Voice restoration returns all speakers to their
+starting assignments. Other edits and the new version name stay intact. Invalid
+edits appear in the comparison but still block downloading until corrected.
+
 ```sh
 npm run shorts -- script-import /path/to/CAP-02--my-edit.json
 npm run shorts -- produce CAP-02@my-edit --serve

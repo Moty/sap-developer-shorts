@@ -6,6 +6,15 @@ printed production command. Source/claim/demo inputs and source-review dates sta
 fixed. Edits are held only in the page until downloaded; existing versions and
 recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
 
+The optional **Review changes** panel compares only edited sections with the
+starting script: title, voices, scene headlines/narration, and companion post.
+It shows the text that will be downloaded, including invalid edits that still
+need correction. Restore one scene, title, or post independently; restore a
+conversation's starting voices together. These controls keep the version name,
+other edits, source dates, claims, and project default. The panel stays open
+while editing, and restoring a section returns focus to its input. A new version
+name alone is not counted as a wording or voice change.
+
 The local studio brings tutorial and news episode previews into one library. It provides format filters, text search, official source links, measured narration durations, production status, future news ideas, and the remaining tutorial backlog. Episode players keep an **All episodes** link above the existing review page. The studio does not generate media, edit content, approve publication, or call an external service.
 
 ## Compare presentation styles
