@@ -166,6 +166,15 @@ try {
       "Setting up the optional local neural voice. The first setup downloads its model and dependencies.",
     );
     console.log(await setupNeuralVoice(args));
+  } else if (command === "library-package" && args.length === 1 && args[0]) {
+    const { packageLibrary } = await import("./library-package.js");
+    const result = await packageLibrary(args[0]);
+    console.log(`Studio download: ${resolve(result.directory, "studio.zip")}`);
+    console.log(`Download page: ${resolve(result.directory, "review.html")}`);
+    console.log(`Serve: npm run shorts -- serve ${result.directory}`);
+    console.log(
+      "Saved studio packaged without regeneration. News source-review dates remain unchanged; recheck official sources before sharing current news.",
+    );
   } else if (command === "library" && !args.length) {
     const { buildLibrary } = await import("./library.js");
     const result = await buildLibrary();
@@ -282,7 +291,7 @@ try {
     }
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
+      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

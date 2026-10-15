@@ -31,6 +31,13 @@ captions, companion draft, transcript, sources, and portable review together.
 Packages retain the voice and style shown in the studio. See
 [episode downloads](docs/EPISODE_PACKAGES.md).
 
+To share the complete saved studio as one download, run
+`npm run shorts -- library-package LIBRARY_DIRECTORY`. It checks the saved files
+and creates a separate `studio.zip` containing all its videos, comparisons,
+voice samples, script workshops, and episode downloads. Extract the ZIP and open
+`studio/review.html`. See [studio handoff](docs/STUDIO_PACKAGES.md) for local
+serving and the saved-news review requirement.
+
 ## Run the pilot
 
 Use Node.js **22.13+** and npm; Node 22 LTS is the recommended development version. No global CAP tools or SAP cloud account are required.
@@ -193,6 +200,7 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 - [Voice options](docs/VOICE_OPTIONS.md): warm local narration, setup, timing limitations, and the ElevenLabs option.
 - [Presentation styles](docs/PRESENTATION_STYLES.md): professional, casual, comic, dialogue, humor settings, and reusable delivery variants.
 - [Video export](docs/VIDEO_EXPORT.md): vertical MP4 composition, quality checks, downloads, and saved render recovery.
+- [Studio handoff](docs/STUDIO_PACKAGES.md): one verified ZIP containing the saved studio, videos, workshops, voice samples, and episode packages.
 - [News workflow](docs/NEWS_WORKFLOW.md): source review, availability, freshness, and adding future SAP news episodes.
 - [Independent Astra review](docs/ASTRA_REVIEW.md): three reproduced gaps, their fixes, and the verification outcome.
 - [Episode contract](schemas/episode.schema.json): versioned structure plus application-level timing and evidence checks.

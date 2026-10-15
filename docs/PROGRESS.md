@@ -569,3 +569,36 @@ query frames were inspected; the paused browser video was sought to 25.247s usin
 native controls and checked at desktop and 390px phone widths. Paths and keywords
 remain whole in the displayed service code. No audible playback, speech
 regeneration, or subjective listening assessment was performed.
+
+## Milestone 3r: whole-studio handoff
+
+Added `library-package LIBRARY_DIRECTORY` to save a complete existing studio as
+one ZIP. Astra planned and implemented the bounded archive module and nine
+meaningful regressions; parent reviewed its inventory, file reads, and output
+handling. The command checks the supported saved manifest, derives the exact
+playback inventory, rejects symlinks and unexpected paths, checks regular files
+and sizes before loading media, and verifies every saved hash. Unlisted files
+are excluded. Separate atomic output prevents archive self-inclusion and keeps
+the original library untouched. The supported limits are 4,096 artifacts, a
+1 MiB manifest, and 512 MiB of input bytes.
+
+The download page and archive README explain extraction, local serving, script
+import requirements, and dated-news rechecks. The original manifest and all
+studio bytes remain exact; packaging does not renew factual review. A separate
+integrity receipt records original-manifest, archive, and member hashes. No
+current content/configuration rebuild, narration, or transcoding is needed.
+
+Full minimum Node 22.13.0 checks/build pass: **134 workflow tests** and five live
+CAP assertions. The real 84.0 MiB archive contains 148 members, including the
+original manifest and all 146 studio artifacts. Independent extraction verifies
+every hash, eleven nested ZIPs, eleven workshops, and two voice samples; all 231
+relative links across 45 HTML files resolve inside the extracted studio.
+
+The native browser ZIP download matches the archive hash and ZIP content type.
+The extracted studio's conversation video loads, seeks while paused, and keeps
+comparison selection on return. Both samples load with their saved durations;
+an extracted episode download matches its source ZIP. A workshop revision with
+Michael imports with unchanged base/scene content, while global Heart remains
+selected. Desktop and a 324px narrow page fit without horizontal overflow.
+Viewport overrides were reset, temporary extraction tabs/servers closed, and
+the original studio remains available. No audible listening pass is claimed.

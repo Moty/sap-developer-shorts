@@ -64,6 +64,10 @@ Source review dates remain visible on news cards. A saved news preview can be in
 Each build creates `artifacts/library-<UUID>/` with a root `review.html`, nested episode players, and `library-manifest.json`. The manifest records exact input hashes, source-run references, copied artifact hashes, library inputs/runtime hashes, and the count of excluded run/media packages. Only selected playback files are copied; the job database and unrelated workspace files are not included. Output is assembled in a hidden staging directory and renamed after successful construction. A failed build may leave an ignored hidden staging directory for diagnosis, never a completed library.
 
 The studio is a snapshot. Rebuild it to include new episodes or revised content.
+Use `library-package LIBRARY_DIRECTORY` to make a single verified handoff ZIP
+from an existing snapshot. It preserves the saved files and original manifest;
+it does not rebuild the studio or refresh news sources. See
+[studio handoff](STUDIO_PACKAGES.md).
 Verified MP4s include [episode ZIP downloads](EPISODE_PACKAGES.md), generated from
 the same selected recording. A dated news download retains its source-review
 window and shows a saved-package warning when that window has expired.
