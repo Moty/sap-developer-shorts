@@ -514,3 +514,33 @@ assertions. The prepared studio has ten MP4s/packages/workshops, two voice sampl
 and **133 matching hashes**. All ZIP CRC/member hashes pass, including an explicit
 check that each news ZIP contains its corrected selected MP4. No paid generation,
 stock-avatar rendering, or publishing was performed.
+
+## Milestone 3p: a numbered CAP recipe
+
+`CAP-01@countdown` adds a Heart-narrated three-step recipe: define Products,
+expose InventoryService, then run the checked stock query. Its later full-list
+capture is explicitly identified as all three products. Technical claims,
+sources, commands, captures, and planned timing remain inherited from CAP-01.
+Parent reread the official service and SQLite guides; Astra independently reviewed
+the wording and preservation of the demo inputs.
+
+The original four-style comparison now uses one shared ordered selector list for
+membership and return links. Numbered guides and custom CAP revisions remain
+ordinary cards/gallery examples and return to the episode list, preserving the
+four original choices. A regression covers both narration and video navigation.
+
+Full minimum Node 22.13.0 checks/build pass: **120 workflow tests**, five live CAP
+assertions, formatting, types, and content validation. Astra independently passed
+twelve focused studio/history/presentation checks. Real production measured
+56.105125 seconds, a 2.675011-second opening, and eighteen caption cues, with full
+decode/audio checks at -16.13LUFS/-4.44dBTP. The studio has eleven MP4s/packages/
+workshops, two voice samples, and 146 verified hashes. All ZIP CRC/member hashes
+pass. A native ZIP download matches the selected package and MP4; a native script
+download imports with the same technical inputs, scenes, format, and speakers.
+
+Phone playback fits 390px and remains paused until requested. The numbered
+model/service/query frames and the full-list result were visually inspected.
+Astra is planning a separate improvement to existing code-line wrapping, which
+currently can split identifiers and quoted paths across visual lines. Earlier
+artifacts remain intact. No audible playback or subjective listening assessment
+is claimed.

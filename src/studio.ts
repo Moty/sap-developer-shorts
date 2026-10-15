@@ -3,6 +3,13 @@ import type { NarrationTiming } from "./media/model.js";
 import { kokoroVoices } from "./media/voices.js";
 import { episodeSelector, presentationLabel, toneLabels } from "./presentation.js";
 
+export const capComparisonSelectors: readonly string[] = [
+  "CAP-01",
+  "CAP-01@casual",
+  "CAP-01@comic",
+  "CAP-01@duo",
+];
+
 export function studioReadiness(entry: LibraryEntry) {
   if (entry.sourceReviewExpired)
     return {
@@ -45,5 +52,7 @@ export function comparisonLabel(entry: LibraryEntry): string {
 }
 
 export function studioReturnFragment(entry: LibraryEntry): string {
-  return entry.episode.id === "CAP-01" ? `#${comparisonId(entry)}` : "#episodes";
+  return capComparisonSelectors.includes(episodeSelector(entry.episode))
+    ? `#${comparisonId(entry)}`
+    : "#episodes";
 }

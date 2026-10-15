@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
+  "title": "Three steps to your local CAP API",
+  "presentation": {
+    "variant": "countdown",
+    "tone": "professional",
+    "format": "countdown",
+    "humor": "none",
+    "speakers": [{ "id": "narrator", "name": "Narrator", "voice": "af_heart" }]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "overlay": "Three steps. One CAP service.",
+      "narration": "Three steps. One CAP service."
+    },
+    {
+      "id": "context",
+      "overlay": "Prepared project. Three-step checklist.",
+      "narration": "This three-step guide starts from the checked-in inventory project. Install dependencies beforehand; the video focuses on model, service, and query."
+    },
+    {
+      "id": "model",
+      "overlay": "1. Define Products",
+      "narration": "One: define Products with an ID, title, and stock count. Three sample rows are already included for predictable results."
+    },
+    {
+      "id": "service",
+      "overlay": "2. Expose InventoryService",
+      "narration": "Two: expose Products through InventoryService using this explicit projection. The read-only annotation keeps this example focused on queries."
+    },
+    {
+      "id": "query",
+      "overlay": "3. Run and query",
+      "narration": "Three: run npm run demo and open the displayed Products URL. Its stock-above-zero filter returns our keyboard and dock."
+    },
+    {
+      "id": "payoff",
+      "overlay": "Full list: all three sample products",
+      "narration": "Here are all three products, without that filter. This is a local prototype; authentication and deployment are separate steps."
+    },
+    {
+      "id": "cta",
+      "overlay": "Try the project and its five checks",
+      "narration": "Try the checked-in project and its five checks. Which entity would you expose next?"
+    }
+  ],
+  "publicationText": "Three steps to a local SAP CAP API, using the checked-in inventory project.\n\n1. Define Products with ID, title, and stock. Three sample products are already supplied.\n2. Expose Products through an explicit InventoryService projection. This example is read-only.\n3. Run npm run demo and open the displayed Products query. Filtering stock above zero returns Mechanical Keyboard and USB-C Dock.\n\nThe later full-list capture shows all three sample products, including the zero-stock monitor arm. It is not the filtered result.\n\nInstall the project's dependencies before following the video. This is a local development prototype with an in-memory SQLite database; authentication and deployment are separate work. The five live checks cover metadata, seeded rows, filtering, a missing product, and rejected writes.\n\nCode and setup: Code link pending repository publication\nSAP service guide: https://cap.cloud.sap/docs/guides/services/providing-services\nSQLite development guide: https://cap.cloud.sap/docs/guides/databases/sqlite\n\nWhich entity would you expose next?\n\n#SAP #CAP #OData #SAPDevelopers"
+}

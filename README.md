@@ -82,7 +82,7 @@ Use the printed artifact directory with `npm run shorts -- serve ARTIFACT_DIRECT
 
 The NEWS-01 warm local preview measures **57.0 seconds**, with a **2.5-second hook** and eighteen captions using model timing estimates. A verified vertical MP4 is available; stock avatar animation remains pending.
 
-The follow-up [NEWS-02](content/episodes/NEWS-02.json) focuses on Joule Work’s interface, business context, and managed activation, with sources reviewed October 15, 2026. It preserves the distinction between an announced rollout and access for a particular customer. Prepare its local video and ZIP with `npm run shorts -- produce NEWS-02 --serve`, or use `NEWS-02@duo` for Mira and Max’s casual conversation with light humor. Both have editable scripts in the studio.
+The follow-up [NEWS-02](content/episodes/NEWS-02.json) focuses on Joule Work’s interface, business context, and managed activation, with sources reviewed October 15, 2026. It preserves the distinction between an announced rollout and access for a particular customer. Prepare its local video and ZIP with `npm run shorts -- produce NEWS-02 --serve`, or use `NEWS-02@duo` for Mira and Max’s casual conversation with light humor. Use `NEWS-02@myth-fact` for a professional question-and-correction version about announced capability versus customer access. All three have editable scripts in the studio.
 
 See [the news workflow](docs/NEWS_WORKFLOW.md), [reusable news script template](templates/news_script_template.md), and [news editor prompt](prompts/v1/news-editor.md). Research is currently an editorial step; this does not automatically discover or rank global SAP news, watch pages, or publish posts.
 
@@ -91,9 +91,13 @@ See [the news workflow](docs/NEWS_WORKFLOW.md), [reusable news script template](
 Use **Revise script** on a studio card to adapt an existing delivery. The workshop
 handles scene structure and the base binding, shows live writing guidance, and
 downloads a new named script. Import it with `npm run shorts -- script-import PATH`,
-then use the printed production command. Existing scripts and recordings are kept.
+then use the printed production command. Under **Choose the voices**, select a
+narrator or a different voice for each conversation speaker. This changes only
+the new version; Heart remains the project default and existing recordings are
+kept. Choices reflect checked local voice assets when the studio was built.
+Install another profile explicitly, then rebuild the studio to offer it.
 
-Presentation can vary independently of the episode's subject. The studio includes a **Delivery styles** section with professional, casual, comic, and two-person CAP comparisons, plus `CAP-02@quiz` for a predict-the-result challenge. Set tone, story format, and humor in a presentation variant; the conversation uses Heart and Michael with speaker captions. Try `npm run shorts -- produce CAP-02@quiz` or `npm run shorts -- narrate CAP-01@duo` after `npm run shorts -- voice-setup am_michael`. See [presentation styles](docs/PRESENTATION_STYLES.md) for supported formats, authoring, and review. New style scripts must be authored before generation; the format gallery shows each available example's actual readiness.
+Presentation can vary independently of the episode's subject. The studio includes a **Delivery styles** section with professional, casual, comic, and two-person CAP comparisons, plus `CAP-01@countdown` for a numbered three-step recipe and `CAP-02@quiz` for a predict-the-result challenge. Set tone, story format, and humor in a presentation variant; the conversation uses Heart and Michael with speaker captions. Try `npm run shorts -- produce CAP-02@quiz` or `npm run shorts -- narrate CAP-01@duo` after `npm run shorts -- voice-setup am_michael`. See [presentation styles](docs/PRESENTATION_STYLES.md) for supported formats, authoring, and review. New style scripts must be authored before generation; the format gallery shows each available example's actual readiness.
 
 The default is Kokoro's **Heart** voice, selected for a warm, conversational female narrator. On macOS, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and run the one-time setup. It installs a separate Python environment and downloads the pinned model; narration then runs locally without sending the script to a speech service.
 

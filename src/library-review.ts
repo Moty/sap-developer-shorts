@@ -10,6 +10,7 @@ import { episodeSelector, presentationFormats, presentationLabel } from "./prese
 import { escapeHtml as esc } from "./review.js";
 import { createScriptEditor } from "./script-editor.js";
 import {
+  capComparisonSelectors,
   comparisonId,
   comparisonLabel,
   recordedNarrator,
@@ -95,16 +96,13 @@ function card(entry: LibraryEntry) {
 }
 
 function comparisonSection(entries: LibraryEntry[]) {
-  const order = ["CAP-01", "CAP-01@casual", "CAP-01@comic", "CAP-01@duo"];
   const examples = entries
-    .filter((entry) => entry.episode.id === "CAP-01")
-    .sort((a, b) => {
-      const rank = (entry: LibraryEntry) => {
-        const index = order.indexOf(episodeSelector(entry.episode));
-        return index < 0 ? 99 : index;
-      };
-      return rank(a) - rank(b);
-    });
+    .filter((entry) => capComparisonSelectors.includes(episodeSelector(entry.episode)))
+    .sort(
+      (a, b) =>
+        capComparisonSelectors.indexOf(episodeSelector(a.episode)) -
+        capComparisonSelectors.indexOf(episodeSelector(b.episode)),
+    );
   return `<section id="styles" class="styles-section"><div class="section-heading"><div><p class="eyebrow">FIND YOUR DELIVERY</p><h2>Compare the CAP pilot</h2></div><a class="format-guide-link" href="#formats">More storytelling formats ↓</a></div><p class="styles-intro">Same working demo. Four ways to tell the story. Compare the recorded voices, pacing, and SAP geek humor.</p>${
     examples.length
       ? `<nav class="style-choices" aria-label="CAP pilot presentation style">${examples.map((entry) => `<a href="#${comparisonId(entry)}" data-style-choice>${esc(comparisonLabel(entry))}</a>`).join("")}</nav><div class="comparison-panels">${examples

@@ -19,6 +19,11 @@ The review studio has a **Delivery styles** section and links to four versions o
 - `CAP-01@comic`: a solo comic version with SAP/developer jokes and a warmer visual accent.
 - `CAP-01@duo`: a comic conversation between Mira (Heart) and Max (Michael), with two distinct local voices and named captions.
 
+`CAP-01@countdown` is a numbered three-step guide: define Products, expose the
+service, then run the checked query. The later full-list capture is explicitly
+identified as all three sample products, separate from the positive-stock result.
+This is a recipe, not a ranked list. Try `npm run shorts -- produce CAP-01@countdown`.
+
 The CAP data lesson also has `CAP-02@quiz`, a Heart-narrated prediction/reveal:
 read the CSV's stock counts, choose which products pass the positive-stock filter,
 then see the checked result. Its visuals, exact URLs, and evidence come from CAP-02.
@@ -34,7 +39,7 @@ about announced capability versus an organization's access. It preserves the sam
 source date, selected-customer rollout scope, and activation qualifications. Try
 `npm run shorts -- produce NEWS-02@myth-fact`.
 
-These are saved, authored scripts. Clicking a preview opens its recorded version. The studio does not automatically rewrite an arbitrary episode or purchase avatar media. The storytelling gallery links to the best available example for each format and distinguishes a prepared script, preview, or MP4. Countdown and story still need authored, reviewed scripts before their previews exist.
+These are saved, authored scripts. Clicking a preview opens its recorded version. The studio does not automatically rewrite an arbitrary episode or purchase avatar media. The storytelling gallery links to the best available example for each format and distinguishes a prepared script, preview, or MP4. Problem-to-solution stories still need an authored, reviewed script before a preview exists.
 
 ```sh
 npm run shorts -- styles

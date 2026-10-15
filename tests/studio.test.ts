@@ -3,7 +3,12 @@ import test from "node:test";
 import { readContentEpisode } from "../src/contracts.js";
 import type { LibraryEntry } from "../src/library.js";
 import { createLibraryPages } from "../src/library-review.js";
-import { comparisonId, recordedNarrator, studioReadiness } from "../src/studio.js";
+import {
+  comparisonId,
+  recordedNarrator,
+  studioReadiness,
+  studioReturnFragment,
+} from "../src/studio.js";
 
 async function entry(selector: string, voice = "af_heart"): Promise<LibraryEntry> {
   return {
@@ -190,4 +195,44 @@ test("the conversation gallery retains ordinary links to news and tutorial examp
   assert.match(html, /CAP-01%40duo\/video\/review.html/u);
   assert.match(html, /Watch tutorial conversation/u);
   assert.equal(recordedNarrator(news), "Kokoro · Mira (Heart) + Max (Michael)");
+});
+
+test("new CAP deliveries stay in the gallery while the original comparison and return anchors stay consistent", async () => {
+  const originals = await Promise.all(
+    ["CAP-01", "CAP-01@casual", "CAP-01@comic", "CAP-01@duo"].map((selector) => entry(selector)),
+  );
+  for (const value of originals)
+    assert.equal(studioReturnFragment(value), `#${comparisonId(value)}`);
+  const countdown = await entry("CAP-01@countdown");
+  countdown.video = {
+    renderKey: "fixture",
+    durationSeconds: 55,
+    files: { "review.html": Buffer.from("<!--LIBRARY_BACK-->Video fixture") },
+  };
+  assert.equal(studioReturnFragment(countdown), "#episodes");
+  const custom = structuredClone(countdown);
+  assert.ok(custom.episode.presentation);
+  custom.episode.presentation.variant = "my-countdown";
+  assert.equal(studioReturnFragment(custom), "#episodes");
+  const pages = await createLibraryPages({
+    entries: [countdown, ...originals.reverse()],
+    topics: [],
+    newsTopics: [],
+    budgetCents: 500,
+  });
+  const html = String(pages["review.html"]);
+  const comparison = html.match(/<nav class="style-choices"[\s\S]*?<\/nav>/u)?.[0] ?? "";
+  assert.equal((comparison.match(/data-style-choice/gu) ?? []).length, 4);
+  assert.ok(comparison.indexOf('#compare-CAP-01"') < comparison.indexOf("#compare-CAP-01--casual"));
+  assert.doesNotMatch(comparison, /countdown/u);
+  assert.doesNotMatch(html, /id="compare-CAP-01--countdown"/u);
+  assert.match(
+    html,
+    /data-story-format="countdown">[\s\S]*?CAP-01%40countdown\/video\/review.html/u,
+  );
+  assert.match(
+    String(pages["episodes/CAP-01@countdown/video/review.html"]),
+    /review.html#episodes/u,
+  );
+  assert.match(String(pages["episodes/CAP-01@countdown/watch.html"]), /review.html#episodes/u);
 });
