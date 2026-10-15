@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { validateEpisode } from "../contracts.js";
 import { hash } from "../digest.js";
 import { type ContentEpisode, isNewsEpisode } from "../domain.js";
@@ -133,6 +133,7 @@ export async function createMediaJob(
   const requestKey = hash(
     JSON.stringify({
       episode: request.episode,
+      artifactRoot: dirname(await realpath(directory)),
       settings,
       provider: provider.id,
       scenario,
@@ -358,6 +359,7 @@ export async function planMediaEpisode(
   episodeId: string,
   providerId: "fake" | "local-speech" | "local-kokoro" | "local",
   scenario: FakeScenario = "success",
+  options: { artifactRoot?: string } = {},
 ) {
   const { readContentEpisode, validateContent } = await import("../contracts.js");
   await validateContent();
@@ -370,6 +372,7 @@ export async function planMediaEpisode(
       : providerId;
   const source = await prepareContentEpisode(await readContentEpisode(episodeId), {
     preview: true,
+    ...options,
   });
   const store = await MediaStore.open(mediaDatabase);
   try {

@@ -56,6 +56,7 @@ export async function collectLibrary(
   episodes: ContentEpisode[],
   artifactRoot: string,
   now = new Date(),
+  selectedMediaJobs: Record<string, string> = {},
 ): Promise<{ entries: LibraryEntry[]; excludedRuns: number }> {
   const entries: LibraryEntry[] = episodes.map((episode) => ({
     episode: structuredClone(episode),
@@ -121,6 +122,8 @@ export async function collectLibrary(
       for (const job of jobs) {
         if (!job.isDirectory() || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u.test(job.name))
           continue;
+        const selectedJob = selectedMediaJobs[episodeSelector(entry.episode)];
+        if (selectedJob && job.name !== selectedJob) continue;
         try {
           const output = inside(directory, await realpath(resolve(media, job.name)));
           const receipt = JSON.parse(
@@ -157,6 +160,8 @@ export async function collectLibrary(
         }
       }
       for (const preview of previews) {
+        if (selectedMediaJobs[episodeSelector(entry.episode)] && preview.kind !== "narrated")
+          continue;
         const current = entry.preview;
         if (
           !current ||
@@ -224,7 +229,9 @@ export async function collectLibrary(
   return { entries, excludedRuns };
 }
 
-export async function buildLibrary(options: { artifactRoot?: string; now?: Date } = {}) {
+export async function buildLibrary(
+  options: { artifactRoot?: string; now?: Date; selectedMediaJobs?: Record<string, string> } = {},
+) {
   const now = options.now ?? new Date();
   const artifactRoot = resolve(
     projectRoot,
@@ -232,7 +239,15 @@ export async function buildLibrary(options: { artifactRoot?: string; now?: Date 
   );
   const content = await validateContent();
   const episodes = [...content.episodes, ...content.variants];
-  const library = await collectLibrary(episodes, artifactRoot, now);
+  const library = await collectLibrary(episodes, artifactRoot, now, options.selectedMediaJobs);
+  for (const [selector, id] of Object.entries(options.selectedMediaJobs ?? {}))
+    if (
+      library.entries.find((entry) => episodeSelector(entry.episode) === selector)?.preview
+        ?.mediaJobId !== id
+    )
+      throw new Error(
+        `Selected narration ${id} for ${selector} is unavailable; rebuild after restoring the package`,
+      );
   const settings = await productionSettings();
   const sourceHashes: Record<string, string> = {};
   for (const name of [

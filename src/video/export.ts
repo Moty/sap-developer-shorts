@@ -19,6 +19,7 @@ import { readRuntimeFiles } from "../provenance.js";
 import { escapeHtml as esc } from "../review.js";
 import { drawVideoFrame, type VideoFrameInput, videoFontFiles } from "./frames.js";
 import { readVideoReceipt } from "./receipt.js";
+import { publishedDemoCommit } from "./source.js";
 import { concatTimeline, videoFps, videoTimeline } from "./timeline.js";
 
 const exec = promisify(execFile);
@@ -116,7 +117,11 @@ function videoPage(episode: ContentEpisode, seconds: number): string {
 
 export async function renderVideo(
   selector: string,
-  options: { artifactRoot?: string; progress?: (message: string) => void } = {},
+  options: {
+    artifactRoot?: string;
+    progress?: (message: string) => void;
+    mediaJobId?: string;
+  } = {},
 ) {
   const report = options.progress ?? (() => {});
   const artifactRoot = resolve(
@@ -124,7 +129,12 @@ export async function renderVideo(
     options.artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
   );
   const episode = await readContentEpisode(selector);
-  const { entries } = await collectLibrary([episode], artifactRoot);
+  const { entries } = await collectLibrary(
+    [episode],
+    artifactRoot,
+    new Date(),
+    options.mediaJobId ? { [selector]: options.mediaJobId } : {},
+  );
   const preview = entries[0]?.preview;
   if (preview?.kind !== "narrated" || !preview.timingReady || !preview.mediaJobId)
     throw new Error(
@@ -169,27 +179,9 @@ export async function renderVideo(
   for (const name of [...videoFontFiles, "package-lock.json"])
     renderSources[name] = hash(await readFile(await sourceFile(name)));
   const sourceAudioHash = hash(audio);
-  let sourceCodeCommit: string | null = null;
-  if (!isNewsEpisode(episode)) {
-    try {
-      const commit = (
-        await exec("git", ["rev-parse", "HEAD"], { cwd: projectRoot, timeout: 5000 })
-      ).stdout.trim();
-      if (!/^[a-f0-9]{40}$/u.test(commit)) throw new Error("Invalid source commit");
-      for (const name of demos[episode.demo.id].files) {
-        const committed = await exec("git", ["show", `${commit}:${name}`], {
-          cwd: projectRoot,
-          timeout: 5000,
-          encoding: "buffer",
-        });
-        if (hash(committed.stdout) !== source.manifest.sourceHashes[name])
-          throw new Error("Demo commit differs from the verified inputs");
-      }
-      sourceCodeCommit = commit;
-    } catch {
-      /* A local draft may have no matching published demo commit. */
-    }
-  }
+  const sourceCodeCommit = isNewsEpisode(episode)
+    ? null
+    : await publishedDemoCommit(demos[episode.demo.id].files, source.manifest.sourceHashes);
   const key = hash(
     JSON.stringify({
       inputHash: source.manifest.inputHash,

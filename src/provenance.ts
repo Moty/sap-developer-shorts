@@ -49,11 +49,13 @@ export async function runtimeFiles(): Promise<string[]> {
     "library",
     "library-review",
     "presentation",
+    "production",
     "variants",
     "video/timeline",
     "video/frames",
     "video/export",
     "video/receipt",
+    "video/source",
     "news/contracts",
     "news/pipeline",
     "news/review",
@@ -67,6 +69,8 @@ export async function runtimeFiles(): Promise<string[]> {
     "media/package",
     "media/status",
     "media/fingerprint",
+    "media/reuse",
+    "media/reused-audio",
   ];
   return names.map((name) =>
     relative(

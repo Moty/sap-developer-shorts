@@ -58,10 +58,33 @@ guard is included. Full minimum-Node checks pass: 56 tests + five CAP assertions
 formatting, types, content validation; build passed. Validation log:
 `.state/overnight/check-recovery.log`.
 
-Next: commit/push the reviewed reliability milestone, then implement `produce`
-with the selected job explicitly carried into render/library selection (Astra
-identified the Heart → Bella → Heart case). Reuse validated completed audio for
-visual-only updates as a new package; do not generate additional legacy scenes.
+The reliability milestone was committed and pushed as `6a6b7ff`; both Node 22/24
+GitHub CI jobs passed.
+
+00:56 PT: Delivered `produce SELECTOR [--serve]` and `production-status SELECTOR`,
+atomic progress/blocker records, exact narrator selection through export/studio,
+and independent copied-audio reuse for compatible visual changes. Astra found
+two crash/tamper gaps in the initial reuse implementation; both are fixed and
+independently reproduced successfully. The full minimum-Node checks pass:
+65 tests + five CAP assertions, formatting, types, content validation; build
+passed. See `.state/overnight/check-production.log`.
+
+Real production and reuse both reached `READY` for CAP-01@duo, 58.470 seconds,
+2.6-second opening. Latest job: `f6845a49-258e-44aa-9089-1d25753d9048`, copied
+from the complete current-generator job `bfafce6f-ed02-40f3-913d-a3495dab0339`.
+Latest studio: `artifacts/library-0306fd8a-dd7b-4680-8dc1-30828571618e`.
+An earlier equally valid studio from this milestone is served at
+<http://127.0.0.1:49853/review.html> (owned exec session 5047), with the conversation
+paused and inspected in browser at 17.5 seconds. Proof:
+`.state/overnight/production-review.png`. Original port 4173 still serves the
+previous saved library; update the owned server to the final studio after the
+comparison milestone.
+
+Next: finish committing/pushing this production milestone, exercise its cache
+after commit, then complete professional/casual/comic/duo MP4s sequentially.
+Astra's UI plan: compact style tabs with actual voice and duration, explicit
+readiness/primary Watch MP4, and preserve selection when returning. Keep the
+studio static; offer copyable CLI commands rather than adding a write server.
 
 Keep this section current with changes, exact test evidence, commits, preview
 locations, and the next bounded action. Do not label unverified work complete.

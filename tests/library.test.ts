@@ -68,13 +68,18 @@ async function run(directory: string, input: ContentEpisode = episode) {
   });
 }
 
-async function addNarration(t: TestContext, directory: string, source: string) {
-  const providerOutput = resolve(directory, "synthetic-test-audio");
+async function addNarration(
+  t: TestContext,
+  directory: string,
+  source: string,
+  voice = "synthetic test fixture",
+) {
+  const providerOutput = resolve(directory, `synthetic-test-audio-${voice.replaceAll(" ", "-")}`);
   await mkdir(providerOutput);
   const timing: NarrationTiming = {
     schemaVersion: 1,
     mode: "local-preview",
-    voice: "synthetic test fixture",
+    voice,
     rate: 180,
     sampleRate,
     durationSeconds: episode.targetDurationSeconds,
@@ -111,10 +116,43 @@ async function addNarration(t: TestContext, directory: string, source: string) {
       throw new Error("Library tests must not generate media");
     },
   };
-  const job = await createMediaJob(store, source, provider, await productionSettings());
+  const settings = await productionSettings();
+  settings.localPreview.voice = voice;
+  const job = await createMediaJob(store, source, provider, settings);
   job.providerOutput = { kind: "narration", billedCents: 0, directory: providerOutput };
   return packageNarration(job);
 }
+
+test("explicit narration selection survives Heart to Bella to Heart without choosing newer audio", async (t) => {
+  const directory = await root(t);
+  const first = await run(directory);
+  const heart = await addNarration(t, directory, first.directory, "af_heart");
+  const heartReceipt = JSON.parse(await readFile(resolve(heart, "media-manifest.json"), "utf8"));
+  const second = await run(directory);
+  const bella = await addNarration(t, directory, second.directory, "af_bella");
+  const bellaReceipt = JSON.parse(await readFile(resolve(bella, "media-manifest.json"), "utf8"));
+  assert.equal(
+    (await collectLibrary([episode], directory)).entries[0]?.preview?.mediaJobId,
+    bellaReceipt.jobId,
+  );
+  const selectedMediaJobs = { "CAP-01": heartReceipt.jobId as string };
+  const selected = await collectLibrary([episode], directory, new Date(), selectedMediaJobs);
+  assert.equal(selected.entries[0]?.preview?.mediaJobId, heartReceipt.jobId);
+  assert.equal(
+    JSON.parse(selected.entries[0]?.preview?.files["timing.json"]?.toString("utf8") ?? "null")
+      .voice,
+    "af_heart",
+  );
+  const built = await buildLibrary({ artifactRoot: directory, selectedMediaJobs });
+  assert.equal(
+    built.manifest.episodes.find((item) => item.id === "CAP-01")?.preview?.mediaJobId,
+    heartReceipt.jobId,
+  );
+  await assert.rejects(
+    buildLibrary({ artifactRoot: directory, selectedMediaJobs: { "CAP-01": "missing-job" } }),
+    /Selected narration.*unavailable/,
+  );
+});
 
 test("the library prefers matching narrated output over a newer silent run and excludes an old script revision", async (t) => {
   const directory = await root(t);

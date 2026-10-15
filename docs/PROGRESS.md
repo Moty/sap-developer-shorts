@@ -151,3 +151,30 @@ Verification passes on minimum Node 22.13.0: **56 workflow tests**, five live CA
 checks, formatting, types, content validation, and build. Astra independently ran
 26 focused tests and repeated its corrected-audio reproduction. Overnight work
 continues under the bounded [work plan](OVERNIGHT_WORK.md).
+
+## Milestone 3c: one-command local production
+
+- Added `produce SELECTOR [--serve]` to check prerequisites, verify content,
+  resume/reuse narration, enforce measured timing, render a verified MP4, and
+  build a studio with the exact selected media job. Heart → Bella → Heart no
+  longer risks selecting a newer recording of the wrong narrator.
+- Added atomic production reports, specific blocked outcomes, preservation of
+  completed outputs on failure, and `production-status SELECTOR`. Serving starts
+  after readiness and cannot turn an otherwise complete package into a failure.
+- Added compatible completed-speech reuse for visual/editorial-only revisions.
+  Reuse copies verified bytes into an independent package, records hashes and its
+  source job, recovers after a crash without the donor, and rechecks copied bytes
+  before packaging. Changed speech, voice, speed, model, or generator cannot reuse
+  that audio. Separate artifact roots retain separate jobs and packages.
+- Stabilized immutable demo links/cache identity across unrelated commits. The
+  selected commit must match every registered source byte, belong to the expected
+  repository, and be reachable from an origin tracking reference.
+
+Minimum Node 22.13.0 checks pass: **65 workflow tests**, five live CAP assertions,
+formatting, types, and content validation; build passed. Astra independently ran
+the production/library/video tests and reproduced both audio-reuse fixes and the
+source-commit cases. Local end-to-end production reached `READY` with the
+58.470-second Heart/Michael conversation. A later run copied the completed speech
+without synthesis and produced another verified MP4/studio. Browser verification
+confirmed 1080 × 1920 video, playback, and no media error. See
+[production workflow](PRODUCTION_WORKFLOW.md).

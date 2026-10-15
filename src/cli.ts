@@ -17,7 +17,50 @@ import { startPreviewServer } from "./serve.js";
 const [command = "help", ...args] = process.argv.slice(2);
 
 try {
-  if (command === "jobs" && args.length <= 1) {
+  if (
+    command === "produce" &&
+    args.length >= 1 &&
+    args.length <= 2 &&
+    args[0] &&
+    (!args[1] || args[1] === "--serve")
+  ) {
+    const { produce } = await import("./production.js");
+    const report = await produce(args[0], { progress: (message) => console.log(message) });
+    console.log(`Production: ${report.stage}`);
+    console.log(`Report: ${resolve(report.directory, "production.json")}`);
+    if (report.mediaJobId) console.log(`Media job: ${report.mediaJobId}`);
+    if (report.narrationDirectory)
+      console.log(`Narration: ${resolve(report.narrationDirectory, "review.html")}`);
+    if (report.videoDirectory) console.log(`Video: ${resolve(report.videoDirectory, "short.mp4")}`);
+    if (report.libraryDirectory)
+      console.log(`Studio: ${resolve(report.libraryDirectory, "review.html")}`);
+    if (report.issue) {
+      console.error(report.issue.message);
+      console.error(`Next: ${report.issue.nextAction}`);
+      process.exitCode = 1;
+    }
+    if (report.stage === "READY" && report.libraryDirectory) {
+      console.log(`Serve: npm run shorts -- serve ${report.libraryDirectory}`);
+      if (args[1] === "--serve") {
+        try {
+          const { url } = await startPreviewServer(report.libraryDirectory, 0);
+          console.log(`Review: ${url}`);
+          console.log("Serving the completed studio locally. Stop with Ctrl+C.");
+        } catch (error) {
+          console.error(
+            `Production remains READY; local serving failed: ${(error as Error).message}`,
+          );
+          process.exitCode = 1;
+        }
+      }
+    }
+  } else if (command === "production-status" && args.length === 1 && args[0]) {
+    const { latestProduction } = await import("./production.js");
+    const report = await latestProduction(args[0]);
+    console.log(
+      report ? JSON.stringify(report, null, 2) : "No saved production attempt for this draft.",
+    );
+  } else if (command === "jobs" && args.length <= 1) {
     const { listMediaJobs } = await import("./media/status.js");
     const jobs = await listMediaJobs(args[0]);
     if (!jobs.length)
@@ -191,7 +234,7 @@ try {
     }
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  voices                         List supported Kokoro English voices\n  voice-setup                    Install the selected local neural voice\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
+      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  voices                         List supported Kokoro English voices\n  voice-setup                    Install the selected local neural voice\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

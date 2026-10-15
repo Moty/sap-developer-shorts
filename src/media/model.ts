@@ -61,6 +61,7 @@ export interface MediaJob {
   updatedAt: string;
   history: { phase: MediaPhase; at: string }[];
   retryOf?: string;
+  audioReuse?: { jobId: string; sourceAudioHash: string; timingHash: string };
 }
 export interface Cue {
   speakerId?: string;

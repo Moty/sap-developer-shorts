@@ -6,6 +6,17 @@ The implementation turns the editorial blueprint into a reproducible pilot packa
 
 ## Browse the review studio
 
+To prepare a complete local video and refreshed studio in one command:
+
+```sh
+npm run shorts -- produce CAP-01@duo --serve
+```
+
+This checks prerequisites, verifies content, resumes/reuses local narration,
+exports a checked MP4, and serves the studio at an available local address. Install the
+voices and FFmpeg first; see [production and recovery](docs/PRODUCTION_WORKFLOW.md).
+Use `production-status CAP-01@duo` to inspect the latest saved attempt.
+
 ```sh
 npm run shorts -- library
 npm run shorts -- serve LIBRARY_DIRECTORY
@@ -146,6 +157,7 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): original assessment and full roadmap.
 - [Progress](docs/PROGRESS.md): delivered scope, evidence, and next milestone.
 - [Media workflow](docs/MEDIA_WORKFLOW.md): narration, job recovery, spending records, and current provider limitations.
+- [Production workflow](docs/PRODUCTION_WORKFLOW.md): one-command local preparation, saved progress, compatible speech reuse, and explicit narrator selection.
 - [Voice options](docs/VOICE_OPTIONS.md): warm local narration, setup, timing limitations, and the ElevenLabs option.
 - [Presentation styles](docs/PRESENTATION_STYLES.md): professional, casual, comic, dialogue, humor settings, and reusable delivery variants.
 - [Video export](docs/VIDEO_EXPORT.md): vertical MP4 composition, quality checks, downloads, and saved render recovery.

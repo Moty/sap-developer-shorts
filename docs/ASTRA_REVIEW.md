@@ -52,3 +52,21 @@ The full checks pass on minimum Node 22.13.0: 56 workflow tests, five live CAP
 checks, formatting, types, and content validation. Job discovery is read-only and
 labels recordings with unrecorded legacy generator fingerprints. These local
 checks do not claim a paid avatar integration or publication approval.
+
+### Production coordinator and speech reuse
+
+Astra reviewed the new one-command production workflow, exact narrator selection,
+and copied-audio reuse before commit. It independently reproduced two P2 gaps in
+the first reuse implementation: altered copied audio was accepted during
+packaging, and a crash before the database transition lost access to an intact
+copy if its donor disappeared. One shared copied-package validator now binds the
+job/request, audio, timing, and captions. Recovery checks the independent copy
+first, and packaging consumes the validated buffers.
+
+Astra reran both original scratch reproductions successfully: recovery reaches
+`PACKAGE_PENDING` without the donor, altered copied bytes fail, and restored
+bytes package again. It also independently checked stable matching public source
+commits, unpublished/mismatched sources, and a different remote. All twenty
+focused production/library/video tests passed in that review. Additional local
+regressions cover separate artifact roots, while the full suite now has 65 tests.
+No remaining concrete blocker was reported for the reviewed milestone.

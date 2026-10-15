@@ -7,6 +7,7 @@ import { inside, sourceFile } from "../paths.js";
 import { readRuntimeFiles } from "../provenance.js";
 import { buildVtt, pronounce, readPcmWav, sampleRate, splitNarration } from "./audio.js";
 import type { MediaJob, NarrationTiming } from "./model.js";
+import { readReusedAudio } from "./reused-audio.js";
 import { kokoroVoice } from "./voices.js";
 
 const ajv = new Ajv({ allErrors: true, strict: true });
@@ -119,9 +120,13 @@ export async function packageNarration(job: MediaJob): Promise<string> {
   if (job.providerOutput?.kind !== "narration" || !job.providerOutput.directory)
     throw new Error("No recorded narration output");
   const providerDirectory = job.providerOutput.directory;
-  const wav = await readFile(resolve(providerDirectory, "narration.wav"));
+  const reused = job.audioReuse ? await readReusedAudio(job, providerDirectory) : undefined;
+  const wav =
+    reused?.files["narration.wav"] ?? (await readFile(resolve(providerDirectory, "narration.wav")));
   const frames = readPcmWav(wav).length / 2;
-  const timingText = await readFile(resolve(providerDirectory, "timing.json"), "utf8");
+  const timingText =
+    reused?.files["timing.json"]?.toString("utf8") ??
+    (await readFile(resolve(providerDirectory, "timing.json"), "utf8"));
   const timing = validateTiming(JSON.parse(timingText), job.request.episode, frames);
   const neural = job.request.provider === "local-kokoro";
   if (
@@ -232,6 +237,8 @@ export async function packageNarration(job: MediaJob): Promise<string> {
     mode: "local-narration-preview",
     costCents: 0,
     ...(job.request.voiceRuntimeHash ? { voiceRuntimeHash: job.request.voiceRuntimeHash } : {}),
+    ...(job.request.generatorHash ? { generatorHash: job.request.generatorHash } : {}),
+    ...(job.audioReuse ? { audioReuse: job.audioReuse } : {}),
     quality,
     artifactHashes,
     runtimeHashes,
