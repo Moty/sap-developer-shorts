@@ -218,3 +218,37 @@ and unverified setup instructions. Astra is preparing concrete claims, locator
 support, availability fields and a short script; inspect its latest response.
 Do not change schemas/providers or start paid generation/publishing. Continue
 only inside the original 7 AM window; keep source research dated and exact.
+
+02:18 PT: ZIP milestone pushed as `a705484`; Node 22/24 CI passed.
+Completed NEWS-02, “Joule Work: rollout, context, and access,” after fresh official
+release/guide research. Astra independently found no factual/layout blocker.
+All news MP4 frames now show their source-review date; the added Canvas regression
+covers a headline frame. Full minimum-Node checks pass: 80 workflow tests + five
+live CAP assertions, formatting/types/validation/build. Evidence:
+`.state/overnight/check-news02.log`, `news02-evidence.json`, `news02-review.png`,
+and `news02-phone.png`. All 87 copied hashes and seven ZIP CRC/member hashes pass.
+
+NEWS-02 job `b3237904-94b0-4a3a-bca5-3723c19f0a1c`: 53.980136-second narration,
+2.2-second hook, 18 cues. Final MP4:
+`artifacts/videos/NEWS-02/video-4a600d6990b2bf4d/short.mp4`, 53.980146 seconds,
+-16.16 LUFS, -4.44 dBTP. READY report:
+`artifacts/productions/efea1cad-fa9e-4498-bdb8-694dbba51aa7/production.json`.
+Studio: `artifacts/library-48b401b0-b320-4112-8e38-c78f51c54b19`, port 4173,
+owned session 8360. Seven MP4s/packages and two voice samples retained. Phone
+layout has no horizontal overflow; video paused; viewport reset. Previous server
+62436 stopped. An attempted unsupported `serve --port` invocation failed without
+changes; the normal supported command serves 4173.
+
+Actual interruption: first NEWS-02 scene hit the explicit 24-second subprocess
+deadline, despite no concurrent synthesis/checks. Normal retry resumed the same
+job to READY; all local cost remains zero. No laptop-sleep interruption observed.
+
+Next: commit/push NEWS-02. Then follow Astra's narrow reliability plan: shared
+60-second Kokoro subprocess budget, 65-second Kokoro poll/audition outer budget,
+preserve 25-second submit/lookup/other-provider defaults and explicit overrides.
+Log elapsed/timeout/exit/signal/killed/stdout/stderr and surface the exact path.
+Verify child cancellation before releasing the lease; retain same-job recovery,
+no automatic resubmission, no lease/schema migration. Changing neural.ts changes
+the generator hash once; preserve completed historical media without bypassing
+fingerprints. After independent review/full checks, produce the already-planned
+CAP-02@quiz and dynamic format-gallery availability (Astra script in thread).

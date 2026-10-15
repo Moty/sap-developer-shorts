@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
 import { createCanvas } from "@napi-rs/canvas";
-import { readContentEpisode, readEpisode } from "../src/contracts.js";
+import { readContentEpisode, readEpisode, validateContent } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
+import { isNewsEpisode } from "../src/domain.js";
 import { readLayout } from "../src/layout.js";
 import type { NarrationTiming } from "../src/media/model.js";
 import { loudnessResult, type VideoProbe, validateVideoProbe } from "../src/video/export.js";
@@ -216,7 +217,7 @@ test("a new tutorial title changes its opening card even when scene captions and
 });
 
 test("every news card and its availability text fits the vertical export without clipping", async () => {
-  const episode = await readContentEpisode("NEWS-01");
+  const episodes = (await validateContent()).episodes.filter(isNewsEpisode);
   const { layout } = await readLayout();
   const timing: NarrationTiming = {
     schemaVersion: 1,
@@ -228,12 +229,41 @@ test("every news card and its availability text fits the vertical export without
     scenes: [],
     cues: [],
   };
-  for (const [sceneIndex] of episode.scenes.entries()) {
-    const png = await drawVideoFrame(
-      { episode, timing, layout, code: {} },
-      { startFrame: 0, endFrame: 1, sceneIndex, cueIndex: null },
-    );
-    assert.equal(png.readUInt32BE(16), 1080);
-    assert.equal(png.readUInt32BE(20), 1920);
-  }
+  for (const episode of episodes)
+    for (const [sceneIndex] of episode.scenes.entries()) {
+      const png = await drawVideoFrame(
+        { episode, timing, layout, code: {} },
+        { startFrame: 0, endFrame: 1, sceneIndex, cueIndex: null },
+      );
+      assert.equal(png.readUInt32BE(16), 1080);
+      assert.equal(png.readUInt32BE(20), 1920);
+    }
+});
+
+test("source-review dates remain visible on announcement frames outside the introduction", async () => {
+  const episode = await readContentEpisode("NEWS-02");
+  assert.ok(isNewsEpisode(episode));
+  const { layout } = await readLayout();
+  const timing: NarrationTiming = {
+    schemaVersion: 1,
+    mode: "local-preview",
+    voice: "test",
+    rate: 180,
+    sampleRate: 22050,
+    durationSeconds: 58,
+    scenes: [],
+    cues: [],
+  };
+  const moment = { startFrame: 0, endFrame: 1, sceneIndex: 2, cueIndex: null };
+  const first = await drawVideoFrame({ episode, timing, layout, code: {} }, moment);
+  const earlier = structuredClone(episode);
+  earlier.news.asOf = "2026-10-14";
+  for (const source of earlier.sources) source.retrievedOn = earlier.news.asOf;
+  for (const claim of earlier.claims) claim.checkedOn = earlier.news.asOf;
+  const second = await drawVideoFrame({ episode: earlier, timing, layout, code: {} }, moment);
+  assert.notEqual(
+    hash(first),
+    hash(second),
+    "a shared announcement frame must identify its saved source-review date",
+  );
 });

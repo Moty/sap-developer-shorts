@@ -361,7 +361,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   text(
     ctx,
     isNewsEpisode(episode)
-      ? "Official sources · dated availability"
+      ? `Official sources · checked ${episode.news.asOf}`
       : "Local demo · deployment and auth come later",
     { x: 72, y: 1645, width: 864, height: 38 },
     23,

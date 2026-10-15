@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "format": "news",
+  "id": "NEWS-02",
+  "version": 1,
+  "title": "Joule Work: rollout, context, and access",
+  "audience": "SAP developers, architects, and business technology teams",
+  "language": "en",
+  "targetDurationSeconds": 58,
+  "news": {
+    "event": "SAP Connect 2026",
+    "asOf": "2026-10-15",
+    "maxAgeDays": 7,
+    "editorialStatus": "draft",
+    "selection": "editorial",
+    "angle": "Explain the interface, business context, and managed activation without assuming customer eligibility."
+  },
+  "sources": [
+    {
+      "id": "connect-guide",
+      "title": "SAP Connect 2026 Innovation News Guide",
+      "url": "https://www.sap.com/topics/events/connect/innovation-news-guide-2026",
+      "retrievedOn": "2026-10-15",
+      "publisher": "SAP",
+      "publishedOn": null
+    },
+    {
+      "id": "connect-release",
+      "title": "SAP Puts the Autonomous Enterprise to Work",
+      "url": "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/",
+      "retrievedOn": "2026-10-15",
+      "publisher": "SAP",
+      "publishedOn": "2026-10-06"
+    }
+  ],
+  "claims": [
+    {
+      "id": "work-interface",
+      "text": "Joule Work supports natural-language work across SAP and third-party data.",
+      "sourceIds": ["connect-release"],
+      "checkedOn": "2026-10-15",
+      "availability": {
+        "status": "rollout",
+        "timing": "Customer rollout beginning in October 2026",
+        "scope": "Selected customers already use it; individual access is not established here."
+      },
+      "support": [
+        {
+          "sourceId": "connect-release",
+          "locator": "SAP’s Autonomous Enterprise Scales Up — first two paragraphs",
+          "summary": "SAP describes the interface, beginning rollout, and selected customer use."
+        }
+      ]
+    },
+    {
+      "id": "business-context",
+      "text": "SAP says Knowledge Graph supplies business context for Joule.",
+      "sourceIds": ["connect-release"],
+      "checkedOn": "2026-10-15",
+      "availability": {
+        "status": "rollout",
+        "timing": "Described within the October 2026 rollout",
+        "scope": "SAP describes this capability; no customer environment was tested."
+      },
+      "support": [
+        {
+          "sourceId": "connect-release",
+          "locator": "SAP’s Autonomous Enterprise Scales Up — first paragraph",
+          "summary": "SAP links Joule to context supplied by its Knowledge Graph."
+        }
+      ]
+    },
+    {
+      "id": "managed-activation",
+      "text": "Joule Work is activated as a managed experience through SAP for Me.",
+      "sourceIds": ["connect-guide", "connect-release"],
+      "checkedOn": "2026-10-15",
+      "availability": {
+        "status": "rollout",
+        "timing": "Portfolio availability starts in October 2026",
+        "scope": "The activation route does not establish a particular customer’s entitlement."
+      },
+      "support": [
+        {
+          "sourceId": "connect-guide",
+          "locator": "About this Guide — third paragraph",
+          "summary": "SAP describes managed activation and portfolio availability beginning in October."
+        },
+        {
+          "sourceId": "connect-release",
+          "locator": "SAP’s Autonomous Enterprise Scales Up — first two paragraphs",
+          "summary": "Joule Work specifically remains in customer rollout."
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "phase": "hook",
+      "startSeconds": 0,
+      "endSeconds": 3,
+      "narration": "Joule Work is rolling out.",
+      "overlay": "Joule Work / rollout",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "SAP Connect / Joule Work"
+      }
+    },
+    {
+      "id": "context",
+      "phase": "context",
+      "startSeconds": 3,
+      "endSeconds": 11,
+      "narration": "Sources checked October fifteenth. Here are three things to understand about Joule Work after SAP Connect.",
+      "overlay": "Three things to understand",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "As of October 15, 2026"
+      }
+    },
+    {
+      "id": "interface",
+      "phase": "headline",
+      "startSeconds": 11,
+      "endSeconds": 22,
+      "narration": "First, Joule Work uses natural language for tasks across SAP and third-party data. SAP says customer rollout is beginning.",
+      "overlay": "1. A natural-language interface",
+      "claimIds": ["work-interface"],
+      "visual": {
+        "kind": "news-card",
+        "label": "What changed / the interface"
+      }
+    },
+    {
+      "id": "grounding",
+      "phase": "headline",
+      "startSeconds": 22,
+      "endSeconds": 33,
+      "narration": "Second, SAP says its Knowledge Graph supplies business context for Joule. The announcement connects the interface to underlying business information.",
+      "overlay": "2. Business context",
+      "claimIds": ["business-context"],
+      "visual": {
+        "kind": "news-card",
+        "label": "What supports it / business context"
+      }
+    },
+    {
+      "id": "activation",
+      "phase": "headline",
+      "startSeconds": 33,
+      "endSeconds": 44,
+      "narration": "Third, SAP lists Joule Work among managed experiences activated through SAP for Me. Confirm what this means for your organization’s access.",
+      "overlay": "3. Managed activation",
+      "claimIds": ["managed-activation"],
+      "visual": {
+        "kind": "news-card",
+        "label": "How it is delivered / SAP for Me"
+      }
+    },
+    {
+      "id": "takeaway",
+      "phase": "payoff",
+      "startSeconds": 44,
+      "endSeconds": 51,
+      "narration": "My takeaway: confirm your organization’s availability and activation requirements before planning your own rollout.",
+      "overlay": "Confirm access for your organization",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Editorial takeaway"
+      }
+    },
+    {
+      "id": "cta",
+      "phase": "cta",
+      "startSeconds": 51,
+      "endSeconds": 58,
+      "narration": "Read the dated sources in the post. Which business workflow would you explore first?",
+      "overlay": "Which workflow would you explore?",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Choose the next SAP short"
+      }
+    }
+  ],
+  "pronunciation": {
+    "SAP": "S A P",
+    "AI": "A I",
+    "Joule": "Jewel"
+  },
+  "publication": {
+    "channel": "linkedin",
+    "text": "Joule Work after SAP Connect: three things to understand.\n\nAn editorial brief checked October 15, 2026: the interface, Knowledge Graph context, and SAP-managed activation through SAP for Me.\n\nThe announcement describes a beginning rollout with selected customers already using Joule Work. Check your organization’s availability and activation requirements before planning adoption.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich workflow would you explore first?\n\n#SAP #SAPConnect #Joule #BusinessAI"
+  }
+}

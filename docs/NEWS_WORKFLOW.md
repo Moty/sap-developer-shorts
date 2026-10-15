@@ -33,10 +33,28 @@ Both formats then use the same durable media worker, local speech adapter, measu
 
 ## Initial source pack
 
-The initial roundup and six-item editorial backlog were prepared from the [SAP Connect 2026 Innovation News Guide](https://www.sap.com/topics/events/connect/innovation-news-guide-2026) and the [October 6 press release](https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/), read October 14, 2026. This is event coverage, not a claim to include every current SAP announcement. The five follow-ups remain research candidates.
+The initial roundup and six-item editorial backlog were prepared from the [SAP Connect 2026 Innovation News Guide](https://www.sap.com/topics/events/connect/innovation-news-guide-2026) and the [October 6 press release](https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/), read October 14, 2026. This is event coverage, not a claim to include every current SAP announcement. NEWS-02 now provides the Joule Work follow-up, reviewed October 15, 2026; four other follow-ups remain research candidates.
 
 - Script structure: [news script template](../templates/news_script_template.md)
 - Editorial role: [news editor prompt](../prompts/v1/news-editor.md)
 - Media operations: [narration and recovery](MEDIA_WORKFLOW.md)
 
-Automatic discovery, scheduled news monitoring, article extraction, trend scoring, final MP4 rendering, and publishing remain future work. No schedule is created by this implementation.
+Verified local MP4 exports and episode ZIP downloads are available through `produce SELECTOR --serve`. Automatic discovery, scheduled news monitoring, article extraction, trend scoring, and publishing remain future work. No schedule is created by this implementation.
+
+
+## Joule Work follow-up
+
+[NEWS-02](../content/episodes/NEWS-02.json) expands the roundup into three cards:
+interface, business context, and managed activation. Its review date is October
+15, 2026, with a seven-day window valid through October 22 (UTC dates). All three
+cards remain labeled rollout. The guide’s broader portfolio availability does
+not establish access for a particular customer. Source locators and support
+notes remain in the episode and its saved news evidence.
+
+```sh
+npm run shorts -- produce NEWS-02 --serve
+```
+
+The generated studio and ZIP include the source dates, recorded narrator, measured
+captions, transcript, companion draft, and publication status. Source review is
+editorial; no Joule Work environment or tenant behavior was tested.

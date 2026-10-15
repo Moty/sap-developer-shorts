@@ -17,8 +17,9 @@
     "event": "SAP Connect 2026",
     "angle": "Explain the interface and separate rollout from account eligibility.",
     "priority": 2,
-    "status": "needs-research",
+    "status": "draft-ready",
     "sourceUrls": [
+      "https://www.sap.com/topics/events/connect/innovation-news-guide-2026",
       "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/"
     ]
   },

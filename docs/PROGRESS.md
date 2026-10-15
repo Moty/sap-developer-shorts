@@ -297,3 +297,25 @@ Python CRC/member-hash checks; all **75 library artifact hashes** match. A real
 browser download matched its saved SHA-256 and ZIP content type. The extracted
 CAP-02 review loaded its own 1080 × 1920 video independently of the original
 studio. Phone card/download links fit at 390 pixels; the override was reset.
+
+## Milestone 3h: Joule Work announcement short
+
+Added NEWS-02, a focused SAP Connect short about Joule Work's interface,
+Knowledge Graph context, and managed activation through SAP for Me. The October
+15 review checks the official October 6 release and Connect guide. Claims retain
+rollout/selected-customer limits; the script does not imply universal access or
+customer-specific eligibility. All news video frames now display the source-review
+date, with a Canvas regression covering a headline frame.
+
+The Heart recording measures **53.980 seconds**, with a **2.200-second opening**
+and eighteen estimated caption cues. The vertical MP4 passes full decoding and
+audio checks at -16.16 LUFS and -4.44 dBTP. The studio retains seven MP4s, seven
+download packages, and both voice samples. All **87 artifact hashes** and every
+ZIP's CRC/member hashes pass independent verification. Browser metadata and a
+390-pixel phone layout pass; playback remains paused and the viewport is reset.
+
+Minimum Node 22.13.0 checks pass: **80 workflow tests**, five live CAP assertions,
+formatting, types, validation, and build. Astra independently reviewed the dated
+claims and source locators. An initial local scene hit the existing 24-second
+limit; retrying resumed the same saved job and completed without resubmission or
+cost. Astra recommends a bounded local timeout adjustment as the next fix.

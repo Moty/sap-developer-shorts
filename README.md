@@ -70,7 +70,7 @@ source notes, and initial-data/test-data distinction.
 
 News episodes use official SAP sources and record when each announcement was checked. Each card distinguishes availability, rollout, early access, planned release, or announcement only. News source reviews have their own evidence and do not claim that a product demo was executed.
 
-The first news draft, [NEWS-01](content/episodes/NEWS-01.json), uses the [SAP Connect 2026 guide](https://www.sap.com/topics/events/connect/innovation-news-guide-2026). It is an editorial selection from that event, with sources checked October 14, 2026. The [news backlog](content/news/backlog.json) contains six ideas, including this roundup and five follow-ups that still need research.
+The first news draft, [NEWS-01](content/episodes/NEWS-01.json), uses the [SAP Connect 2026 guide](https://www.sap.com/topics/events/connect/innovation-news-guide-2026). It is an editorial selection from that event, with sources checked October 14, 2026. The [news backlog](content/news/backlog.json) contains six ideas: this roundup, the prepared Joule Work follow-up, and four research candidates.
 
 ```sh
 npm run shorts -- validate NEWS-01
@@ -80,7 +80,9 @@ npm run shorts -- narrate NEWS-01
 
 Use the printed artifact directory with `npm run shorts -- serve ARTIFACT_DIRECTORY`. The same player, timed captions, saved media jobs, and local voice work for both episode formats. Run the voice setup below before the first narration. A news run writes `news-evidence.json` with dated source notes instead of CAP evidence. Production refuses a news review older than its configured limit (at most seven days). Validation can still inspect an older draft.
 
-The current warm local news preview measures **57.0 seconds**, with a **2.5-second hook** and eighteen captions using model timing estimates. A verified vertical MP4 is available; stock avatar animation remains pending.
+The NEWS-01 warm local preview measures **57.0 seconds**, with a **2.5-second hook** and eighteen captions using model timing estimates. A verified vertical MP4 is available; stock avatar animation remains pending.
+
+The follow-up [NEWS-02](content/episodes/NEWS-02.json) focuses on Joule Work’s interface, business context, and managed activation, with sources reviewed October 15, 2026. It preserves the distinction between an announced rollout and access for a particular customer. Prepare its local video and ZIP with `npm run shorts -- produce NEWS-02 --serve`.
 
 See [the news workflow](docs/NEWS_WORKFLOW.md), [reusable news script template](templates/news_script_template.md), and [news editor prompt](prompts/v1/news-editor.md). Research is currently an editorial step; this does not automatically discover or rank global SAP news, watch pages, or publish posts.
 

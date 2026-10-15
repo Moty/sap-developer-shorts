@@ -1,6 +1,6 @@
 # Review studio
 
-The local studio brings tutorial and news episode previews into one library. It provides format filters, text search, official source links, measured narration durations, production status, five future news ideas, and the remaining tutorial backlog. Episode players keep an **All episodes** link above the existing review page. The studio does not generate media, edit content, approve publication, or call an external service.
+The local studio brings tutorial and news episode previews into one library. It provides format filters, text search, official source links, measured narration durations, production status, future news ideas, and the remaining tutorial backlog. Episode players keep an **All episodes** link above the existing review page. The studio does not generate media, edit content, approve publication, or call an external service.
 
 ## Compare presentation styles
 

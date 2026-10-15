@@ -15,7 +15,7 @@ test("the backlog retains thirty tutorials and adds a separate SAP news collecti
   );
   assert.deepEqual(
     episodes.map((episode) => episode.id),
-    ["CAP-01", "CAP-02", "NEWS-01"],
+    ["CAP-01", "CAP-02", "NEWS-01", "NEWS-02"],
   );
 });
 
