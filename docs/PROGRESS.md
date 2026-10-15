@@ -270,3 +270,30 @@ Minimum Node 22.13.0 checks pass: **75 workflow tests**, five live CAP assertion
 formatting, types, validation, and build. Astra independently validated claims,
 exact displayed URLs, saved live evidence, and the title regression/news frames.
 See [the CAP data lesson](CAP_DATA_TUTORIAL.md).
+
+## Milestone 3g: downloadable episode packages
+
+- Added ZIP downloads to verified studio cards and video pages. Each package
+  contains the exact selected MP4, poster, captions, companion draft, portable
+  review, measured transcript/timing, source notes, README, and a hashed manifest.
+  The saved narrator and speaker assignments are independent of today's default.
+- Generate packages directly from the library's validated byte buffers. Selector,
+  source, narration, timing, caption, render, and media-job identities must match.
+  No separate latest-package cache or new production stage is needed.
+- Dated news retains its reviewed/valid-through dates and availability notes.
+  Expired reviews produce saved-package labels and extracted recheck warnings;
+  packaging never refreshes sources or publishes a post.
+- Pinned the portable, dependency-free `fflate` 0.8.3 ZIP implementation after
+  checking its official documentation and published metadata. MP4/PNG bytes are
+  stored without recompression. Local configuration, runtime, and paths are omitted.
+- Astra reproduced a malformed-export recovery issue in the initial version.
+  Shared receipt validation now excludes the candidate before selection, so the
+  studio can choose another intact export or preserve narration. Its independent
+  replay and twelve focused checks passed after the fix.
+
+Minimum Node 22.13.0 checks pass: **79 workflow tests**, five live CAP assertions,
+formatting, types, validation, and build. All six real ZIPs passed independent
+Python CRC/member-hash checks; all **75 library artifact hashes** match. A real
+browser download matched its saved SHA-256 and ZIP content type. The extracted
+CAP-02 review loaded its own 1080 × 1920 video independently of the original
+studio. Phone card/download links fit at 390 pixels; the override was reset.

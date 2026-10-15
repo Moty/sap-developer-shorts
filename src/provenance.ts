@@ -49,6 +49,7 @@ export async function runtimeFiles(): Promise<string[]> {
     "library",
     "library-review",
     "studio",
+    "episode-package",
     "presentation",
     "production",
     "variants",

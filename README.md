@@ -26,6 +26,11 @@ Use the library directory printed by the first command. The studio brings curren
 
 This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 
+Use **Download episode package · ZIP** on a verified episode to save its video,
+captions, companion draft, transcript, sources, and portable review together.
+Packages retain the voice and style shown in the studio. See
+[episode downloads](docs/EPISODE_PACKAGES.md).
+
 ## Run the pilot
 
 Use Node.js **22.13+** and npm; Node 22 LTS is the recommended development version. No global CAP tools or SAP cloud account are required.

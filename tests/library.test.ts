@@ -286,6 +286,7 @@ test("only an intact MP4 for the selected narration and exact editorial input is
   const receipt = {
     schemaVersion: 1,
     stage: "READY",
+    selector: "CAP-01",
     renderKey,
     inputHash: hash(JSON.stringify(episode)),
     mediaJobId: media.jobId,
@@ -337,6 +338,16 @@ test("only an intact MP4 for the selected narration and exact editorial input is
   assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
   await writeFile(manifestPath, JSON.stringify({ ...receipt, mediaJobId: "another recording" }));
   assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
+  await writeFile(manifestPath, JSON.stringify({ ...receipt, selector: "CAP-02" }));
+  assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
+  await writeFile(manifestPath, JSON.stringify({ ...receipt, sourceCodeCommit: "corrupt" }));
+  assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
+  const recovered = await buildLibrary({ artifactRoot: directory });
+  assert.equal(
+    recovered.manifest.episodePackages.length,
+    0,
+    "invalid metadata cannot abort the whole studio or advertise a package",
+  );
   await writeFile(manifestPath, JSON.stringify(receipt));
   await writeFile(resolve(output, "short.mp4"), "truncated MP4");
   const altered = await collectLibrary([episode], directory);

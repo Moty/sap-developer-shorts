@@ -180,3 +180,41 @@ without recompression. Add static download links and ZIP content type. Verify
 extraction/hash matching, corrupt export exclusion, voice identity selection,
 expired-news notices, and portable paths. Full Astra plan is in its latest
 message; request its independent review before committing the next milestone.
+
+02:02 PT: CAP-02 pushed as `7e26ef5`; Node 22/24 CI passed.
+Completed episode ZIP downloads following Astra's plan, with pinned fflate 0.8.3
+confirmed from its official documentation and npm metadata (zero audit findings).
+The builder uses exact selected, validated buffers and recorded narrator identity;
+six static downloads contain MP4, poster, captions, exact companion draft, portable
+review, transcript/timing, source notes, README and internal provenance hashes.
+News preserves dated reviews/valid-through and recheck notices. No synthesis or
+paid calls were needed. Astra reproduced malformed export metadata blocking the
+whole library; shared candidate validation now excludes it before selection.
+Its scratch replay confirms the studio rebuilds and retains narration; twelve
+focused checks pass with no remaining blocker.
+
+Full minimum-Node checks pass: 79 workflow tests + five CAP assertions, formatting,
+types, validation, build. All six real ZIPs passed independent Python CRC/member
+hash checks; the final library has 75 verified artifact hashes. Browser downloaded
+CAP-02 to `/Users/I851396/Downloads/CAP-02-v1-6b77fb2f.zip`; that saved snapshot's
+SHA-256 matches its library record and HTTP content type is application/zip.
+The extracted package's video loaded from its own temporary server (53093),
+independent of the original studio. QA tab 5 and exec session 19981 were closed.
+Phone card/download controls fit at 390 pixels; viewport reset. Evidence:
+`.state/overnight/check-packages.log`, `package-evidence.json`, `package-phone.png`.
+
+Final studio for this milestone: `artifacts/library-55d0157b-f0b1-4f68-b0a4-7f784ff95330`,
+port 4173 owned session 61726. Previous intermediate port-4173 sessions stopped.
+The six existing MP4s, four CAP delivery styles, and two voice samples are retained.
+
+Next: commit/push ZIP milestone and check CI. Then implement Astra's recommended
+NEWS-02, “Joule Work: what the rollout means,” adding depth to the Connect roundup.
+Use the existing seven-scene news format, three source-backed cards (interface,
+Knowledge Graph context, managed activation), Heart, October 15 review, seven-day
+limit, 45–60-second MP4 and ZIP. Research the current official Oct6 press release
+and SAP Connect guide before writing. Distinguish beginning rollout/selected
+customers from universal or customer-specific access; avoid productivity figures
+and unverified setup instructions. Astra is preparing concrete claims, locator
+support, availability fields and a short script; inspect its latest response.
+Do not change schemas/providers or start paid generation/publishing. Continue
+only inside the original 7 AM window; keep source research dated and exact.

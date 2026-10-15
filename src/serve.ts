@@ -12,6 +12,7 @@ const contentTypes: Record<string, string> = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".txt": "text/plain; charset=utf-8",
+  ".zip": "application/zip",
 };
 
 export async function startPreviewServer(directory: string, port = 4173) {

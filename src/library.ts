@@ -5,6 +5,12 @@ import { resolve } from "node:path";
 import { readContentEpisode, validateContent } from "./contracts.js";
 import { hash } from "./digest.js";
 import { type ContentEpisode, isNewsEpisode, type NewsTopic, type Topic } from "./domain.js";
+import {
+  assertPackageReceipt,
+  buildEpisodePackage,
+  type EpisodeDownload,
+  type PackageVideoReceipt,
+} from "./episode-package.js";
 import { createLibraryPages } from "./library-review.js";
 import { readPcmWav } from "./media/audio.js";
 import { validateTiming } from "./media/package.js";
@@ -30,7 +36,13 @@ export interface LibraryEntry {
   episode: ContentEpisode;
   preview: LibraryPreview | null;
   sourceReviewExpired: boolean;
-  video?: { renderKey: string; durationSeconds: number; files: Record<string, Buffer> };
+  video?: {
+    renderKey: string;
+    durationSeconds: number;
+    files: Record<string, Buffer>;
+    receipt?: PackageVideoReceipt;
+  };
+  download?: EpisodeDownload;
 }
 
 export interface LibraryContent {
@@ -203,7 +215,9 @@ export async function collectLibrary(
           await realpath(resolve(directory, candidate.name)),
         );
         const { receipt, files } = await readVideoReceipt(videoRoot);
+        assertPackageReceipt(receipt);
         if (
+          receipt.selector !== episodeSelector(entry.episode) ||
           receipt.inputHash !== hash(JSON.stringify(entry.episode)) ||
           receipt.mediaJobId !== entry.preview.mediaJobId ||
           receipt.sourceManifestHash !== entry.preview.sourceManifestHash ||
@@ -221,6 +235,7 @@ export async function collectLibrary(
           renderKey: receipt.renderKey,
           durationSeconds: receipt.quality.durationSeconds,
           files,
+          receipt,
         };
         latest = receipt.updatedAt;
       } catch {
@@ -252,6 +267,10 @@ export async function buildLibrary(
       );
   const settings = await productionSettings();
   const voiceCatalog = await collectVoiceSamples(artifactRoot, settings);
+  for (const entry of library.entries) {
+    const download = buildEpisodePackage(entry, now);
+    if (download) entry.download = download;
+  }
   const sourceHashes: Record<string, string> = {};
   for (const name of [
     "templates/library.css",
@@ -300,6 +319,13 @@ export async function buildLibrary(
     runtimeHashes,
     artifactHashes,
     excludedRuns: library.excludedRuns,
+    episodePackages: library.entries
+      .filter((entry) => entry.download)
+      .map((entry) => ({
+        selector: episodeSelector(entry.episode),
+        filename: entry.download?.filename,
+        sha256: entry.download?.sha256,
+      })),
     voiceSamples: voiceCatalog.samples.map(({ key, identity, audioHash, durationSeconds }) => ({
       key,
       identity,
