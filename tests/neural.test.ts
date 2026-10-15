@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test, { type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { readEpisode } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
 import {
@@ -13,11 +14,73 @@ import {
   splitNarration,
 } from "../src/media/audio.js";
 import type { MediaJob, MediaRequest } from "../src/media/model.js";
-import { assembleNeuralNarration, neuralRuntime, readNeuralScene } from "../src/media/neural.js";
+import {
+  assembleNeuralNarration,
+  kokoroSceneTimeoutMs,
+  neuralRuntime,
+  readNeuralScene,
+  runNeuralProcess,
+} from "../src/media/neural.js";
 import { packageNarration, validateTiming } from "../src/media/package.js";
 import { productionSettings, validateProductionSettings } from "../src/media/worker.js";
 
 const episode = await readEpisode("CAP-01");
+
+test("local renderer diagnostics distinguish failures, deadlines, and confirmed cancellation", async (t) => {
+  const directory = await mkdtemp(resolve(tmpdir(), "sap-neural-process-test-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const mode of ["error", "timeout", "abort", "pre-aborted", "missing-command"] as const) {
+    const controller = new AbortController();
+    const logPath = resolve(directory, `${mode}.log`);
+    const marker = resolve(directory, `${mode}.ready`);
+    if (mode === "pre-aborted") controller.abort();
+    const pending = runNeuralProcess(
+      mode === "missing-command" ? resolve(directory, "no-such-command") : process.execPath,
+      [
+        "-e",
+        mode === "error"
+          ? "process.stdout.write('test output');process.stderr.write('test error');process.exit(7)"
+          : `process.on('SIGTERM',()=>{});require('node:fs').writeFileSync(${JSON.stringify(marker)},'ready');setInterval(()=>{},1000)`,
+      ],
+      {
+        signal: controller.signal,
+        logPath,
+        ...(mode === "timeout" ? { timeoutMs: 100 } : {}),
+      },
+    );
+    // Attach the rejection handler before aborting, including already-aborted signals.
+    const rejected = assert.rejects(pending, (error: Error) => error.message.includes(logPath));
+    if (mode === "abort") {
+      const until = Date.now() + 3000;
+      while (true) {
+        try {
+          await access(marker);
+          break;
+        } catch {
+          assert.ok(Date.now() < until, "child did not start");
+          await delay(10);
+        }
+      }
+      controller.abort();
+    }
+    await rejected;
+    const log = JSON.parse(await readFile(logPath, "utf8"));
+    assert.equal(log.timeoutMs, mode === "timeout" ? 100 : kokoroSceneTimeoutMs);
+    assert.ok(log.elapsedMs >= 0);
+    if (mode === "error") {
+      assert.equal(log.reason, "process-error");
+      assert.equal(log.code, 7);
+      assert.equal(log.stdout, "test output");
+      assert.equal(log.stderr, "test error");
+    } else if (mode === "missing-command") assert.equal(log.code, "ENOENT");
+    else {
+      assert.equal(log.reason, mode === "timeout" ? "timeout" : "aborted");
+      assert.equal(log.killed, true);
+      assert.equal(log.signal, "SIGKILL");
+    }
+    if (log.pid) assert.throws(() => process.kill(log.pid, 0), { code: "ESRCH" });
+  }
+});
 
 test("installing a cohost leaves existing voice fingerprints and pinned snapshots stable", async (t) => {
   const directory = await mkdtemp(resolve(tmpdir(), "sap-voice-runtime-test-"));

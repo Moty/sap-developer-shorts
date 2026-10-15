@@ -8,6 +8,7 @@ import { readPcmWav, sampleRate } from "./audio.js";
 import { currentNarrationGeneratorHash } from "./fingerprint.js";
 import type { ProductionSettings } from "./model.js";
 import {
+  kokoroOperationTimeoutMs,
   type NeuralSpeechRequest,
   neuralRoot,
   neuralRuntime,
@@ -165,7 +166,7 @@ export async function createVoiceAudition(
       request,
       0,
       temporary,
-      AbortSignal.timeout(26000),
+      AbortSignal.timeout(kokoroOperationTimeoutMs),
     );
     const audio = await readFile(resolve(temporary, "scene-0.wav"));
     const durationSeconds = readPcmWav(audio).length / 2 / sampleRate;

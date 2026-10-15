@@ -67,6 +67,14 @@ completed speech is not submitted again for an MP4 or studio failure. Unknown
 submissions, polling interruptions, and packaging failures stop with a saved
 identifier and a specific recovery command. Incomplete production exits nonzero.
 
+Each local Kokoro scene has a bounded 60-second rendering allowance; polling and
+voice auditions allow five additional seconds for cancellation cleanup. Other
+provider operations retain their shorter limits. Cancellation stops the local
+render process and waits for it to close before releasing the job for retry.
+Scene failures print an exact diagnostic path with elapsed time, configured
+limit, exit/signal details, and captured output. Retry the saved job after checking
+that report; a polling timeout does not authorize a second submission.
+
 Speech reuse requires matching ordered narration/scene IDs, pronunciation,
 speaker assignments, voice settings, synthesis implementation, and model/voice
 fingerprint. System narration also binds planned scene timing because that engine

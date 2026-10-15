@@ -16,7 +16,7 @@ import type {
   MediaRequest,
   ProductionSettings,
 } from "./model.js";
-import { neuralRuntime } from "./neural.js";
+import { kokoroOperationTimeoutMs, neuralRuntime } from "./neural.js";
 import { packageNarration, readCompletedNarration } from "./package.js";
 import { FakeProvider, LocalSpeechProvider } from "./providers.js";
 import { MediaStore } from "./store.js";
@@ -192,29 +192,44 @@ export async function createMediaJob(
 async function bounded<T>(
   action: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number,
+  settleAfterAbort = false,
 ): Promise<T> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const pending = action(controller.signal);
   try {
     return await Promise.race([
-      action(controller.signal),
+      pending,
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(() => {
-          controller.abort();
           reject(new Error("Provider operation timed out"));
+          controller.abort();
         }, timeoutMs);
       }),
     ]);
   } finally {
     if (timer) clearTimeout(timer);
+    // Local Kokoro cancellation confirms child close before the lease is released.
+    if (settleAfterAbort && controller.signal.aborted) await pending.catch(() => undefined);
   }
+}
+
+export function mediaOperationTimeoutMs(
+  provider: MediaProvider["id"],
+  operation: "submit" | "lookup" | "poll",
+  override?: number,
+) {
+  return (
+    override ??
+    (provider === "local-kokoro" && operation === "poll" ? kokoroOperationTimeoutMs : 25_000)
+  );
 }
 
 export async function advanceMediaJob(
   store: MediaStore,
   id: string,
   provider: MediaProvider,
-  timeoutMs = 25000,
+  timeoutMs?: number,
 ): Promise<MediaJob> {
   const owner = store.acquire(id);
   try {
@@ -259,7 +274,10 @@ export async function advanceMediaJob(
       move("SUBMISSION_UNKNOWN", "Worker stopped before submission was confirmed");
     if (job.phase === "SUBMISSION_UNKNOWN") {
       try {
-        const found = await bounded((signal) => provider.lookup(job.requestKey, signal), timeoutMs);
+        const found = await bounded(
+          (signal) => provider.lookup(job.requestKey, signal),
+          mediaOperationTimeoutMs(provider.id, "lookup", timeoutMs),
+        );
         if (found.state === "found") {
           if (!found.id) throw new Error("Provider lookup returned no job ID");
           job.providerJobId = found.id;
@@ -275,7 +293,7 @@ export async function advanceMediaJob(
       try {
         const providerId = await bounded(
           (signal) => provider.submit(structuredClone(job.request), job.requestKey, signal),
-          timeoutMs,
+          mediaOperationTimeoutMs(provider.id, "submit", timeoutMs),
         );
         if (typeof providerId !== "string" || !providerId.length)
           throw new Error("Provider returned no job ID");
@@ -304,7 +322,8 @@ export async function advanceMediaJob(
       const status = await bounded(
         (signal) =>
           provider.poll(job.providerJobId as string, structuredClone(job.request), signal),
-        timeoutMs,
+        mediaOperationTimeoutMs(provider.id, "poll", timeoutMs),
+        provider.id === "local-kokoro",
       );
       if (status.state === "failed") move("FAILED", status.message);
       else if (status.state === "processing") {

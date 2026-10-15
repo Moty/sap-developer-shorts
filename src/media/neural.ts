@@ -18,6 +18,78 @@ import { kokoroVoice } from "./voices.js";
 const exec = promisify(execFile);
 export const neuralRoot = resolve(projectRoot, ".state/neural-voice");
 const python = resolve(neuralRoot, "venv/bin/python");
+export const kokoroSceneTimeoutMs = 60_000;
+export const kokoroOperationTimeoutMs = kokoroSceneTimeoutMs + 5_000;
+
+// Abort errors can arrive before close. Do not allow another scene attempt to
+// write the same files until this disposable rendering process has fully closed.
+export async function runNeuralProcess(
+  command: string,
+  args: string[],
+  options: { signal: AbortSignal; logPath: string; timeoutMs?: number },
+) {
+  const timeoutMs = options.timeoutMs ?? kokoroSceneTimeoutMs;
+  const started = performance.now();
+  const execution = exec(command, args, {
+    cwd: projectRoot,
+    timeout: timeoutMs,
+    killSignal: "SIGKILL",
+    maxBuffer: 1024 * 1024,
+  });
+  const child = execution.child;
+  const closed = new Promise<void>((done) => child.once("close", () => done()));
+  // execFile does not forward killSignal to spawn's AbortSignal handling on
+  // supported Node versions. Send our rendering-only kill signal explicitly.
+  const abort = () => {
+    child.kill("SIGKILL");
+  };
+  options.signal.addEventListener("abort", abort, { once: true });
+  if (options.signal.aborted) abort();
+  try {
+    await execution;
+    options.signal.throwIfAborted();
+  } catch (error) {
+    await closed;
+    const failure = error as Error & {
+      stdout?: string;
+      stderr?: string;
+      killed?: boolean;
+      code?: string | number;
+    };
+    const elapsedMs = Math.round(performance.now() - started);
+    const reason = options.signal.aborted
+      ? "aborted"
+      : child.killed && elapsedMs >= timeoutMs
+        ? "timeout"
+        : "process-error";
+    await writeFile(
+      options.logPath,
+      `${JSON.stringify(
+        {
+          reason,
+          elapsedMs,
+          timeoutMs,
+          pid: child.pid ?? null,
+          killed: child.killed || failure.killed === true,
+          signal: child.signalCode,
+          code: failure.code ?? child.exitCode,
+          message: failure.message,
+          stdout: failure.stdout ?? "",
+          stderr: failure.stderr ?? "",
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    throw new Error(
+      `Local neural voice ${reason === "timeout" ? "reached its scene time limit" : reason === "aborted" ? "was interrupted" : "could not finish"}. Details: ${options.logPath}`,
+      { cause: error },
+    );
+  } finally {
+    options.signal.removeEventListener("abort", abort);
+    await closed;
+  }
+}
 
 export async function setupNeuralVoice(additionalVoices: string[] = []) {
   const settings = JSON.parse(await readFile(await sourceFile("config/production.json"), "utf8"));
@@ -227,30 +299,18 @@ export async function synthesizeNeuralScene(
   await mkdir(directory, { recursive: true });
   const input = resolve(directory, `scene-${index}-input.json`);
   await writeFile(input, JSON.stringify(sceneInput(request, index)));
-  try {
-    await exec(
-      python,
-      [
-        await sourceFile("src/media/kokoro-runner.py"),
-        "render",
-        neuralRoot,
-        input,
-        resolve(directory, `scene-${index}.wav`),
-        resolve(directory, `scene-${index}.json`),
-      ],
-      { cwd: projectRoot, signal, timeout: 24000, maxBuffer: 1024 * 1024 },
-    );
-  } catch (error) {
-    const failure = error as Error & { stdout?: string; stderr?: string };
-    await writeFile(
-      resolve(directory, `scene-${index}.log`),
-      `${failure.message}\n${failure.stdout ?? ""}${failure.stderr ?? ""}`,
-    );
-    throw new Error(
-      `Local neural voice could not finish scene ${index + 1}. The saved scene log contains the details.`,
-      { cause: error },
-    );
-  }
+  await runNeuralProcess(
+    python,
+    [
+      await sourceFile("src/media/kokoro-runner.py"),
+      "render",
+      neuralRoot,
+      input,
+      resolve(directory, `scene-${index}.wav`),
+      resolve(directory, `scene-${index}.json`),
+    ],
+    { signal, logPath: resolve(directory, `scene-${index}.log`) },
+  );
   await readNeuralScene(request, index, directory);
 }
 

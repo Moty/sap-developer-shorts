@@ -15,7 +15,7 @@ import {
   splitNarration,
   vttTimestamp,
 } from "../src/media/audio.js";
-import { narrationGeneratorHash } from "../src/media/fingerprint.js";
+import { currentNarrationGeneratorHash, narrationGeneratorHash } from "../src/media/fingerprint.js";
 import type {
   MediaProvider,
   MediaRequest,
@@ -29,6 +29,7 @@ import { MediaStore } from "../src/media/store.js";
 import {
   advanceMediaJob,
   createMediaJob,
+  mediaOperationTimeoutMs,
   productionSettings,
   rebuildMediaPackage,
 } from "../src/media/worker.js";
@@ -87,6 +88,74 @@ test("a real provider deadline is bounded and leaves the saved job resumable", a
   hang = false;
   await advanceMediaJob(store, job.id, provider);
   assert.equal((await advanceMediaJob(store, job.id, provider)).phase, "SIMULATED");
+  assert.equal(backend.submissions, 1);
+});
+
+test("only Kokoro polling gets the longer local scene budget", () => {
+  for (const provider of ["fake", "local-speech", "local-kokoro"] as const)
+    for (const operation of ["lookup", "submit", "poll"] as const) {
+      assert.equal(
+        mediaOperationTimeoutMs(provider, operation),
+        provider === "local-kokoro" && operation === "poll" ? 65_000 : 25_000,
+      );
+      assert.equal(mediaOperationTimeoutMs(provider, operation, 10), 10);
+    }
+});
+
+test("Kokoro holds the lease through cancellation cleanup and resumes the same scene", async (t) => {
+  const { run, store, settings } = await fixture(t);
+  const backend = new CountingProvider(store);
+  const job = await createMediaJob(store, run.directory, backend, settings);
+  const owner = store.acquire(job.id);
+  job.request.provider = "local-kokoro";
+  job.request.generatorHash = await currentNarrationGeneratorHash("local-kokoro");
+  job.requestHash = hash(JSON.stringify(job.request));
+  store.save(job, owner);
+  store.release(job.id, owner);
+  let interrupted = true;
+  let cleaned = false;
+  let progress = 0;
+  const provider: MediaProvider = {
+    id: "local-kokoro",
+    billing: "free",
+    quote: () => 0,
+    submit: (request, key) => backend.submit(request, key),
+    lookup: (key) => backend.lookup(key),
+    poll: async (_id, _request, signal) => {
+      if (interrupted) {
+        await new Promise<void>((done) =>
+          signal.addEventListener(
+            "abort",
+            () => {
+              assert.throws(() => store.acquire(job.id), /already being processed/);
+              setTimeout(() => {
+                cleaned = true;
+                done();
+              }, 20);
+            },
+            { once: true },
+          ),
+        );
+        // Even a late successful result cannot turn a fired deadline into success.
+        return { state: "processing", progress: "Late result" };
+      }
+      progress++;
+      return { state: "processing", progress: `Recorded scene ${progress}` };
+    },
+  };
+  const submitted = await advanceMediaJob(store, job.id, provider);
+  const stopped = await advanceMediaJob(store, job.id, provider, 10);
+  assert.equal(stopped.phase, "POLL_TIMEOUT");
+  assert.equal(stopped.progress, null);
+  assert.equal(progress, 0);
+  assert.equal(cleaned, true);
+  const released = store.acquire(job.id);
+  store.release(job.id, released);
+  interrupted = false;
+  const resumed = await advanceMediaJob(store, job.id, provider);
+  assert.equal(resumed.phase, "PROCESSING");
+  assert.equal(resumed.providerJobId, submitted.providerJobId);
+  assert.equal(resumed.progress, "Recorded scene 1");
   assert.equal(backend.submissions, 1);
 });
 

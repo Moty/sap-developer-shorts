@@ -319,3 +319,26 @@ formatting, types, validation, and build. Astra independently reviewed the dated
 claims and source locators. An initial local scene hit the existing 24-second
 limit; retrying resumed the same saved job and completed without resubmission or
 cost. Astra recommends a bounded local timeout adjustment as the next fix.
+
+## Milestone 3i: reliable local narration deadlines
+
+Kokoro scene rendering now has a 60-second allowance with a 65-second outer
+poll/audition budget. Submission, lookup, other providers, and explicit overrides
+retain their limits. Cancellation kills only the disposable rendering process,
+waits for its close, and retains the job lease during cleanup. A deadline cannot
+be mistaken for success when a late result arrives. Setup/download behavior is
+unchanged, and interrupted jobs retain same-job recovery without resubmission.
+
+Structured failure reports include elapsed/allowed time, process/exit/signal
+details, and captured output; errors print the exact report path. Official Node
+source and a failing regression exposed that execFile's AbortSignal path does
+not forward its killSignal setting. Explicit rendering cancellation addresses
+that behavior and is tested with a SIGTERM-resistant child, pre-aborted signals,
+spawn failure, and confirmed process exit before retry.
+
+Minimum Node 22.13.0 checks pass: **83 workflow tests**, five live CAP assertions,
+formatting, types, validation, and build. Astra independently passed 27 focused
+tests and subprocess scratch checks. Real Heart and Michael auditions completed
+sequentially with no timeout; Heart remains selected. A library rebuild preserves
+all seven completed MP4s/packages and two current voice samples; all 87 hashes
+match. No paid call or publication occurred.

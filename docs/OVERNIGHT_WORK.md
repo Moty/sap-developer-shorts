@@ -252,3 +252,27 @@ no automatic resubmission, no lease/schema migration. Changing neural.ts changes
 the generator hash once; preserve completed historical media without bypassing
 fingerprints. After independent review/full checks, produce the already-planned
 CAP-02@quiz and dynamic format-gallery availability (Astra script in thread).
+
+02:24 PT: NEWS-02 pushed as `f3b00a6`; Node 22/24 CI passed
+(run 38711953577). Completed the Astra timeout fix: 60s rendering/65s local poll
+and auditions, other operations 25s, explicit overrides preserved. Child close is
+confirmed before the Kokoro lease is released; deadline wins over late results.
+Structured diagnostics include the exact path and execution evidence. A fast
+regression exposed execFile AbortSignal using SIGTERM despite killSignal; official
+Node 22.13 source confirmed the omission and explicit local-render cancellation
+now sends SIGKILL. Setup/download behavior and historical completed media remain.
+
+Full minimum-Node checks/build pass: 83 workflow tests + five CAP assertions.
+Astra independently passed 27 focused tests and success/SIGTERM-resistant process
+scratch checks. Real sequential Heart/Michael auditions both recorded successfully
+(10.350s/11.300s); no new timeout. Logs: `.state/overnight/check-timeout.log`,
+`test-timeout.log`, `audition-timeout.log`, and `library-timeout.log`.
+Rebuilt studio `artifacts/library-fe02d84c-bf07-4108-8b13-faa26560ede5` preserves
+seven MP4s/packages plus two current samples, all 87 hashes verified. Port 4173
+still serves the valid NEWS-02 studio from session 8360; switch it to the next
+quiz studio after producing that milestone. Heart remains default; cost zero.
+
+Next: commit/push timeout milestone, then CAP-02@quiz with the Astra-authored
+prediction/reveal script and dynamic format gallery. Do not add interaction
+states or alter inherited CSV/query/capture/evidence fields. Keep the four-style
+CAP-01 comparison. Astra is independently planning the next bounded improvement.
