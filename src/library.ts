@@ -12,6 +12,7 @@ import { loadVerifiedRun, productionSettings } from "./media/worker.js";
 import { inside, projectRoot, sourceFile } from "./paths.js";
 import { episodeSelector, episodeSourceFiles } from "./presentation.js";
 import { readRuntimeFiles } from "./provenance.js";
+import { readVideoReceipt } from "./video/receipt.js";
 
 export interface LibraryPreview {
   kind: "narrated" | "storyboard";
@@ -28,6 +29,7 @@ export interface LibraryEntry {
   episode: ContentEpisode;
   preview: LibraryPreview | null;
   sourceReviewExpired: boolean;
+  video?: { renderKey: string; durationSeconds: number; files: Record<string, Buffer> };
 }
 
 export interface LibraryContent {
@@ -172,6 +174,48 @@ export async function collectLibrary(
       (b.preview?.updatedAt ?? "").localeCompare(a.preview?.updatedAt ?? "") ||
       a.episode.id.localeCompare(b.episode.id),
   );
+  for (const entry of entries) {
+    if (entry.preview?.kind !== "narrated") continue;
+    const directory = resolve(
+      artifactRoot,
+      "videos",
+      episodeSelector(entry.episode).replace("@", "--"),
+    );
+    const exports = await readdir(directory, { withFileTypes: true }).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+        return [];
+      },
+    );
+    let latest = "";
+    for (const candidate of exports) {
+      if (!candidate.isDirectory() || !/^video-[a-f0-9]{16}$/u.test(candidate.name)) continue;
+      try {
+        const videoRoot = inside(
+          await realpath(artifactRoot),
+          await realpath(resolve(directory, candidate.name)),
+        );
+        const { receipt, files } = await readVideoReceipt(videoRoot);
+        if (
+          receipt.inputHash !== hash(JSON.stringify(entry.episode)) ||
+          receipt.mediaJobId !== entry.preview.mediaJobId ||
+          receipt.sourceManifestHash !== entry.preview.sourceManifestHash ||
+          typeof receipt.updatedAt !== "string" ||
+          !Number.isFinite(Date.parse(receipt.updatedAt)) ||
+          receipt.updatedAt <= latest
+        )
+          continue;
+        entry.video = {
+          renderKey: receipt.renderKey,
+          durationSeconds: receipt.quality.durationSeconds,
+          files,
+        };
+        latest = receipt.updatedAt;
+      } catch {
+        excludedRuns++;
+      }
+    }
+  }
   return { entries, excludedRuns };
 }
 
@@ -232,9 +276,12 @@ export async function buildLibrary(options: { artifactRoot?: string; now?: Date 
     runtimeHashes,
     artifactHashes,
     excludedRuns: library.excludedRuns,
-    episodes: library.entries.map(({ episode, preview, sourceReviewExpired }) => ({
+    episodes: library.entries.map(({ episode, preview, sourceReviewExpired, video }) => ({
       id: episode.id,
       selector: episodeSelector(episode),
+      ...(video
+        ? { video: { renderKey: video.renderKey, durationSeconds: video.durationSeconds } }
+        : {}),
       version: episode.version,
       inputHash: hash(JSON.stringify(episode)),
       sourceReviewExpired,

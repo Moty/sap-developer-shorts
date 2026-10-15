@@ -223,3 +223,59 @@ test("a library is a portable hashed copy of validated previews and escapes titl
   assert.ok(html.includes("No matching preview yet"));
   assert.ok(!files["episodes/CAP-01/watch.html"]);
 });
+
+test("only an intact MP4 for the selected narration and exact editorial input is offered in the library", async (t) => {
+  const directory = await root(t);
+  const source = await run(directory);
+  const narration = await addNarration(t, directory, source.directory);
+  const media = JSON.parse(await readFile(resolve(narration, "media-manifest.json"), "utf8"));
+  const renderKey = hash("video receipt fixture");
+  const output = resolve(directory, "videos/CAP-01", `video-${renderKey.slice(0, 16)}`);
+  await mkdir(output, { recursive: true });
+  const files: Record<string, Buffer> = {
+    "short.mp4": Buffer.from("0000ftyp-fixture-only"),
+    "poster.png": Buffer.from("89504e470d0a1a0a", "hex"),
+    "review.html": Buffer.from("<!--LIBRARY_BACK-->Test video player"),
+    "captions.vtt": await readFile(resolve(narration, "captions.vtt")),
+    "timing.json": await readFile(resolve(narration, "timing.json")),
+    "publication-draft.txt": Buffer.from("Test post"),
+  };
+  const artifactHashes: Record<string, string> = {};
+  for (const [name, bytes] of Object.entries(files)) {
+    await writeFile(resolve(output, name), bytes);
+    artifactHashes[name] = hash(bytes);
+  }
+  const receipt = {
+    schemaVersion: 1,
+    stage: "READY",
+    renderKey,
+    inputHash: hash(JSON.stringify(episode)),
+    mediaJobId: media.jobId,
+    sourceManifestHash: media.sourceManifestHash,
+    updatedAt: new Date().toISOString(),
+    quality: { durationSeconds: 55, decoded: true, audioChecked: true },
+    artifactHashes,
+  };
+  const manifestPath = resolve(output, "video-manifest.json");
+  await writeFile(manifestPath, JSON.stringify(receipt));
+  const library = await collectLibrary([episode], directory);
+  assert.equal(library.entries[0]?.video?.renderKey, renderKey);
+  const pages = await createLibraryPages({
+    ...library,
+    topics: [],
+    newsTopics: [],
+    budgetCents: 500,
+  });
+  assert.match(String(pages["review.html"]), /Watch MP4/u);
+  assert.ok(pages["episodes/CAP-01/video/short.mp4"]);
+  assert.match(String(pages["episodes/CAP-01/video/review.html"]), /All episodes and styles/u);
+  await writeFile(manifestPath, JSON.stringify({ ...receipt, inputHash: hash("another script") }));
+  assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
+  await writeFile(manifestPath, JSON.stringify({ ...receipt, mediaJobId: "another recording" }));
+  assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
+  await writeFile(manifestPath, JSON.stringify(receipt));
+  await writeFile(resolve(output, "short.mp4"), "truncated MP4");
+  const altered = await collectLibrary([episode], directory);
+  assert.equal(altered.entries[0]?.video, undefined);
+  assert.equal(altered.entries[0]?.preview?.kind, "narrated");
+});

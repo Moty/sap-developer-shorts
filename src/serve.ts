@@ -7,6 +7,7 @@ import { inside } from "./paths.js";
 const contentTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".wav": "audio/wav",
+  ".mp4": "video/mp4",
   ".vtt": "text/vtt; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",

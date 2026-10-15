@@ -17,7 +17,12 @@ import { startPreviewServer } from "./serve.js";
 const [command = "help", ...args] = process.argv.slice(2);
 
 try {
-  if (command === "styles" && !args.length) {
+  if (command === "render" && args.length === 1 && args[0]) {
+    const { renderVideo } = await import("./video/export.js");
+    const result = await renderVideo(args[0], { progress: (message) => console.log(message) });
+    console.log(`Video: ${resolve(result.directory, "short.mp4")}`);
+    console.log(`Review: ${resolve(result.directory, "review.html")}`);
+  } else if (command === "styles" && !args.length) {
     const { presentationFormats, toneLabels, humorLabels } = await import("./presentation.js");
     console.log(`Tones: ${Object.values(toneLabels).join(", ")}`);
     console.log(`Humor: ${Object.values(humorLabels).join(", ")}`);
@@ -161,7 +166,7 @@ try {
     }
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  styles                         Browse presentation formats and tones\n  voices                         List supported Kokoro English voices\n  voice-setup                    Install the selected local neural voice\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
+      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  voices                         List supported Kokoro English voices\n  voice-setup                    Install the selected local neural voice\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

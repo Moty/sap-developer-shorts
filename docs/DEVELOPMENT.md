@@ -40,7 +40,7 @@ cp .env.example .env
 node --env-file=.env --import tsx src/cli.ts doctor
 ```
 
-`doctor` checks the Node version, local CAP dependencies, and content. It reports FFmpeg and FFprobe as optional until the video stage exists. It does not test avatar credentials, publishing entitlement, or production systems.
+`doctor` checks the Node version, local CAP dependencies, and content. It reports FFmpeg and FFprobe as optional for the core workflow; both are required by the `render` command. It does not test avatar credentials, publishing entitlement, or production systems.
 
 ## Next milestone: narrated avatar pilot
 

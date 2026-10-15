@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "upstream": "matplotlib/matplotlib",
+  "revision": "ba9ebc7d8dbac19b39de7202ec4285fa4ee598c7",
+  "files": {
+    "DejaVuSans.ttf": {
+      "sha256": "3fdf69cabf06049ea70a00b5919340e2ce1e6d02b0cc3c4b44fb6801bd1e0d22",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/ba9ebc7d8dbac19b39de7202ec4285fa4ee598c7/lib/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf"
+    },
+    "DejaVuSans-Bold.ttf": {
+      "sha256": "b184b89e3c1075f22f6b71575b6fc20d4972b3cfd3b23322ca6fd596dcaef167",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/ba9ebc7d8dbac19b39de7202ec4285fa4ee598c7/lib/matplotlib/mpl-data/fonts/ttf/DejaVuSans-Bold.ttf"
+    },
+    "DejaVuSansMono.ttf": {
+      "sha256": "602ec86b8948cfcd956482fe64f94c36c867770149ef2f791d4613f443bcecb3",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/ba9ebc7d8dbac19b39de7202ec4285fa4ee598c7/lib/matplotlib/mpl-data/fonts/ttf/DejaVuSansMono.ttf"
+    },
+    "LICENSE_DEJAVU": {
+      "sha256": "d75938dec098f06f0ac3c00853065d94f020be1c3c62ef1dc2975ba15b4d9b0e",
+      "source": "https://raw.githubusercontent.com/matplotlib/matplotlib/ba9ebc7d8dbac19b39de7202ec4285fa4ee598c7/lib/matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU"
+    }
+  }
+}

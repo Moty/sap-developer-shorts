@@ -109,3 +109,22 @@ Regression checks validate supported and rejected selections and package Bella/G
 - Added an authoring guide, presentation-editor prompt, and `styles` command. Tone and humor affect authored scripts and visual accents; the application does not claim automatic rewriting, emotional voice controls, finished cartoon characters, or final avatar animation.
 
 Verification passed on minimum Node 22.13.0: **46 workflow tests**, five live CAP checks, formatting, types, content validation, and build. Regression coverage includes base/evidence preservation, variant separation, unknown/missing speakers, duplicate voices, caption attribution, stable cohost installation fingerprints, and altered runtime snapshots. The five-preview library has 26 matching artifact hashes. Browser checks confirmed comparison links, dialogue playback/seeking, and matching active-speaker labels and captions for Max and Mira. Both the style library and dialogue player fit a 390-pixel phone viewport without horizontal overflow; the viewport override was reset. All generation remained local and recorded $0. Final MP4 composition and avatar production remain pending.
+
+## Milestone 3a: verified vertical MP4 exports
+
+- Added `render EPISODE_ID` to compose 1080 × 1920 H.264/AAC MP4s from matching, verified narration packages. It handles technical tutorials, dated news cards, and two-person Kokoro dialogue without another speech request or paid provider call.
+- Added native Canvas frames using bundled, hash-pinned DejaVu fonts with required license notices. Frames use the saved pixel layout, registered source code, and recorded HTTP results. Text wraps by measured width; oversized content fails instead of clipping. Long headlines can reduce to a readable 56-pixel minimum in the default layout.
+- Added visible captions and speaker badges on a 30-fps timeline, retaining model-estimated caption boundaries. Added two-pass loudness normalization, output loudness checks, FFprobe format/duration/frame checks, and full FFmpeg decoding before readiness.
+- Added content-derived export keys, atomic manifests, worker locks, recovery for confirmed stopped workers, diagnostic logs, cached verified output, artifact hashes, standalone video review/download pages, and companion drafts. Matching CAP source commits supply an immutable code/setup link.
+- Added MP4 selection to the review library. Only intact exports for the exact script and selected narration are offered. Portable libraries include the video, poster, captions, timing, and companion post. Earlier narrated players remain available.
+
+Generated and checked two exports locally with FFmpeg 9.0.2:
+
+| Export | Duration | Audio | File size |
+| --- | --- | --- | --- |
+| CAP-01@duo | 58.470 seconds | -16.35 LUFS; -4.43 dBTP | 2.50 MiB |
+| NEWS-01 | 57.033 seconds | -16.13 LUFS; -4.50 dBTP | 2.40 MiB |
+
+Both use 1080 × 1920 video at 30 fps with AAC 48 kHz stereo. The CAP export cache was exercised without re-encoding. Extracted frames from the actual MP4s were inspected for source code, long URL wrapping, captured results, news availability, and captions. The studio lists two verified MP4s; all 38 saved library artifact hashes match. Browser checks confirmed video dimensions, complete readiness, playback, native seeking, and no media error. The MP4 review page fits a 390-pixel viewport without horizontal overflow, and the viewport override was reset.
+
+Verification passed on minimum Node 22.13.0: **53 workflow tests**, five live CAP checks, formatting, types, content validation, and build. New regressions cover frame timing/gaps, output codecs and missing streams/durations, silent audio, measured wrapping and overflow, every news-card layout, altered/escaping video files, and selecting only matching exports. Source and generated media remain separate; no paid generation, avatar animation, or publishing was performed. See [video export and recovery](VIDEO_EXPORT.md).

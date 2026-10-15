@@ -72,4 +72,4 @@ Keep jokes brief and attached to a real developer situation: an entity needing a
 
 Two-person audio is generated turn by turn with short pauses. Caption speaker attribution is checked against the declared turns, and the player shows the active speaker. Caption boundaries remain model timing estimates. Installed voices are cached; each job pins an immutable runtime snapshot, so installing a cohost does not invalidate another saved job. Reusing a pinned runtime still requires its original model assets and dependency versions.
 
-The current outputs are narrated HTML previews. Actor/avatar performance, comic character artwork, final MP4 composition, and publication remain later production work.
+Narrated HTML previews can now be exported as captioned vertical MP4s with `render`; see [video export](VIDEO_EXPORT.md). Actor/avatar performance, comic character artwork, and publication remain later production work.

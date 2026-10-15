@@ -2,7 +2,7 @@
 
 A local preparation workflow for SAP shorts: hands-on developer tutorials and dated SAP news briefings, with a shared vertical preview, narration, captions, and companion post workflow.
 
-The first implementation turns the editorial blueprint into a reproducible pilot package: a draft script, a vertical storyboard, live demo evidence, and companion post copy. The media workflow now supports resumable local narration with measured captions. **Real avatar generation, the final provider voice, MP4 rendering, and publishing remain pending.** No provider credentials are needed for the local workflow.
+The implementation turns the editorial blueprint into a reproducible pilot package: a script, vertical storyboard, live demo evidence, companion post copy, and local Kokoro narration. It now exports verified vertical MP4s with visible captions and speaker labels. **Stock avatar animation, any final provider voice, and publishing remain pending.** No provider credentials are needed for the local workflow.
 
 ## Browse the review studio
 
@@ -90,6 +90,18 @@ npm run shorts -- media-package JOB_ID
 
 SQLite job state lives in ignored `.state/media/`. Submission intent and provider IDs survive restarts. Unconfirmed submissions are reconciled without automatic resubmission; polling and packaging can resume using the saved job. Packaging rebuilds reuse recorded audio. See [media workflow and recovery](docs/MEDIA_WORKFLOW.md).
 
+## Export a vertical video
+
+Install FFmpeg and FFprobe, then export an existing narrated preview:
+
+```sh
+npm run shorts -- render CAP-01@duo
+npm run shorts -- render NEWS-01
+npm run shorts -- library
+```
+
+Serve the new library directory to use its **Watch MP4** links. The export is a 1080 × 1920 H.264/AAC MP4 with visible captions, source-backed visuals, and normalized narration. It reuses the saved audio, checks complete decoding and timing, and records hashes and quality measurements. Stock avatar animation and publication remain pending. See [video export and recovery](docs/VIDEO_EXPORT.md).
+
 ## Work with the demo
 
 ```sh
@@ -124,6 +136,7 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 - [Media workflow](docs/MEDIA_WORKFLOW.md): narration, job recovery, spending records, and current provider limitations.
 - [Voice options](docs/VOICE_OPTIONS.md): warm local narration, setup, timing limitations, and the ElevenLabs option.
 - [Presentation styles](docs/PRESENTATION_STYLES.md): professional, casual, comic, dialogue, humor settings, and reusable delivery variants.
+- [Video export](docs/VIDEO_EXPORT.md): vertical MP4 composition, quality checks, downloads, and saved render recovery.
 - [News workflow](docs/NEWS_WORKFLOW.md): source review, availability, freshness, and adding future SAP news episodes.
 - [Independent Astra review](docs/ASTRA_REVIEW.md): three reproduced gaps, their fixes, and the verification outcome.
 - [Episode contract](schemas/episode.schema.json): versioned structure plus application-level timing and evidence checks.
@@ -134,4 +147,4 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 
 ## License
 
-[MIT](LICENSE). Third-party dependencies retain their own licenses. No avatar, voice, music, or other third-party media assets are included.
+[MIT](LICENSE). Third-party dependencies retain their own licenses. Bundled DejaVu fonts include their [required redistribution notices](assets/fonts/LICENSE_DEJAVU). Downloaded voice models and generated media remain outside versioned source.
