@@ -104,7 +104,17 @@ export async function neuralRuntime(requestedVoices?: string[], runtimeRoot = ne
   return { hash: fingerprint, voice: voices[0] as string };
 }
 
-function sceneInput(request: MediaRequest, index: number) {
+// Speech samples can use the same renderer without claiming episode verification.
+export interface NeuralSpeechRequest {
+  episode: Pick<MediaRequest["episode"], "pronunciation" | "presentation"> & {
+    scenes: Pick<MediaRequest["episode"]["scenes"][number], "id" | "narration" | "dialogue">[];
+  };
+  settings: Pick<MediaRequest["settings"], "localPreview">;
+  voiceRuntimeHash?: string;
+  generatorHash?: string;
+}
+
+function sceneInput(request: NeuralSpeechRequest, index: number) {
   const scene = request.episode.scenes[index];
   if (!scene || !request.voiceRuntimeHash)
     throw new Error("Missing neural scene or runtime fingerprint");
@@ -150,7 +160,11 @@ function sceneInput(request: MediaRequest, index: number) {
   };
 }
 
-export async function readNeuralScene(request: MediaRequest, index: number, directory: string) {
+export async function readNeuralScene(
+  request: NeuralSpeechRequest,
+  index: number,
+  directory: string,
+) {
   const input = sceneInput(request, index);
   const inputText = JSON.stringify(input);
   const wav = await readFile(resolve(directory, `scene-${index}.wav`));
@@ -197,7 +211,7 @@ export async function readNeuralScene(request: MediaRequest, index: number, dire
 }
 
 export async function synthesizeNeuralScene(
-  request: MediaRequest,
+  request: NeuralSpeechRequest,
   index: number,
   directory: string,
   signal: AbortSignal,

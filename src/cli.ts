@@ -99,18 +99,60 @@ try {
     console.log(
       "Prepared previews: CAP-01 (professional), CAP-01@casual, CAP-01@comic, CAP-01@duo.",
     );
-  } else if (command === "voices" && !args.length) {
+  } else if (command === "voices" && args.length <= 1) {
     const { kokoroVoices } = await import("./media/voices.js");
+    const { installedKokoroVoices } = await import("./media/voice-audition.js");
+    const { effectiveNarrators } = await import("./media/voice-selection.js");
     const settings = await productionSettings();
+    const installed = await installedKokoroVoices();
+    if (args[0]) {
+      const assignment = effectiveNarrators(await readContentEpisode(args[0]), settings);
+      console.log(
+        `${assignment.selector}: ${assignment.source === "default" ? "uses the default narrator" : "uses explicit presentation speakers; the default does not override them"}.`,
+      );
+      for (const speaker of assignment.speakers)
+        console.log(
+          `  ${speaker.name}: ${speaker.voice}${installed.includes(speaker.voice) ? " · installed" : " · setup needed"}`,
+        );
+      console.log(`Change assignments in ${assignment.configurationFile}.\n`);
+    }
     for (const voice of kokoroVoices) {
       const selected =
         settings.localPreview.engine === "kokoro" && settings.localPreview.voice === voice.id;
       console.log(
-        `${voice.id.padEnd(13)} ${voice.name.padEnd(9)} ${voice.accent} · ${voice.gender}${selected ? " · selected" : ""}`,
+        `${voice.id.padEnd(13)} ${voice.name.padEnd(9)} ${voice.accent} · ${voice.gender}${selected ? " · selected" : ""}${installed.includes(voice.id) ? " · installed" : " · setup needed"}`,
       );
     }
     console.log(
-      "Choose localPreview.voice in config/production.json, then run voice-setup and narrate again.",
+      "Listen: npm run shorts -- voice-audition af_heart am_michael\nInstall another profile: npm run shorts -- voice-setup af_bella\nListen first: npm run shorts -- voice-audition af_bella\nChoose the default: npm run shorts -- voice-select af_bella\nCreate a new recording: npm run shorts -- produce CAP-01 --serve\nPrepared variants keep their explicit speaker assignments. Run voices SELECTOR to inspect them.",
+    );
+  } else if (command === "voice-select" && args.length === 1 && args[0]) {
+    const { selectNarrator } = await import("./media/voice-selection.js");
+    const { selected } = await selectNarrator(args[0]);
+    console.log(
+      `Default Kokoro narrator: ${selected}. Prepared presentation speakers and saved recordings retain their voices.`,
+    );
+    console.log(
+      `If needed, install: npm run shorts -- voice-setup ${selected}\nListen: npm run shorts -- voice-audition ${selected}\nProduce: npm run shorts -- produce CAP-01 --serve`,
+    );
+  } else if (command === "voice-audition" && args.length <= 3) {
+    const { buildAuditionPage, createVoiceAudition } = await import("./media/voice-audition.js");
+    const { kokoroVoice } = await import("./media/voices.js");
+    const settings = await productionSettings();
+    const ids = [...new Set(args.length ? args : [settings.localPreview.voice])];
+    ids.forEach(kokoroVoice);
+    const samples = [];
+    for (const id of ids) {
+      console.log(`Preparing ${id} voice sample…`);
+      const { sample, reused } = await createVoiceAudition(id, settings);
+      samples.push(sample);
+      console.log(
+        `${reused ? "Reused verified sample" : "Recorded sample"}: ${id} · ${sample.durationSeconds.toFixed(1)} seconds`,
+      );
+    }
+    const directory = await buildAuditionPage(samples, settings.localPreview.voice);
+    console.log(
+      `Voice samples: ${resolve(directory, "review.html")}\nServe: npm run shorts -- serve ${directory}\nDefault voice unchanged. Rebuild the library to include these samples in the studio.`,
     );
   } else if (command === "voice-setup" && args.length <= 2) {
     const { setupNeuralVoice } = await import("./media/neural.js");
@@ -234,7 +276,7 @@ try {
     }
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  voices                         List supported Kokoro English voices\n  voice-setup                    Install the selected local neural voice\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
+      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

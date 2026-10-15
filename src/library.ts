@@ -8,6 +8,7 @@ import { type ContentEpisode, isNewsEpisode, type NewsTopic, type Topic } from "
 import { createLibraryPages } from "./library-review.js";
 import { readPcmWav } from "./media/audio.js";
 import { validateTiming } from "./media/package.js";
+import { collectVoiceSamples, type VoiceSample } from "./media/voice-audition.js";
 import { loadVerifiedRun, productionSettings } from "./media/worker.js";
 import { inside, projectRoot, sourceFile } from "./paths.js";
 import { episodeSelector, episodeSourceFiles } from "./presentation.js";
@@ -37,6 +38,7 @@ export interface LibraryContent {
   topics: Topic[];
   newsTopics: NewsTopic[];
   budgetCents: number;
+  voiceCatalog?: { selected: string; installed: string[]; samples: VoiceSample[] };
 }
 
 async function readConfined(directory: string, name: string) {
@@ -249,6 +251,7 @@ export async function buildLibrary(
         `Selected narration ${id} for ${selector} is unavailable; rebuild after restoring the package`,
       );
   const settings = await productionSettings();
+  const voiceCatalog = await collectVoiceSamples(artifactRoot, settings);
   const sourceHashes: Record<string, string> = {};
   for (const name of [
     "templates/library.css",
@@ -269,6 +272,7 @@ export async function buildLibrary(
     topics: content.topics,
     newsTopics: content.newsTopics,
     budgetCents: settings.pilotBudgetCents,
+    voiceCatalog: { ...voiceCatalog, selected: settings.localPreview.voice },
   });
   const runtimeHashes: Record<string, string> = {};
   for (const [name, bytes] of Object.entries(await readRuntimeFiles()))
@@ -296,6 +300,12 @@ export async function buildLibrary(
     runtimeHashes,
     artifactHashes,
     excludedRuns: library.excludedRuns,
+    voiceSamples: voiceCatalog.samples.map(({ key, identity, audioHash, durationSeconds }) => ({
+      key,
+      identity,
+      audioHash,
+      durationSeconds,
+    })),
     episodes: library.entries.map(({ episode, preview, sourceReviewExpired, video }) => ({
       id: episode.id,
       selector: episodeSelector(episode),

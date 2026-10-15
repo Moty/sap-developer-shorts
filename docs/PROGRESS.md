@@ -211,3 +211,32 @@ independently passed the focused tests and verified the history correction.
 Browser checks covered keyboard selection, Back/Forward, saved-video return,
 poster loading, 390-pixel layout with no horizontal overflow, and a separate
 script-disabled fixture. The temporary viewport override was reset.
+
+## Milestone 3e: listen, choose, and produce with Kokoro
+
+- Added `voice-audition [VOICE_ID...]` for up to three identical-text samples,
+  rendered sequentially with the existing local neural speech implementation.
+  Samples bind text, pronunciation, voice, speed, runtime, and generator. Their
+  completed directories publish atomically; corrupt, incomplete, and outdated
+  samples are excluded. Failed attempts retain diagnostics outside playable
+  samples and print the exact directory.
+- Added `voice-select VOICE_ID`, which validates and atomically changes only
+  the global narrator. It performs no setup or generation. `voices SELECTOR`
+  explains the effective voices and the exact configuration or presentation
+  file to edit. Heart remains selected; authored variant speakers are preserved.
+- Added a static Narrators section with native sample players, profile/accent,
+  measured duration, speed, default label, and selection/setup instructions.
+  Samples copy into the portable studio, with hashes in its manifest. Native
+  controls load duration metadata and never autoplay.
+- Astra independently verified selection, cache pinning, corrupted audio,
+  portable copies, and two concrete fixes: runnable instructions with more than
+  three installed voices, and preserved failure logs.
+
+Minimum Node 22.13.0 validation passes: **74 workflow tests**, five live CAP
+assertions, formatting, types, content validation, and build. Real local samples
+measure Heart **10.350 seconds** and Michael **11.300 seconds** at speed 0.96.
+The studio retains five valid MP4s and all **58 copied artifact hashes** match.
+Browser checks confirmed both durations, error-free muted playback, paused
+handoff, working selection instructions, and a 390-pixel layout without
+horizontal overflow. This was a silent playback/structure check; no subjective
+listening evaluation of the new passage is claimed.

@@ -29,16 +29,40 @@ Examples include Heart (`af_heart`), Bella (`af_bella`), Nicole (`af_nicole`), S
 
 Presentation variants can declare their own speaker voices, including a second cohost; these override the global voice for that variant. Install extra profiles with `npm run shorts -- voice-setup am_michael`. For ordinary single-narrator episodes, the global setting applies.
 
-To use Bella, set `localPreview.voice` to `af_bella`, leave the engine as `kokoro`, then run:
+To compare the installed Heart and Michael profiles without changing the default:
 
 ```sh
-npm run shorts -- voice-setup
-npm run shorts -- narrate CAP-01
-npm run shorts -- narrate NEWS-01
+npm run shorts -- voice-audition af_heart am_michael
 npm run shorts -- library
 ```
 
-Serve the new library directory. Setup reuses the installed environment and cached model, downloads the selected voice file if missing, and records its runtime fingerprint. The English text pipeline follows the voice's American or British accent. No voice training, speaker recording, or paid service is required. Regeneration measures the new audio and creates new captions because pacing can change; preview labels and receipts identify the actual voice. Check the duration and SAP pronunciations before using the new version.
+The audition command renders up to three profiles sequentially, using identical
+text and pronunciation at the configured speed. It prints a standalone sample
+page; rebuilt studios include the samples under **Narrators**. Samples are separate
+from episode evidence. Cache identity binds the passage, pronunciation, voice,
+speed, runtime, and generator; changed or incomplete audio is excluded.
+
+To audition Bella, then choose her as the default:
+
+```sh
+npm run shorts -- voice-setup af_bella
+npm run shorts -- voice-audition af_bella
+npm run shorts -- voice-select af_bella
+npm run shorts -- produce CAP-01 --serve
+```
+
+`voice-select` validates the profile and atomically updates only
+`localPreview.voice`; it does not install, synthesize, or change authored speakers.
+Inspect effective voices and the precise file to edit with
+`npm run shorts -- voices CAP-01@duo`. The professional CAP pilot and news brief
+use the global default; prepared casual/comic/dialogue styles declare their own
+speakers. Heart remains the shipped default.
+
+Setup reuses the installed environment and cached model, downloads the requested
+voice file if missing, and preserves existing profiles. The English text pipeline
+follows the voice's American or British accent. No training, speaker recording,
+or paid service is required. Regeneration measures new audio and creates captions
+because pacing can change. Check duration and SAP pronunciations before use.
 
 Run generation jobs one at a time to avoid CPU contention. Jobs now retain immutable runtime snapshots: installing another voice does not change a saved job's fingerprint. Resuming still requires the pinned model/voice files and original dependency versions. Completed previews remain playable with their saved audio. Changing the setting alone does not rewrite an existing episode or library.
 

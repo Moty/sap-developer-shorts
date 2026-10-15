@@ -1370,3 +1370,121 @@ code:focus-visible {
   white-space: nowrap;
   text-decoration: none;
 }
+
+.voices-section {
+  margin: 50px 0;
+  scroll-margin-top: 24px;
+}
+.audition-transcript {
+  margin: 20px 0;
+  padding: 16px 20px;
+  border-left: 3px solid #87a581;
+  background: #f0f4e9;
+  color: #405a48;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.voice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.voice-card {
+  min-width: 0;
+  border: 1px solid #d6e0cd;
+  border-radius: 14px;
+  background: #fff;
+  padding: 22px;
+}
+.voice-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.voice-heading h3 {
+  margin: 0;
+  font-size: 22px;
+}
+.voice-selected {
+  font-size: 11px;
+  color: #285242;
+  border: 1px solid #c6d8c4;
+  border-radius: 20px;
+  padding: 4px 8px;
+}
+.voice-card > p {
+  color: #526e59;
+  font-size: 13px;
+}
+.voice-card audio {
+  width: 100%;
+  min-width: 0;
+  margin: 8px 0;
+}
+.voice-meta,
+.voice-scope,
+.voice-options > p {
+  color: #526e59;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.voice-scope {
+  margin: 20px 0;
+}
+.voice-missing-command {
+  display: block;
+  user-select: all;
+}
+.voice-options {
+  border-top: 1px solid #d6e0cd;
+  padding-top: 18px;
+}
+.voice-options summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #285242;
+}
+.voice-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.voice-options-grid article {
+  min-width: 0;
+  background: #f0f4e9;
+  border-radius: 8px;
+  padding: 14px;
+}
+.voice-option-name,
+.voice-option-meta,
+.voice-option-command {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.voice-option-meta {
+  font-size: 12px;
+  color: #526e59;
+  margin: 5px 0 10px;
+}
+.voice-option-command {
+  font-size: 12px;
+  user-select: all;
+}
+.audition-page {
+  max-width: 960px;
+  padding: 44px 24px;
+  margin: auto;
+}
+@media (max-width: 600px) {
+  .voice-grid,
+  .voice-options-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .voice-card {
+    padding: 18px;
+  }
+}

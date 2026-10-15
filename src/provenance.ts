@@ -66,6 +66,8 @@ export async function runtimeFiles(): Promise<string[]> {
     "media/audio",
     "media/neural",
     "media/voices",
+    "media/voice-selection",
+    "media/voice-audition",
     "media/providers",
     "media/package",
     "media/status",

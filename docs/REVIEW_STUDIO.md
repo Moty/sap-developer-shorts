@@ -30,6 +30,19 @@ Replace `LIBRARY_DIRECTORY` with the path printed by the build command. The serv
 
 ## Preview selection
 
+The **Narrators** section contains identical-text Kokoro samples, with profile ID,
+accent, duration, speed, and the current default. Native audio controls never
+autoplay. Record installed voices with `voice-audition af_heart am_michael`, then
+rebuild the library. Supported profiles without a sample show the relevant
+setup or audition command; installation is explicit.
+
+Samples are separate from episode verification. Their identity binds passage,
+pronunciation, voice, speed, synthesis code, and pinned local runtime. Only
+complete samples with matching WAV hashes are copied into the portable library;
+changed, outdated, and incomplete samples are excluded. The library manifest
+records those identities and copied audio hashes. Choosing a default is a CLI
+action, and prepared styles keep their authored speakers.
+
 The collector reads completed preview runs inside the configured artifact root. An episode must match the current ID, revision, and exact canonical editorial input. Original artifacts and evidence must pass the existing preview loader's checks. For narration, the media receipt must identify the same source manifest and job, the required media files must match their saved hashes, and WAV samples and caption timing must agree with the episode.
 
 A matching narrated preview is preferred over a newer silent storyboard. Within the same preview kind, the most recent source run is selected. The selection does not compare historical runtime hashes with today's application code: those hashes identify the implementation that created the original output. Modified, incomplete, or mismatched runs are excluded. A damaged media package may fall back to its intact silent storyboard. The library makes no claim to verify arbitrary code changes against an old tutorial run; its technical labels refer to the frozen evidence in that run.

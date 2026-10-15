@@ -87,7 +87,16 @@ The command verifies the demo, creates or reuses a persisted media job, and writ
 
 The chosen pilot settings are a **stock presenter and a $5 total limit** in [production settings](config/production.json). Local narration has no per-video service charge. The earlier macOS system-voice adapter remains available for saved jobs. See [voice options and setup](docs/VOICE_OPTIONS.md). No live avatar adapter is enabled. Avatar connectors found in this workspace are disabled by the administrator; real generation requires a permitted provider connection.
 
-To explore another built-in narrator, run `npm run shorts -- voices`. Change only `localPreview.voice` in [production settings](config/production.json), rerun `voice-setup`, then regenerate narration and rebuild the library. The workflow supports American and British English female and male profiles; Heart remains selected. No voice training or paid service is needed.
+To compare installed voices, run `npm run shorts -- voice-audition af_heart am_michael`, then rebuild the library. The **Narrators** section has identical-text samples and explains how to choose another voice. To explore Bella, for example:
+
+```sh
+npm run shorts -- voice-setup af_bella
+npm run shorts -- voice-audition af_bella
+npm run shorts -- voice-select af_bella
+npm run shorts -- produce CAP-01 --serve
+```
+
+`voice-select` changes only the default narrator; it does not download or record anything. Authored styles retain their speaker assignments: inspect them with `npm run shorts -- voices CAP-01@duo`. Heart remains the shipped default. Supported profiles cover American and British English female and male voices; no voice training or paid service is needed.
 
 Portable recovery exercises use the simulated provider:
 

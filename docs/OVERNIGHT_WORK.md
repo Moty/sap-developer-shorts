@@ -113,3 +113,35 @@ presentation speaker assignments. Continue only within the original 7 AM window.
 
 Keep this section current with changes, exact test evidence, commits, preview
 locations, and the next bounded action. Do not label unverified work complete.
+
+01:36 PT: Comparison milestone pushed as `7a30d19`; Node 22/24 CI passed.
+Delivered the Astra-planned voice audition/selection workflow. `voice-audition`
+records up to three profiles sequentially, `voice-select` updates only the default,
+and `voices SELECTOR` explains authored speaker overrides. Static studio samples
+show the same passage, accent, actual duration, speed, and current default.
+Heart remains selected. Astra independently closed two findings (command length
+and lost failure logs). Full checks: 74 workflow tests + five live CAP assertions,
+formatting/types/validation/build on minimum Node 22.13.0. Evidence:
+`.state/overnight/check-voices.log`, `voices-evidence.json`, `voices-phone.png`,
+`voices-studio.png`, and the audition real/reuse logs. One local sample attempt
+timed out during concurrent full checks; its diagnostics were preserved and the
+sequential retry after checks completed both voices. Avoid synthesis during
+heavy tests, in addition to keeping Kokoro renders sequential.
+
+Latest studio: `artifacts/library-bbd06662-fd27-4a1b-bc61-4cadd05a9ad0`, served
+at <http://127.0.0.1:4173/review.html#voices> (owned session 92959). Five MP4s,
+two native audio samples (Heart 10.350s, Michael 11.300s), 58 verified copied
+hashes. Muted playback loaded/advanced without errors; both players were paused
+and normal viewport restored. No subjective listening pass claimed.
+
+Next: commit/push voice milestone and check CI. Then implement Astra-planned
+CAP-02, “Seed and query local CAP demo data,” using existing registered CSV,
+`products`/`filtered` captures and all five demo assertions. Research current
+official CAP initial-data and OData guides before writing. Existing verifier
+already checks the exact displayed sort and stock>0 query; no schema expansion
+needed. Do not claim $select removes ID (it remains in the captured response).
+Explain db/data as this sample project's initial data; development-only data
+belongs in test/data. Produce one professional Heart MP4, companion draft, and
+normal studio card; update backlog after fresh verification. Keep comparison
+specifically CAP-01 and preserve all prior valid artifacts. Astra has supplied a
+seven-scene ~125-word/58-second draft in its latest review response.
