@@ -301,10 +301,14 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     text(
       ctx,
       scene.phase === "cta"
-        ? "Project and official sources in the post."
+        ? isNewsEpisode(episode)
+          ? "Official sources in the post."
+          : "Project and official sources in the post."
         : episode.presentation?.format === "dialogue"
           ? `A developer conversation with ${episode.presentation.speakers.map((speaker) => speaker.name).join(" + ")}`
-          : "One idea. A working example.",
+          : isNewsEpisode(episode)
+            ? "Official sources. Availability and scope."
+            : "One idea. A working example.",
       { ...body, y: y + 140, height: 150 },
       34,
       "#a9c5bc",

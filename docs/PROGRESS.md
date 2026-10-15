@@ -485,3 +485,32 @@ news conversation with swapped voices imported with every source, claim, news
 date, speaker name, and turn unchanged. Temporary test revisions remain outside
 prepared content. The final studio retains nine MP4s/packages/workshops and two
 voice samples, with 120 matching hashes and all ZIP CRC/member hashes checked.
+
+## Milestone 3o: myth versus fact news delivery
+
+`NEWS-02@myth-fact` adds a professional Heart delivery about distinguishing a
+Joule Work announcement from an organization's access. Parent and Astra reread
+the official release and innovation guide. The new script keeps the existing
+sources, claims, rollout/activation qualifications, source-review dates, visuals,
+and planned scene timings. The gallery automatically offers its MP4 and workshop.
+
+Real production measured 57.505167 seconds, a 2.925034-second opening, and 18
+caption cues; full decode/audio checks passed at -16.17LUFS/-4.49dBTP. A native
+workshop download imported with all sources, claims, dates, scenes, and speakers
+preserved. The inherited review window accepts October 22 and rejects October 23.
+Phone and desktop review/gallery layouts have no horizontal overflow. No audible
+playback or subjective listening assessment is claimed.
+
+Visual review also found tutorial copy on news presenter cards. News now uses
+“Official sources. Availability and scope.” and “Official sources in the post.”
+Tutorial text and named conversation introductions remain unchanged. Before/after
+frame comparisons confirm those boundaries; actual corrected context and CTA
+frames were inspected. All four prepared news videos were refreshed sequentially
+from unchanged saved narration jobs and WAV hashes. Earlier MP4s remain intact.
+The final studio and ZIPs select the corrected exports.
+
+Minimum Node 22.13.0 checks/build pass: **119 workflow tests** and five live CAP
+assertions. The prepared studio has ten MP4s/packages/workshops, two voice samples,
+and **133 matching hashes**. All ZIP CRC/member hashes pass, including an explicit
+check that each news ZIP contains its corrected selected MP4. No paid generation,
+stock-avatar rendering, or publishing was performed.

@@ -472,3 +472,51 @@ fresh defaults, marked deliverable. Next commit/push/CI then consider Astra's
 NEWS02@myth-fact plan: useful announcement-versus-customer-access correction,
 professionalHeart/nohumor, same existing evidence/dates/visuals. Reread both official
 sources before authoring. No new infrastructure. Maintain06:45audit/07stop+pause.
+
+03:35 PT: Voice picker78b2220 pushed; Node22/24 CI success38719752438. Completed
+Astra-planned NEWS02@myth-fact with parent primary-source reread: release Autonomous
+Enterprise Scales Up first2paras; guide Aboutthirdpara. Exact basehash/evidence/date
+scope inherited.112 whitespace words/six-word hook, professionalHeart/nohumor.
+Astra's three content-specific QA checks passed, retained only as ignored review
+artifact to avoid adding redundant permanent content tests. Parent independent
+verify-news-myth-fact.mjs also passes evidence/scenes/workshop/freshness22→23.
+Full minimum22.13 checks/build119+5 in check-news-myth-fact-final.log.
+
+Actual production job02314c5f-1797-466c-b17d-a80e953cde17, READY report
+artifacts/productions/cdb1bcb5-f8eb-459f-9d2b-bc661e1cd268/production.json,
+57.505167s, opening2.925034s,18cues,-16.17LUFS/-4.49dBTP,full decode/audio.
+Initial video-fe278156b5bacfd8 remains valid historical output. Native browser
+NEWS-02--workshop-myth-check.json download imported to ignored browser-script-imports
+with identical scenes/news/claims/sources/speakers. Input and production evidence
+news-myth-fact-{input,production,browser-import}-evidence.json in QA area.
+
+Visual review found preexisting tutorial wording on news presenter cards. Astra
+planned minimal subtitle/CTA correction: Official sources. Availability and scope.
+/ Official sources in the post. Parent implemented only news branches. Existing
+119+5 checks passed after that code change. check-news-frame-copy.mjs compares
+current versus prepatch HEAD renderer on identical frozen inputs: tutorial solo
+and dialogue opening/context/CTA unchanged; news named dialogue intro unchanged;
+news subtitle/CTA changed as intended. Saved news-frame-copy-evidence.json.
+Early QA comparison against historical CAP PNGs was unsuitable because those
+exports predate other legitimate renderer changes; controlled before/after code
+comparison replaces that assumption. Original files were never modified.
+
+Refreshed four news MP4s sequentially, exact same original jobs/WAV hashes,
+old MP4 bytes retained. Evidence news-copy-refresh-evidence.json and
+rerender-news-copy.log. Current exports:
+NEWS01 video-50b1e842d05376d5; NEWS02 video-abe6fb0049147532;
+NEWS02duo video-883675ce0d3dda38; NEWS02mythfact video-77aa31df6d20e951.
+Actual final mythfact frames0005/0031 inspected for corrected copy/date/scope.
+No new synthesis for these refreshes. Studio artifacts/library-1d0d204a-626b-4e5a-a762-580bff9f2e31
+has10 MP4s/ZIPs/editors,2samples,133 hashes and all ZIP CRC/member hashes verified.
+Explicitly confirmed all four news studio+ZIP MP4 hashes match corrected exports.
+Owned4173 server13391 replaces52248. Browser normalviewport, gallery with ready
+mythfact example;390/1280 nooverflow, video paused/readyState4. Proof
+news-myth-fact-{phone,formats}.png; no audible playback/listening claim.
+
+Next: commit/push milestone, confirm CI/update last-result, then next heartbeat
+can ask Astra for highest-value bounded remaining storytelling/workflow feature.
+Countdown and story currently need authored examples; consider reusing verified
+CAP evidence rather than new setup/provider scope. No uncommitted broad changes.
+Keep06:45finalaudit/07stop+pauseautomation, unchanged bounded awakePID76680.
+No spend/posts/avatar bypass/main merge or actual sleep interruption occurred.
