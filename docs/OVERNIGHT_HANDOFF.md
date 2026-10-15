@@ -77,6 +77,10 @@ GitHub CI also passes on Node 22 and 24. Astra audited eleven selected versions,
 77 scenes, 202 caption cues, tutorial evidence, transcripts, speaker attribution,
 and companion copy. The historical code-link issue it found is fixed.
 
+Final validation began at 6:45 AM PT on October 15 and repeated the full checks,
+build, saved-archive integrity, source/runtime identity, and preview readiness
+successfully. Heart and its generation fingerprint remain unchanged.
+
 All 146 current studio artifact hashes and eleven nested episode ZIPs pass.
 Independent whole-studio extraction checks 148 members and 231 local links
 across 45 HTML files. Native downloads match their source hashes. Real browser
