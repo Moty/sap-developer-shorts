@@ -1,0 +1,25 @@
+{
+  "name": "@sap-shorts/cap-inventory",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "cds-serve --in-memory --port 4004",
+    "test": "node verify.cjs"
+  },
+  "dependencies": {
+    "@sap/cds": "10.1.1"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "3.1.2"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": ":memory:"
+        }
+      }
+    }
+  }
+}

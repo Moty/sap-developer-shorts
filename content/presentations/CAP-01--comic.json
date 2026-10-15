@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
+  "title": "My entity needs a service introduction",
+  "presentation": {
+    "variant": "comic",
+    "tone": "comic",
+    "format": "explainer",
+    "humor": "sap-geek",
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "af_heart"
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "My entity needs a service."
+    },
+    {
+      "id": "context",
+      "narration": "An entity describes data; it doesn't expose an API alone. Even in CAP, introductions matter. Meet the inventory project."
+    },
+    {
+      "id": "model",
+      "narration": "Products gets an ID, title, and stock. Three sample rows are already waiting. At least someone came prepared."
+    },
+    {
+      "id": "service",
+      "narration": "Add InventoryService with a projection of Products. Now there's an API. The read-only annotation says: you may browse, but no shopping."
+    },
+    {
+      "id": "query",
+      "narration": "Run npm run demo. Open the local Products URL, then filter stock above zero. Our keyboard and dock make the shortlist."
+    },
+    {
+      "id": "payoff",
+      "narration": "Real OData version four results, without a cloud setup. Authentication and deployment are still homework. The service isn't doing those for you."
+    },
+    {
+      "id": "cta",
+      "narration": "Try the project and its tests. Which entity needs a service introduction next?"
+    }
+  ]
+}

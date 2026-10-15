@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SAP Developer Shorts topic backlog",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^(ABAP|CAP|RAP|BTP|AI)-[0-9]{2}$"
+      },
+      "pillar": {
+        "enum": ["ABAP", "CAP", "RAP", "BTP", "AI"]
+      },
+      "title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "status": {
+        "enum": ["needs-research", "pilot-ready"]
+      },
+      "prerequisites": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 1
+      },
+      "sources": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            },
+            "retrievedOn": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "required": ["id", "title", "url", "retrievedOn"]
+        },
+        "minItems": 0
+      },
+      "supportedRelease": {
+        "type": ["string", "null"],
+        "minLength": 1
+      },
+      "verifiedOn": {
+        "type": ["string", "null"],
+        "format": "date"
+      },
+      "outcome": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "id",
+      "pillar",
+      "title",
+      "status",
+      "prerequisites",
+      "sources",
+      "supportedRelease",
+      "verifiedOn",
+      "outcome"
+    ]
+  }
+}

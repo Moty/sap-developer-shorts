@@ -1,66 +1,137 @@
-# SAP Developer Shorts Program 🚀
+# SAP Developer Shorts
 
-> **Bringing the high-impact micro-learning format of the ServiceNow Developer Program to the SAP Ecosystem.**
+A local preparation workflow for SAP shorts: hands-on developer tutorials and dated SAP news briefings, with a shared vertical preview, narration, captions, and companion post workflow.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Format: 60s Shorts / Reels](https://img.shields.io/badge/Format-60s%20Reels%20%2F%20Shorts-red.svg)](https://youtube.com)
-[![Ecosystem: SAP BTP / ABAP Cloud](https://img.shields.io/badge/Ecosystem-SAP%20BTP%20%7C%20ABAP%20Cloud-blue.svg)](https://community.sap.com)
+The first implementation turns the editorial blueprint into a reproducible pilot package: a draft script, a vertical storyboard, live demo evidence, and companion post copy. The media workflow now supports resumable local narration with measured captions. **Real avatar generation, the final provider voice, MP4 rendering, and publishing remain pending.** No provider credentials are needed for the local workflow.
 
----
+## Browse the review studio
 
-## 📌 Overview
-
-This repository houses the blueprint, autonomous agent system prompts, production standards, and topic backlog for launching an **SAP Developer Shorts & Reels** channel.
-
-Modeled directly on the proven success drivers of the [**ServiceNow Developer Program**](https://youtube.com/@servicenowdevprogram), this program replaces dry enterprise slide decks and multi-hour webinars with **punchy, authentic, developer-to-developer micro-tutorials (<60s)**.
-
----
-
-## 📂 Repository Contents
-
-* **[`SAP_SHORTS_AGENT_PLAN.md`](./SAP_SHORTS_AGENT_PLAN.md)**: The end-to-end operational master plan:
-  * 60-Second Video Architecture (Hooks, Retention, Loop CTA).
-  * 30-Video Topic Backlog across ABAP Cloud, SAP CAP, SAP RAP, BTP Hacks, and Enterprise AI (Joule / GenAI Hub).
-  * Video production, font-sizing, and 9:16 mobile UI framing rules.
-  * Multi-channel distribution flywheel (YouTube Shorts, LinkedIn Video, SAP Community).
-* **[`AGENT_SYSTEM_PROMPTS.md`](./AGENT_SYSTEM_PROMPTS.md)**: Ready-to-use prompts for AI agents:
-  1. `SAP-Scriptwriter-Agent` (Hooks & rapid storytelling)
-  2. `SAP-Tech-Reviewer-Agent` (ABAP Cloud, Clean Core, and syntax validation)
-  3. `Visual-Director-Agent` (9:16 crop coordinates and kinetic text)
-  4. `Metadata-SEO-Agent` (Titles, hashtags, LinkedIn copy, Community teasers)
-* **[`templates/`](./templates/)**: Standardized script templates for human authors and AI agents.
-* **[`samples/`](./samples/)**: Production-ready example scripts ready for filming.
-
----
-
-## ⏱️ The 60-Second Video Anatomy
-
-```
-[0:00 - 0:03] HOOK: Visual problem or bold assertion (e.g. "STOP USING READ TABLE!")
-[0:03 - 0:10] CONTEXT: Why the legacy/standard way wastes time or causes bugs
-[0:10 - 0:40] THE DEMO: Rapid 3-step walkthrough zoomed 250% on IDE/code (20pt font)
-[0:40 - 0:50] THE PAYOFF: Clean output, working service, or performance speedup
-[0:50 - 1:00] THE LOOP / CTA: "Try on your free BTP tier" + seamless loop back to start
+```sh
+npm run shorts -- library
+npm run shorts -- serve LIBRARY_DIRECTORY
 ```
 
----
+Use the library directory printed by the first command. The studio brings current tutorial and news drafts together with format filters, search, source links, narrated players, and the topic backlog. Each player includes an **All episodes** link. The library prefers validated narrated output over silent storyboards and excludes previews that no longer match the current script or whose saved files have changed.
 
-## 🎯 The 5 Core Content Pillars
+This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 
-1. **Modern ABAP Cloud & Clean Code:** Table expressions, string templates, CDS views, decoupling from legacy SAP GUI.
-2. **SAP CAP (Cloud Application Programming):** Fast OData V4 services, Node.js/TypeScript, mock data, and local dev.
-3. **SAP RAP (RESTful Application Programming):** Managed/Unmanaged architecture, determinations, validations, draft handling.
-4. **SAP BTP & Cloud Hacks:** BTP Free Tier, Destination Service, Business Application Studio, Cloud Foundry CLI.
-5. **Enterprise AI & Joule:** GenAI Hub integration, SAP HANA Vector Engine, grounding with business data.
+## Run the pilot
 
----
+Use Node.js **22.13+** and npm; Node 22 LTS is the recommended development version. No global CAP tools or SAP cloud account are required.
 
-## 🤝 Contributing
+```sh
+npm ci
+npm run doctor
+npm run check
+npm run pilot
+```
 
-Contributions, topic suggestions, and script PRs are welcome! Check out [`templates/script_template.md`](./templates/script_template.md) to draft a new episode.
+Open the `review.html` path printed by the pilot command in a browser. The standalone page lets you play or scrub through a **silent storyboard with provisional timing**. It shows the actual checked-in code and the results captured by the verification run. Presenter regions are explicitly marked as pending.
 
----
+Each invocation creates a separate directory under ignored `artifacts/`:
 
-## 📄 License
+| File | Purpose |
+| --- | --- |
+| `review.html` | Interactive storyboard, technical checks, sources, and post draft |
+| `episode.json` | Exact editorial input used by this run |
+| `narration.md` | Draft scene narration and pronunciation glossary |
+| `demo-evidence.json` | Actual HTTP results, passed checks, and runtime versions |
+| `demo.log` | Demo execution diagnostics |
+| `linkedin.txt` | Companion post draft; code link awaits repository publication |
+| `video-layout.json` | Shared layout in final 1080 × 1920 output pixels |
+| `manifest.json` | Persisted stages, source hashes, artifact hashes, and any failure |
 
-MIT License. Free to use, adapt, and share across your teams and agents.
+The silent storyboard uses provisional timing. A warm, conversational female narration preview is also available: the current CAP pilot measures 58.7 seconds, with a 3.0-second hook and nineteen captions using model timing estimates. This is a local voice preview; the final avatar-provider voice must be measured again.
+
+## Create SAP news shorts
+
+News episodes use official SAP sources and record when each announcement was checked. Each card distinguishes availability, rollout, early access, planned release, or announcement only. News source reviews have their own evidence and do not claim that a product demo was executed.
+
+The first news draft, [NEWS-01](content/episodes/NEWS-01.json), uses the [SAP Connect 2026 guide](https://www.sap.com/topics/events/connect/innovation-news-guide-2026). It is an editorial selection from that event, with sources checked October 14, 2026. The [news backlog](content/news/backlog.json) contains six ideas, including this roundup and five follow-ups that still need research.
+
+```sh
+npm run shorts -- validate NEWS-01
+npm run shorts -- preview NEWS-01
+npm run shorts -- narrate NEWS-01
+```
+
+Use the printed artifact directory with `npm run shorts -- serve ARTIFACT_DIRECTORY`. The same player, timed captions, saved media jobs, and local voice work for both episode formats. Run the voice setup below before the first narration. A news run writes `news-evidence.json` with dated source notes instead of CAP evidence. Production refuses a news review older than its configured limit (at most seven days). Validation can still inspect an older draft.
+
+The current warm local news preview measures **57.0 seconds**, with a **2.5-second hook** and eighteen captions using model timing estimates. Avatar media and the final MP4 remain pending.
+
+See [the news workflow](docs/NEWS_WORKFLOW.md), [reusable news script template](templates/news_script_template.md), and [news editor prompt](prompts/v1/news-editor.md). Research is currently an editorial step; this does not automatically discover or rank global SAP news, watch pages, or publish posts.
+
+## Generate and resume narration
+
+Presentation can vary independently of the episode's subject. The studio includes a **Delivery styles** section with professional, casual, comic, and two-person CAP comparisons. Set tone, story format, and humor in a presentation variant; the conversation uses Heart and Michael with speaker captions. Try `npm run shorts -- narrate CAP-01@duo` after `npm run shorts -- voice-setup am_michael`. See [presentation styles](docs/PRESENTATION_STYLES.md) for supported formats, authoring, and review. These are local narrated previews; new style scripts must be authored before generation.
+
+The default is Kokoro's **Heart** voice, selected for a warm, conversational female narrator. On macOS, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and run the one-time setup. It installs a separate Python environment and downloads the pinned model; narration then runs locally without sending the script to a speech service.
+
+```sh
+npm run shorts -- voice-setup
+npm run shorts -- narrate CAP-01
+```
+
+The command verifies the demo, creates or reuses a persisted media job, and writes a narrated `review.html`, `narration.wav`, `captions.vtt`, `timing.json`, and `media-manifest.json`. It synthesizes each scene as a continuous sentence group with short pauses between scenes, avoiding the old phrase-by-phrase delivery and padded visual slots. The player uses the measured audio clock; caption boundaries are model estimates, not forced alignment. Serve the printed output directory with `npm run shorts -- serve ARTIFACT_DIRECTORY`. The built-in server supports audio seeking.
+
+The chosen pilot settings are a **stock presenter and a $5 total limit** in [production settings](config/production.json). Local narration has no per-video service charge. The earlier macOS system-voice adapter remains available for saved jobs. See [voice options and setup](docs/VOICE_OPTIONS.md). No live avatar adapter is enabled. Avatar connectors found in this workspace are disabled by the administrator; real generation requires a permitted provider connection.
+
+To explore another built-in narrator, run `npm run shorts -- voices`. Change only `localPreview.voice` in [production settings](config/production.json), rerun `voice-setup`, then regenerate narration and rebuild the library. The workflow supports American and British English female and male profiles; Heart remains selected. No voice training or paid service is needed.
+
+Portable recovery exercises use the simulated provider:
+
+```sh
+npm run shorts -- media-simulate CAP-01 lost-submit
+npm run shorts -- media-simulate CAP-01 poll-timeout
+npm run shorts -- media-status JOB_ID
+npm run shorts -- media-step JOB_ID
+npm run shorts -- media-package JOB_ID
+```
+
+SQLite job state lives in ignored `.state/media/`. Submission intent and provider IDs survive restarts. Unconfirmed submissions are reconciled without automatic resubmission; polling and packaging can resume using the saved job. Packaging rebuilds reuse recorded audio. See [media workflow and recovery](docs/MEDIA_WORKFLOW.md).
+
+## Work with the demo
+
+```sh
+npm run demo
+```
+
+Open [Products](http://localhost:4004/odata/v4/inventory/Products) or [OData metadata](http://localhost:4004/odata/v4/inventory/$metadata). This is a read-only development sample that permits anonymous reads. It seeds three products into in-memory SQLite each time it starts.
+
+```sh
+npm run test:demo
+npm run shorts -- validate CAP-01
+npm run shorts -- verify CAP-01
+npm run shorts -- preview CAP-01
+```
+
+The verifier checks OData V4 metadata, all three seeded products, two products matching a stock filter, a missing product returning 404, and a create request returning 405. Production authentication, authorization policy, and deployment require additional work. See [demo setup](demos/cap/inventory/README.md).
+
+## Develop the workflow
+
+```sh
+npm run check       # Formatting, types, workflow tests, live CAP checks, content validation
+npm run build       # Compile the TypeScript application
+node dist/src/cli.js doctor
+```
+
+CI is configured to repeat checks on Node 22 and 24. `.env.example` contains placeholders for later provider adapters. The foundation does not automatically load `.env`; `SHORTS_ARTIFACT_DIR` can be supplied as an environment variable. See [local development and review](docs/DEVELOPMENT.md).
+
+## Project map
+
+- [Implementation plan](docs/IMPLEMENTATION_PLAN.md): original assessment and full roadmap.
+- [Progress](docs/PROGRESS.md): delivered scope, evidence, and next milestone.
+- [Media workflow](docs/MEDIA_WORKFLOW.md): narration, job recovery, spending records, and current provider limitations.
+- [Voice options](docs/VOICE_OPTIONS.md): warm local narration, setup, timing limitations, and the ElevenLabs option.
+- [Presentation styles](docs/PRESENTATION_STYLES.md): professional, casual, comic, dialogue, humor settings, and reusable delivery variants.
+- [News workflow](docs/NEWS_WORKFLOW.md): source review, availability, freshness, and adding future SAP news episodes.
+- [Independent Astra review](docs/ASTRA_REVIEW.md): three reproduced gaps, their fixes, and the verification outcome.
+- [Episode contract](schemas/episode.schema.json): versioned structure plus application-level timing and evidence checks.
+- [CAP-01 editorial input](content/episodes/CAP-01.json): script, source records, and claim references.
+- [30-topic backlog](content/topics/backlog.json): one pilot-ready topic; other topics require research and environment verification.
+- [Versioned role prompts](prompts/README.md): separate writing, technical review, visual direction, and distribution steps for a future provider adapter.
+- [Original strategy](SAP_SHORTS_AGENT_PLAN.md): historical program blueprint; the executable contracts and current progress supersede its production assumptions.
+
+## License
+
+[MIT](LICENSE). Third-party dependencies retain their own licenses. No avatar, voice, music, or other third-party media assets are included.

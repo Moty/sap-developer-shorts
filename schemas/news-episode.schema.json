@@ -1,0 +1,281 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sap-developer-shorts.local/schemas/news-episode.schema.json",
+  "title": "SAP news short v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/schemaVersion"
+    },
+    "version": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/version"
+    },
+    "title": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/title"
+    },
+    "audience": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/audience"
+    },
+    "language": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/language"
+    },
+    "targetDurationSeconds": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/targetDurationSeconds"
+    },
+    "pronunciation": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/pronunciation"
+    },
+    "publication": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/properties/publication"
+    },
+    "format": {
+      "const": "news"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^NEWS-[0-9]{2}$"
+    },
+    "news": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date"
+        },
+        "maxAgeDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 7
+        },
+        "editorialStatus": {
+          "const": "draft"
+        },
+        "selection": {
+          "const": "editorial"
+        },
+        "angle": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["event", "asOf", "maxAgeDays", "editorialStatus", "selection", "angle"]
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "retrievedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "publisher": {
+            "const": "SAP"
+          },
+          "publishedOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": ["id", "title", "url", "retrievedOn", "publisher", "publishedOn"]
+      },
+      "minItems": 1
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 180
+          },
+          "sourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "checkedOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "availability": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "enum": ["generally-available", "rollout", "early-access", "planned", "announced"]
+              },
+              "timing": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 140
+              }
+            },
+            "required": ["status", "timing", "scope"]
+          },
+          "support": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "sourceId": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]*$"
+                },
+                "locator": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "summary": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": ["sourceId", "locator", "summary"]
+            },
+            "minItems": 1
+          }
+        },
+        "required": ["id", "text", "sourceIds", "checkedOn", "availability", "support"]
+      },
+      "minItems": 1
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "startSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60
+          },
+          "endSeconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 60
+          },
+          "narration": {
+            "type": "string",
+            "minLength": 1
+          },
+          "overlay": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "phase": {
+            "enum": ["hook", "context", "headline", "payoff", "cta"]
+          },
+          "claimIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "minItems": 0,
+            "uniqueItems": true
+          },
+          "visual": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": ["presenter", "news-card"]
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              }
+            },
+            "required": ["kind", "label"]
+          },
+          "dialogue": {
+            "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/definitions/dialogue"
+          }
+        },
+        "required": [
+          "id",
+          "startSeconds",
+          "endSeconds",
+          "narration",
+          "overlay",
+          "phase",
+          "claimIds",
+          "visual"
+        ]
+      },
+      "minItems": 7,
+      "maxItems": 7
+    },
+    "presentation": {
+      "$ref": "https://sap-developer-shorts.local/schemas/episode.schema.json#/definitions/presentation"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "version",
+    "title",
+    "audience",
+    "language",
+    "targetDurationSeconds",
+    "pronunciation",
+    "publication",
+    "format",
+    "id",
+    "news",
+    "sources",
+    "claims",
+    "scenes"
+  ]
+}

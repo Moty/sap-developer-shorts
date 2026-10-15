@@ -1,5 +1,7 @@
 # Episode ABAP-01: Stop Using READ TABLE (Modern Table Expressions)
 
+> **Historical draft — requires revision and target-system verification.** This sample changes missing-row behavior: the original leaves `lv_name` unchanged, a direct expression may raise an exception, and `OPTIONAL` returns an initial value. No ABAP backend or Unit result supports the depicted pass badge. Do not use this as a verified filming script. See [the review findings](../docs/IMPLEMENTATION_PLAN.md) and the research status in [the backlog](../content/topics/backlog.json).
+
 - **Target Persona:** Classic ABAP Developers
 - **Tool:** Eclipse ADT (ABAP Development Tools)
 - **Runtime:** 56 seconds (~138 words)

@@ -1,48 +1,95 @@
-# Episode CAP-01: Build an OData V4 Service in 45 Seconds
+# Episode CAP-01: Your CAP model needs a service
 
-- **Target Persona:** Full-Stack & Cloud Developers
-- **Tool:** VS Code / Terminal
-- **Runtime:** 52 seconds (~132 words)
+Revision 2. Canonical editorial input: [CAP-01.json](../content/episodes/CAP-01.json). Generate a fresh storyboard and HTTP evidence with `npm run pilot`.
 
----
+- **Audience:** Full-stack developers new to SAP CAP
+- **Planned duration:** 55 seconds; 126 spoken words. Measure audio before final scene alignment.
+- **Setup:** Node.js 22.13+, `npm ci`, checked-in inventory project. Installation happens before recording.
+- **Demonstrated scope:** Local read-only OData V4 prototype with an in-memory SQLite database.
 
-### [0:00 - 0:03] Phase 1: The Hook
-- **Visual:** Presenter with stopwatch on screen. Bold text overlay: **"BUILD AN ENTERPRISE API IN 45 SECONDS ⏱️"**
-- **Voiceover:** "Can you build a production-grade enterprise API in under 45 seconds? Let’s find out."
-- **SFX:** Countdown clock ticking.
+## Complete code
 
-### [0:03 - 0:10] Phase 2: The Context / Pain Point
-- **Visual:** Screen shows complex Java/Spring or classic gateway configuration screens.
-- **Voiceover:** "Traditional enterprise backends take days of config, XML mapping, and database migrations."
-- **SFX:** Whoosh.
+`demos/cap/inventory/db/schema.cds`
 
-### [0:10 - 0:38] Phase 3: The Solution (Live Execution)
-- **Visual:** Split screen: Terminal on left, VS Code on right.
-- **Step 1 (0:10 - 0:20):**
-  - **Visual:** Terminal command typed:
-    ```bash
-    cds init inventory && cd inventory
-    ```
-  - **Voiceover:** "Step one: Run `cds init`. The SAP Cloud Application Programming model sets up your structure instantly."
-- **Step 2 (0:20 - 0:30):**
-  - **Visual:** Types inside `db/schema.cds`:
-    ```cds
-    entity Products { key ID: UUID; title: String; stock: Integer; }
-    ```
-  - **Voiceover:** "Step two: Define your entity in Core Data Services, and expose it in your service definition in two lines."
-- **Step 3 (0:30 - 0:38):**
-  - **Visual:** Runs:
-    ```bash
-    cds watch
-    ```
-  - **Voiceover:** "Step three: Run `cds watch`."
+```cds
+namespace demo;
 
-### [0:38 - 0:48] Phase 4: The Payoff
-- **Visual:** Browser opens automatically at `localhost:4004`. Clicks `$metadata` — full OData V4 specification rendered with working Fiori preview.
-- **Voiceover:** "Boom. Live reloading, in-memory SQLite database, full OData V4 endpoints, and a Fiori test UI ready to go."
-- **SFX:** Success bell.
+entity Products {
+  key ID : UUID;
+  title  : String(100);
+  stock  : Integer;
+}
+```
 
-### [0:48 - 0:52] Phase 5: Call to Action & Seamless Loop
-- **Visual:** Presenter back on screen.
-- **Voiceover:** "No boilerplate, zero headache. Try this on your machine today, and tell me..."
-- **Loop Anchor:** "...Can you build a production-grade enterprise API in under 45 seconds?"
+`demos/cap/inventory/srv/inventory-service.cds`
+
+```cds
+using { demo } from '../db/schema';
+
+@path: 'inventory'
+@requires: 'any'
+service InventoryService {
+  @readonly
+  entity Products as projection on demo.Products;
+}
+```
+
+## 0–3s · Where's the API?
+
+Your data model isn't an API.
+
+Visual: Presenter intro.
+
+## 3–10s · The missing service definition
+
+A CAP entity describes data. Add an explicit service projection to expose it. Start with this prepared inventory project.
+
+Visual: The data model.
+
+## 10–20s · 1. Define the data
+
+First, define Products with an ID, title, and stock count. Three rows of sample data are already in the project.
+
+Visual: db/schema.cds.
+
+## 20–30s · 2. Expose a service
+
+Next, expose that entity through InventoryService. This explicit service definition creates the API. The read-only annotation keeps this example focused on queries.
+
+Visual: srv/inventory-service.cds.
+
+## 30–40s · 3. Run and query
+
+Run npm run demo. Open this local Products URL, then filter for stock above zero. You get our keyboard and dock.
+
+Visual: Run the demo, then open the URL.
+
+```text
+npm run demo
+http://localhost:4004/odata/v4/inventory/Products?$filter=stock%20gt%200
+```
+
+## 40–48s · Verified local results
+
+You have a local OData version four endpoint with real sample results. This is a development prototype; deployment and authentication come later.
+
+Visual: GET Products · three seeded rows.
+
+## 48–55s · Try the checked-in demo
+
+Grab the working project and its checks from the repository. Which entity would you expose first?
+
+Visual: Presenter closing.
+
+## Run and inspect
+
+```sh
+npm run demo
+npm run test:demo
+```
+
+The stock filter returns the keyboard (12) and dock (7), including OData key fields. The verifier also asserts metadata, all three seed rows, 404 for a missing product, and 405 for a create request.
+
+The storyboard illustrates source code and presents captured response fields. It is not execution footage or a finished video. Presenter, voice, aligned captions, and final media checks are pending.
+
+Sources: [SAP provided services](https://cap.cloud.sap/docs/guides/services/providing-services), [SAP SQLite development guide](https://cap.cloud.sap/docs/guides/databases/sqlite).

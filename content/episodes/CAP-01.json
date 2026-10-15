@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "id": "CAP-01",
+  "version": 2,
+  "title": "Your CAP model needs a service",
+  "audience": "Full-stack developers new to SAP CAP",
+  "language": "en",
+  "targetDurationSeconds": 55,
+  "environment": {
+    "description": "Local development prototype; @sap/cds 10.1.1, @cap-js/sqlite 3.1.2, Node.js 22+ with node:sqlite. No SAP cloud account required.",
+    "prerequisites": [
+      "Install Node.js 22.13+ (22 LTS recommended) and npm.",
+      "Run npm ci at the repository root before recording.",
+      "Use the checked-in inventory project; keep installation outside the video."
+    ]
+  },
+  "sources": [
+    {
+      "id": "cap-services",
+      "title": "SAP CAP: Define Provided Services",
+      "url": "https://cap.cloud.sap/docs/guides/services/providing-services",
+      "retrievedOn": "2026-10-14"
+    },
+    {
+      "id": "cap-sqlite",
+      "title": "SAP CAP: Using SQLite for Development",
+      "url": "https://cap.cloud.sap/docs/guides/databases/sqlite",
+      "retrievedOn": "2026-10-14"
+    }
+  ],
+  "claims": [
+    {
+      "id": "explicit-service",
+      "text": "A service projection exposes Products through an OData V4 endpoint.",
+      "sourceIds": ["cap-services"],
+      "evidenceChecks": ["odata-metadata"]
+    },
+    {
+      "id": "seeded-database",
+      "text": "The in-memory SQLite demo loads three products from checked-in CSV data.",
+      "sourceIds": ["cap-sqlite"],
+      "evidenceChecks": ["seed-products"]
+    },
+    {
+      "id": "odata-query",
+      "text": "The demonstrated stock filter returns the two products that have stock above zero.",
+      "sourceIds": ["cap-services"],
+      "evidenceChecks": ["filter-in-stock"]
+    },
+    {
+      "id": "readonly",
+      "text": "The service is read-only and rejects the demonstrated create request.",
+      "sourceIds": ["cap-services"],
+      "evidenceChecks": ["readonly-service"]
+    }
+  ],
+  "demo": {
+    "id": "cap-inventory",
+    "expectedChecks": [
+      "odata-metadata",
+      "seed-products",
+      "filter-in-stock",
+      "missing-product",
+      "readonly-service"
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "phase": "hook",
+      "startSeconds": 0,
+      "endSeconds": 3,
+      "narration": "Your data model isn't an API.",
+      "overlay": "Where's the API?",
+      "visual": {
+        "kind": "presenter",
+        "label": "Presenter intro"
+      }
+    },
+    {
+      "id": "context",
+      "phase": "context",
+      "startSeconds": 3,
+      "endSeconds": 10,
+      "narration": "A CAP entity describes data. Add an explicit service projection to expose it. Start with this prepared inventory project.",
+      "overlay": "The missing service definition",
+      "visual": {
+        "kind": "code",
+        "label": "The data model",
+        "codePath": "demos/cap/inventory/db/schema.cds"
+      }
+    },
+    {
+      "id": "model",
+      "phase": "demo",
+      "startSeconds": 10,
+      "endSeconds": 20,
+      "narration": "First, define Products with an ID, title, and stock count. Three rows of sample data are already in the project.",
+      "overlay": "1. Define the data",
+      "visual": {
+        "kind": "code",
+        "label": "db/schema.cds",
+        "codePath": "demos/cap/inventory/db/schema.cds"
+      }
+    },
+    {
+      "id": "service",
+      "phase": "demo",
+      "startSeconds": 20,
+      "endSeconds": 30,
+      "narration": "Next, expose that entity through InventoryService. This explicit service definition creates the API. The read-only annotation keeps this example focused on queries.",
+      "overlay": "2. Expose a service",
+      "visual": {
+        "kind": "code",
+        "label": "srv/inventory-service.cds",
+        "codePath": "demos/cap/inventory/srv/inventory-service.cds"
+      }
+    },
+    {
+      "id": "query",
+      "phase": "demo",
+      "startSeconds": 30,
+      "endSeconds": 40,
+      "narration": "Run npm run demo. Open this local Products URL, then filter for stock above zero. You get our keyboard and dock.",
+      "overlay": "3. Run and query",
+      "visual": {
+        "kind": "output",
+        "label": "Run the demo, then open the URL",
+        "captureKey": "filtered",
+        "instructions": [
+          "npm run demo",
+          "http://localhost:4004/odata/v4/inventory/Products?$filter=stock%20gt%200"
+        ]
+      }
+    },
+    {
+      "id": "payoff",
+      "phase": "payoff",
+      "startSeconds": 40,
+      "endSeconds": 48,
+      "narration": "You have a local OData version four endpoint with real sample results. This is a development prototype; deployment and authentication come later.",
+      "overlay": "Verified local results",
+      "visual": {
+        "kind": "output",
+        "label": "GET Products \u00b7 three seeded rows",
+        "captureKey": "products"
+      }
+    },
+    {
+      "id": "cta",
+      "phase": "cta",
+      "startSeconds": 48,
+      "endSeconds": 55,
+      "narration": "Grab the working project and its checks from the repository. Which entity would you expose first?",
+      "overlay": "Try the checked-in demo",
+      "visual": {
+        "kind": "presenter",
+        "label": "Presenter closing"
+      }
+    }
+  ],
+  "pronunciation": {
+    "CAP": "cap",
+    "CDS": "see dee ess",
+    "OData": "oh data",
+    "API": "ay pee eye",
+    "SQLite": "S Q Lite"
+  },
+  "publication": {
+    "channel": "linkedin",
+    "text": "A data model alone does not expose an API in SAP CAP. Add an explicit service projection.\n\nThis local example defines Products, exposes a read-only InventoryService, and queries an in-memory SQLite database seeded from CSV. Its checks exercise OData metadata, seeded results, stock filtering, a missing product, and rejected writes.\n\nThe setup is a development prototype. Authentication and deployment are separate steps.\n\nCode and setup: Code link pending repository publication\nSAP documentation: https://cap.cloud.sap/docs/guides/services/providing-services\n\nWhich entity would you expose first?\n\n#SAP #CAP #OData #SAPDevelopers"
+  }
+}

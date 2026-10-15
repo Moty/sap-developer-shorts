@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "presenter": "stock",
+  "currency": "USD",
+  "pilotBudgetCents": 500,
+  "liveProvider": null,
+  "localPreview": {
+    "engine": "kokoro",
+    "voice": "af_heart",
+    "speed": 0.96,
+    "wordsPerMinute": 180,
+    "sampleRate": 22050
+  }
+}

@@ -1,0 +1,352 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^(ABAP|CAP|RAP|BTP|AI)-[0-9]{2}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "audience": {
+      "type": "string",
+      "minLength": 1
+    },
+    "language": {
+      "const": "en"
+    },
+    "targetDurationSeconds": {
+      "type": "number",
+      "minimum": 45,
+      "maximum": 60
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["description", "prerequisites"]
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "retrievedOn": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": ["id", "title", "url", "retrievedOn"]
+      },
+      "minItems": 1
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "evidenceChecks": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": ["id", "text", "sourceIds", "evidenceChecks"]
+      },
+      "minItems": 1
+    },
+    "demo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "const": "cap-inventory"
+        },
+        "expectedChecks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": ["id", "expectedChecks"]
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "phase": {
+            "enum": ["hook", "context", "demo", "payoff", "cta"]
+          },
+          "startSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 60
+          },
+          "endSeconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 60
+          },
+          "narration": {
+            "type": "string",
+            "minLength": 1
+          },
+          "overlay": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "visual": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": ["presenter", "code", "output"]
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "codePath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "captureKey": {
+                "enum": ["products", "filtered", "metadata"]
+              },
+              "instructions": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                }
+              }
+            },
+            "required": ["kind", "label"],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "code"
+                    }
+                  }
+                },
+                "then": {
+                  "required": ["codePath"],
+                  "properties": {
+                    "codePath": {}
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "kind": {
+                      "const": "output"
+                    }
+                  }
+                },
+                "then": {
+                  "required": ["captureKey"],
+                  "properties": {
+                    "captureKey": {}
+                  }
+                }
+              }
+            ]
+          },
+          "dialogue": {
+            "$ref": "#/definitions/dialogue"
+          }
+        },
+        "required": ["id", "phase", "startSeconds", "endSeconds", "narration", "overlay", "visual"]
+      },
+      "minItems": 7,
+      "maxItems": 7
+    },
+    "pronunciation": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "const": "linkedin"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 3000
+        }
+      },
+      "required": ["channel", "text"]
+    },
+    "presentation": {
+      "$ref": "#/definitions/presentation"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "title",
+    "audience",
+    "language",
+    "targetDurationSeconds",
+    "environment",
+    "sources",
+    "claims",
+    "demo",
+    "scenes",
+    "pronunciation",
+    "publication"
+  ],
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sap-developer-shorts.local/schemas/episode.schema.json",
+  "title": "SAP Developer Shorts episode v1",
+  "definitions": {
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variant": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,31}$"
+        },
+        "tone": {
+          "enum": ["professional", "casual", "comic"]
+        },
+        "format": {
+          "enum": ["explainer", "dialogue", "myth-fact", "countdown", "story", "quiz"]
+        },
+        "humor": {
+          "enum": ["none", "light", "sap-geek"]
+        },
+        "speakers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 24
+              },
+              "voice": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["id", "name", "voice"]
+          }
+        }
+      },
+      "required": ["tone", "format", "humor", "speakers"]
+    },
+    "dialogue": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "speakerId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["speakerId", "text"]
+      }
+    }
+  }
+}

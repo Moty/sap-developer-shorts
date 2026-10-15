@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
+  "title": "CAP, explained like a colleague",
+  "presentation": {
+    "variant": "casual",
+    "tone": "casual",
+    "format": "explainer",
+    "humor": "none",
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "af_heart"
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "Where's my CAP API?"
+    },
+    {
+      "id": "context",
+      "narration": "Your entity describes the data. A service projection exposes it. Let's use this tiny inventory app."
+    },
+    {
+      "id": "model",
+      "narration": "Define Products with an ID, title, and stock. The project already includes three sample rows, so we can get moving."
+    },
+    {
+      "id": "service",
+      "narration": "Now expose Products through InventoryService. That's the API. This demo is read-only, so a create request gets rejected."
+    },
+    {
+      "id": "query",
+      "narration": "Run npm run demo. Open the local Products URL and filter for stock above zero. The keyboard and dock come back."
+    },
+    {
+      "id": "payoff",
+      "narration": "That's a real local OData version four endpoint with sample results. Deployment and authentication come later."
+    },
+    {
+      "id": "cta",
+      "narration": "Try the checked-in project and its tests. Which entity would you expose first?"
+    }
+  ]
+}

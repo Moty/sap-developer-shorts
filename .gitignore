@@ -14,3 +14,26 @@ dist/
 build/
 *.log
 scratch/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+credentials/
+*.pem
+*.key
+
+# Generated episodes and persistent worker state
+artifacts/
+.state/
+coverage/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.mp4
+*.mov
+*.wav
+*.mp3
+*.srt
+*.vtt

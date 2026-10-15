@@ -1,42 +1,25 @@
-# Video Script Template (60-Second Short / Reel)
+# Episode drafting template
 
-- **Episode ID:** `[PILLAR]-[NUMBER]` (e.g., `ABAP-01`)
-- **Title:** `[Title under 50 characters]`
-- **Target Persona:** `[Classic ABAP / Full-Stack / Cloud Architect]`
-- **Primary Tool:** `[Eclipse ADT / VS Code / SAP BAS / BTP Cockpit]`
-- **Estimated Spoken Word Count:** `[130 - 150 words]`
+Use [schemas/episode.schema.json](../schemas/episode.schema.json) for machine-readable inputs and [CAP-01](../content/episodes/CAP-01.json) as the complete example. This document is an editorial worksheet.
 
----
+- Episode ID and version:
+- Concrete developer outcome:
+- Audience and language:
+- Named tool/runtime/release and prerequisites:
+- Official sources, retrieval dates, and claims each supports:
+- Complete checked-in demo and expected execution checks:
+- Missing evidence or prerequisites:
 
-### [0:00 - 0:03] Phase 1: The Hook
-- **Visual:** Presenter on camera or extreme zoom on unexpected UI behavior / error.
-- **On-Screen Graphic (OSG):** High-contrast bold text (Max 4 words, e.g. "STOP DOING THIS 🛑").
-- **Voiceover:** _"[Catchy opening line that breaks conventional wisdom or promises instant speedup]"_
-- **SFX:** Alert / Whoosh / Glitch
+## Timeline
 
-### [0:03 - 0:10] Phase 2: The Context / Pain Point
-- **Visual:** Red highlight on legacy / bad practice code.
-- **Voiceover:** _"[Explain why the current approach is slow, verbose, or deprecated]"_
-- **SFX:** Record scratch or subtle error buzzer
+Draft 45–60 seconds with continuous scene boundaries: hook (at most three seconds, 5–7 words), context, exactly three demo steps, payoff, and CTA. Stay below 180 spoken words per minute in each scene. Count narration only and measure real audio before final timing or captions.
 
-### [0:10 - 0:40] Phase 3: The Solution (Live Execution)
-- **Framing & Zoom:** 9:16 vertical crop, 250% zoom on active code lines, 20pt font.
-- **Step 1 (0:10 - 0:20):**
-  - **Visual:** Typing / activating modern pattern.
-  - **Voiceover:** _"[Action 1 explanation]"_
-- **Step 2 (0:20 - 0:30):**
-  - **Visual:** Adding inline parameter or handler.
-  - **Voiceover:** _"[Action 2 explanation]"_
-- **Step 3 (0:30 - 0:40):**
-  - **Visual:** Final confirmation / one-liner refactor.
-  - **Voiceover:** _"[Action 3 explanation]"_
+For each scene, record its ID, phase, start/end seconds, exact narration, short overlay, and source file or captured-output reference. Use the shared [pixel layout](../config/video-layout.json). Mark avatar and voice as pending until actual media exists.
 
-### [0:40 - 0:50] Phase 4: The Payoff
-- **Visual:** Green checkmark, terminal output "SUCCESS", or preview window rendering.
-- **Voiceover:** _"[State the clear result: 'Now your code is clean, scoped, and 10x faster.']"_
-- **SFX:** Success chime / Bell
+## Evidence and review
 
-### [0:50 - 1:00] Phase 5: Call to Action & Seamless Loop
-- **Visual:** Presenter back on screen pointing down to bio/links.
-- **Voiceover:** _"[Grab the code in the link below. What's your favorite SAP trick? Drop it in the comments below!]"_
-- **Loop Anchor:** Connects phrasing back into the opening sentence for re-watch loops.
+Map each material claim to official source IDs and independently passed execution checks. Explain local versus deployed behavior, authentication, missing-data cases, and any prerequisites excluded from filming. Never claim speedups, entitlement, compatibility, or passing tests without evidence. Include a pronunciation glossary for acronyms and code terms.
+
+## Distribution draft
+
+Prepare a LinkedIn post describing the verified outcome, official links, and working public code URL when available. Mark pending links explicitly. Include a useful discussion question. The draft does not authorize publication.

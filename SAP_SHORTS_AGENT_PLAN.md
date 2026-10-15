@@ -1,5 +1,7 @@
 # SAP Developer Shorts: Autonomous Agent Orchestration & Execution Plan
 
+> **Implementation status (October 14, 2026):** This is the original strategy blueprint. The runnable foundation, current scope, and verified pilot are described in [README.md](README.md) and [docs/PROGRESS.md](docs/PROGRESS.md). The [episode contract](schemas/episode.schema.json), [shared pixel layout](config/video-layout.json), and [versioned prompts](prompts/README.md) supersede the draft's conflicting timing, framing, and blanket technical rules. Backlog titles require individual research; strategy targets are hypotheses.
+
 > **Mission:** Transform SAP's developer outreach from dry, long-form webinars and static PDFs into punchy, high-retention, 60-second vertical video content modeled after the high-converting format of the **ServiceNow Developer Program** (`@servicenowdevprogram`).
 
 ---

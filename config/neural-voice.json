@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "repository": "hexgrad/Kokoro-82M",
+  "revision": "f3ff3571791e39611d31c381e3a41a3af07b4987",
+  "model": "kokoro-v1_0.pth",
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "NEWS-01",
+    "title": "SAP Connect: available now or still planned?",
+    "event": "SAP Connect 2026",
+    "angle": "Three announcements grouped by release status.",
+    "priority": 1,
+    "status": "draft-ready",
+    "sourceUrls": [
+      "https://www.sap.com/topics/events/connect/innovation-news-guide-2026",
+      "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/"
+    ]
+  },
+  {
+    "id": "NEWS-02",
+    "title": "Joule Work: what the rollout means",
+    "event": "SAP Connect 2026",
+    "angle": "Explain the interface and separate rollout from account eligibility.",
+    "priority": 2,
+    "status": "needs-research",
+    "sourceUrls": [
+      "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/"
+    ]
+  },
+  {
+    "id": "NEWS-03",
+    "title": "SAP Reltio: why business context matters",
+    "event": "SAP Connect 2026",
+    "angle": "Explain the data problem behind the announcement.",
+    "priority": 3,
+    "status": "needs-research",
+    "sourceUrls": ["https://www.sap.com/topics/events/connect/innovation-news-guide-2026"]
+  },
+  {
+    "id": "NEWS-04",
+    "title": "SAP Signavio: measuring agent workflows",
+    "event": "SAP Connect 2026",
+    "angle": "Explain the planned capabilities and preserve the release caveat.",
+    "priority": 4,
+    "status": "needs-research",
+    "sourceUrls": ["https://www.sap.com/topics/events/connect/innovation-news-guide-2026"]
+  },
+  {
+    "id": "NEWS-05",
+    "title": "SAP Pay: payments within the ERP workflow",
+    "event": "SAP Connect 2026",
+    "angle": "Explain the announcement; research regional scope and prerequisites.",
+    "priority": 5,
+    "status": "needs-research",
+    "sourceUrls": [
+      "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/",
+      "https://www.sap.com/topics/events/connect/innovation-news-guide-2026"
+    ]
+  },
+  {
+    "id": "NEWS-06",
+    "title": "SAP Ariba and Moody’s: supplier risk signals",
+    "event": "SAP Connect 2026",
+    "angle": "Explain the partnership; verify delivery timing before scripting.",
+    "priority": 6,
+    "status": "needs-research",
+    "sourceUrls": [
+      "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/",
+      "https://www.sap.com/topics/events/connect/innovation-news-guide-2026"
+    ]
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "canvas": { "width": 1080, "height": 1920 },
+  "criticalContent": { "x": 72, "y": 160, "width": 864, "height": 1510 },
+  "headline": { "x": 72, "y": 180, "width": 864, "height": 180, "fontSize": 68 },
+  "demo": { "x": 72, "y": 430, "width": 864, "height": 880, "fontSize": 44 },
+  "presenter": { "x": 696, "y": 1320, "width": 240, "height": 240 },
+  "captions": { "x": 72, "y": 1380, "width": 600, "height": 240, "fontSize": 48 },
+  "note": "Pilot composition bounds in final output pixels. Overlay clearance is provisional; verify the eventual video on a phone and each publishing platform."
+}

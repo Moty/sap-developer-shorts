@@ -1,0 +1,259 @@
+import { randomUUID } from "node:crypto";
+import type { Dirent } from "node:fs";
+import { mkdir, readdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { readContentEpisode, validateContent } from "./contracts.js";
+import { hash } from "./digest.js";
+import { type ContentEpisode, isNewsEpisode, type NewsTopic, type Topic } from "./domain.js";
+import { createLibraryPages } from "./library-review.js";
+import { readPcmWav } from "./media/audio.js";
+import { validateTiming } from "./media/package.js";
+import { loadVerifiedRun, productionSettings } from "./media/worker.js";
+import { inside, projectRoot, sourceFile } from "./paths.js";
+import { episodeSelector, episodeSourceFiles } from "./presentation.js";
+import { readRuntimeFiles } from "./provenance.js";
+
+export interface LibraryPreview {
+  kind: "narrated" | "storyboard";
+  durationSeconds: number;
+  timingReady: boolean;
+  sourceRunId: string;
+  sourceManifestHash: string;
+  mediaJobId: string | null;
+  updatedAt: string;
+  files: Record<string, Buffer>;
+}
+
+export interface LibraryEntry {
+  episode: ContentEpisode;
+  preview: LibraryPreview | null;
+  sourceReviewExpired: boolean;
+}
+
+export interface LibraryContent {
+  entries: LibraryEntry[];
+  topics: Topic[];
+  newsTopics: NewsTopic[];
+  budgetCents: number;
+}
+
+async function readConfined(directory: string, name: string) {
+  const artifactDirectory = await realpath(directory);
+  return readFile(inside(artifactDirectory, await realpath(inside(artifactDirectory, name))));
+}
+
+async function readHashed(directory: string, name: string, expected: unknown) {
+  if (typeof expected !== "string" || !/^[a-f0-9]{64}$/u.test(expected))
+    throw new Error("Missing artifact digest");
+  const bytes = await readConfined(directory, name);
+  if (hash(bytes) !== expected) throw new Error("Artifact digest differs");
+  return bytes;
+}
+
+export async function collectLibrary(
+  episodes: ContentEpisode[],
+  artifactRoot: string,
+  now = new Date(),
+): Promise<{ entries: LibraryEntry[]; excludedRuns: number }> {
+  const entries: LibraryEntry[] = episodes.map((episode) => ({
+    episode: structuredClone(episode),
+    preview: null,
+    sourceReviewExpired:
+      isNewsEpisode(episode) &&
+      Date.parse(now.toISOString().slice(0, 10)) - Date.parse(episode.news.asOf) >
+        episode.news.maxAgeDays * 86400000,
+  }));
+  let directories: Dirent[];
+  try {
+    directories = await readdir(artifactRoot, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { entries, excludedRuns: 0 };
+    throw error;
+  }
+  let excludedRuns = 0;
+  for (const candidate of directories) {
+    if (
+      !candidate.isDirectory() ||
+      !/^(ABAP|CAP|RAP|BTP|AI|NEWS)-\d{2}-v\d+-[a-f0-9-]+$/u.test(candidate.name)
+    )
+      continue;
+    const directory = await realpath(resolve(artifactRoot, candidate.name));
+    try {
+      const run = await loadVerifiedRun(directory, { requireFreshNews: false });
+      const entry = entries.find(
+        (item) => episodeSelector(item.episode) === episodeSelector(run.episode),
+      );
+      if (
+        !entry ||
+        run.manifest.episodeId !== entry.episode.id ||
+        run.manifest.episodeVersion !== entry.episode.version ||
+        run.manifest.inputHash !== hash(JSON.stringify(entry.episode)) ||
+        !Number.isFinite(Date.parse(run.manifest.updatedAt))
+      )
+        continue;
+      const previews: LibraryPreview[] = [
+        {
+          kind: "storyboard",
+          durationSeconds: entry.episode.targetDurationSeconds,
+          timingReady: false,
+          sourceRunId: candidate.name,
+          sourceManifestHash: run.manifestHash,
+          mediaJobId: null,
+          updatedAt: run.manifest.updatedAt,
+          files: {
+            "review.html": await readHashed(
+              directory,
+              "review.html",
+              run.manifest.artifactHashes["review.html"],
+            ),
+          },
+        },
+      ];
+      const media = resolve(directory, "media");
+      const jobs = await readdir(media, { withFileTypes: true }).catch(
+        (error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") throw error;
+          return [];
+        },
+      );
+      for (const job of jobs) {
+        if (!job.isDirectory() || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u.test(job.name))
+          continue;
+        try {
+          const output = inside(directory, await realpath(resolve(media, job.name)));
+          const receipt = JSON.parse(
+            (await readConfined(output, "media-manifest.json")).toString("utf8"),
+          );
+          if (
+            receipt.schemaVersion !== 1 ||
+            receipt.jobId !== job.name ||
+            receipt.sourceManifestHash !== run.manifestHash ||
+            receipt.mode !== "local-narration-preview"
+          )
+            throw new Error("Media receipt does not match this run");
+          const files: Record<string, Buffer> = {};
+          for (const name of ["review.html", "narration.wav", "timing.json", "captions.vtt"])
+            files[name] = await readHashed(output, name, receipt.artifactHashes?.[name]);
+          const timing = validateTiming(
+            JSON.parse(files["timing.json"]?.toString("utf8") ?? "null"),
+            entry.episode,
+            readPcmWav(files["narration.wav"] ?? Buffer.alloc(0)).length / 2,
+          );
+          const hook = timing.scenes[0]?.speechSeconds ?? Infinity;
+          previews.push({
+            kind: "narrated",
+            durationSeconds: timing.durationSeconds,
+            timingReady: timing.durationSeconds >= 45 && timing.durationSeconds <= 60 && hook <= 3,
+            sourceRunId: candidate.name,
+            sourceManifestHash: run.manifestHash,
+            mediaJobId: job.name,
+            updatedAt: run.manifest.updatedAt,
+            files,
+          });
+        } catch {
+          excludedRuns++;
+        }
+      }
+      for (const preview of previews) {
+        const current = entry.preview;
+        if (
+          !current ||
+          (preview.kind === "narrated" && current.kind === "storyboard") ||
+          (preview.kind === current.kind && preview.updatedAt > current.updatedAt)
+        )
+          entry.preview = preview;
+      }
+    } catch {
+      excludedRuns++;
+    }
+  }
+  entries.sort(
+    (a, b) =>
+      (b.preview?.updatedAt ?? "").localeCompare(a.preview?.updatedAt ?? "") ||
+      a.episode.id.localeCompare(b.episode.id),
+  );
+  return { entries, excludedRuns };
+}
+
+export async function buildLibrary(options: { artifactRoot?: string; now?: Date } = {}) {
+  const now = options.now ?? new Date();
+  const artifactRoot = resolve(
+    projectRoot,
+    options.artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
+  );
+  const content = await validateContent();
+  const episodes = [...content.episodes, ...content.variants];
+  const library = await collectLibrary(episodes, artifactRoot, now);
+  const settings = await productionSettings();
+  const sourceHashes: Record<string, string> = {};
+  for (const name of [
+    "templates/library.css",
+    "templates/library.js",
+    "config/production.json",
+    "content/topics/backlog.json",
+    "content/news/backlog.json",
+    ...episodes.flatMap(episodeSourceFiles),
+  ])
+    sourceHashes[name] = hash(await readFile(await sourceFile(name)));
+  for (const episode of episodes) {
+    const current = await readContentEpisode(episodeSelector(episode));
+    if (hash(JSON.stringify(current)) !== hash(JSON.stringify(episode)))
+      throw new Error("Editorial input changed while building the library; run again");
+  }
+  const files = await createLibraryPages({
+    ...library,
+    topics: content.topics,
+    newsTopics: content.newsTopics,
+    budgetCents: settings.pilotBudgetCents,
+  });
+  const runtimeHashes: Record<string, string> = {};
+  for (const [name, bytes] of Object.entries(await readRuntimeFiles()))
+    runtimeHashes[name] = hash(bytes);
+  const id = `library-${randomUUID()}`;
+  const temporary = resolve(artifactRoot, `.${id}`);
+  const directory = resolve(artifactRoot, id);
+  await mkdir(temporary, { recursive: true });
+  const artifactHashes: Record<string, string> = {};
+  for (const [name, bytes] of Object.entries(files)) {
+    const destination = inside(temporary, name);
+    await mkdir(resolve(destination, ".."), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx" });
+    artifactHashes[name] = hash(bytes);
+  }
+  for (const [name, expected] of Object.entries({ ...sourceHashes, ...runtimeHashes })) {
+    if (hash(await readFile(await sourceFile(name))) !== expected)
+      throw new Error(`Library input changed: ${name}; run again`);
+  }
+  const manifest = {
+    schemaVersion: 1,
+    kind: "review-library",
+    builtAt: now.toISOString(),
+    sourceHashes,
+    runtimeHashes,
+    artifactHashes,
+    excludedRuns: library.excludedRuns,
+    episodes: library.entries.map(({ episode, preview, sourceReviewExpired }) => ({
+      id: episode.id,
+      selector: episodeSelector(episode),
+      version: episode.version,
+      inputHash: hash(JSON.stringify(episode)),
+      sourceReviewExpired,
+      preview: preview
+        ? {
+            kind: preview.kind,
+            sourceRunId: preview.sourceRunId,
+            sourceManifestHash: preview.sourceManifestHash,
+            mediaJobId: preview.mediaJobId,
+            durationSeconds: preview.durationSeconds,
+            timingReady: preview.timingReady,
+          }
+        : null,
+    })),
+  };
+  await writeFile(
+    resolve(temporary, "library-manifest.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
+  await rename(temporary, directory);
+  return { directory, manifest };
+}

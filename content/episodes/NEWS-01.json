@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "format": "news",
+  "id": "NEWS-01",
+  "version": 1,
+  "title": "SAP Connect: available now or still planned?",
+  "audience": "SAP developers, architects, and business technology teams",
+  "language": "en",
+  "targetDurationSeconds": 55,
+  "news": {
+    "event": "SAP Connect 2026",
+    "asOf": "2026-10-14",
+    "maxAgeDays": 7,
+    "editorialStatus": "draft",
+    "selection": "editorial",
+    "angle": "Three announcements, with rollout and release status made clear."
+  },
+  "sources": [
+    {
+      "id": "connect-guide",
+      "title": "SAP Connect 2026 Innovation News Guide",
+      "url": "https://www.sap.com/topics/events/connect/innovation-news-guide-2026",
+      "retrievedOn": "2026-10-14",
+      "publisher": "SAP",
+      "publishedOn": null
+    },
+    {
+      "id": "connect-release",
+      "title": "SAP Puts the Autonomous Enterprise to Work",
+      "url": "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/",
+      "retrievedOn": "2026-10-14",
+      "publisher": "SAP",
+      "publishedOn": "2026-10-06"
+    }
+  ],
+  "claims": [
+    {
+      "id": "joule-work",
+      "text": "Joule Work begins its customer rollout.",
+      "sourceIds": ["connect-release"],
+      "checkedOn": "2026-10-14",
+      "availability": {
+        "status": "rollout",
+        "timing": "Rollout beginning in October 2026",
+        "scope": "Customer rollout; confirm access for your environment."
+      },
+      "support": [
+        {
+          "sourceId": "connect-release",
+          "locator": "SAP’s Autonomous Enterprise Scales Up",
+          "summary": "SAP describes a rollout beginning, with selected customers already using the interface."
+        }
+      ]
+    },
+    {
+      "id": "reltio",
+      "text": "SAP Reltio is generally available.",
+      "sourceIds": ["connect-guide"],
+      "checkedOn": "2026-10-14",
+      "availability": {
+        "status": "generally-available",
+        "timing": "Available at the source review date",
+        "scope": "Unifying business records across SAP and other applications."
+      },
+      "support": [
+        {
+          "sourceId": "connect-guide",
+          "locator": "Business AI Platform / SAP Reltio",
+          "summary": "The guide describes unified entity context and states current general availability."
+        }
+      ]
+    },
+    {
+      "id": "signavio",
+      "text": "SAP Signavio expands agent analysis and AI process consulting.",
+      "sourceIds": ["connect-guide"],
+      "checkedOn": "2026-10-14",
+      "availability": {
+        "status": "planned",
+        "timing": "General availability planned for Q1 2027",
+        "scope": "Two new capabilities; the date remains a plan."
+      },
+      "support": [
+        {
+          "sourceId": "connect-guide",
+          "locator": "Business AI Platform / SAP Signavio portfolio innovations",
+          "summary": "The guide covers multiagent analysis and AI process consulting, with a planned Q1 2027 release."
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "phase": "hook",
+      "startSeconds": 0,
+      "endSeconds": 3,
+      "narration": "Announced does not mean available.",
+      "overlay": "Announced ≠ available",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "SAP Connect / news brief"
+      }
+    },
+    {
+      "id": "context",
+      "phase": "context",
+      "startSeconds": 3,
+      "endSeconds": 10,
+      "narration": "Three SAP Connect announcements, checked October fourteenth. Here is what is rolling out, available now, or still planned.",
+      "overlay": "Three announcements. Three statuses.",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "As of October 14, 2026"
+      }
+    },
+    {
+      "id": "joule",
+      "phase": "headline",
+      "startSeconds": 10,
+      "endSeconds": 21,
+      "narration": "First, SAP says Joule Work is starting its customer rollout, bringing natural language interaction to work across SAP and third party data.",
+      "overlay": "1. Joule Work / rollout",
+      "claimIds": ["joule-work"],
+      "visual": {
+        "kind": "news-card",
+        "label": "What changed / Joule Work"
+      }
+    },
+    {
+      "id": "reltio",
+      "phase": "headline",
+      "startSeconds": 21,
+      "endSeconds": 31,
+      "narration": "Second, SAP Reltio is generally available. It reconciles fragmented business records across applications to give AI more consistent context.",
+      "overlay": "2. SAP Reltio / available now",
+      "claimIds": ["reltio"],
+      "visual": {
+        "kind": "news-card",
+        "label": "What changed / SAP Reltio"
+      }
+    },
+    {
+      "id": "signavio",
+      "phase": "headline",
+      "startSeconds": 31,
+      "endSeconds": 43,
+      "narration": "Third, SAP Signavio plans deeper analysis of multiagent workflows and AI support for process consulting. General availability is planned for the first quarter of twenty twenty seven.",
+      "overlay": "3. SAP Signavio / planned Q1 2027",
+      "claimIds": ["signavio"],
+      "visual": {
+        "kind": "news-card",
+        "label": "What changed / SAP Signavio"
+      }
+    },
+    {
+      "id": "takeaway",
+      "phase": "payoff",
+      "startSeconds": 43,
+      "endSeconds": 49,
+      "narration": "My takeaway: check the use case, data foundation, and availability together.",
+      "overlay": "Check the use case and release status.",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Editorial takeaway"
+      }
+    },
+    {
+      "id": "cta",
+      "phase": "cta",
+      "startSeconds": 49,
+      "endSeconds": 55,
+      "narration": "Read the official sources below. Which announcement should we unpack next?",
+      "overlay": "Which announcement should we unpack?",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Choose the next SAP short"
+      }
+    }
+  ],
+  "pronunciation": {
+    "SAP": "S A P",
+    "AI": "A I",
+    "Joule": "Jewel",
+    "Reltio": "Rell tee oh",
+    "Signavio": "Sig nah vee oh"
+  },
+  "publication": {
+    "channel": "linkedin",
+    "text": "SAP Connect 2026, in under a minute: what is rolling out, what is available, and what remains planned?\n\nAn editorial selection, with sources checked October 14, 2026. Availability may depend on your environment.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich announcement should we unpack next?\n\n#SAP #SAPConnect #BusinessAI"
+  }
+}

@@ -1,0 +1,361 @@
+[
+  {
+    "id": "ABAP-01",
+    "pillar": "ABAP",
+    "title": "Stop using `READ TABLE` \u2014 Table Expressions in 60 seconds.",
+    "status": "needs-research",
+    "prerequisites": ["A named ABAP backend with ADT access and ABAP Unit."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "ABAP-02",
+    "pillar": "ABAP",
+    "title": "Why you must stop using `SELECT *` inside loops (CDS association tricks).",
+    "status": "needs-research",
+    "prerequisites": ["A named ABAP backend with ADT access and ABAP Unit."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "ABAP-03",
+    "pillar": "ABAP",
+    "title": "Inline Declarations (`DATA(...)`) vs Legacy Top-Include definitions.",
+    "status": "needs-research",
+    "prerequisites": ["A named ABAP backend with ADT access and ABAP Unit."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "ABAP-04",
+    "pillar": "ABAP",
+    "title": "String Templates (`|Hello { lv_name }|`) replacing `CONCATENATE`.",
+    "status": "needs-research",
+    "prerequisites": ["A named ABAP backend with ADT access and ABAP Unit."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "ABAP-05",
+    "pillar": "ABAP",
+    "title": "Writing ABAP in VS Code using open-source tools (Yes, it's real!).",
+    "status": "needs-research",
+    "prerequisites": ["A named ABAP backend with ADT access and ABAP Unit."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "ABAP-06",
+    "pillar": "ABAP",
+    "title": "ABAP Cloud Tier 1 vs Tier 2 vs Tier 3 explained in 50 seconds.",
+    "status": "needs-research",
+    "prerequisites": ["A named ABAP backend with ADT access and ABAP Unit."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "CAP-01",
+    "pillar": "CAP",
+    "title": "Your CAP model needs a service",
+    "status": "pilot-ready",
+    "prerequisites": [
+      "Install Node.js 22.13+ (22 LTS recommended) and npm.",
+      "Run npm ci at the repository root before recording.",
+      "Use the checked-in inventory project; keep installation outside the video."
+    ],
+    "sources": [
+      {
+        "id": "cap-services",
+        "title": "SAP CAP: Define Provided Services",
+        "url": "https://cap.cloud.sap/docs/guides/services/providing-services",
+        "retrievedOn": "2026-10-14"
+      },
+      {
+        "id": "cap-sqlite",
+        "title": "SAP CAP: Using SQLite for Development",
+        "url": "https://cap.cloud.sap/docs/guides/databases/sqlite",
+        "retrievedOn": "2026-10-14"
+      }
+    ],
+    "supportedRelease": "@sap/cds 10.1.1; @cap-js/sqlite 3.1.2; Node.js 22.13+",
+    "verifiedOn": "2026-10-14",
+    "outcome": "Expose and query the seeded, read-only InventoryService through OData V4 locally."
+  },
+  {
+    "id": "CAP-02",
+    "pillar": "CAP",
+    "title": "Seed and query local CAP demo data",
+    "status": "needs-research",
+    "prerequisites": ["Node.js LTS, npm, and the release-specific CAP dependencies."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Demonstrate local CSV seed data and an asserted OData filter before any ERP connection."
+  },
+  {
+    "id": "CAP-03",
+    "pillar": "CAP",
+    "title": "Reject invalid input in a CAP handler",
+    "status": "needs-research",
+    "prerequisites": ["Node.js LTS, npm, and the release-specific CAP dependencies."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Demonstrate a validation handler with passing and rejected HTTP requests."
+  },
+  {
+    "id": "CAP-04",
+    "pillar": "CAP",
+    "title": "SQLite in-memory to SAP HANA Cloud migration with zero code changes.",
+    "status": "needs-research",
+    "prerequisites": ["Node.js LTS, npm, and the release-specific CAP dependencies."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "CAP-05",
+    "pillar": "CAP",
+    "title": "Auto-generating SAP Fiori Elements UI directly from CAP CDS annotations.",
+    "status": "needs-research",
+    "prerequisites": ["Node.js LTS, npm, and the release-specific CAP dependencies."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "CAP-06",
+    "pillar": "CAP",
+    "title": "Securing your CAP service with `@restrict` role-based annotations.",
+    "status": "needs-research",
+    "prerequisites": ["Node.js LTS, npm, and the release-specific CAP dependencies."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "RAP-01",
+    "pillar": "RAP",
+    "title": "Managed vs Unmanaged RAP: How to decide in 30 seconds.",
+    "status": "needs-research",
+    "prerequisites": ["A supported ABAP backend with ADT access and RAP tooling."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "RAP-02",
+    "pillar": "RAP",
+    "title": "Creating a RAP Business Object from a CDS View in 4 clicks.",
+    "status": "needs-research",
+    "prerequisites": ["A supported ABAP backend with ADT access and RAP tooling."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "RAP-03",
+    "pillar": "RAP",
+    "title": "Adding custom validations with Determination and Validation methods.",
+    "status": "needs-research",
+    "prerequisites": ["A supported ABAP backend with ADT access and RAP tooling."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "RAP-04",
+    "pillar": "RAP",
+    "title": "Draft Handling in RAP: How SAP automatically handles unsaved user inputs.",
+    "status": "needs-research",
+    "prerequisites": ["A supported ABAP backend with ADT access and RAP tooling."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "RAP-05",
+    "pillar": "RAP",
+    "title": "Creating a Fiori preview with zero frontend code using RAP UI annotations.",
+    "status": "needs-research",
+    "prerequisites": ["A supported ABAP backend with ADT access and RAP tooling."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "RAP-06",
+    "pillar": "RAP",
+    "title": "Exposing RAP as an OData Web API vs UI Service.",
+    "status": "needs-research",
+    "prerequisites": ["A supported ABAP backend with ADT access and RAP tooling."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "BTP-01",
+    "pillar": "BTP",
+    "title": "Claiming your SAP BTP Free Tier account (No 30-day expiration!).",
+    "status": "needs-research",
+    "prerequisites": ["An SAP BTP account with the required service entitlements."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "BTP-02",
+    "pillar": "BTP",
+    "title": "SAP BTP Destination Service: Connecting cloud apps to on-premise S/4HANA safely.",
+    "status": "needs-research",
+    "prerequisites": ["An SAP BTP account with the required service entitlements."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "BTP-03",
+    "pillar": "BTP",
+    "title": "3 SAP Business Application Studio (BAS) extensions you didn't know you needed.",
+    "status": "needs-research",
+    "prerequisites": ["An SAP BTP account with the required service entitlements."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "BTP-04",
+    "pillar": "BTP",
+    "title": "Deploying a containerized Node.js app to SAP BTP Cloud Foundry via CLI.",
+    "status": "needs-research",
+    "prerequisites": ["An SAP BTP account with the required service entitlements."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "BTP-05",
+    "pillar": "BTP",
+    "title": "Managing environment variables with BTP User-Provided Services.",
+    "status": "needs-research",
+    "prerequisites": ["An SAP BTP account with the required service entitlements."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "BTP-06",
+    "pillar": "BTP",
+    "title": "Setting up CI/CD with Project \"Piper\" on GitHub Actions for SAP.",
+    "status": "needs-research",
+    "prerequisites": ["An SAP BTP account with the required service entitlements."],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "AI-01",
+    "pillar": "AI",
+    "title": "Using SAP Joule to write CDS view definitions from natural language.",
+    "status": "needs-research",
+    "prerequisites": [
+      "Product access, required AI service entitlements, and a configured spending limit."
+    ],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "AI-02",
+    "pillar": "AI",
+    "title": "Connecting Python to SAP HANA Vector Engine in 60 seconds.",
+    "status": "needs-research",
+    "prerequisites": [
+      "Product access, required AI service entitlements, and a configured spending limit."
+    ],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "AI-03",
+    "pillar": "AI",
+    "title": "Deploying an LLM on SAP Generative AI Hub via LangChain / LlamaIndex.",
+    "status": "needs-research",
+    "prerequisites": [
+      "Product access, required AI service entitlements, and a configured spending limit."
+    ],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "AI-04",
+    "pillar": "AI",
+    "title": "Grounding AI responses with enterprise business context via SAP GenAI Hub.",
+    "status": "needs-research",
+    "prerequisites": [
+      "Product access, required AI service entitlements, and a configured spending limit."
+    ],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "AI-05",
+    "pillar": "AI",
+    "title": "Joule code completion in Eclipse ADT: How to activate it today.",
+    "status": "needs-research",
+    "prerequisites": [
+      "Product access, required AI service entitlements, and a configured spending limit."
+    ],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  },
+  {
+    "id": "AI-06",
+    "pillar": "AI",
+    "title": "3 enterprise AI guardrails you must enable before going to production.",
+    "status": "needs-research",
+    "prerequisites": [
+      "Product access, required AI service entitlements, and a configured spending limit."
+    ],
+    "sources": [],
+    "supportedRelease": null,
+    "verifiedOn": null,
+    "outcome": "Research prerequisites and verify the original topic claim before scripting."
+  }
+]

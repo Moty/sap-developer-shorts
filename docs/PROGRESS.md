@@ -1,0 +1,111 @@
+# Implementation progress
+
+Updated October 14, 2026. Local branch: `codex/project-foundation`.
+
+## Milestone 1: runnable foundation delivered
+
+- Added a pinned npm workspace, lockfile, TypeScript application, formatting/type checks, tests, and CI configuration for Node 22 and 24.
+- Added `doctor`, `validate`, `verify`, and `preview` commands. The compiled CLI also runs from `dist/src/cli.js`.
+- Defined a versioned episode JSON Schema and runtime checks for claim references, registered execution checks, scene order, timing, and source paths.
+- Converted the thirty-topic backlog to structured content with explicit research status. CAP-01 is the single executable pilot; CAP-02 and CAP-03 are the next planned local examples.
+- Replaced the incomplete CAP example with a full local project: explicit service projection, seed CSV, pinned runtime/database dependencies, and five live HTTP assertions. Read-only behavior is asserted on the projected entity, and the endpoint path is verified.
+- Created a 124-word CAP-01 script with a planned 55-second timeline, official source records, a pronunciation glossary, and a LinkedIn companion draft.
+- Added a standalone interactive storyboard using a shared 1080 × 1920 layout, actual source code, and captured API results. The presenter regions and provisional timing are clearly labeled.
+- Persisted per-run stages, exact input snapshots, SHA-256 source/artifact hashes, demo evidence, diagnostics, and failure records. Failed verification cannot create a verified preview.
+- Revised all four editorial role prompts; corrected the CAP sample and template; flagged the original ABAP script as unverified.
+- Added credential/media/state exclusions, a placeholder-only environment example, MIT license, and local development documentation.
+
+## Verification evidence
+
+- A fresh `npm ci` succeeded with the lockfile.
+- `npm run check` passed locally on Node 26.8.2 and Node 22.23.3: formatting, TypeScript, 11 workflow tests, five live CAP checks, and validation of all thirty topics plus CAP-01.
+- CAP checks verified OData V4 metadata, three exact seeded products, two in-stock results, a 404 for a missing product, and a 405 for a create request.
+- Failure tests exercised persisted failures, incomplete/duplicate check evidence, invalid claim references, timeline errors, out-of-repository paths, and HTML escaping.
+- `npm run build` and the compiled `doctor` command passed.
+- The interactive pilot was generated end to end and inspected in browser layouts for phone and desktop widths. Scene selection displays the matching code or captured results.
+- The dependency audit reported zero vulnerabilities at the time of this implementation.
+- CI is configured but has not run remotely. No commit, push, avatar purchase, cloud deployment, or public post has been made.
+
+## Next milestone: complete narrated avatar pilot
+
+### Independent Astra review completed
+
+Following the user's request, GPT-6 Astra independently reviewed the foundation and reproduced three P2 issues: unrecorded auto-discovered CAP inputs, compiled JavaScript absent from runtime provenance, and incomplete capture validation. All three were fixed and Astra independently confirmed the fixes with all fifteen workflow tests passing. See [the review and regression evidence](ASTRA_REVIEW.md).
+
+CAP-01 revision 2 now has a clearer service-definition hook, 126 spoken words, visible run/query instructions, and a claim/source/check table. The shared video layout is validated for shape, minimum font size, and content bounds. Final narration and timing remain unmeasured.
+
+Final verification passed on Node 26.8.2 and the declared minimum Node 22.13.0: fifteen workflow tests, five live CAP checks, content validation, and the compiled preview. The build also passed. CI has not run remotely.
+
+The user has since selected a stock presenter and a $5 pilot limit. The local media stage below adds durable jobs and measured narration. Remaining production work requires permitted provider access, the final stock avatar and voice, MP4 composition, and final media verification. FFmpeg and FFprobe were absent during foundation checks.
+
+The foundation artifact remains a silent storyboard with verified technical content. A separate narrated preview now adds local audio and phrase captions. Real avatar media, the final provider voice, an MP4, and publication approval remain pending. The LinkedIn code link awaits a public repository URL.
+
+Publishing/OAuth and persistent scheduling remain later roadmap stages. Media job resumption and local operational recovery are delivered below. The full original roadmap is preserved in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+
+## Milestone 2a: durable media jobs and narrated preview
+
+- Recorded the user's stock-presenter choice and $5 first-video limit in `config/production.json`.
+- Added a replaceable provider interface, simulated provider, and free macOS system-voice adapter. No live avatar adapter or paid request is enabled.
+- Added SQLite job state, exclusive single-host worker leases, persisted submission intent and provider IDs, reconciliation for uncertain submissions, bounded polling, and resumable packaging.
+- Added per-episode spending reservations and idempotent job creation. Unknown submissions retain their reservations; simulated budgets are isolated from production spending.
+- Generated CAP-01 local narration: **57.468 seconds**, with a **2.094-second hook**, nineteen separately recorded phrase cues, and measured scene timing. The preview uses the audio clock for scene and caption synchronization.
+- Added narrated HTML, WAV, WebVTT, timing JSON, and a hashed media receipt. Recorded audio can be packaged again without submitting a new provider job.
+- Added a localhost review server with byte-range support. Browser testing caught and resolved seeking restarting at zero under the earlier generic server; the project server now seeks and resumes at the selected scene.
+- Added recovery, spending, WAV, caption, package-reuse, and server tests. The current suite has twenty-five workflow tests, in addition to the five live CAP assertions.
+
+The local voice is a temporary timing preview and cost $0. Provider discovery again found the returned avatar/video connectors disabled by the workspace administrator. A permitted provider connection, final avatar/voice selection, and an enforceable maximum charge are needed for the real stock-avatar render. The application does not bypass the connector restriction. No MP4, external upload, public post, commit, or push was performed in this milestone.
+
+See [media workflow and recovery](MEDIA_WORKFLOW.md) for commands, limitations, and the saved-job lifecycle.
+
+## Milestone 2b: SAP news shorts as a second format
+
+- Added a separate `NEWS-NN` episode contract and six-item SAP Connect news backlog. The initial roundup is draft-ready; five follow-ups need research. The original thirty tutorial topics and CAP execution checks remain intact.
+- Added dated source records, claim support notes, section locators, availability categories, delivery timing, scope, and an explicit editorial-selection label. Unknown publication dates remain null.
+- Added source chronology and reference validation, a maximum seven-day review window before news production, a distinct `SOURCES_CHECKED` stage, and frozen `news-evidence.json`. Automated checks validate the recorded review; they do not fetch pages or independently prove source relevance.
+- Added news cards and editorial review tables to the shared vertical preview/player design. News does not show technical-verification badges or simulated product checks.
+- Extended the existing narration and durable media workflow to news. Generated NEWS-01: **56.097 seconds**, **1.936-second hook**, 113 spoken words, and eighteen measured phrase captions, using the free local voice.
+- Added a reusable news script template, versioned news-editor prompt, and [news authoring guide](NEWS_WORKFLOW.md).
+
+Verification passed on the declared minimum Node 22.13.0: thirty workflow tests, five live CAP checks, formatting, type checks, content validation, and build. The news preview was checked at desktop and 390-pixel phone widths with no horizontal overflow or clipped announcement content. Playback, seeking, and the planned-release card were verified in the browser. Local narration cost $0. No new external provider, paid generation, automation, public post, commit, or push was performed.
+
+Initial sources were read October 14, 2026: the [SAP Connect Innovation News Guide](https://www.sap.com/topics/events/connect/innovation-news-guide-2026) and its linked [SAP press release](https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/). The preview is an editorial draft with an explicit as-of date, rather than a live feed of all current SAP news.
+
+## Milestone 2c: shared review studio
+
+- Added `library` to build a portable review hub for current tutorial and news drafts. The hub contains format filters, local text search, official sources, measured preview durations, production status, and the remaining topic backlog.
+- Added episode navigation with an **All episodes** link above each existing narrated player. Playback files are copied locally into the library, preserving range-based audio seeking without depending on the original artifact folders.
+- Added strict selection against the current episode ID, revision, and canonical editorial input. Required source artifacts, evidence, media receipts, media file hashes, WAV frames, and caption timing are checked before inclusion. Matching narrated output is preferred over a newer silent storyboard.
+- Added visible recheck labels for expired news during read-only review. New media generation and unfinished-job resumption retain the existing freshness requirement. A static library preserves its build-time assessment and must be rebuilt before production.
+- Hardened preview reads against symlinks escaping a run and resolved canonical directory aliases before confinement checks, including macOS temporary paths.
+- Added atomic library construction, source/runtime hashes, copied artifact hashes, and selection references in `library-manifest.json`. Incomplete, altered, and mismatched outputs are excluded.
+
+Verification passed on Node 22.13.0: thirty-five workflow tests, five live CAP checks, formatting, types, and content validation. The application build and compiled library command passed. Browser checks covered format filters, no-result search and reset, opening an episode, seeking and playing narration inside the episode frame, and returning to the library. Phone filtering and layout were checked at 390 pixels with no horizontal overflow. The library uses existing local media; it makes no paid provider call and does not publish or schedule content.
+
+See [review studio operations](REVIEW_STUDIO.md). Avatar production and final video export remain the next production milestone requiring permitted provider access.
+
+## Milestone 2d: warm local neural narrator
+
+- Applied the user's warm, conversational female preference with Kokoro Heart (`af_heart`, speed 0.96). Scenes now use continuous generation and short inter-scene pauses, replacing the earlier short-phrase delivery and padded visual slots for new previews.
+- Added an optional, isolated Python 3.12 setup with locked dependencies and pinned model/voice assets. Rendering runs offline on the CPU. Runtime fingerprints bind asset hashes and package versions to each saved request; cached scene audio and timing are validated before reuse.
+- Kept existing system-voice jobs resumable and introduced a distinct local neural provider. Both local engines record zero spending. No paid speech service or subscription was used.
+- Regenerated CAP-01: **58.730 seconds**, **2.975-second opening**, nineteen caption cues. Regenerated NEWS-01: **57.030 seconds**, **2.450-second opening**, eighteen cues. Both pass the local duration and opening checks.
+- Disclosed that neural caption boundaries are model estimates. WAV duration and scene boundaries remain sample-measured. Added cache-binding, tamper, timing, text-coverage, and disclosure tests.
+
+Verification passed on minimum Node 22.13.0: thirty-nine workflow tests, five live CAP checks, formatting, types, content validation, and build. The optional model generated both complete episodes on this Apple Silicon Mac. The rebuilt studio selects both new recordings; all eleven copied artifact hashes match. Browser checks confirmed the new voice label, 57.030-second news audio, playback, and seeking/resuming at a selected scene without a media error. A before-and-after sample uses identical opening narration without speed or level changes. The earlier independent Astra review covers the foundation; this narrator extension has not received a separate Astra review. See [voice setup and options](VOICE_OPTIONS.md).
+
+### Built-in voice selection
+
+The user confirmed continuing with Kokoro; Heart remains selected. Added a `voices` command listing the 28 English profiles in the pinned release, including American/British and female/male options. Selection now lives only in `config/production.json`; setup reads it directly instead of requiring a matching edit in the model specification. The synthesis pipeline follows the voice's English accent, and new preview labels identify the recorded voice rather than always saying Heart. Switching requires setup followed by narration/caption regeneration and a library rebuild; it does not train a model or call a paid speech service.
+
+Regression checks validate supported and rejected selections and package Bella/George fixture audio with matching labels and receipts. All forty-one workflow tests and five live CAP checks passed on minimum Node 22.13.0, together with formatting, types, and content validation. The current Heart setup was rerun successfully. These fixture checks do not claim a listening evaluation of all alternate voices.
+
+## Milestone 2e: presentation styles and two-person narration
+
+- Added separate tone (professional/casual/comic), story format, and humor settings. Supported writing formats include explainer, dialogue, myth/fact, countdown, problem/solution, and quiz. The studio's Delivery styles section distinguishes prepared previews from formats needing a script.
+- Added three CAP presentation variants alongside the original professional episode. They inherit its technical sources, claims, demo, and visuals and are bound to the base input hash. Structural overrides and stale base bindings are rejected. The studio preserves separate matching previews for each selector.
+- Recorded the casual version at **49.805 seconds**, comic solo at **54.080 seconds**, and comic conversation at **58.470 seconds**. Their openings are **2.075**, **2.375**, and **2.600 seconds**, respectively. All pass local timing checks. The existing professional and news recordings remain available.
+- Added two local Kokoro speakers: Mira (Heart) and Max (Michael). The renderer generates each declared turn with its assigned voice, inserts short pauses, and keeps speaker names in captions and the active-speaker badge. Names are not spoken as stage directions. Caption attribution is validated against the exact turns; timing boundaries remain model estimates.
+- Added cached multi-voice installation and immutable per-job runtime snapshots. Installing a cohost does not change another job's fingerprint. Existing single-voice runtime snapshots are retained; assets and dependency versions are checked before rendering.
+- Added an authoring guide, presentation-editor prompt, and `styles` command. Tone and humor affect authored scripts and visual accents; the application does not claim automatic rewriting, emotional voice controls, finished cartoon characters, or final avatar animation.
+
+Verification passed on minimum Node 22.13.0: **46 workflow tests**, five live CAP checks, formatting, types, content validation, and build. Regression coverage includes base/evidence preservation, variant separation, unknown/missing speakers, duplicate voices, caption attribution, stable cohost installation fingerprints, and altered runtime snapshots. The five-preview library has 26 matching artifact hashes. Browser checks confirmed comparison links, dialogue playback/seeking, and matching active-speaker labels and captions for Max and Mira. Both the style library and dialogue player fit a 390-pixel phone viewport without horizontal overflow; the viewport override was reset. All generation remained local and recorded $0. Final MP4 composition and avatar production remain pending.

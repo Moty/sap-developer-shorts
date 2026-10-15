@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
+  "title": "Two developers, one missing CAP service",
+  "presentation": {
+    "variant": "duo",
+    "tone": "comic",
+    "format": "dialogue",
+    "humor": "sap-geek",
+    "speakers": [
+      {
+        "id": "mira",
+        "name": "Mira",
+        "voice": "af_heart"
+      },
+      {
+        "id": "max",
+        "name": "Max",
+        "voice": "am_michael"
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "My entity ghosted my API.",
+      "dialogue": [
+        {
+          "speakerId": "mira",
+          "text": "My entity ghosted my API."
+        }
+      ]
+    },
+    {
+      "id": "context",
+      "narration": "An entity describes data. It needs an explicit service projection to expose an API. Ah, separate responsibilities.",
+      "dialogue": [
+        {
+          "speakerId": "max",
+          "text": "An entity describes data. It needs an explicit service projection to expose an API."
+        },
+        {
+          "speakerId": "mira",
+          "text": "Ah, separate responsibilities."
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "narration": "What's in Products? An ID, title, and stock. Three rows of sample data are included.",
+      "dialogue": [
+        {
+          "speakerId": "mira",
+          "text": "What's in Products?"
+        },
+        {
+          "speakerId": "max",
+          "text": "An ID, title, and stock. Three rows of sample data are included."
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "narration": "Expose Products through InventoryService. The read-only annotation rejects create requests. So browse, but no impulse purchases.",
+      "dialogue": [
+        {
+          "speakerId": "max",
+          "text": "Expose Products through InventoryService. The read-only annotation rejects create requests."
+        },
+        {
+          "speakerId": "mira",
+          "text": "So browse, but no impulse purchases."
+        }
+      ]
+    },
+    {
+      "id": "query",
+      "narration": "How do I try it? Run npm run demo. Open the local Products URL and filter stock above zero. Keyboard and dock.",
+      "dialogue": [
+        {
+          "speakerId": "mira",
+          "text": "How do I try it?"
+        },
+        {
+          "speakerId": "max",
+          "text": "Run npm run demo. Open the local Products URL and filter stock above zero. Keyboard and dock."
+        }
+      ]
+    },
+    {
+      "id": "payoff",
+      "narration": "That's a local OData version four endpoint with real results. Authentication and deployment come later. No production shortcuts. Got it.",
+      "dialogue": [
+        {
+          "speakerId": "max",
+          "text": "That's a local OData version four endpoint with real results. Authentication and deployment come later."
+        },
+        {
+          "speakerId": "mira",
+          "text": "No production shortcuts. Got it."
+        }
+      ]
+    },
+    {
+      "id": "cta",
+      "narration": "Try the project and tests. Which entity would you expose first?",
+      "dialogue": [
+        {
+          "speakerId": "mira",
+          "text": "Try the project and tests."
+        },
+        {
+          "speakerId": "max",
+          "text": "Which entity would you expose first?"
+        }
+      ]
+    }
+  ]
+}
