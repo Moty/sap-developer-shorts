@@ -178,3 +178,36 @@ source-commit cases. Local end-to-end production reached `READY` with the
 without synthesis and produced another verified MP4/studio. Browser verification
 confirmed 1080 × 1920 video, playback, and no media error. See
 [production workflow](PRODUCTION_WORKFLOW.md).
+
+## Milestone 3d: complete style videos and comparison studio
+
+- Exported all four CAP styles with current local narration: professional,
+  casual, comic, and conversation. Together with the existing SAP news video,
+  the studio now offers five verified MP4s and five narration previews.
+- Added a compact comparison above the episode grid with recorded voice labels,
+  measured duration, explicit readiness, saved posters, and primary Watch MP4
+  links. It distinguishes unrecorded, timing-review, narration-only, and expired
+  saved-media states. Heart remains the default; the conversation keeps Heart
+  and Michael.
+- Ordinary fragment links preserve the selected style through MP4/narration
+  review and browser history. All panels and media links work without JavaScript;
+  inert search/filter controls remain hidden. Added a visible keyboard focus
+  outline, a phone layout, and a video link from narrated review pages.
+- Astra found and reproduced a history bug when returning to the initial
+  address. Deterministic selection now restores the correct panel; a regression
+  executes the actual page script across Back/Forward.
+
+| CAP style | Video duration | Integrated audio | True peak |
+| --- | --- | --- | --- |
+| Professional | 58.733 seconds | -16.15 LUFS | -4.45 dBTP |
+| Casual | 49.805 seconds | -16.16 LUFS | -4.35 dBTP |
+| Comic | 54.080 seconds | -16.05 LUFS | -4.45 dBTP |
+| Conversation | 58.470 seconds | -16.31 LUFS | -4.41 dBTP |
+
+All use 1080 × 1920 H.264/AAC at 30 fps and pass decoding/audio checks. The
+library's 56 copied artifact hashes match. Minimum Node checks pass: **69 workflow
+tests** and five CAP assertions, formatting, types, validation, and build. Astra
+independently passed the focused tests and verified the history correction.
+Browser checks covered keyboard selection, Back/Forward, saved-video return,
+poster loading, 390-pixel layout with no horizontal overflow, and a separate
+script-disabled fixture. The temporary viewport override was reset.

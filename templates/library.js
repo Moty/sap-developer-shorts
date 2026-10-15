@@ -1,4 +1,32 @@
 (() => {
+  const choices = [...document.querySelectorAll("[data-style-choice]")];
+  const panels = [...document.querySelectorAll("[data-comparison-panel]")];
+  function chooseStyle() {
+    const requested = panels.find((panel) => `#${panel.id}` === window.location.hash);
+    const selected = requested ?? panels[0];
+    for (const panel of panels) panel.hidden = panel !== selected;
+    for (const choice of choices) {
+      if (choice.hash === `#${selected?.id}`) choice.setAttribute("aria-current", "true");
+      else choice.removeAttribute("aria-current");
+    }
+  }
+  for (const choice of choices)
+    choice.addEventListener("click", (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+        return;
+      event.preventDefault();
+      if (window.location.hash !== choice.hash) {
+        try {
+          window.history.pushState(null, "", choice.hash);
+        } catch {
+          window.location.hash = choice.hash;
+        }
+      }
+      chooseStyle();
+    });
+  window.addEventListener("hashchange", chooseStyle);
+  window.addEventListener("popstate", chooseStyle);
+  chooseStyle();
   const input = document.querySelector("#episode-search");
   const cards = [...document.querySelectorAll(".episode-card")];
   const buttons = [...document.querySelectorAll("[data-format]")];
@@ -40,4 +68,6 @@
     update();
     input.focus();
   });
+  update();
+  document.querySelector("[data-enhancement-only]").hidden = false;
 })();

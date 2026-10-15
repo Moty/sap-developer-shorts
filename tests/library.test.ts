@@ -227,8 +227,8 @@ test("expired news remains viewable with a recheck label while new media product
     newsTopics: [],
     budgetCents: 500,
   });
-  assert.ok(String(files["review.html"]).includes("Sources need rechecking"));
-  assert.ok(String(files["review.html"]).includes("Saved preview only"));
+  assert.ok(String(files["review.html"]).includes("Saved preview · sources need rechecking"));
+  assert.ok(String(files["review.html"]).includes("Saved media only"));
   assert.ok(String(files["episodes/NEWS-01/watch.html"]).includes("source recheck needed"));
 });
 

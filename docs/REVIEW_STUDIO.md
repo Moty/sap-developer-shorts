@@ -2,6 +2,25 @@
 
 The local studio brings tutorial and news episode previews into one library. It provides format filters, text search, official source links, measured narration durations, production status, five future news ideas, and the remaining tutorial backlog. Episode players keep an **All episodes** link above the existing review page. The studio does not generate media, edit content, approve publication, or call an external service.
 
+## Compare presentation styles
+
+The **Delivery styles** section compares Professional, Casual, Comic, and
+Conversation versions of the CAP pilot. Each choice shows the recorded Kokoro or
+system voice, measured duration, and a specific readiness label. Valid MP4s have
+a primary **Watch MP4** action and a saved opening-frame image; narration remains
+available separately. Production instructions live in a small disclosure.
+
+The selection is part of the address, for example
+`review.html#compare-CAP-01--duo`. Returning from the MP4 or narration player keeps
+that selection. Standard links support keyboard navigation and browser history;
+the page does not move focus or start playback when switching styles.
+
+Without JavaScript, all comparison panels and their media/production links remain
+available. Search and filtering stay hidden because they need the enhancement.
+On phones, the four choices use two columns and the video action spans the panel.
+New writing formats still require an authored script; the interface does not
+rewrite an episode automatically.
+
 ```sh
 npm run shorts -- library
 npm run shorts -- serve LIBRARY_DIRECTORY
@@ -19,4 +38,8 @@ Source review dates remain visible on news cards. A saved news preview can be in
 
 Each build creates `artifacts/library-<UUID>/` with a root `review.html`, nested episode players, and `library-manifest.json`. The manifest records exact input hashes, source-run references, copied artifact hashes, library inputs/runtime hashes, and the count of excluded run/media packages. Only selected playback files are copied; the job database and unrelated workspace files are not included. Output is assembled in a hidden staging directory and renamed after successful construction. A failed build may leave an ignored hidden staging directory for diagnosis, never a completed library.
 
-The studio is a snapshot. Rebuild it to include new episodes or revised content. Filters and search work locally in the browser. No live feed, server-side authoring API, paid provider, scheduler, final MP4 renderer, or publishing workflow is added by the studio.
+The studio is a snapshot. Rebuild it to include new episodes or revised content.
+Filters and search work locally in the browser. It links to validated MP4s from
+the local production workflow. Expired news retains its saved media with a
+source-recheck notice on the card and video page. There is no live feed,
+server-side authoring API, paid provider call, or publishing action in the studio.

@@ -86,5 +86,30 @@ Astra's UI plan: compact style tabs with actual voice and duration, explicit
 readiness/primary Watch MP4, and preserve selection when returning. Keep the
 studio static; offer copyable CLI commands rather than adding a write server.
 
+The production milestone was pushed as `bfef24e`; both Node 22/24 CI jobs passed.
+Its post-commit run reused the selected audio and MP4 without re-encoding.
+
+01:19 PT: Completed the four CAP MP4s and static style comparison. Added recorded
+voice/duration/readiness, posters, exact return fragments, keyboard focus,
+phone layout, and no-JavaScript access. Astra found and verified the Back/Forward
+fix; the actual page script now has a history regression. All 69 workflow tests,
+five CAP checks, formatting, types, validation, and build pass. Evidence:
+`.state/overnight/check-comparison.log`, `comparison-phone.png`,
+`comparison-studio.png`, and `no-js-evidence.json`.
+
+Current studio: `artifacts/library-bcab87f0-3d40-436a-be74-33f420e47923`, served
+on <http://127.0.0.1:4173/review.html#styles>, owned exec session 91903. Five MP4s
+and all 56 copied artifact hashes verified. QA no-JS server/session 52496 and
+earlier intermediate port-4173 servers have been stopped. Port 49853/session
+5047 still serves the earlier saved production studio; it can be stopped when
+no longer useful. The main browser output is the current comparison, viewport
+reset and no video autoplay.
+
+Next: commit/push the comparison milestone and check CI. Astra is planning the
+next bounded enhancement, considering local voice auditions and a safer voice
+selection command (an earlier explicit user request) versus additional verified
+content. Preserve Heart, and distinguish global narrator selection from explicit
+presentation speaker assignments. Continue only within the original 7 AM window.
+
 Keep this section current with changes, exact test evidence, commits, preview
 locations, and the next bounded action. Do not label unverified work complete.
