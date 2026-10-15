@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Ajv } from "ajv";
 import { hash } from "../digest.js";
@@ -13,6 +13,40 @@ const ajv = new Ajv({ allErrors: true, strict: true });
 const timingValidator = ajv.compile<NarrationTiming>(
   JSON.parse(await readFile(await sourceFile("schemas/narration-timing.schema.json"), "utf8")),
 );
+
+export async function readCompletedNarration(job: MediaJob) {
+  if (job.phase !== "SUCCEEDED" || !job.outputDirectory)
+    throw new Error("This job has no completed narration package");
+  const root = await realpath(job.request.sourceDirectory);
+  const directory = inside(root, await realpath(job.outputDirectory));
+  if (directory !== inside(root, `media/${job.id}`))
+    throw new Error("Narration package does not belong to the saved job");
+  const read = async (name: string) =>
+    readFile(inside(directory, await realpath(inside(directory, name))));
+  const receipt = JSON.parse((await read("media-manifest.json")).toString("utf8"));
+  if (
+    receipt.schemaVersion !== 1 ||
+    receipt.jobId !== job.id ||
+    receipt.sourceManifestHash !== job.request.sourceManifestHash ||
+    receipt.requestKey !== job.requestKey
+  )
+    throw new Error("Narration package receipt differs from the saved job");
+  const files: Record<string, Buffer> = {};
+  for (const name of ["review.html", "narration.wav", "timing.json", "captions.vtt"]) {
+    const bytes = await read(name);
+    if (hash(bytes) !== receipt.artifactHashes?.[name])
+      throw new Error(`Narration package changed: ${name}`);
+    files[name] = bytes;
+  }
+  const timing = validateTiming(
+    JSON.parse((files["timing.json"] as Buffer).toString("utf8")),
+    job.request.episode,
+    readPcmWav(files["narration.wav"] as Buffer).length / 2,
+  );
+  if ((files["captions.vtt"] as Buffer).toString("utf8") !== buildVtt(timing.cues))
+    throw new Error("Narration captions differ from the timing");
+  return { receipt, files, timing, directory };
+}
 
 export function validateTiming(
   value: unknown,

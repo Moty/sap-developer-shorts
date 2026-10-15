@@ -200,6 +200,11 @@ export async function collectLibrary(
           receipt.inputHash !== hash(JSON.stringify(entry.episode)) ||
           receipt.mediaJobId !== entry.preview.mediaJobId ||
           receipt.sourceManifestHash !== entry.preview.sourceManifestHash ||
+          receipt.sourceAudioHash !== hash(entry.preview.files["narration.wav"] as Buffer) ||
+          receipt.artifactHashes["timing.json"] !==
+            hash(entry.preview.files["timing.json"] as Buffer) ||
+          receipt.artifactHashes["captions.vtt"] !==
+            hash(entry.preview.files["captions.vtt"] as Buffer) ||
           typeof receipt.updatedAt !== "string" ||
           !Number.isFinite(Date.parse(receipt.updatedAt)) ||
           receipt.updatedAt <= latest

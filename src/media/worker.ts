@@ -7,6 +7,7 @@ import { type ContentEpisode, isNewsEpisode } from "../domain.js";
 import { assertNewsEvidence, validateNewsEpisode } from "../news/contracts.js";
 import { inside, projectRoot, sourceFile } from "../paths.js";
 import { assertEvidence, type Manifest, prepareContentEpisode } from "../pipeline.js";
+import { currentNarrationGeneratorHash } from "./fingerprint.js";
 import type {
   FakeScenario,
   MediaJob,
@@ -16,7 +17,7 @@ import type {
   ProductionSettings,
 } from "./model.js";
 import { neuralRuntime } from "./neural.js";
-import { packageNarration } from "./package.js";
+import { packageNarration, readCompletedNarration } from "./package.js";
 import { FakeProvider, LocalSpeechProvider } from "./providers.js";
 import { MediaStore } from "./store.js";
 import { supportsKokoroVoice } from "./voices.js";
@@ -126,6 +127,7 @@ export async function createMediaJob(
     scenario,
     sourceDirectory: resolve(directory),
     sourceManifestHash: source.manifestHash,
+    generatorHash: await currentNarrationGeneratorHash(provider.id),
     ...(runtime ? { voiceRuntimeHash: runtime.hash } : {}),
   };
   const requestKey = hash(
@@ -136,6 +138,7 @@ export async function createMediaJob(
       scenario,
       sourceHashes: source.manifest.sourceHashes,
       voiceRuntimeHash: request.voiceRuntimeHash,
+      generatorHash: request.generatorHash,
     }),
   );
   const at = new Date().toISOString();
@@ -157,10 +160,32 @@ export async function createMediaJob(
     updatedAt: at,
     history: [{ phase: "PLANNED", at }],
   };
-  return store.create(
-    job,
-    `${provider.billing === "simulated" ? "simulation" : "production"}:${source.episode.id}`,
-  );
+  const scope = `${provider.billing === "simulated" ? "simulation" : "production"}:${source.episode.id}`;
+  // A fresh verified source can recover definitively local failures. Keep old
+  // records and never reinterpret an uncertain submission as permission to resend.
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const existing = store.findByKey(job.requestKey);
+    if (!existing) return store.create(job, scope);
+    let recover = provider.billing === "free" && existing.phase === "FAILED";
+    if (
+      provider.billing === "free" &&
+      !["SUBMITTING", "SUBMISSION_UNKNOWN"].includes(existing.phase)
+    ) {
+      try {
+        const saved = await loadVerifiedRun(existing.request.sourceDirectory);
+        if (saved.manifestHash !== existing.request.sourceManifestHash) recover = true;
+        if (existing.phase === "SUCCEEDED") {
+          await readCompletedNarration(existing);
+        }
+      } catch {
+        recover = true;
+      }
+    }
+    if (!recover) return existing;
+    job.retryOf = existing.id;
+    job.requestKey = hash(JSON.stringify({ requestKey, afterLocalAttempt: existing.id }));
+  }
+  throw new Error("Too many failed local attempts; inspect the saved jobs before retrying");
 }
 
 async function bounded<T>(
@@ -204,11 +229,29 @@ export async function advanceMediaJob(
       store.save(job, owner);
     };
     try {
+      if (
+        job.request.generatorHash &&
+        job.request.generatorHash !== (await currentNarrationGeneratorHash(provider.id))
+      )
+        throw new Error(
+          "Narration generator changed; start a new narration job for the current renderer",
+        );
       const source = await loadVerifiedRun(job.request.sourceDirectory);
       if (source.manifestHash !== job.request.sourceManifestHash)
         throw new Error("Saved source run changed");
     } catch (error) {
       move("FAILED", error instanceof Error ? error.message : "Saved source run is invalid");
+      return job;
+    }
+    if (
+      provider.id !== "fake" &&
+      !job.request.generatorHash &&
+      ["PLANNED", "SUBMITTED", "PROCESSING", "POLL_TIMEOUT"].includes(job.phase)
+    ) {
+      move(
+        "FAILED",
+        "This unfinished legacy recording has no synthesis-code fingerprint. Run narrate to create a fresh local attempt.",
+      );
       return job;
     }
     if (job.phase === "SUBMITTING")

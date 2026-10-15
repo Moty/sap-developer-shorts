@@ -29,3 +29,26 @@ The provenance checks are local consistency records, not attestations or a repla
 Start the provider integration with a fake adapter and persisted request/job states. Exercise restart recovery, timeouts, and uncertain submission results before buying media. A real run then requires the presenter identity, voice, permitted provider access, and a spending limit. Measure the narration before aligning scenes and captions; inspect the final MP4 for duration, audio, and phone readability.
 
 The review does not verify an avatar provider, OAuth entitlement, final media, or public publishing. These remain subsequent milestones.
+
+## October 15: narration and MP4 follow-up
+
+At the user's request for overnight work, the same independent GPT-6 Astra
+reviewer audited the later Kokoro, presentation, and MP4 implementation. The
+baseline's 53 workflow tests passed. Astra reproduced three P2 findings:
+
+| Finding | Fix and regression evidence |
+| --- | --- |
+| A missing source folder or completed package trapped repeat requests against the same obsolete job | Fresh linked attempts are permitted for confirmed free local failures or invalid saved artifacts. Old jobs remain intact, retries reuse the recovered attempt, and unknown submissions retain conservative handling. Tests remove a source folder and a completed WAV, then verify recovery and predecessor records. |
+| Speech cache keys omitted synthesis code | New requests and scene cache inputs bind a narrow fingerprint of the actual TypeScript or compiled JavaScript synthesis implementation, Python runner, and relevant configuration. Changed generators stop unfinished work. Tests distinguish synthesis changes from visual-only changes and reject mixed-generation recovery. |
+| The studio could offer an older MP4 after a corrected narration package | Video selection now compares the selected WAV bytes and timing/caption hashes with the export. Tests change one valid audio sample and update its media receipt, then confirm the old MP4 is excluded while narration remains viewable. Timing/caption changes are also covered. |
+
+Astra independently ran all 26 focused media/neural/library tests and repeated
+the altered-WAV reproduction successfully. Its follow-up identified one legacy
+compatibility gap: unfinished recordings without a generator fingerprint must
+not generate further scenes. That guard and a regression are now included;
+completed legacy packages remain reviewable and can be repackaged.
+
+The full checks pass on minimum Node 22.13.0: 56 workflow tests, five live CAP
+checks, formatting, types, and content validation. Job discovery is read-only and
+labels recordings with unrecorded legacy generator fingerprints. These local
+checks do not claim a paid avatar integration or publication approval.

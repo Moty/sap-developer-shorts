@@ -65,6 +65,8 @@ export async function runtimeFiles(): Promise<string[]> {
     "media/voices",
     "media/providers",
     "media/package",
+    "media/status",
+    "media/fingerprint",
   ];
   return names.map((name) =>
     relative(

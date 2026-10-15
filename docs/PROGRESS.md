@@ -1,6 +1,6 @@
 # Implementation progress
 
-Updated October 14, 2026. Local branch: `codex/project-foundation`.
+Updated October 15, 2026. Local branch: `codex/project-foundation`.
 
 ## Milestone 1: runnable foundation delivered
 
@@ -128,3 +128,26 @@ Generated and checked two exports locally with FFmpeg 9.0.2:
 Both use 1080 × 1920 video at 30 fps with AAC 48 kHz stereo. The CAP export cache was exercised without re-encoding. Extracted frames from the actual MP4s were inspected for source code, long URL wrapping, captured results, news availability, and captions. The studio lists two verified MP4s; all 38 saved library artifact hashes match. Browser checks confirmed video dimensions, complete readiness, playback, native seeking, and no media error. The MP4 review page fits a 390-pixel viewport without horizontal overflow, and the viewport override was reset.
 
 Verification passed on minimum Node 22.13.0: **53 workflow tests**, five live CAP checks, formatting, types, content validation, and build. New regressions cover frame timing/gaps, output codecs and missing streams/durations, silent audio, measured wrapping and overflow, every news-card layout, altered/escaping video files, and selecting only matching exports. Source and generated media remain separate; no paid generation, avatar animation, or publishing was performed. See [video export and recovery](VIDEO_EXPORT.md).
+
+## Milestone 3b: independent review, recovery, and job discovery
+
+- GPT-6 Astra independently audited the narration/presentation/export extension,
+  reproduced three P2 defects, and verified the focused fixes. See the dated
+  [review evidence](ASTRA_REVIEW.md).
+- Confirmed free local requests can recover missing/altered source artifacts or
+  completed packages through linked attempts while preserving historical jobs.
+  Unknown submissions keep their conservative reconciliation path.
+- New requests record a narrow synthesis implementation fingerprint in their
+  cache identity and scene inputs. Changed generators stop unfinished work.
+  Unfinished legacy requests need a fresh local attempt; completed recordings
+  remain available for review and repackaging.
+- MP4 selection now matches actual selected audio bytes, timing, and captions.
+  Repackaging corrected narration no longer offers an older video as a match.
+- Added `jobs [SELECTOR]` to discover saved jobs, voices, styles, recorded costs,
+  script/settings differences, legacy fingerprints, review paths, and recovery
+  commands without advancing work or generating speech.
+
+Verification passes on minimum Node 22.13.0: **56 workflow tests**, five live CAP
+checks, formatting, types, content validation, and build. Astra independently ran
+26 focused tests and repeated its corrected-audio reproduction. Overnight work
+continues under the bounded [work plan](OVERNIGHT_WORK.md).

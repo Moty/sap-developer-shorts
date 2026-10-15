@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { access, mkdir } from "node:fs/promises";
 import { hostname } from "node:os";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -32,6 +32,25 @@ export class MediaStore {
   close() {
     this.db.close();
   }
+  static async readJobs(path: string): Promise<MediaJob[]> {
+    try {
+      await access(path);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+    const store = new MediaStore(new DatabaseSync(path, { readOnly: true }));
+    try {
+      return store.list();
+    } finally {
+      store.close();
+    }
+  }
+  list(): MediaJob[] {
+    return (
+      this.db.prepare("SELECT * FROM media_jobs ORDER BY rowid DESC").all() as unknown as Row[]
+    ).map((row) => this.decode(row));
+  }
   private decode(row: Row): MediaJob {
     const job = JSON.parse(row.record) as MediaJob;
     if (job.schemaVersion !== 1 || hash(JSON.stringify(job.request)) !== job.requestHash) {
@@ -45,6 +64,12 @@ export class MediaStore {
       | undefined;
     if (!row) throw new Error(`Unknown media job: ${id}`);
     return this.decode(row);
+  }
+  findByKey(key: string): MediaJob | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM media_jobs WHERE request_key=?")
+      .get(key) as unknown as Row | undefined;
+    return row ? this.decode(row) : undefined;
   }
   create(job: MediaJob, scope: string): MediaJob {
     this.db.exec("BEGIN IMMEDIATE");

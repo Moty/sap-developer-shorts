@@ -145,6 +145,7 @@ function sceneInput(request: MediaRequest, index: number) {
     voice: request.settings.localPreview.voice,
     speed: request.settings.localPreview.speed ?? 0.96,
     voiceRuntimeHash: request.voiceRuntimeHash,
+    ...(request.generatorHash ? { generatorHash: request.generatorHash } : {}),
     ...(segments ? { segments } : {}),
   };
 }

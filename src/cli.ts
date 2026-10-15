@@ -17,7 +17,32 @@ import { startPreviewServer } from "./serve.js";
 const [command = "help", ...args] = process.argv.slice(2);
 
 try {
-  if (command === "render" && args.length === 1 && args[0]) {
+  if (command === "jobs" && args.length <= 1) {
+    const { listMediaJobs } = await import("./media/status.js");
+    const jobs = await listMediaJobs(args[0]);
+    if (!jobs.length)
+      console.log("No saved media jobs. Start with: npm run shorts -- narrate CAP-01");
+    for (const job of jobs) {
+      console.log(`\n${job.selector} · ${job.phase} · ${job.voices.join(" + ")}`);
+      console.log(`${job.id} · ${job.updatedAt}`);
+      console.log(
+        `${job.style} · ${job.provider} · ${job.billedCents === null ? "cost pending" : `$${(job.billedCents / 100).toFixed(2)} recorded`}`,
+      );
+      if (!job.scriptMatches) console.log("Saved script differs from the current draft.");
+      if (job.generatorFingerprint === "legacy-unrecorded")
+        console.log("Earlier recording: synthesis-code fingerprint was not recorded.");
+      if (job.retryOf) console.log(`Recovery of: ${job.retryOf}`);
+      if (job.provider !== "fake" && !job.settingsMatch)
+        console.log("Saved voice settings differ from the current selection.");
+      if (job.error) console.log(`Issue: ${job.error}`);
+      if (job.outputDirectory)
+        console.log(`Review: ${resolve(job.outputDirectory, "review.html")}`);
+      console.log(`Next: ${job.nextAction}`);
+    }
+    console.log(
+      "\nSaved states describe prior work; render validates the actual files and timing.",
+    );
+  } else if (command === "render" && args.length === 1 && args[0]) {
     const { renderVideo } = await import("./video/export.js");
     const result = await renderVideo(args[0], { progress: (message) => console.log(message) });
     console.log(`Video: ${resolve(result.directory, "short.mp4")}`);
@@ -166,7 +191,7 @@ try {
     }
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  voices                         List supported Kokoro English voices\n  voice-setup                    Install the selected local neural voice\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
+      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  library                        Build the shared episode review hub\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  voices                         List supported Kokoro English voices\n  voice-setup                    Install the selected local neural voice\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

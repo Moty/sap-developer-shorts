@@ -38,6 +38,7 @@ export interface MediaRequest {
   settings: ProductionSettings;
   provider: "fake" | "local-speech" | "local-kokoro";
   voiceRuntimeHash?: string;
+  generatorHash?: string;
   scenario: FakeScenario;
   sourceDirectory: string;
   sourceManifestHash: string;
@@ -59,6 +60,7 @@ export interface MediaJob {
   createdAt: string;
   updatedAt: string;
   history: { phase: MediaPhase; at: string }[];
+  retryOf?: string;
 }
 export interface Cue {
   speakerId?: string;

@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import test, { type TestContext } from "node:test";
 import { promisify } from "node:util";
 import { readEpisode } from "../src/contracts.js";
+import { hash } from "../src/digest.js";
 import {
   encodePcmWav,
   pronounce,
@@ -14,6 +15,7 @@ import {
   splitNarration,
   vttTimestamp,
 } from "../src/media/audio.js";
+import { narrationGeneratorHash } from "../src/media/fingerprint.js";
 import type {
   MediaProvider,
   MediaRequest,
@@ -22,6 +24,7 @@ import type {
 } from "../src/media/model.js";
 import { validateTiming } from "../src/media/package.js";
 import { FakeProvider } from "../src/media/providers.js";
+import { listMediaJobs, mediaNextAction, narrationSettingsMatch } from "../src/media/status.js";
 import { MediaStore } from "../src/media/store.js";
 import {
   advanceMediaJob,
@@ -120,6 +123,11 @@ test("packaging failures and rebuilds reuse completed audio without another subm
   const rebuilt = await rebuildMediaPackage(store, job.id);
   assert.equal(rebuilt.phase, "SUCCEEDED");
   assert.equal(submissions, 1);
+  await rm(resolve(rebuilt.outputDirectory as string, "narration.wav"));
+  const recovered = await createMediaJob(store, run.directory, provider, settings);
+  assert.notEqual(recovered.id, job.id);
+  assert.equal(recovered.retryOf, job.id);
+  assert.equal(store.get(job.id).phase, "SUCCEEDED", "historical record stays intact");
 });
 
 test("caption text and timing must match the audio and saved episode", () => {
@@ -169,6 +177,134 @@ class CountingProvider extends FakeProvider {
     return super.submit(request, key);
   }
 }
+
+test("job discovery is read-only, filters selectors, and gives conservative recovery actions", async (t) => {
+  const { directory, database, run, store, settings } = await fixture(t);
+  const missing = resolve(directory, "missing/jobs.sqlite");
+  assert.deepEqual(await MediaStore.readJobs(missing), []);
+  await assert.rejects(readFile(missing), { code: "ENOENT" });
+  const job = await createMediaJob(store, run.directory, new CountingProvider(store), settings);
+  const before = store.get(job.id);
+  const listed = await listMediaJobs("CAP-01", database);
+  assert.equal(listed[0]?.id, job.id);
+  assert.equal(listed[0]?.scriptMatches, true);
+  assert.equal(listed[0]?.settingsMatch, false, "simulation does not match real narrator settings");
+  assert.deepEqual(await listMediaJobs("CAP-01@duo", database), []);
+  assert.deepEqual(store.get(job.id), before);
+  job.phase = "SUBMISSION_UNKNOWN";
+  assert.match(mediaNextAction(job), /Reconcile without resubmitting/);
+  job.phase = "PACKAGE_FAILED";
+  assert.match(mediaNextAction(job), /media-package/);
+  job.request.provider = "local-kokoro";
+  assert.equal(narrationSettingsMatch(job, episode, settings), true);
+  assert.equal(
+    narrationSettingsMatch(job, episode, {
+      ...settings,
+      localPreview: { ...settings.localPreview, voice: "af_bella" },
+    }),
+    false,
+  );
+});
+
+test("local attempts recover deleted source artifacts without mutating the old job", async (t) => {
+  const { directory, run, store, settings } = await fixture(t);
+  const provider: MediaProvider = {
+    id: "local-speech",
+    billing: "free",
+    quote: () => 0,
+    submit: async () => "test-local-job",
+    lookup: async () => ({ state: "unknown" }),
+    poll: async () => ({ state: "processing", progress: "fixture" }),
+  };
+  const old = await createMediaJob(store, run.directory, provider, settings);
+  const evidence = JSON.parse(await readFile(resolve(run.directory, "demo-evidence.json"), "utf8"));
+  const fresh = await prepareEpisode(episode, {
+    artifactRoot: directory,
+    preview: true,
+    verifier: async () => evidence,
+  });
+  await rm(run.directory, { recursive: true });
+  const recovered = await createMediaJob(store, fresh.directory, provider, settings);
+  assert.notEqual(recovered.id, old.id);
+  assert.equal(recovered.retryOf, old.id);
+  assert.equal(recovered.request.sourceDirectory, fresh.directory);
+  assert.deepEqual(store.get(old.id), old);
+  assert.equal((await advanceMediaJob(store, recovered.id, provider)).phase, "SUBMITTED");
+  assert.equal((await createMediaJob(store, fresh.directory, provider, settings)).id, recovered.id);
+  const owner = store.acquire(recovered.id);
+  const failed = store.get(recovered.id);
+  failed.phase = "FAILED";
+  store.save(failed, owner);
+  store.release(failed.id, owner);
+  const retry = await createMediaJob(store, fresh.directory, provider, settings);
+  assert.equal(retry.retryOf, failed.id);
+  assert.notEqual(retry.id, failed.id);
+});
+
+test("narration fingerprints change with synthesis code, preserve visual-only reuse, and reject mixed recovery", async (t) => {
+  const files = {
+    "src/media/audio.ts": Buffer.from("audio one"),
+    "src/media/neural.ts": Buffer.from("neural one"),
+    "src/media/kokoro-runner.py": Buffer.from("runner one"),
+    "src/video/frames.ts": Buffer.from("visual one"),
+  };
+  const first = narrationGeneratorHash("local-kokoro", files);
+  assert.notEqual(
+    first,
+    narrationGeneratorHash("local-kokoro", {
+      ...files,
+      "src/media/kokoro-runner.py": Buffer.from("runner two"),
+    }),
+  );
+  assert.equal(
+    first,
+    narrationGeneratorHash("local-kokoro", {
+      ...files,
+      "src/video/frames.ts": Buffer.from("visual two"),
+    }),
+  );
+  assert.notEqual(
+    first,
+    narrationGeneratorHash("local-kokoro", {
+      "dist/src/media/audio.js": files["src/media/audio.ts"],
+      "dist/src/media/neural.js": files["src/media/neural.ts"],
+      "src/media/kokoro-runner.py": files["src/media/kokoro-runner.py"],
+    }),
+  );
+  const { run, store, settings } = await fixture(t);
+  const provider = new CountingProvider(store);
+  const job = await createMediaJob(store, run.directory, provider, settings);
+  const owner = store.acquire(job.id);
+  job.request.generatorHash = hash("older generator");
+  job.requestHash = hash(JSON.stringify(job.request));
+  store.save(job, owner);
+  store.release(job.id, owner);
+  const blocked = await advanceMediaJob(store, job.id, provider);
+  assert.equal(blocked.phase, "FAILED");
+  assert.match(blocked.error ?? "", /generator changed/);
+  assert.equal(provider.submissions, 0);
+  const legacyProvider: MediaProvider = {
+    id: "local-speech",
+    billing: "free",
+    quote: () => 0,
+    submit: async () => {
+      throw new Error("Legacy synthesis must not start");
+    },
+    lookup: async () => ({ state: "unknown" }),
+    poll: async () => {
+      throw new Error("Legacy synthesis must not continue");
+    },
+  };
+  const legacy = await createMediaJob(store, run.directory, legacyProvider, settings);
+  const legacyOwner = store.acquire(legacy.id);
+  delete legacy.request.generatorHash;
+  legacy.requestHash = hash(JSON.stringify(legacy.request));
+  store.save(legacy, legacyOwner);
+  store.release(legacy.id, legacyOwner);
+  const stopped = await advanceMediaJob(store, legacy.id, legacyProvider);
+  assert.equal(stopped.phase, "FAILED");
+  assert.match(stopped.error ?? "", /unfinished legacy recording/);
+});
 
 test("a lost submission response reconciles the saved provider ID without resubmission", async (t) => {
   const { run, database, store, settings } = await fixture(t);

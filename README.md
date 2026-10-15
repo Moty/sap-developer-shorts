@@ -57,7 +57,7 @@ npm run shorts -- narrate NEWS-01
 
 Use the printed artifact directory with `npm run shorts -- serve ARTIFACT_DIRECTORY`. The same player, timed captions, saved media jobs, and local voice work for both episode formats. Run the voice setup below before the first narration. A news run writes `news-evidence.json` with dated source notes instead of CAP evidence. Production refuses a news review older than its configured limit (at most seven days). Validation can still inspect an older draft.
 
-The current warm local news preview measures **57.0 seconds**, with a **2.5-second hook** and eighteen captions using model timing estimates. Avatar media and the final MP4 remain pending.
+The current warm local news preview measures **57.0 seconds**, with a **2.5-second hook** and eighteen captions using model timing estimates. A verified vertical MP4 is available; stock avatar animation remains pending.
 
 See [the news workflow](docs/NEWS_WORKFLOW.md), [reusable news script template](templates/news_script_template.md), and [news editor prompt](prompts/v1/news-editor.md). Research is currently an editorial step; this does not automatically discover or rank global SAP news, watch pages, or publish posts.
 
@@ -87,6 +87,18 @@ npm run shorts -- media-status JOB_ID
 npm run shorts -- media-step JOB_ID
 npm run shorts -- media-package JOB_ID
 ```
+
+Find saved jobs without copying identifiers from old output:
+
+```sh
+npm run shorts -- jobs
+npm run shorts -- jobs CAP-01@duo
+```
+
+The list shows the saved voice, presentation, phase, cost, review path, and next
+recovery command. It flags earlier scripts, changed voice settings, and recordings
+made before synthesis-code fingerprints were recorded. Listing does not advance
+jobs or generate speech. Export still validates the saved media and timing.
 
 SQLite job state lives in ignored `.state/media/`. Submission intent and provider IDs survive restarts. Unconfirmed submissions are reconciled without automatic resubmission; polling and packaging can resume using the saved job. Packaging rebuilds reuse recorded audio. See [media workflow and recovery](docs/MEDIA_WORKFLOW.md).
 

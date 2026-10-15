@@ -252,6 +252,7 @@ test("only an intact MP4 for the selected narration and exact editorial input is
     inputHash: hash(JSON.stringify(episode)),
     mediaJobId: media.jobId,
     sourceManifestHash: media.sourceManifestHash,
+    sourceAudioHash: hash(await readFile(resolve(narration, "narration.wav"))),
     updatedAt: new Date().toISOString(),
     quality: { durationSeconds: 55, decoded: true, audioChecked: true },
     artifactHashes,
@@ -269,6 +270,31 @@ test("only an intact MP4 for the selected narration and exact editorial input is
   assert.match(String(pages["review.html"]), /Watch MP4/u);
   assert.ok(pages["episodes/CAP-01/video/short.mp4"]);
   assert.match(String(pages["episodes/CAP-01/video/review.html"]), /All episodes and styles/u);
+  const audioPath = resolve(narration, "narration.wav");
+  const originalAudio = await readFile(audioPath);
+  const correctedAudio = Buffer.from(originalAudio);
+  correctedAudio[44] = 1;
+  await writeFile(audioPath, correctedAudio);
+  const mediaPath = resolve(narration, "media-manifest.json");
+  media.artifactHashes["narration.wav"] = hash(correctedAudio);
+  await writeFile(mediaPath, JSON.stringify(media));
+  const repackaged = await collectLibrary([episode], directory);
+  assert.equal(repackaged.entries[0]?.preview?.kind, "narrated");
+  assert.equal(repackaged.entries[0]?.video, undefined, "old MP4 must not match corrected audio");
+  await writeFile(audioPath, originalAudio);
+  media.artifactHashes["narration.wav"] = hash(originalAudio);
+  await writeFile(mediaPath, JSON.stringify(media));
+  for (const name of ["timing.json", "captions.vtt"]) {
+    const originalHash = receipt.artifactHashes[name];
+    receipt.artifactHashes[name] = hash("earlier timing or caption content");
+    // The export's own file hashes remain consistent, but its selected narration
+    // uses different timing/captions, so it is no longer an exact match.
+    await writeFile(resolve(output, name), "earlier timing or caption content");
+    await writeFile(manifestPath, JSON.stringify(receipt));
+    assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
+    receipt.artifactHashes[name] = originalHash as string;
+    await writeFile(resolve(output, name), files[name] as Buffer);
+  }
   await writeFile(manifestPath, JSON.stringify({ ...receipt, inputHash: hash("another script") }));
   assert.equal((await collectLibrary([episode], directory)).entries[0]?.video, undefined);
   await writeFile(manifestPath, JSON.stringify({ ...receipt, mediaJobId: "another recording" }));
