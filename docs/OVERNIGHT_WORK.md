@@ -473,7 +473,7 @@ NEWS02@myth-fact plan: useful announcement-versus-customer-access correction,
 professionalHeart/nohumor, same existing evidence/dates/visuals. Reread both official
 sources before authoring. No new infrastructure. Maintain06:45audit/07stop+pause.
 
-03:35 PT: Voice picker78b2220 pushed; Node22/24 CI success38719752438. Completed
+03:33 PT: Voice picker78b2220 pushed; Node22/24 CI success38719752438. Completed
 Astra-planned NEWS02@myth-fact with parent primary-source reread: release Autonomous
 Enterprise Scales Up first2paras; guide Aboutthirdpara. Exact basehash/evidence/date
 scope inherited.112 whitespace words/six-word hook, professionalHeart/nohumor.
@@ -520,3 +520,15 @@ Countdown and story currently need authored examples; consider reusing verified
 CAP evidence rather than new setup/provider scope. No uncommitted broad changes.
 Keep06:45finalaudit/07stop+pauseautomation, unchanged bounded awakePID76680.
 No spend/posts/avatar bypass/main merge or actual sleep interruption occurred.
+
+03:35 PT completion: Mythfact/news-copy milestone7757534 pushed; Node22/24 CI
+success38721124896. Post-commit full production reused the exact verified MP4
+and job02314c5f, no synthesis. New READY report
+artifacts/productions/4836f8ba-f08f-43ad-82ef-1fe342d47a2e/production.json.
+Latest studio artifacts/library-21b578bb-64d6-45de-bb31-1406e80f56df has133 verified
+hashes/10 independently checked ZIPs. Only ZIP bytes differ from the prior studio,
+because rebuilt package manifests record their generation time; all HTML/media
+bytes remain unchanged. Owned server45659 serves4173 and browser marked deliverable.
+Bounded awakePID76680 confirmed active, no extension. Next heartbeat starts from
+this complete milestone; consult Astra for next bounded feature. Final audit
+starts06:45, stop/pauseautomation07:00, no further deadline extension.
