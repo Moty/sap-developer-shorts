@@ -841,3 +841,68 @@ extracted}-hashes.json. Next commit/push/CI/updateignoredlast-result, then Astra
 read-only assessment of ONE bounded improvement. About95minutes before06:45
 audit;07stop+pause andawake76680expiry unchanged. Noaudiblelistening/paidcost/
 providerbypass/publishing/mainmerge/unrelatedchanges.
+
+05:16 PT continuation: Workshop feature cae109e pushed; Node22/24 CI38732485224
+success, clean branch at start. Active studio cdbb6c9b at4173 owned94046 and
+wholebundlebe09 at60141 owned30814. Added an explicit06:45 scheduled wake to the
+existing bounded automation via automation_update, preserving its prompt/status/
+thread/deadline; original recurrence had only00/20/40 minute wakes. No awake
+extension. Saved full fields in functions store; actualTOML confirms active.
+
+Astra recommends focused editorial-to-artifact audit over adding another dated
+news episode. Parent inspected18 decoded existing MP4 frames across all11 saved
+deliveries: quiz/list/reveal, countdown filtered-vs-full, both speaker labels,
+read-only service/code, news rollout/activation/no-entitlement/Signavio plannedQ1
+2027 all visually consistent. No continuous playback/audible listening claimed.
+Evidence editorial-artifact-visual-audit.json andeditorial-audit-frames/index.json.
+
+Astra found concrete P2: five tutorial exported companion drafts still have Code
+link pending despite exact eight registered files matching publishedb22036a20717
+f58f39c348b0ba0cbd2ce4bf8ba7. Latest-only publishedDemoCommit incorrectly stops at
+newer a7054847 rootpackage snapshot. PublicGitHubcommitAPI confirmsb22036a exists.
+Astra now owns ONLY src/video/source.ts +tests/video-source.test.ts, bounded
+newest-first matching published path-history search, exactfullhash/repo/origin
+reachability preserved, nofetch. Also finishing ignored editorial audit JSON.
+Parent refresh-published-demo-links.mjs prepared NOTRUN untilfreeze; five current
+selected CAP01/base/casual/comic/duo/CAP02 exports from same saved media, exact
+postplaceholder replacement, unchanged audio/timing/VTT/generator, preserveall
+oldartifacts. No synthesis/content/claim/source-date changes. Then full minimum
+checks/build, newstudio/package integrity/nativebrowser links+ZIP, commit/pushCI.
+No feature work after06:45;07stop+pause andboundedawake76680expiry unchanged.
+
+05:24 PT: Historical-code-link fix complete locally. Astra froze src/video/source
+and five Git-history tests:64candidate/shared10s monotonicbudget/max5s command,
+exactall8files/onecommit/repo/originreachability, missingtree skip, safefallback,
+nofetch. Parent finalreview +minimumNode22.13 fullcheck/build156workflow+5liveCAP
+pass in check-published-demo-links.log. Astra final independent audit saved
+editorial-artifact-audit.json:11versions/77scenes/202cues/all7tutorialcaptures,
+current/frozen scripts/ZIPtranscript/post/speakerlabel agreement. Primary CAP and
+SAPnews pages reread; only actionable discrepancy was these5links. No further
+helperboundary blocker; no source dates renewed/customerbehavior/audible claims.
+
+Five sequential exports refreshed from exact selected saved media, no speech:
+CAP01f4752cffa80acfd4,casual3295d482027fb787,comic20ec4404d758002b,
+duo98a4124074b53740,CAP028e8512532e264139. AllsourceCodeCommit b22036a20717f58f39c348
+b0ba0cbd2ce4bf8ba7; exactpostplaceholder replacement only, identicalaudio/job/
+timing/VTT/generator andall5MP4 bytes. Alloldreceiptartifacts intact. Evidence
+published-demo-links-exports.json andrefresh-published-demo-links.log.
+
+Controlled8895714e atcdbb6c9b originalbuiltAt:130artifacts/24mediafiles exact.
+Only5posts+5ZIPs+5player ZIPdownloadfilenames+root5downloadfilenames differ.
+Initial QA expected10changed andmissed6filename-onlyHTMLchanges; diff confirmed
+exactold-to-new filenames, correctedstrictwhitelist16. No productissue there.
+Currentstudio fd081375-77e7-419e-90b6-e692c7df5f79,146hash/11ZIP/11editor/2samples
+pass. Port4173owned39636; old94046stopped. Originalall146bytes intact.
+
+Wholebundle11c88239-86dd-4fab-a89a-669f5a8aad59,88207433bytes,
+SHA539a7a735469c1cefb6d94b9c03410e897fedee7aff31dc747801f364a3c395b,
+manifest22c970c37252b980acbb06a0cb47d4873db5bd286183688a448d463fbde541fe.
+148members/146studioSHA/exactsource preserved; extractedstudio-package-m6178_hr/
+studio all146hash/11ZIP/45HTML/231links pass. NativewholeZIP sap-shorts-studio (4)
+exactSHA. Native CAP-01--duo-v2-98a41240.zip SHAab2a5dc3d4ddd3b812deeef1693cfedbf1e1
+c37e69ca8f7bd29b174e1e71e3f3,10members/9hash/commitlink/AIhostdisclosure pass.
+Main refreshedduoplayer ready4/paused/noerror/duration58.470208; main+extracted
+post nativebrowser showcorrectsourceURL+AIhostdisclosure. Port60141owned83934,
+old30814/temp96446stopped. Evidence published-demo-links-{library,browser,episode,
+studio-package}-evidence.json and{library,extracted}-hashes.json. Nextcommit/push/
+CI/updateignoredlast-result; final06:45audit/07stop+pause/awakeexpiry unchanged.

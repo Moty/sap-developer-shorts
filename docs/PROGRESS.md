@@ -674,3 +674,31 @@ studio download matches its verified archive; independent extraction verifies
 148 members, 231 confined links across 45 HTML files, and working comparison and
 restore controls. Prior media, studios, and archives remain intact. No speech
 generation, transcoding, paid cost, or publication was needed.
+
+## Milestone 3u: complete the tutorial code handoff
+
+Astra's finished-delivery audit checked eleven selected versions, 77 scenes and
+202 cues against the saved scripts, transcripts, speaker labels, posts, and
+tutorial captures. It found one handoff issue: five older tutorial snapshots
+lost their public code links after newer registered dependency files changed.
+Those exact eight-file snapshots already match a published source commit.
+
+The code-link resolver now checks a bounded history of published snapshots and
+requires every registered hash to match one commit. Wrong repositories,
+unpublished or mixed snapshots, missing files, and lookup limits retain the
+pending-link fallback. Five history regressions pass; the full minimum Node
+22.13.0 checks/build pass with **156 workflow tests** and five live CAP assertions.
+
+The five refreshed exports retain the same saved narration jobs and exact audio,
+timing, captions, and MP4 bytes. Only their post's pending placeholder becomes
+the matching commit URL. A controlled studio rebuild preserves **130 artifacts**
+and all **24 MP4/WAV/sample files** exactly; changes are limited to five posts,
+their ZIPs, and the corresponding ZIP download filenames. All prior artifacts
+remain intact, and news content and source-review dates are unchanged.
+
+The final studio passes 146 artifact hashes and eleven nested ZIP checks. Its
+84.1 MiB whole-studio ZIP passes 148-member extraction, all member hashes, and
+231 confined links across 45 HTML files. Native episode and studio downloads
+match their source hashes. The corrected code link and AI disclosure appear in
+the main and extracted studios; the refreshed conversation player loads paused
+without an error. No speech generation, paid cost, or publication occurred.

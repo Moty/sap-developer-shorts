@@ -70,3 +70,33 @@ commits, unpublished/mismatched sources, and a different remote. All twenty
 focused production/library/video tests passed in that review. Additional local
 regressions cover separate artifact roots, while the full suite now has 65 tests.
 No remaining concrete blocker was reported for the reviewed milestone.
+
+### Finished-delivery editorial audit and historical code links
+
+Astra independently checked the eleven selected deliveries, all 77 scenes and
+202 caption cues, saved transcripts, dialogue speaker attribution, companion
+posts, and seven tutorial capture sets. Primary CAP service/initial-data guides
+and SAP Connect release/guide pages were reread for the saved claims and release
+caveats. Quiz prediction/reveal, countdown filtered/full results, and news
+rollout/activation/entitlement wording remain consistent. This did not renew
+stored source-review dates or test a SAP customer environment.
+
+The audit found one P2 handoff issue: five tutorial posts still claimed the code
+link was pending after newer dependency files changed. Their exact registered
+source snapshots already existed at published commit `b22036a20717f58f39c348b0ba0cbd2ce4bf8ba7`.
+The resolver had examined only the latest commit touching those inputs.
+
+The resolver now searches at most 64 path-history commits within a shared
+ten-second budget, accepting only an exact single-tree match for every
+registered file, the configured repository, and an origin-tracking reachable
+commit. Five focused Git-history tests cover older/newer matches, unpublished
+reverts, absent/deleted files, mixed snapshots, other repositories, and the
+candidate limit. Astra's boundary review found no further blocker.
+
+Full minimum Node 22.13.0 checks/build pass: 156 workflow tests and five live CAP
+assertions. Five corrected exports keep the same narration jobs, audio, timing,
+captions, and byte-identical MP4s; their post changes are exactly the verified
+code-URL replacement. Earlier artifacts remain intact. The rebuilt studio and
+episode/whole-studio downloads preserve that link and AI disclosures. Separately,
+18 decoded frames across all eleven deliveries were visually inspected. Neither
+review claims audible listening or continuous full-video inspection.

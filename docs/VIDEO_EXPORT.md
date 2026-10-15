@@ -56,6 +56,14 @@ export together when backing up. The standalone review page provides downloads
 and a transcript. When the verified CAP demo matches a Git commit, its companion
 draft replaces the pending code link with a commit-specific project URL.
 
+That lookup can use an older published demo snapshot after newer source changes.
+It searches up to 64 recent commits touching the registered demo inputs, newest
+first, within a ten-second total budget. Every registered file must match the
+saved source hashes in one commit, and that commit must be reachable from a local
+`origin` tracking reference for the configured project repository. Missing files,
+unpublished snapshots, mixed-version inputs, or an exhausted lookup keep the
+pending-link wording. The lookup does not fetch or push anything.
+
 The video has not been published. News facts and availability, caption placement, pronunciation, companion copy, and phone readability still require editorial review. The application does not upload to a network service or treat an export check as publication approval.
 
 Implementation references: [FFmpeg concat demuxer](https://ffmpeg.org/ffmpeg-formats.html#concat), [FFmpeg loudnorm filter](https://ffmpeg.org/ffmpeg-filters.html#loudnorm), and [the Canvas frame renderer](https://github.com/Brooooooklyn/canvas). Unmodified DejaVu fonts and required redistribution notices are in `assets/fonts/` with pinned source hashes.
