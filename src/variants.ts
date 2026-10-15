@@ -7,10 +7,25 @@ import { validateNewsEpisode } from "./news/contracts.js";
 import { projectRoot, sourceFile } from "./paths.js";
 import { variantFile } from "./presentation.js";
 
-export async function readPresentationVariant(selector: string): Promise<ContentEpisode> {
-  const file = variantFile(selector);
-  const value = JSON.parse(await readFile(await sourceFile(file), "utf8"));
-  const [id, variant] = selector.split("@");
+export type PresentationDefinition = {
+  schemaVersion: 1;
+  baseEpisodeId: string;
+  baseInputHash: string;
+  title: string;
+  presentation: NonNullable<ContentEpisode["presentation"]>;
+  scenes: {
+    id: string;
+    narration: string;
+    overlay?: string;
+    dialogue?: { speakerId: string; text: string }[];
+  }[];
+  publicationText?: string;
+};
+
+export async function validatePresentationDefinition(value: unknown, expectedSelector?: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Presentation variant metadata is invalid");
+  const definition = value as PresentationDefinition;
   if (
     Object.keys(value).some(
       (key) =>
@@ -24,29 +39,37 @@ export async function readPresentationVariant(selector: string): Promise<Content
           "publicationText",
         ].includes(key),
     ) ||
-    value.schemaVersion !== 1 ||
-    value.baseEpisodeId !== id ||
-    value.presentation?.variant !== variant
+    definition.schemaVersion !== 1 ||
+    typeof definition.baseEpisodeId !== "string" ||
+    !/^(ABAP|CAP|RAP|BTP|AI|NEWS)-\d{2}$/u.test(definition.baseEpisodeId) ||
+    typeof definition.baseInputHash !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(definition.baseInputHash) ||
+    typeof definition.title !== "string" ||
+    typeof definition.presentation?.variant !== "string" ||
+    (Object.hasOwn(definition, "publicationText") && typeof definition.publicationText !== "string")
   )
     throw new Error("Presentation variant metadata is invalid");
-  const base = await readContentEpisode(value.baseEpisodeId);
-  return applyPresentationVariant(base, value);
+  const selector = `${definition.baseEpisodeId}@${definition.presentation.variant}`;
+  const file = variantFile(selector);
+  if (expectedSelector !== undefined && expectedSelector !== selector)
+    throw new Error("Presentation variant metadata does not match its selector");
+  const base = await readContentEpisode(definition.baseEpisodeId);
+  const episode = applyPresentationVariant(base, definition);
+  return { definition: structuredClone(definition), episode, selector, file };
+}
+
+export async function readPresentationVariant(selector: string): Promise<ContentEpisode> {
+  const file = variantFile(selector);
+  const value: unknown = JSON.parse(await readFile(await sourceFile(file), "utf8"));
+  return (await validatePresentationDefinition(value, selector)).episode;
 }
 
 export function applyPresentationVariant(
   base: ContentEpisode,
-  value: {
-    baseInputHash: string;
-    title: string;
-    presentation: NonNullable<ContentEpisode["presentation"]>;
-    scenes: {
-      id: string;
-      narration: string;
-      overlay?: string;
-      dialogue?: { speakerId: string; text: string }[];
-    }[];
-    publicationText?: string;
-  },
+  value: Pick<
+    PresentationDefinition,
+    "baseInputHash" | "title" | "presentation" | "scenes" | "publicationText"
+  >,
 ): ContentEpisode {
   if (value.baseInputHash !== hash(JSON.stringify(base)))
     throw new Error("Presentation base changed; review and rebind the variant before production");
@@ -59,7 +82,11 @@ export function applyPresentationVariant(
     const scene = episode.scenes[index];
     if (
       !scene ||
+      !override ||
+      typeof override !== "object" ||
+      Array.isArray(override) ||
       override.id !== scene.id ||
+      typeof override.narration !== "string" ||
       Object.keys(override).some((key) => !["id", "narration", "overlay", "dialogue"].includes(key))
     )
       throw new Error("Presentation cannot change scene order, demo visuals, or evidence");

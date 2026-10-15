@@ -39,6 +39,31 @@ Run narration jobs one at a time on this Mac. Each provider operation has a boun
 
 ## Add a delivery version
 
+For an existing delivery, use **Revise script** on its studio card. The workshop
+lets you edit the title, narration, on-screen headlines, and companion post. It
+keeps the format, voices, scene order/timing, visuals, sources, and claims fixed.
+Dialogue turns retain their speakers; their text is joined into narration for
+you. Choose a new lowercase version name and download the revised script.
+
+```sh
+npm run shorts -- script-import /path/to/CAP-02--my-edit.json
+npm run shorts -- produce CAP-02@my-edit --serve
+```
+
+Use the path/name printed for your download and import. Import validates against
+the current base before writing and refuses existing versions. It does not
+generate media. New scripts need their own production result; earlier recordings
+remain available under their original selectors. The workshop's word counts and
+pacing warnings are draft guidance; narration duration is measured after recording.
+Changes stay only in the open page until downloaded. Reloading discards unsaved edits.
+
+Review rewritten claims against the official sources. Structural validation does
+not fact-check new wording. Dated news retains its original source-review date;
+editing or importing a delivery cannot refresh an expired review. Without
+JavaScript, the workshop still exposes the original script and sources.
+
+For a new format or speaker arrangement, author a delivery definition:
+
 Create `content/presentations/EPISODE_ID--VARIANT.json`. The file binds to the base episode's canonical JSON hash and specifies a title, presentation settings, and narration/overlay/dialogue overrides for every scene. The [presentation editor prompt](../prompts/v1/presentation-editor.md) describes the writing task.
 
 ```json

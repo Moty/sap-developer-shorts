@@ -367,3 +367,34 @@ Minimum Node 22.13.0 checks pass: **85 workflow tests**, five live CAP assertion
 formatting, types, content validation, and build. Astra independently passed
 seventeen focused tests and reviewed the factual answer/evidence correspondence.
 The normal repeat production reused the same narration and verified MP4.
+
+## Milestone 3k: reusable script workshop
+
+- Added **Revise script** to studio cards, including scripts without recordings.
+  The static workshop edits title, narration, headlines, and companion copy while
+  keeping format, speaker assignments, scene order/timing, visuals, claims, and
+  source dates fixed. Dialogue edits preserve turns and derive joined narration.
+- Added live word counts, opening/pacing guidance, clear unmeasured-audio status,
+  official sources and claims, accessible labels/focus, responsive layout, and a
+  readable original-script/no-JavaScript fallback. Changes remain in the page
+  until explicitly downloaded under a new version name.
+- Added `script-import JSON_FILE`, sharing the existing variant contract. It
+  validates the current base before writes, caps regular input files at 1 MiB,
+  refuses symlinks and existing targets, and atomically creates complete files.
+  Imported revisions receive no existing media readiness and print a production
+  command. Validation preserves evidence structure; wording still needs review.
+
+Minimum Node 22.13.0 checks pass: **96 workflow tests**, five live CAP assertions,
+formatting, types, validation, and build. Tests execute the actual workshop script,
+check HTML/script-boundary escaping, and cover stale/structural/invalid imports,
+collisions, concurrent imports, and failure cleanup. Astra independently reviewed
+the editor and passed fifteen focused tests.
+
+Real browser downloads for solo, dialogue, and dated news imported successfully.
+The solo's changed narration produced a **53.233-second** verified MP4 and ZIP
+(-16.09 LUFS, -4.42 dBTP); browser metadata confirmed its new title and paused video.
+The temporary test variant was preserved under ignored overnight evidence after
+the full workflow. Final studio retains eight prepared MP4s/packages, eight
+workshops, two voice samples, and **107 matching artifact hashes**. All ZIP CRC and
+member hashes pass. Keyboard focus, duplicate-name blocking, and phone width were
+checked in browser; viewport restored. No money was spent or post published.

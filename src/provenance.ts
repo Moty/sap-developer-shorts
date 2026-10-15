@@ -53,6 +53,8 @@ export async function runtimeFiles(): Promise<string[]> {
     "presentation",
     "production",
     "variants",
+    "script-editor",
+    "script-import",
     "video/timeline",
     "video/frames",
     "video/export",

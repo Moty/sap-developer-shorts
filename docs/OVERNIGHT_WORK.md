@@ -308,3 +308,40 @@ solo/dialogue/news import, stale hash/unknown fields/structural edits/invalid
 selectors/collisions rejected before writes, no old media mislabeled ready,
 one small edited CAP variant through full production, phone/keyboard/HTML-escaping
 QA. Reuse existing variant validator as authority; no new dependencies needed.
+
+02:42 PT: Quiz pushed as `7f36308`; Node22/24 CI passed (run38713368433).
+Completed Astra-planned script workshop and safe import. Astra implemented the
+shared validator/import/CLI half and independently reviewed the static editor;
+fifteen focused tests passed. Full minimum-Node checks/build: 96 workflow tests +
+five live CAP assertions, formatting/types/validation. Evidence:
+`.state/overnight/check-editor.log`, `test-editor.log`, `editor-evidence.json`,
+`editor-browser-imports.json`, `editor-studio.png`, `editor-phone.png`, and
+`editor-produced-review.png`. Native Blob downloads work under the page CSP.
+Browser checked labels/keyboard focus, duplicate-name disabled download,390px
+width, dialogue speakers, news source-date context, and original script access.
+The no-JavaScript fallback is structurally tested, not a disabled-engine run.
+
+Actual downloads: `/Users/I851396/Downloads/CAP-02--workshop-check.json`,
+`CAP-01--workshop-dialogue.json`, `NEWS-02--workshop-news.json` in the same Downloads
+directory. Solo imported through the real CLI, changed narration produced job
+`e4ed10e9-3774-4dfb-9871-ca1eb49ea918`,53.233333-second MP4,-16.09LUFS,-4.42dBTP.
+READY report `artifacts/productions/a0a26812-b60e-425b-952a-d8b7f704df59/production.json`.
+QA video `artifacts/videos/CAP-02--workshop-check/video-677b1870e5354aee/short.mp4`.
+Its saved nine-entry library `artifacts/library-eb9ade86-b767-4629-8528-5b17560bfda2`
+has120 verified hashes/nine checked ZIPs. This was a temporary test revision;
+its source moved to `.state/overnight/CAP-02--workshop-check.json` after production.
+Dialogue/news downloads imported into `.state/overnight/browser-script-imports`
+with source/claim/visual/date preservation and exact dialogue joins verified.
+
+Final current studio `artifacts/library-c2913bfc-ee96-48b6-99c7-6ca0ae49ad38` has
+eight prepared MP4s/ZIPs, eight editors, two current voice samples;107 hashes and
+all ZIP member/CRC checks pass. Port4173 owned session35805 serves this library.
+Intermediate72593/73990 servers stopped; browser shows CAP-02@quiz editor with
+fresh default values and normal viewport, marked deliverable. No synthesis
+timeouts or sleep interruption this milestone, all local cost zero.
+
+Next: commit/push editor, check CI, update last-result state. Astra is planning
+the next highest-value bounded enhancement, comparing a finished SAP-news delivery
+against remaining user-facing workflow gaps. Inspect its latest reply before
+starting. Preserve deadline06:45finalchecks/07:00stop+pauseautomation and bounded
+sleep prevention; do not extend caffeine process or spend/publish/merge/bypass.

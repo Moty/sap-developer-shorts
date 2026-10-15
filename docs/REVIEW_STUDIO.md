@@ -1,5 +1,11 @@
 # Review studio
 
+Use **Revise script** on an episode card to open its script workshop. Edit an
+existing delivery, download a new named version, then use `script-import` and the
+printed production command. Source/claim/demo inputs and source-review dates stay
+fixed. Edits are held only in the page until downloaded; existing versions and
+recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
+
 The local studio brings tutorial and news episode previews into one library. It provides format filters, text search, official source links, measured narration durations, production status, future news ideas, and the remaining tutorial backlog. Episode players keep an **All episodes** link above the existing review page. The studio does not generate media, edit content, approve publication, or call an external service.
 
 ## Compare presentation styles
