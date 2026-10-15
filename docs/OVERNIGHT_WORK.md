@@ -756,7 +756,7 @@ noCSPconsoleerrors. Native NEWS-02--duo-v1-883675ce.zip SHA4be1218f... andall9me
 hashes pass. Native newsworkshopdated-news-check importedonlyignored QAfolder:
 baseInputHashec02b315..., exactscenes/claims/sources/asOfOct15 preserved, Heart
 defaultunchanged. KnownexpiredQAfixture promotedexistingnotice retainedexpiry
-withcurrentearlierclock andplayedmediaready4/paused; clearlytestonly, nopublishing.
+withcurrentearlierclock andloadedmediaready4/paused; clearlytestonly, nopublishing.
 Testtabs9/10closed; tempservers20125/41870/1532stopped; viewportreset/main1marked.
 Evidence news-freshness-{browser,import,episode,studio-package}-evidence.json,
 news-freshness-library-hashes.json, news-freshness-extracted-hashes.json.
@@ -765,3 +765,10 @@ Nextcommit/push/CI/updateignoredlast-result, thenaskAstrafor nextboundedreview/
 improvement read-onlyplanfirst. About2hoursbefore06:45finalaudit; keep7AMstop+
 pauseautomation andboundedawake76680expiryunchanged. Noaudiblelisten,paidcost,
 providerbypass,sourcefactualrenewal,publishing,mainmerge,orunrelatedchanges.
+
+04:45 PT completion: Date-aware news db3062e pushed; Node22/24 CI passed
+38729453742. Active11studio90ad9967 at4173 andwholeZIPf4cad4d0 at60141. Alloriginal
+media andolderarchives retained. No activecodeedits. Astra planning ONE next
+bounded enhancement read-only, considering workshopchange-review/reset before
+download; inspectits latestresponse nextcontinuation. About2hours tillaudit;
+06:45finalvalidation/07stop+pause andawake76680expiry unchanged.
