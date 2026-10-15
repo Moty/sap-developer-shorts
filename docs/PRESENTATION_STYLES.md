@@ -19,7 +19,12 @@ The review studio has a **Delivery styles** section and links to four versions o
 - `CAP-01@comic`: a solo comic version with SAP/developer jokes and a warmer visual accent.
 - `CAP-01@duo`: a comic conversation between Mira (Heart) and Max (Michael), with two distinct local voices and named captions.
 
-These are saved, authored scripts. Clicking a preview opens its recorded version. The studio does not automatically rewrite an arbitrary episode or purchase avatar media. Myth/fact, countdown, story, and quiz are supported writing formats; additional scripts must be authored and reviewed before their previews exist.
+The CAP data lesson also has `CAP-02@quiz`, a Heart-narrated prediction/reveal:
+read the CSV's stock counts, choose which products pass the positive-stock filter,
+then see the checked result. Its visuals, exact URLs, and evidence come from CAP-02.
+Try `npm run shorts -- produce CAP-02@quiz`.
+
+These are saved, authored scripts. Clicking a preview opens its recorded version. The studio does not automatically rewrite an arbitrary episode or purchase avatar media. The storytelling gallery links to the best available example for each format and distinguishes a prepared script, preview, or MP4. Myth/fact, countdown, and story still need authored, reviewed scripts before their previews exist.
 
 ```sh
 npm run shorts -- styles

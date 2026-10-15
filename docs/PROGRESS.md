@@ -342,3 +342,28 @@ tests and subprocess scratch checks. Real Heart and Michael auditions completed
 sequentially with no timeout; Heart remains selected. A library rebuild preserves
 all seven completed MP4s/packages and two current voice samples; all 87 hashes
 match. No paid call or publication occurred.
+
+## Milestone 3j: a verified CAP prediction challenge
+
+Added `CAP-02@quiz`, using Astra's seven-scene question/reveal script and Heart.
+The starting CSV and three-row query precede the answer; the reveal keeps the
+keyboard (12) and dock (7), excludes the zero-stock monitor arm, and retains the
+ID caveat. Sources, claims, checks, captures, exact URLs, and timing slots are
+inherited from CAP-02. A companion post is included in the new episode package.
+
+The format gallery now derives readiness from actual prepared entries and links
+to recorded examples. It distinguishes unprepared formats, scripts awaiting a
+preview, narrated previews, MP4s, and expired saved examples. The four-style
+CAP-01 comparison is retained.
+
+The new recording measures **53.005 seconds**, a **2.905-second opening**, and
+seventeen estimated caption cues. Its vertical MP4 passes full decoding/audio
+checks at -16.08 LUFS and -4.47 dBTP. All eight ZIPs passed CRC/member-hash checks;
+the final studio has **99 verified artifact hashes** and two current voice samples.
+Prediction/reveal frames, native video metadata, gallery links, and the 390-pixel
+phone layout were checked. Playback remains paused; viewport overrides reset.
+
+Minimum Node 22.13.0 checks pass: **85 workflow tests**, five live CAP assertions,
+formatting, types, content validation, and build. Astra independently passed
+seventeen focused tests and reviewed the factual answer/evidence correspondence.
+The normal repeat production reused the same narration and verified MP4.

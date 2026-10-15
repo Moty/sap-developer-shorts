@@ -55,6 +55,28 @@ test("dialogue rejects missing, unknown, duplicate-voice, and text-mismatched sp
   assert.throws(() => validateEpisode(duplicate), /two distinct Kokoro voices/);
 });
 
+test("the prepared quiz keeps CAP-02's checked CSV, exact queries, evidence, and scene timing", async () => {
+  const base = await readContentEpisode("CAP-02");
+  const quiz = await readContentEpisode("CAP-02@quiz");
+  assert.equal(quiz.presentation?.format, "quiz");
+  assert.deepEqual(
+    quiz.presentation?.speakers.map((speaker) => speaker.voice),
+    ["af_heart"],
+  );
+  assert.deepEqual(quiz.sources, base.sources);
+  assert.deepEqual(quiz.claims, base.claims);
+  assert.ok("demo" in quiz && "demo" in base);
+  assert.deepEqual(quiz.demo, base.demo);
+  const inputs = (episode: typeof base) =>
+    episode.scenes.map(({ id, startSeconds, endSeconds, visual }) => ({
+      id,
+      startSeconds,
+      endSeconds,
+      visual,
+    }));
+  assert.deepEqual(inputs(quiz), inputs(base));
+});
+
 test("speaker captions are bound to the exact dialogue turns rather than only their combined text", async () => {
   const episode = await readContentEpisode("CAP-01@duo");
   const timing: NarrationTiming = {

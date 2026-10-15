@@ -276,3 +276,35 @@ Next: commit/push timeout milestone, then CAP-02@quiz with the Astra-authored
 prediction/reveal script and dynamic format gallery. Do not add interaction
 states or alter inherited CSV/query/capture/evidence fields. Keep the four-style
 CAP-01 comparison. Astra is independently planning the next bounded improvement.
+
+02:30 PT: Timeout milestone pushed as `fd568b9`; Node 22/24 CI passed
+(run 38712638071). Completed CAP-02@quiz following Astra's120-word plan. Full
+minimum-Node checks/build pass: 85 workflow tests + five CAP assertions. Astra
+independently passed seventeen focused tests and reviewed CSV/query/reveal claims.
+Gallery readiness/example links now reflect actual entries; phone layout fits.
+Initial gallery QA found run-together inline status/link text; block labels fix
+it and the final full checks passed. Prediction/reveal frames inspected directly.
+
+Quiz job `9b58520c-d585-4018-b6f1-9e60c83e106e`: 53.005125-second narration,
+2.905034-second hook,17 cues. Video:
+`artifacts/videos/CAP-02--quiz/video-f046cee7ac269356/short.mp4`, -16.08 LUFS,
+-4.47 dBTP, full decoding/audio checks passed. Repeat produce reused narration and
+MP4: `artifacts/productions/99460d28-4d21-420e-90e6-a306480e8069/production.json`.
+Studio: `artifacts/library-bbeda393-82a9-4b18-af2b-4fd6d221d0e1`, port4173,
+owned session1605; eight MP4s/packages, two samples,99 hashes verified. All eight
+ZIPs passed CRC/member hashes. Previous8360/25767 servers stopped. Evidence:
+`.state/overnight/check-quiz.log`, `produce-quiz-final.log`, `quiz-evidence.json`,
+`quiz-review.png`, `quiz-phone.png`, `quiz-formats.png`.
+
+Next: commit/push quiz. Astra recommends “Revise script” in the static studio:
+edit title/scene narration/overlays/post for an existing delivery, keep technical
+inputs/source dates/format/speakers/order/timing fixed; dialogue edits existing
+turns and derives joined narration. Require a new variant name, download existing
+presentation JSON with base hash embedded, then safe `script-import PATH` CLI
+validation against current base, refuse overwrites, print produce selector.
+No automatic rewriting or writable server. Add live word/hook/pacing guidance,
+source context, unmeasured timing notice, and no-JS readable fallback. Acceptance:
+solo/dialogue/news import, stale hash/unknown fields/structural edits/invalid
+selectors/collisions rejected before writes, no old media mislabeled ready,
+one small edited CAP variant through full production, phone/keyboard/HTML-escaping
+QA. Reuse existing variant validator as authority; no new dependencies needed.

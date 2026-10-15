@@ -117,3 +117,52 @@ test("comparison anchors and return links work without scripts and voice text re
   assert.match(String(escaped["review.html"]), /System voice · &lt;img/);
   assert.doesNotMatch(String(escaped["review.html"]), /<img src=x onerror=/);
 });
+
+test("format examples reflect scripts, previews, and exports instead of hardcoded readiness", async () => {
+  const quiz = await entry("CAP-02@quiz");
+  const professional = await entry("CAP-01");
+  const casual = await entry("CAP-01@casual");
+  casual.video = {
+    renderKey: "fixture",
+    durationSeconds: 55,
+    files: { "review.html": Buffer.from("<!--LIBRARY_BACK-->Video fixture") },
+  };
+  const render = async () => {
+    const pages = await createLibraryPages({
+      entries: [professional, quiz, casual],
+      topics: [],
+      newsTopics: [],
+      budgetCents: 500,
+    });
+    const html = String(pages["review.html"]);
+    return (format: string) =>
+      html.match(
+        new RegExp(
+          `<article class="style-option" data-story-format="${format}">([\\s\\S]*?)</article>`,
+        ),
+      )?.[1] ?? "";
+  };
+  const preview = quiz.preview;
+  quiz.preview = null;
+  let cards = await render();
+  assert.match(cards("quiz"), /Script prepared · preview pending/);
+  assert.doesNotMatch(cards("quiz"), /Watch example|Review example/);
+  assert.match(cards("dialogue"), /Script needed/);
+  assert.match(cards("explainer"), /CAP-01%40casual\/video\/review.html/);
+  quiz.preview = preview;
+  cards = await render();
+  assert.match(cards("quiz"), /CAP-02%40quiz\/watch.html/);
+  assert.match(cards("quiz"), /Review example/);
+  quiz.video = {
+    renderKey: "fixture",
+    durationSeconds: 55,
+    files: { "review.html": Buffer.from("<!--LIBRARY_BACK-->Video fixture") },
+  };
+  cards = await render();
+  assert.match(cards("quiz"), /CAP-02%40quiz\/video\/review.html/);
+  assert.match(cards("quiz"), /Watch example/);
+  quiz.sourceReviewExpired = true;
+  cards = await render();
+  assert.match(cards("quiz"), /Watch saved example/);
+  assert.match(cards("quiz"), /sources need rechecking/);
+});

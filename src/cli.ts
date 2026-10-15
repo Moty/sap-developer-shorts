@@ -97,7 +97,7 @@ try {
     for (const format of presentationFormats)
       console.log(`${format.id.padEnd(12)} ${format.name}: ${format.description}`);
     console.log(
-      "Prepared previews: CAP-01 (professional), CAP-01@casual, CAP-01@comic, CAP-01@duo.",
+      "Prepared scripts: CAP-01 (professional), CAP-01@casual, CAP-01@comic, CAP-01@duo, CAP-02@quiz.",
     );
   } else if (command === "voices" && args.length <= 1) {
     const { kokoroVoices } = await import("./media/voices.js");

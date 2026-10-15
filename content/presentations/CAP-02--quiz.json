@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-02",
+  "baseInputHash": "2695022e46085023b46436d30b6468b5eced280f5507e4b3e19353499ea663e4",
+  "title": "Which products survive this filter?",
+  "presentation": {
+    "variant": "quiz",
+    "tone": "professional",
+    "format": "quiz",
+    "humor": "none",
+    "speakers": [{ "id": "narrator", "name": "Narrator", "voice": "af_heart" }]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "Which products survive this stock filter?",
+      "overlay": "Which products survive?"
+    },
+    {
+      "id": "context",
+      "narration": "Here's a quick CAP challenge. Our prepared inventory service exposes three products. Predict which rows remain when stock is greater than zero.",
+      "overlay": "Predict: stock greater than zero"
+    },
+    {
+      "id": "seed",
+      "narration": "Read the CSV: keyboard, twelve; dock, seven; monitor arm, zero. Keep those stock counts in mind before checking the answer.",
+      "overlay": "Read the starting stock counts"
+    },
+    {
+      "id": "list",
+      "narration": "Run npm run demo. This first query lists all three products by title. Which names would your stock filter keep?",
+      "overlay": "Starting data: all three rows"
+    },
+    {
+      "id": "filter",
+      "narration": "Here's the checked result: Mechanical Keyboard and USB-C Dock. Both have positive stock. Monitor Arm has zero, so it is excluded.",
+      "overlay": "Answer: keyboard and dock"
+    },
+    {
+      "id": "payoff",
+      "narration": "The cards show title and stock; the actual response also includes ID. This is local sample data.",
+      "overlay": "Two matching rows, verified"
+    },
+    {
+      "id": "cta",
+      "narration": "Try the project and its five checks. Predict another threshold, then test your answer.",
+      "overlay": "Predict it. Then verify it."
+    }
+  ],
+  "publicationText": "Quick CAP challenge: which products survive a stock-greater-than-zero filter?\n\nThe sample CSV starts with Mechanical Keyboard (12), USB-C Dock (7), and Monitor Arm (0). Predict the result before the reveal. The checked query keeps the keyboard and dock.\n\nThe video cards show title and stock; the real response also includes ID. This is a local inventory sample with five live checks, not production data.\n\nCode and setup: Code link pending repository publication\nSAP CAP initial data: https://cap.cloud.sap/docs/guides/databases/initial-data\nOData query options: https://cap.cloud.sap/docs/guides/protocols/odata#feature-overview\n\nWhat threshold would you try next? Predict it, then verify it in the project.\n\n#SAP #CAP #OData #SAPDevelopers"
+}
