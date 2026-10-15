@@ -31,9 +31,24 @@ FFprobe checks dimensions, frame rate, codecs, audio presence, frame count, and 
 
 Each export has a content-derived key that includes the source input, media receipt, audio/timing hashes, saved layout, encoder profile and versions, application runtime hashes, and bundled fonts. A matching ready export with intact hashes is reused. Visual export changes do not require recording the voices again.
 
-`video-manifest.json` records `RENDERING`, `VERIFYING`, `READY`, or `FAILED`, along with source references, artifact hashes, audio/video measurements, tool versions, and diagnostics. A partially encoded file is never offered as a completed MP4. Repeating the command can rebuild an incomplete export. A worker lock prevents concurrent rendering of the same key; a stopped worker's lock is recovered only when its PID is confirmed dead on the same host. Unrecognized locks require inspection.
+`video-manifest.json` records `RENDERING`, `VERIFYING`, `READY`, or `FAILED`, along with source references, artifact hashes, audio/video measurements, tool versions, and diagnostics. A partially encoded file is never offered as a completed MP4. Repeating the command can rebuild an incomplete or damaged export from its validated saved narration. After acquiring its export lock, recovery moves the previous attempt into a printed `recovery-UUID` directory before rebuilding. Previous bytes and diagnostics remain available; no speech regeneration is needed. A readable full key belonging to another render is left intact.
 
-The work directory retains frames and diagnostic logs for inspection. A malformed or altered ready export is rejected. Preserve the source run, narration package, and export together when backing up. The standalone review page provides downloads and a transcript. When the verified CAP demo matches a Git commit, its companion draft replaces the pending code link with a commit-specific project URL.
+An immediate SQLite transaction gates each export's lock acquisition, recovery,
+and rendering. It uses the already-required Node SQLite runtime, with no lease
+table or migration. Competing attempts fail promptly; process exit releases the
+gate. The PID/host lock remains for diagnosis and older active workers. A stopped
+worker's PID lock is recovered only when its PID is confirmed dead on the same
+host; unrecognized locks require inspection. Recovery preserves the gate sidecars
+and refuses redirected cache directories. See [SQLite transaction behavior](https://www.sqlite.org/lang_transaction.html).
+
+The work directory retains frames and diagnostic logs for inspection. Saved
+caption files must exactly match the validated narration timing. Ready receipts
+require actual successful decode/audio flags, a finite 45–60.1-second video, and
+duration within 0.1 seconds of the selected narration. Invalid media is excluded
+from studio/package readiness. Preserve the source run, narration package, and
+export together when backing up. The standalone review page provides downloads
+and a transcript. When the verified CAP demo matches a Git commit, its companion
+draft replaces the pending code link with a commit-specific project URL.
 
 The video has not been published. News facts and availability, caption placement, pronunciation, companion copy, and phone readability still require editorial review. The application does not upload to a network service or treat an export check as publication approval.
 

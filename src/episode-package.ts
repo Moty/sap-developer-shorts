@@ -5,6 +5,7 @@ import type { LibraryEntry } from "./library.js";
 import type { NarrationTiming } from "./media/model.js";
 import { episodeSelector } from "./presentation.js";
 import { recordedNarrator } from "./studio.js";
+import { assertVideoQuality } from "./video/receipt.js";
 
 export interface PackageVideoReceipt {
   selector: string;
@@ -27,6 +28,7 @@ export interface EpisodeDownload {
 }
 
 export function assertPackageReceipt(receipt: PackageVideoReceipt): void {
+  assertVideoQuality(receipt.quality);
   const digest = (value: unknown) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
   if (
     ![
@@ -36,10 +38,6 @@ export function assertPackageReceipt(receipt: PackageVideoReceipt): void {
       receipt.sourceAudioHash,
     ].every(digest) ||
     !Number.isFinite(Date.parse(receipt.updatedAt)) ||
-    !receipt.quality?.decoded ||
-    !receipt.quality.audioChecked ||
-    !Number.isFinite(receipt.quality.durationSeconds) ||
-    receipt.quality.durationSeconds <= 0 ||
     (receipt.sourceCodeCommit != null &&
       (typeof receipt.sourceCodeCommit !== "string" ||
         !/^[a-f0-9]{40}$/u.test(receipt.sourceCodeCommit)))
@@ -53,6 +51,7 @@ export function buildEpisodePackage(entry: LibraryEntry, now = new Date()): Epis
   const receipt = video?.receipt;
   if (!video || !receipt || preview?.kind !== "narrated") return null;
   assertPackageReceipt(receipt);
+  assertVideoQuality(receipt.quality, preview.durationSeconds);
   const selector = episodeSelector(entry.episode);
   const digest = (value: unknown) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
   if (
@@ -86,6 +85,9 @@ export function buildEpisodePackage(entry: LibraryEntry, now = new Date()): Epis
     if (hash(preview.files[name] ?? Buffer.alloc(0)) !== receipt.artifactHashes[name])
       throw new Error("Episode package captions and timing differ from the selected narration.");
   const timing: NarrationTiming = JSON.parse(files["timing.json"]?.toString("utf8") ?? "null");
+  if (!timing || typeof timing.durationSeconds !== "number")
+    throw new Error("Episode package timing is missing its narration duration");
+  assertVideoQuality(receipt.quality, timing.durationSeconds);
   const news = isNewsEpisode(entry.episode) ? entry.episode : null;
   const validThrough = news
     ? new Date(Date.parse(`${news.news.asOf}T00:00:00Z`) + news.news.maxAgeDays * 86400000)

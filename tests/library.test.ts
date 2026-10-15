@@ -6,6 +6,7 @@ import test, { type TestContext } from "node:test";
 import { readContentEpisode, readEpisode } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
 import type { ContentEpisode, DemoEvidence } from "../src/domain.js";
+import { buildEpisodePackage } from "../src/episode-package.js";
 import { buildLibrary, collectLibrary } from "../src/library.js";
 import { createLibraryPages } from "../src/library-review.js";
 import { encodePcmWav, pronounce, sampleRate } from "../src/media/audio.js";
@@ -182,6 +183,39 @@ test("modified narration is excluded while its verified silent preview remains a
   assert.equal(library.excludedRuns, 1);
 });
 
+test("self-consistent caption hashes cannot hide captions that contradict the validated narration", async (t) => {
+  const directory = await root(t);
+  const source = await run(directory);
+  const output = await addNarration(t, directory, source.directory);
+  const receiptPath = resolve(output, "media-manifest.json");
+  const receipt = JSON.parse(await readFile(receiptPath, "utf8"));
+  const original = await readFile(resolve(output, "captions.vtt"), "utf8");
+  const variants = [
+    "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nAn unrelated caption.\n",
+    original.replace("00:00:00.000", "00:00:00.001"),
+  ];
+  for (const captions of variants) {
+    assert.notEqual(captions, original);
+    await writeFile(resolve(output, "captions.vtt"), captions);
+    receipt.artifactHashes["captions.vtt"] = hash(captions);
+    await writeFile(receiptPath, JSON.stringify(receipt));
+    const library = await collectLibrary([episode], directory);
+    assert.equal(library.entries[0]?.preview?.kind, "storyboard");
+    assert.equal(library.entries[0]?.preview?.sourceRunId, source.manifest.runId);
+    assert.equal(library.excludedRuns, 1);
+    const selected = await collectLibrary([episode], directory, new Date(), {
+      "CAP-01": receipt.jobId,
+    });
+    assert.equal(selected.entries[0]?.preview, null);
+  }
+  const other = await run(directory);
+  await addNarration(t, directory, other.directory, "another valid fixture");
+  const recovered = await collectLibrary([episode], directory);
+  assert.equal(recovered.entries[0]?.preview?.kind, "narrated");
+  assert.equal(recovered.entries[0]?.preview?.sourceRunId, other.manifest.runId);
+  assert.equal(recovered.excludedRuns, 1);
+});
+
 test("a preview cannot include a symlink to a file outside its run, even with a matching digest", async (t) => {
   const directory = await root(t);
   const source = await run(directory);
@@ -300,6 +334,46 @@ test("only an intact MP4 for the selected narration and exact editorial input is
   await writeFile(manifestPath, JSON.stringify(receipt));
   const library = await collectLibrary([episode], directory);
   assert.equal(library.entries[0]?.video?.renderKey, renderKey);
+  const directEntry = library.entries[0];
+  assert.ok(directEntry?.video?.receipt);
+  const invalidQuality = [
+    { ...receipt.quality, decoded: "false" },
+    { ...receipt.quality, audioChecked: "false" },
+    { ...receipt.quality, decoded: 1 },
+    { ...receipt.quality, durationSeconds: 999 },
+    { ...receipt.quality, durationSeconds: 0 },
+    { ...receipt.quality, durationSeconds: "55" },
+    { ...receipt.quality, durationSeconds: null },
+    { ...receipt.quality, durationSeconds: episode.targetDurationSeconds + 0.2 },
+  ];
+  for (const quality of invalidQuality) {
+    await writeFile(manifestPath, JSON.stringify({ ...receipt, quality }));
+    const invalid = await collectLibrary([episode], directory);
+    assert.equal(invalid.entries[0]?.video, undefined);
+    assert.equal(invalid.entries[0]?.preview?.kind, "narrated");
+    const altered = structuredClone(directEntry);
+    assert.ok(altered.video?.receipt);
+    Object.assign(altered.video.receipt, { quality });
+    assert.throws(() => buildEpisodePackage(altered), /quality metadata/);
+  }
+  await writeFile(manifestPath, JSON.stringify(receipt));
+  assert.ok(directEntry.preview);
+  const mismatchedTiming = {
+    ...directEntry,
+    preview: { ...directEntry.preview, durationSeconds: episode.targetDurationSeconds + 0.2 },
+    video: {
+      ...directEntry.video,
+      receipt: {
+        ...directEntry.video.receipt,
+        quality: { ...receipt.quality, durationSeconds: episode.targetDurationSeconds + 0.2 },
+      },
+    },
+  };
+  assert.throws(
+    () => buildEpisodePackage(mismatchedTiming),
+    /quality metadata/,
+    "matching outer metadata must not hide a mismatch with the saved timing file",
+  );
   const pages = await createLibraryPages({
     ...library,
     topics: [],

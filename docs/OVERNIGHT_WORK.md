@@ -387,3 +387,49 @@ recovery, ZIP, editor/import, studio, and news paths. It is also evaluating the
 next bounded improvement, including installed narrator selection per workshop
 revision while retaining global Heart. Inspect findings before further feature
 work. Continue only within06:45finalaudit/07:00stop+pauseautomation deadline.
+
+03:07 PT, in progress: NEWS dialogue pushed as `3403ee7`; Node22/24 CI passed
+(run38716062632). Astra broad review reproduced four boundary issues in scratch
+copies: inconsistent VTT accepted with recomputed hashes; truthy/mismatched video
+quality metadata; damaged READY exports stuck on retry; concurrent dead-PID lock
+reclamation deleting a fresh live lock. Fixes are currently uncommitted. Shared
+VTT/quality guards, token-owned quarantine recovery, canonical output-directory
+checks, and a per-cache SQLite BEGIN IMMEDIATE gate are implemented. No new
+provider/dependency/table/schema migration. Gate sidecars remain outside quarantine;
+outer finally closes the gate even if PID-lock release fails. Existing narration
+and original MP4s remain untouched. Full minimum-Node checks/build currently pass:
+109 workflow tests + five CAP assertions, log `.state/overnight/check-export-recovery.log`.
+Seventeen focused cache/video tests pass, including actual process exclusion and
+killed-owner gate release. SQLite primary transaction docs and minimum22.13 probe
+support the approach. Parent and Astra files are frozen for independent review.
+
+Pending before commit: Astra reruns controlled stale-reclamation reproduction
+against the gate, reviews final recovery diff, then parent runs
+`.state/overnight/smoke-export-recovery.mjs` with `node --import tsx`. It copies
+only the saved NEWS02duo frozen run to a new ignored artifact root, renders once,
+damages that scratch MP4, repairs with the same key/media ID, verifies quarantined
+old bytes and unchanged original narration, confirms next render reuses the cache,
+and builds a package/library. Original artifacts/DB are not modified. Review
+all results, rebuild/verify final main studio, update docs/evidence, commit/push.
+Next optional feature after fixes is Astra's per-revision installed voice picker;
+no implementation yet. Maintain6:45finalaudit/7:00stop+pauseautomation deadline.
+
+03:13 PT: Export consistency/recovery milestone complete. Astra independently
+confirmed the stale-lock replay is closed (one observer/one live owner); ten
+focused checks passed, no blocker. Parent real FFmpeg recovery smoke passed:
+`.state/overnight/export-repair-N42IZv` copied only the frozen NEWS02duo run,
+rendered/damaged/repaired scratch MP4 using media job4764f530, preserved damaged
+bytes and old READY manifest under recovery-ae859d5b-6736-4e1a-b596-175db7813cc2,
+then reused the repaired cache. Original/copied narration SHA remained
+cc94f61aa92e6ef88bf3ae1c8b5a3e2848995c098642be42b8d5631a16313c6f.
+57.005167 seconds, full decode/audio passed, -16.21LUFS/-4.43dBTP. Scratch library
+22 hashes/one ZIP independently checked. Evidence export-repair-evidence.json,
+smoke-export-recovery.log, export-repair-library-evidence.json in ignored QA area.
+
+Final main studio artifacts/library-b6e358cd-aac4-4745-8712-63e607b33fe0 has nine
+prepared MP4s/ZIPs/editors and two voice samples;120 hashes plus every ZIP CRC and
+member hash independently passed. Full minimum22.13 checks/build109+5 unchanged.
+Formatting retains the existing nonfatal CSS hidden!important warning, required
+for hidden controls to override component display rules. No new formatting issue.
+Production jobsDB/original media unchanged; no synthesis or spend this milestone.
+Next: commit/push, CI, then Astra-planned per-revision installed voice picker.

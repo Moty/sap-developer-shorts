@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { lstat, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
@@ -14,11 +15,16 @@ import { readPcmWav } from "../media/audio.js";
 import { validateTiming } from "../media/package.js";
 import { loadVerifiedRun } from "../media/worker.js";
 import { inside, projectRoot, sourceFile } from "../paths.js";
-import { episodeSelector } from "../presentation.js";
 import { readRuntimeFiles } from "../provenance.js";
 import { escapeHtml as esc } from "../review.js";
+import {
+  acquireVideoGate,
+  recoverVideoCache,
+  releaseVideoLock,
+  videoCacheDirectory,
+} from "./cache.js";
 import { drawVideoFrame, type VideoFrameInput, videoFontFiles } from "./frames.js";
-import { readVideoReceipt } from "./receipt.js";
+import { assertVideoQuality, readVideoReceipt } from "./receipt.js";
 import { publishedDemoCommit } from "./source.js";
 import { concatTimeline, videoFps, videoTimeline } from "./timeline.js";
 
@@ -196,292 +202,305 @@ export async function renderVideo(
       sourceCodeCommit,
     }),
   );
-  const directory = resolve(
-    artifactRoot,
-    "videos",
-    episodeSelector(episode).replace("@", "--"),
-    `video-${key.slice(0, 16)}`,
-  );
+  const directory = await videoCacheDirectory(artifactRoot, selector, key);
   try {
     const saved = await readVideoReceipt(directory);
     if (saved.receipt.renderKey !== key) throw new Error("Saved render key differs");
+    assertVideoQuality(saved.receipt.quality, timing.durationSeconds);
     report("Reusing the verified MP4.");
     return { directory, reused: true, receipt: saved.receipt };
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      const previous = JSON.parse(
-        await readFile(resolve(directory, "video-manifest.json"), "utf8"),
-      );
-      if (
-        previous.renderKey !== key ||
-        !["RENDERING", "VERIFYING", "FAILED"].includes(previous.stage)
-      )
-        throw error;
-    }
+  } catch {
+    /* A locked recovery pass below preserves invalid local exports. */
   }
-  await mkdir(resolve(directory, "frames"), { recursive: true });
-  const lock = resolve(directory, "export.lock");
+  const releaseGate = await acquireVideoGate(directory);
   try {
-    const handle = await open(lock, "wx");
-    await handle.writeFile(JSON.stringify({ pid: process.pid, host: hostname() }));
-    await handle.close();
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-    const owner = JSON.parse(await readFile(lock, "utf8"));
-    let stopped = false;
-    if (owner.host === hostname() && Number.isSafeInteger(owner.pid)) {
-      try {
-        process.kill(owner.pid, 0);
-      } catch (failure) {
-        stopped = (failure as NodeJS.ErrnoException).code === "ESRCH";
-      }
-    }
-    if (!stopped) throw new Error("This MP4 is already being rendered by another worker");
-    await rm(lock);
-    const handle = await open(lock, "wx");
-    await handle.writeFile(JSON.stringify({ pid: process.pid, host: hostname() }));
-    await handle.close();
-  }
-  const manifest = {
-    schemaVersion: 1,
-    stage: "RENDERING",
-    renderKey: key,
-    selector,
-    inputHash: source.manifest.inputHash,
-    sourceManifestHash: source.manifestHash,
-    sourceRunId: preview.sourceRunId,
-    mediaJobId: preview.mediaJobId,
-    sourceAudioHash,
-    sourceCodeCommit,
-    encoding,
-    versions,
-    renderSources,
-    startedAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    costCents: 0,
-    stockAvatar: "pending",
-    published: false,
-    quality: {} as Record<string, unknown>,
-    artifactHashes: {} as Record<string, string>,
-    error: null as string | null,
-  };
-  const save = async () => {
-    manifest.updatedAt = new Date().toISOString();
-    await writeFile(
-      resolve(directory, "video-manifest.tmp"),
-      `${JSON.stringify(manifest, null, 2)}\n`,
-    );
-    await rename(
-      resolve(directory, "video-manifest.tmp"),
-      resolve(directory, "video-manifest.json"),
-    );
-  };
-  const command = async (name: string, binary: string, args: string[], timeout = 180000) => {
+    const lock = resolve(directory, "export.lock");
+    const lockOwner = { pid: process.pid, host: hostname(), token: randomUUID() };
     try {
-      const result = await exec(binary, args, {
-        cwd: directory,
-        timeout,
-        maxBuffer: 4 * 1024 * 1024,
-      });
-      await writeFile(resolve(directory, `${name}.log`), `${result.stdout}\n${result.stderr}`);
-      return result;
+      const handle = await open(lock, "wx");
+      await handle.writeFile(JSON.stringify(lockOwner));
+      await handle.close();
     } catch (error) {
-      const failure = error as Error & { stdout?: string; stderr?: string };
-      await writeFile(
-        resolve(directory, `${name}.log`),
-        `${failure.message}\n${failure.stdout ?? ""}\n${failure.stderr ?? ""}`,
-      );
-      throw new Error(`Video ${name} failed; see the saved diagnostic log`, { cause: error });
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const lockStat = await lstat(lock);
+      if (!lockStat.isFile() || lockStat.size > 4096)
+        throw new Error("This MP4 has an invalid export lock; inspect it before retrying");
+      const owner = JSON.parse(await readFile(lock, "utf8"));
+      let stopped = false;
+      if (owner.host === hostname() && Number.isSafeInteger(owner.pid)) {
+        try {
+          process.kill(owner.pid, 0);
+        } catch (failure) {
+          stopped = (failure as NodeJS.ErrnoException).code === "ESRCH";
+        }
+      }
+      if (!stopped) throw new Error("This MP4 is already being rendered by another worker");
+      await rm(lock);
+      const handle = await open(lock, "wx");
+      await handle.writeFile(JSON.stringify(lockOwner));
+      await handle.close();
     }
-  };
-  try {
-    await save();
-    const evidence = !isNewsEpisode(episode)
-      ? (JSON.parse(
-          await readFile(resolve(sourceDirectory, "demo-evidence.json"), "utf8"),
-        ) as DemoEvidence)
-      : undefined;
-    const input: VideoFrameInput = {
-      episode,
-      timing,
-      layout,
-      code,
-      ...(evidence ? { evidence } : {}),
+    let recovered: Awaited<ReturnType<typeof recoverVideoCache>>;
+    try {
+      recovered = await recoverVideoCache(directory, key, lockOwner.token, timing.durationSeconds);
+      if (recovered.recoveryDirectory)
+        report(`Preserved the previous export for recovery: ${recovered.recoveryDirectory}`);
+      if (!recovered.saved) await mkdir(resolve(directory, "frames"));
+    } catch (error) {
+      await releaseVideoLock(directory, lockOwner.token);
+      throw error;
+    }
+    if (recovered.saved) {
+      report("Reusing the verified MP4.");
+      await releaseVideoLock(directory, lockOwner.token);
+      return { directory, reused: true, receipt: recovered.saved.receipt };
+    }
+    const manifest = {
+      schemaVersion: 1,
+      stage: "RENDERING",
+      renderKey: key,
+      selector,
+      inputHash: source.manifest.inputHash,
+      sourceManifestHash: source.manifestHash,
+      sourceRunId: preview.sourceRunId,
+      mediaJobId: preview.mediaJobId,
+      sourceAudioHash,
+      sourceCodeCommit,
+      encoding,
+      versions,
+      renderSources,
+      startedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      costCents: 0,
+      stockAvatar: "pending",
+      published: false,
+      quality: {} as Record<string, unknown>,
+      artifactHashes: {} as Record<string, string>,
+      error: null as string | null,
     };
-    const moments = videoTimeline(timing);
-    report(`Drawing ${moments.length} caption and scene frames.`);
-    for (const [index, moment] of moments.entries())
+    const save = async () => {
+      manifest.updatedAt = new Date().toISOString();
       await writeFile(
-        resolve(directory, "frames", `frame-${String(index).padStart(4, "0")}.png`),
-        await drawVideoFrame(input, moment),
+        resolve(directory, "video-manifest.tmp"),
+        `${JSON.stringify(manifest, null, 2)}\n`,
       );
-    await writeFile(resolve(directory, "timeline.ffconcat"), concatTimeline(moments));
-    await writeFile(resolve(directory, "source-narration.wav"), audio);
-    report("Measuring narration volume.");
-    const analysis = loudnessResult(
-      (
-        await command("input-loudness", "ffmpeg", [
-          "-hide_banner",
-          "-nostdin",
-          "-i",
-          "source-narration.wav",
-          "-af",
-          "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json",
-          "-f",
-          "null",
-          "-",
-        ])
-      ).stderr,
-    );
-    const filter = `loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=${analysis.input_i}:measured_TP=${analysis.input_tp}:measured_LRA=${analysis.input_lra}:measured_thresh=${analysis.input_thresh}:offset=${analysis.target_offset}:linear=true`;
-    report("Encoding the vertical MP4.");
-    await command("encode", "ffmpeg", [
-      "-hide_banner",
-      "-nostdin",
-      "-y",
-      "-f",
-      "concat",
-      "-safe",
-      "0",
-      "-protocol_whitelist",
-      "file,pipe",
-      "-i",
-      "timeline.ffconcat",
-      "-i",
-      "source-narration.wav",
-      "-map",
-      "0:v:0",
-      "-map",
-      "1:a:0",
-      "-vf",
-      "fps=30,format=yuv420p",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "fast",
-      "-crf",
-      "19",
-      "-threads",
-      "4",
-      "-r",
-      "30",
-      "-af",
-      filter,
-      "-c:a",
-      "aac",
-      "-b:a",
-      "192k",
-      "-ar",
-      "48000",
-      "-ac",
-      "2",
-      "-t",
-      timing.durationSeconds.toFixed(9),
-      "-movflags",
-      "+faststart",
-      "short.tmp.mp4",
-    ]);
-    manifest.stage = "VERIFYING";
-    await save();
-    report("Checking video format, complete decoding, and audio levels.");
-    const probe = JSON.parse(
-      (
-        await command("probe", "ffprobe", [
-          "-v",
-          "error",
-          "-show_streams",
-          "-show_format",
-          "-of",
-          "json",
-          "short.tmp.mp4",
-        ])
-      ).stdout,
-    ) as VideoProbe;
-    const quality = validateVideoProbe(probe, timing.durationSeconds);
-    await command("decode", "ffmpeg", [
-      "-v",
-      "error",
-      "-xerror",
-      "-nostdin",
-      "-i",
-      "short.tmp.mp4",
-      "-f",
-      "null",
-      "-",
-    ]);
-    const outputAudio = loudnessResult(
-      (
-        await command("output-loudness", "ffmpeg", [
-          "-hide_banner",
-          "-nostdin",
-          "-i",
-          "short.tmp.mp4",
-          "-af",
-          "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json",
-          "-f",
-          "null",
-          "-",
-        ])
-      ).stderr,
-    );
-    if (Math.abs(Number(outputAudio.input_i) + 16) > 1.5 || Number(outputAudio.input_tp) > -0.5)
-      throw new Error("MP4 narration volume is outside the review range");
-    const after = await loadVerifiedRun(sourceDirectory);
-    if (after.manifestHash !== preview.sourceManifestHash)
-      throw new Error("Source changed during MP4 rendering");
-    for (const [name, expected] of Object.entries(renderSources))
-      if (hash(await readFile(await sourceFile(name))) !== expected)
-        throw new Error(`Renderer input changed: ${name}; retry the export`);
-    await rename(resolve(directory, "short.tmp.mp4"), resolve(directory, "short.mp4"));
-    await writeFile(
-      resolve(directory, "poster.png"),
-      await drawVideoFrame(input, {
-        ...(moments[0] as NonNullable<(typeof moments)[0]>),
-        cueIndex: 0,
-      }),
-    );
-    await writeFile(resolve(directory, "timing.json"), timingText);
-    await writeFile(resolve(directory, "captions.vtt"), preview.files["captions.vtt"] as Buffer);
-    await writeFile(resolve(directory, "review.html"), videoPage(episode, timing.durationSeconds));
-    const publicationText = sourceCodeCommit
-      ? episode.publication.text.replace(
-          "Code link pending repository publication",
-          `https://github.com/Moty/sap-developer-shorts/tree/${sourceCodeCommit}/demos/cap/inventory`,
-        )
-      : episode.publication.text;
-    await writeFile(
-      resolve(directory, "publication-draft.txt"),
-      `${publicationText}\n\nProduction note: AI-generated narration${episode.presentation?.format === "dialogue" ? " with fictional AI hosts" : ""}.\n`,
-    );
-    for (const name of [
-      "short.mp4",
-      "poster.png",
-      "review.html",
-      "captions.vtt",
-      "timing.json",
-      "publication-draft.txt",
-    ])
-      manifest.artifactHashes[name] = hash(await readFile(resolve(directory, name)));
-    manifest.quality = {
-      ...quality,
-      decoded: true,
-      audioChecked: true,
-      integratedLufs: Number(outputAudio.input_i),
-      truePeakDb: Number(outputAudio.input_tp),
-      captions: timing.alignment ?? "measured-phrase-boundaries",
-      captionFrameToleranceSeconds: 1 / videoFps,
-      burnInCaptions: true,
+      await rename(
+        resolve(directory, "video-manifest.tmp"),
+        resolve(directory, "video-manifest.json"),
+      );
     };
-    manifest.stage = "READY";
-    await save();
-    report("MP4 verified and ready for review.");
-    return { directory, reused: false, receipt: manifest };
-  } catch (error) {
-    manifest.stage = "FAILED";
-    manifest.error = error instanceof Error ? error.message : "Video export failed";
-    await save();
-    throw error;
+    const command = async (name: string, binary: string, args: string[], timeout = 180000) => {
+      try {
+        const result = await exec(binary, args, {
+          cwd: directory,
+          timeout,
+          maxBuffer: 4 * 1024 * 1024,
+        });
+        await writeFile(resolve(directory, `${name}.log`), `${result.stdout}\n${result.stderr}`);
+        return result;
+      } catch (error) {
+        const failure = error as Error & { stdout?: string; stderr?: string };
+        await writeFile(
+          resolve(directory, `${name}.log`),
+          `${failure.message}\n${failure.stdout ?? ""}\n${failure.stderr ?? ""}`,
+        );
+        throw new Error(`Video ${name} failed; see the saved diagnostic log`, { cause: error });
+      }
+    };
+    try {
+      await save();
+      const evidence = !isNewsEpisode(episode)
+        ? (JSON.parse(
+            await readFile(resolve(sourceDirectory, "demo-evidence.json"), "utf8"),
+          ) as DemoEvidence)
+        : undefined;
+      const input: VideoFrameInput = {
+        episode,
+        timing,
+        layout,
+        code,
+        ...(evidence ? { evidence } : {}),
+      };
+      const moments = videoTimeline(timing);
+      report(`Drawing ${moments.length} caption and scene frames.`);
+      for (const [index, moment] of moments.entries())
+        await writeFile(
+          resolve(directory, "frames", `frame-${String(index).padStart(4, "0")}.png`),
+          await drawVideoFrame(input, moment),
+        );
+      await writeFile(resolve(directory, "timeline.ffconcat"), concatTimeline(moments));
+      await writeFile(resolve(directory, "source-narration.wav"), audio);
+      report("Measuring narration volume.");
+      const analysis = loudnessResult(
+        (
+          await command("input-loudness", "ffmpeg", [
+            "-hide_banner",
+            "-nostdin",
+            "-i",
+            "source-narration.wav",
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json",
+            "-f",
+            "null",
+            "-",
+          ])
+        ).stderr,
+      );
+      const filter = `loudnorm=I=-16:TP=-1.5:LRA=11:measured_I=${analysis.input_i}:measured_TP=${analysis.input_tp}:measured_LRA=${analysis.input_lra}:measured_thresh=${analysis.input_thresh}:offset=${analysis.target_offset}:linear=true`;
+      report("Encoding the vertical MP4.");
+      await command("encode", "ffmpeg", [
+        "-hide_banner",
+        "-nostdin",
+        "-y",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-protocol_whitelist",
+        "file,pipe",
+        "-i",
+        "timeline.ffconcat",
+        "-i",
+        "source-narration.wav",
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-vf",
+        "fps=30,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "19",
+        "-threads",
+        "4",
+        "-r",
+        "30",
+        "-af",
+        filter,
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-t",
+        timing.durationSeconds.toFixed(9),
+        "-movflags",
+        "+faststart",
+        "short.tmp.mp4",
+      ]);
+      manifest.stage = "VERIFYING";
+      await save();
+      report("Checking video format, complete decoding, and audio levels.");
+      const probe = JSON.parse(
+        (
+          await command("probe", "ffprobe", [
+            "-v",
+            "error",
+            "-show_streams",
+            "-show_format",
+            "-of",
+            "json",
+            "short.tmp.mp4",
+          ])
+        ).stdout,
+      ) as VideoProbe;
+      const quality = validateVideoProbe(probe, timing.durationSeconds);
+      await command("decode", "ffmpeg", [
+        "-v",
+        "error",
+        "-xerror",
+        "-nostdin",
+        "-i",
+        "short.tmp.mp4",
+        "-f",
+        "null",
+        "-",
+      ]);
+      const outputAudio = loudnessResult(
+        (
+          await command("output-loudness", "ffmpeg", [
+            "-hide_banner",
+            "-nostdin",
+            "-i",
+            "short.tmp.mp4",
+            "-af",
+            "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json",
+            "-f",
+            "null",
+            "-",
+          ])
+        ).stderr,
+      );
+      if (Math.abs(Number(outputAudio.input_i) + 16) > 1.5 || Number(outputAudio.input_tp) > -0.5)
+        throw new Error("MP4 narration volume is outside the review range");
+      const after = await loadVerifiedRun(sourceDirectory);
+      if (after.manifestHash !== preview.sourceManifestHash)
+        throw new Error("Source changed during MP4 rendering");
+      for (const [name, expected] of Object.entries(renderSources))
+        if (hash(await readFile(await sourceFile(name))) !== expected)
+          throw new Error(`Renderer input changed: ${name}; retry the export`);
+      await rename(resolve(directory, "short.tmp.mp4"), resolve(directory, "short.mp4"));
+      await writeFile(
+        resolve(directory, "poster.png"),
+        await drawVideoFrame(input, {
+          ...(moments[0] as NonNullable<(typeof moments)[0]>),
+          cueIndex: 0,
+        }),
+      );
+      await writeFile(resolve(directory, "timing.json"), timingText);
+      await writeFile(resolve(directory, "captions.vtt"), preview.files["captions.vtt"] as Buffer);
+      await writeFile(
+        resolve(directory, "review.html"),
+        videoPage(episode, timing.durationSeconds),
+      );
+      const publicationText = sourceCodeCommit
+        ? episode.publication.text.replace(
+            "Code link pending repository publication",
+            `https://github.com/Moty/sap-developer-shorts/tree/${sourceCodeCommit}/demos/cap/inventory`,
+          )
+        : episode.publication.text;
+      await writeFile(
+        resolve(directory, "publication-draft.txt"),
+        `${publicationText}\n\nProduction note: AI-generated narration${episode.presentation?.format === "dialogue" ? " with fictional AI hosts" : ""}.\n`,
+      );
+      for (const name of [
+        "short.mp4",
+        "poster.png",
+        "review.html",
+        "captions.vtt",
+        "timing.json",
+        "publication-draft.txt",
+      ])
+        manifest.artifactHashes[name] = hash(await readFile(resolve(directory, name)));
+      manifest.quality = {
+        ...quality,
+        decoded: true,
+        audioChecked: true,
+        integratedLufs: Number(outputAudio.input_i),
+        truePeakDb: Number(outputAudio.input_tp),
+        captions: timing.alignment ?? "measured-phrase-boundaries",
+        captionFrameToleranceSeconds: 1 / videoFps,
+        burnInCaptions: true,
+      };
+      manifest.stage = "READY";
+      await save();
+      report("MP4 verified and ready for review.");
+      return { directory, reused: false, receipt: manifest };
+    } catch (error) {
+      manifest.stage = "FAILED";
+      manifest.error = error instanceof Error ? error.message : "Video export failed";
+      await save();
+      throw error;
+    } finally {
+      await releaseVideoLock(directory, lockOwner.token);
+    }
   } finally {
-    await rm(lock);
+    releaseGate();
   }
 }

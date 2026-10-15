@@ -12,14 +12,14 @@ import {
   type PackageVideoReceipt,
 } from "./episode-package.js";
 import { createLibraryPages } from "./library-review.js";
-import { readPcmWav } from "./media/audio.js";
+import { buildVtt, readPcmWav } from "./media/audio.js";
 import { validateTiming } from "./media/package.js";
 import { collectVoiceSamples, type VoiceSample } from "./media/voice-audition.js";
 import { loadVerifiedRun, productionSettings } from "./media/worker.js";
 import { inside, projectRoot, sourceFile } from "./paths.js";
 import { episodeSelector, episodeSourceFiles } from "./presentation.js";
 import { readRuntimeFiles } from "./provenance.js";
-import { readVideoReceipt } from "./video/receipt.js";
+import { assertVideoQuality, readVideoReceipt } from "./video/receipt.js";
 
 export interface LibraryPreview {
   kind: "narrated" | "storyboard";
@@ -158,6 +158,8 @@ export async function collectLibrary(
             entry.episode,
             readPcmWav(files["narration.wav"] ?? Buffer.alloc(0)).length / 2,
           );
+          if (files["captions.vtt"]?.toString("utf8") !== buildVtt(timing.cues))
+            throw new Error("Narration captions differ from the timing");
           const hook = timing.scenes[0]?.speechSeconds ?? Infinity;
           previews.push({
             kind: "narrated",
@@ -216,6 +218,7 @@ export async function collectLibrary(
         );
         const { receipt, files } = await readVideoReceipt(videoRoot);
         assertPackageReceipt(receipt);
+        assertVideoQuality(receipt.quality, entry.preview.durationSeconds);
         if (
           receipt.selector !== episodeSelector(entry.episode) ||
           receipt.inputHash !== hash(JSON.stringify(entry.episode)) ||

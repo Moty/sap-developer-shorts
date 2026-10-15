@@ -181,7 +181,7 @@ test("a completed video receipt rejects changed artifacts and files outside its 
     JSON.stringify({
       schemaVersion: 1,
       stage: "READY",
-      quality: { decoded: true, audioChecked: true },
+      quality: { decoded: true, audioChecked: true, durationSeconds: 55 },
       artifactHashes,
     }),
   );

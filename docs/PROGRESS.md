@@ -423,3 +423,37 @@ focused tests and found no blocker. The studio has nine prepared MP4s/packages,
 nine script workshops, two voice samples, and **120 matching artifact hashes**;
 all ZIP CRC/member hashes pass. Heart remains the default; everything is local
 and unpublished.
+
+## Milestone 3m: export recovery and consistency boundaries
+
+Astra's broad review reproduced four issues using temporary copies. The studio
+now requires captions to match validated timing exactly, and shared video quality
+checks require real successful flags, bounded finite duration, and agreement with
+selected narration. Invalid candidates fall back to valid previews instead of
+becoming downloadable packages.
+
+Damaged READY exports can now recover under their lock: previous attempt files
+and diagnostics move to a named recovery directory, then the renderer rebuilds
+from saved speech. Earlier recovery directories and the active lock/gate remain.
+Foreign full render keys and redirected cache directories are refused. Moving
+symlinks themselves prevents repair writes from following their former targets.
+
+Astra also reproduced two stale-lock observers deleting a newly acquired live
+lock. A per-cache SQLite immediate transaction now serializes acquisition,
+recovery, rendering, and release. It adds no dependency or lease table and closes
+even when PID-lock release fails. Process termination releases the gate. Astra's
+controlled replay now records one stale observer and one live lock; the competing
+attempt is blocked before it can delete anything.
+
+Minimum Node 22.13.0 checks pass: **109 workflow tests**, five live CAP assertions,
+formatting, types, validation, and build. Tests cover contradictory caption text
+and timestamps, malformed quality metadata, exact narration selection, recovery
+preservation, symlink boundaries, real competing processes, and killed-owner
+release. Astra independently passed ten focused cache/receipt checks.
+
+A real isolated FFmpeg test copied the saved news dialogue, rendered it, damaged
+only that scratch MP4, and repaired the same key/media identifier. Original and
+copied narration hashes stayed unchanged. Quarantine retained the damaged bytes
+and previous READY receipt; repeat rendering reused the repaired video. Full
+decode/audio checks pass, and its rebuilt ZIP passed independent CRC/member
+hash verification. Original media and the production jobs database were untouched.
