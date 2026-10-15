@@ -702,3 +702,40 @@ The final studio passes 146 artifact hashes and eleven nested ZIP checks. Its
 match their source hashes. The corrected code link and AI disclosure appear in
 the main and extracted studios; the refreshed conversation player loads paused
 without an error. No speech generation, paid cost, or publication occurred.
+
+## Milestone 3v: recover unfinished workshop drafts
+
+The workshop can now recover raw edits after reloading the same browser tab at
+the same address. A matching record offers **Resume saved draft** and **Start
+with original** before editing or downloading resumes. Version names, wording,
+headlines, companion copy, and allowed voices are restored; incomplete drafts
+retain their validation errors. Starting facts, source dates, timing, and
+presentation structure cannot be restored from browser storage.
+
+Recovery uses a bounded 128 KiB session record tied to the exact editor context
+and URL. Corrupt, stale, oversized, unknown-field, and invalid-voice records are
+excluded. Blocked or full storage leaves editing and JSON downloading available.
+Closing the tab or changing its address/input can lose recovery; the downloaded
+JSON remains the portable copy. Existing recordings and global Heart stay fixed.
+
+Astra planned and implemented the behavior and twenty focused workshop tests,
+then reviewed integration independently. Real browser testing found that a
+reload near the end could leave the pending choice off-screen. A finite,
+guarded adjustment after page restoration now brings the choice into view.
+Resolving the choice prevents later callbacks from moving focus or scrolling;
+ordinary page position remains unchanged.
+
+Full minimum Node 22.13.0 checks/build pass: **163 workflow tests** and five live
+CAP assertions. Desktop 1280px and phone 390px show the entire pending prompt
+without overflow, with keyboard access. Solo/conversation/news tests preserve
+raw spaces, voice choices, unfinished text, validation, and source-review dates.
+Targeted restores, downloads, discard/reload, and four isolated JSON imports
+pass, including a recovered revision from an extracted portable studio. Blocked
+storage and malformed records are covered in actual-template tests.
+
+A controlled rebuild leaves all **135 non-editor artifacts** and **24 saved
+MP4/WAV/sample files** byte-identical; only eleven workshops change. The current
+studio and extracted 84.2 MiB archive pass 146 hashes, eleven nested ZIP checks,
+148 archive members, and 231 confined links across 45 HTML files. The native
+studio download matches its archive hash. All earlier artifacts remain intact;
+no speech generation, video export, paid cost, or publication was required.

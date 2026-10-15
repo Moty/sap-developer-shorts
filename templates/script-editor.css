@@ -214,6 +214,36 @@ pre {
   padding: 16px 0;
   margin: 20px 0;
 }
+.draft-recovery {
+  padding: 20px 24px;
+  margin: 24px 0;
+  border: 1px solid #c7d5c7;
+  border-radius: 14px;
+  background: #f1f5ed;
+}
+.draft-recovery p {
+  margin: 0 0 12px;
+}
+.draft-recovery p:last-child {
+  margin-bottom: 0;
+}
+.recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.recovery-actions button {
+  margin: 0 0 12px;
+}
+#discard-draft {
+  background: #fff;
+  color: #315548;
+  border: 1px solid #93a79a;
+}
+.recovery-help {
+  color: #60746b;
+  font-size: 13px;
+}
 .change-review summary {
   color: #315548;
   padding: 4px 0;

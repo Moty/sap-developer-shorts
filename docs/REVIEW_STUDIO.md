@@ -3,8 +3,18 @@
 Use **Revise script** on an episode card to open its script workshop. Edit an
 existing delivery, choose voices for its speakers, download a new named version, then use `script-import` and the
 printed production command. Source/claim/demo inputs and source-review dates stay
-fixed. Edits are held only in the page until downloaded; existing versions and
+fixed. Revisions remain in the browser until downloaded; existing versions and
 recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
+
+Where browser storage is available, unfinished edits can be recovered after
+reloading the same tab at the same address. Choose **Resume saved draft** or
+**Start with original** before editing or downloading again. Recovery restores
+only editable wording, version naming, and allowed voice choices for the exact
+starting input. Invalid edits retain their validation messages. The saved record
+is limited to 128 KiB and does not travel with the studio ZIP or revised JSON.
+Closing the tab, changing the address or starting input, or browser restrictions
+can prevent recovery. Storage failures leave editing and downloading available;
+downloaded JSON is the portable copy to keep.
 
 The optional **Review changes** panel compares only edited sections with the
 starting script: title, voices, scene headlines/narration, and companion post.

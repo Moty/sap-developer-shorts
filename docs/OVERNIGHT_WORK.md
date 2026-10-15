@@ -906,3 +906,114 @@ post nativebrowser showcorrectsourceURL+AIhostdisclosure. Port60141owned83934,
 old30814/temp96446stopped. Evidence published-demo-links-{library,browser,episode,
 studio-package}-evidence.json and{library,extracted}-hashes.json. Nextcommit/push/
 CI/updateignoredlast-result; final06:45audit/07stop+pause/awakeexpiry unchanged.
+
+05:28 PT: Historical-link fix8b4f1c9 pushed; Node22/24 CI38734392591 success.
+Post-commit CAP01duo render reuses98a4124074b53740 withsame publishedcodecommit;
+no new encoding. Current fd081375studio4173server39636,whole11c88239bundle60141
+server83934. Allprior artifacts retained. Astra's final audit found no other
+editorial discrepancy across11/77/202;18sampledframes supportvisualmeaning.
+
+NEXT MILESTONE IN PROGRESS: Astra-approved same-tab draft recovery,35–45minute
+cap, no media generation. Astra owns ONLY templates/script-editor.js +
+tests/script-editor.test.ts. Parent owns src/script-editor.ts markup/payload,
+templates/script-editor.css, docs/realQA/fullchecks. Parentmarkup/CSS ready,
+payload.recoveryId=SHA256(JSON.stringify original {seed,availableVoices,
+reservedNames,scenes}). #draft-recovery hidden namedsectionoutside disabledfields
+andhidden downloadcontrols; #draft-recovery-message role=status/livepolite;
+#resume-draft/#discard-draft typebuttonhidden, labelsResume saved draft/Start with
+original; .recovery-actions/.recovery-help, static tab/address/downloadcopy note.
+Footer conditionalrecovery guidance. Existing[hidden]!importantwarning retained.
+
+Contract: sessionStorage only, keyorigin+URLpathname+recoveryId; exactcurrent
+seed/base/voices/reservednames/scenetimings context,128KiBrecordcap. PreserveRAW
+editabletitle/version/post/overlays/narration/dialogueturns/voices includinginvalid
+drafts; neverrestore claims/dates/timing/presentationstructure. Onreload matching
+recordoffer Resume saved draft / Start with original BEFORE enabling fields or
+downloads; no silentoverwrite. Exactshape/allowedID/size guards; stale/corrupt/
+oversized/blocked/quota/get/set/remove failures cannot disable ordinaryediting/
+download; unchangedfieldsavoidrepeatedwrites/status. No localStorage/crosstab/
+backend/migrations/globaldefault. Same identicalinputat sameURLmayoffercompatible
+recoveryafterserverrepoint; no claimofuniquebuildidentity. Closingtab/newaddress/
+browserpolicy mayloseit; JSONportablecopyremainsneeded.
+
+Next Astrafreeze/focusedtests, parentreview/fullminimumchecks/build; controlled
+samefd081375builtAt mustpreserve135noneditors/24media andonly11workshopschange.
+Real browser solo/duo/news edit/reload/pendinggate/resume/download/import, invalid
+edits blocked, Startoriginal clears, storagefailtests, portableextracted recovery
+orgracefulfallback/390px+keyboard/screenshots. Full146hash/11ZIP/wholeZIP148member/
+231links/nativeZIP thencommit/push/CI. Do not changeJSsource whiletests/realbuild
+run. Finishby06:15–06:30, hard06:45finalaudit/07stop+pause/awake76680expiry.
+
+05:37 PT IN PROGRESS: Recovery JS19focusedtests +initialfull162workflow/5liveCAP
+pass. ParentdocsREADME/REVIEW_STUDIO/PRESENTATION_STYLES updated; wholebundleREADME
+conditionalrecovery guidance updated in src/library-package.ts (no otherpackage
+logic). Astra corrected reordered-field baseline comparison, blockedremove
+honesty; independentmarkup/CSP/noJSreview passed. Generator unchanged.
+
+Browser solo rawleading/trailingtitle/hook/post,Michaelvoice/version/sceneoverlay
+survive reload/resume exactly; invalid8wordhook stillblocks. ExistingReview
+Restore scene1 fixeshook whilepreservingotheredits, literal <em>stays text(noem
+elements). Native CAP-02--recovery-solo-check.json savedbutNOTYETIMPORTED. Download
+keepsrecoveryrecord. Maincontrolledtab1 currently pendingRecovery afterreload at
+http://127.0.0.1:4173/episodes/CAP-02/edit.html, viewport1280x1000.
+
+Concrete new usabilityissue: WK reload restores oldbottom scroll AFTER synchronous
+focus. Initialnofocus promptoffscreen; simplefocuspatch focusedResume butactual
+buttonTop-3666/promptTop-3725/scrollY4049 stilloffscreen. Astra owns JS/tests again
+for pageshow->postnavigationtask/paint explicitpromptscroll+focus, guardedwhile
+pending only, no historyscrollRestoration/globaltimers. ParentcheckedMDN Window
+popstate#when_popstate_is_sent: pageshow precedespersistedscrollrestoration. Need
+actualbrowserretest thisbeforefinalizing. Badframing draft-recovery-desktop/phone
+screenshots currentlyshowbottomfields; MUSToverwritewithtruepromptviewsbeforeuse.
+
+Currentmainstudio dcad453e-b7d2-4c71-ac58-ac2970858c8e served4173owned95741 (simple
+focus version). Prior a469796b server7050stopped; priorfd08137539636stopped. Latest
+controlled4d68951f proves135noneditors/24media exact/11editors changedagainstfd081;
+draft-recovery-library-evidence.json pointsdcadcurrently. Wholepackagee69d9d43
+was earlierpre-focusbuild; NOTfinal. Port60141 stilloldverified11c88239owned83934.
+NextfinalAstrafreeze, fullcheckagainjustifiedfocuslogicchange, rebuildcontrolled/
+realstudio, replaceownedmainserver, native reload-offscreen regression then all
+remainingduo/news/discard/import/phone+desktop/portable/nativeZIPchecks. No speech
+or newMP4s inthisfeature. About68minutesbefore06:45audit;07stop/pause/awakeunchanged.
+
+05:43 PT: Recovery milestone complete locally, sourcefrozen. Simplefocus was
+insufficient inrealWK; finalpageshow->twoRAF guarded explicitpanel scroll+Resume
+focus passesactualbottom-reload:scrollY0,promptTop324.13,bottom492.12,focusResume.
+Phone390promptTop349.16/bottom733.91/nooverflow; desktop1280 fits. Screenshots
+draft-recovery-desktop.png/phone.png OVERWRITTENwithtruepromptviews andinspected.
+KeyboardSpace resume focusesversion. Astra finalread-onlylifecycle review no
+blocker: finitecallbacks, pendingrecheck, nofocusstealaftersresume/discard/noordinary
+scrollchange. FullminimumNode22.13check/build163workflow+5liveCAP PASS in
+check-draft-recovery.log. Focused20workshoptests include lifecycle/storagelimits/
+raw/incompatible/blockedallmethods/write+announcementstability/discard.
+
+AllrealQA passed: solo rawspacestitle/hook/post/Michael/version/overlay recover;
+invalidhookblocked,ReviewRestore scene1 keepsotheredits, literalmarkuptextonly.
+Pre/postfocusfix native soloJSON bytes exact. Duo duplicatedMichaelvoices+empty
+turn recover butremainblocked, targetedvoice/scenerestoresfixonlythose; other
+scene/version kept. Newsresume keepsOct15throughOct22datednotice. Alltestrecords
+discarded viaUI; soloreload confirmsno pendingprompt. Four nativeJSONs imported
+only .state/overnight/draft-recovery-imports-JCbq7O (solo,duo,news,portable), exact
+base/sources/claims/timing/visuals preserved; dialoguejoinscorrect/Heartdefault.
+Evidence draft-recovery-import-evidence.json/browser-evidence.json. Browser
+storagefaultsinactualtemplateVMtests only; no injectedbrowserstorage changes.
+
+Finalcontrolledc1705428 fromoldfd081375builtAt preserves135noneditors/24media,
+only11editors differ; old146hashes/generator unchanged. Currentstudio
+f8dddb3a-c2fb-4e8f-8959-cf06d676b24a all146hash/11ZIP/11editors/2samples pass.
+Port4173owned3921; old95741stopped. Currentwholebundle
+f29650d4-cb22-47d1-8772-406674037845,88294900bytes,
+SHAa24d67ebec1db8b5b8e64dbab281dc690c3e818a62ec2d659426661ebe8ca33c,
+manifest5d4d494f8d24b230bee3675a8088829e407511d2c3edd9c27a7826b6d528d579.
+148members/146studioSHA/sourceunchanged verified. Extractedstudio-package-60hmntp7/
+studio passes146hash/11ZIP/45HTML/231links; its CAP02 recovery/reload/Resume/JSON
+download/import works, defaultHeart. Nativesap-shorts-studio (5).zip exactSHA.
+Port60141owned26557; old83934/temp6300stopped; viewportreset. Evidence draft-
+recovery-{library,studio-package}-evidence.json, {library,extracted}-hashes.json.
+
+No speech/video rendering/paidgeneration/publishing/providerbypass/globalsettings
+changes. Earlierintermediate a469/dcad/e69 artifacts retained valid snapshots.
+Next commit/push/CI/updateignoredlast-result, then prepare final morning handoff
+and bounded remaining-work plan. No new feature without Astra plan and enough
+verification time;06:45finalaudit/07stop+pause/awake76680expiry unchanged. Explicit
+06:45wake confirmed inautomation (scheduledminutes00/20/40/45,expires07).

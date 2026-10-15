@@ -115,6 +115,11 @@ with the starting script. Restore the title, post, one scene, or the starting
 voices while keeping the version name and other edits. The comparison uses the
 same draft as the download; invalid drafts still need correction.
 
+The workshop can keep unfinished edits for recovery after a reload in the same
+tab at the same address. Choose **Resume saved draft** or **Start with original**
+before editing again. Download the JSON to keep a portable copy; closing the tab,
+changing the address, or browser storage restrictions may lose recovery.
+
 Presentation can vary independently of the episode's subject. The studio includes a **Delivery styles** section with professional, casual, comic, and two-person CAP comparisons, plus `CAP-01@countdown` for a numbered three-step recipe and `CAP-02@quiz` for a predict-the-result challenge. Set tone, story format, and humor in a presentation variant; the conversation uses Heart and Michael with speaker captions. Try `npm run shorts -- produce CAP-02@quiz` or `npm run shorts -- narrate CAP-01@duo` after `npm run shorts -- voice-setup am_michael`. See [presentation styles](docs/PRESENTATION_STYLES.md) for supported formats, authoring, and review. New style scripts must be authored before generation; the format gallery shows each available example's actual readiness.
 
 The default is Kokoro's **Heart** voice, selected for a warm, conversational female narrator. On macOS, install [uv](https://docs.astral.sh/uv/getting-started/installation/) and run the one-time setup. It installs a separate Python environment and downloads the pinned model; narration then runs locally without sending the script to a speech service.

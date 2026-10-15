@@ -1,5 +1,5 @@
 (() => {
-  const { seed, scenes, reservedNames, availableVoices } = JSON.parse(
+  const { seed, scenes, reservedNames, availableVoices, recoveryId } = JSON.parse(
     document.getElementById("editor-data").textContent,
   );
   const byId = (id) => document.getElementById(id);
@@ -7,6 +7,132 @@
   const download = byId("download-script");
   const status = byId("download-status");
   let reviewedDraft = "";
+  const recoveryLimit = 128 * 1024;
+  const fieldIds = ["variant-name", "draft-title", "publication-text"];
+  for (const [index] of seed.presentation.speakers.entries())
+    fieldIds.push(`speaker-voice-${index}`);
+  for (const [index, scene] of seed.scenes.entries()) {
+    fieldIds.push(`overlay-${index}`);
+    if (scene.dialogue)
+      for (const [position] of scene.dialogue.entries()) fieldIds.push(`turn-${index}-${position}`);
+    else fieldIds.push(`narration-${index}`);
+  }
+  const rawFields = () => Object.fromEntries(fieldIds.map((id) => [id, byId(id).value]));
+  const startingFields = rawFields();
+  const startingSignature = JSON.stringify(startingFields);
+  let storage;
+  let recoveryKey;
+  let pendingRecovery = null;
+  let lastSavedFields = startingSignature;
+  let hasSavedDraft = false;
+  const recoveryMessage = (message) => {
+    byId("draft-recovery").hidden = false;
+    if (byId("draft-recovery-message").textContent !== message)
+      byId("draft-recovery-message").textContent = message;
+  };
+  const unavailable = () => {
+    storage = undefined;
+    recoveryMessage(
+      "Browser draft recovery is unavailable. You can still edit and download your script; unsaved edits may be lost on reload.",
+    );
+  };
+  const fitsRecovery = (text) =>
+    text.length <= recoveryLimit && new TextEncoder().encode(text).byteLength <= recoveryLimit;
+  function validFields(fields) {
+    if (!fields || typeof fields !== "object" || Array.isArray(fields)) return false;
+    if (Object.keys(fields).length !== fieldIds.length) return false;
+    if (fieldIds.some((id) => !Object.hasOwn(fields, id) || typeof fields[id] !== "string"))
+      return false;
+    return seed.presentation.speakers.every((speaker, index) => {
+      const voice = fields[`speaker-voice-${index}`];
+      return voice === speaker.voice || availableVoices.includes(voice);
+    });
+  }
+  function clearSavedDraft() {
+    if (!hasSavedDraft) return;
+    storage.removeItem(recoveryKey);
+    hasSavedDraft = false;
+  }
+  function saveRecovery() {
+    if (!storage || pendingRecovery) return;
+    const fields = rawFields();
+    const signature = JSON.stringify(fields);
+    if (signature === lastSavedFields) return;
+    lastSavedFields = signature;
+    try {
+      if (signature === startingSignature) {
+        clearSavedDraft();
+        recoveryMessage(
+          "Starting script restored. Download a revised script to keep a portable copy.",
+        );
+        return;
+      }
+      const record = JSON.stringify({ schemaVersion: 1, recoveryId, fields });
+      if (!fitsRecovery(record) || !validFields(fields)) {
+        clearSavedDraft();
+        recoveryMessage(
+          "This draft cannot be kept for browser recovery. Your edits remain here; correct the draft and download it to keep a copy.",
+        );
+        return;
+      }
+      storage.setItem(recoveryKey, record);
+      hasSavedDraft = true;
+      recoveryMessage(
+        "Unsaved draft kept in this tab at this address. Download your script for a portable copy; closing the tab may discard browser recovery.",
+      );
+    } catch {
+      unavailable();
+    }
+  }
+  function prepareRecovery() {
+    try {
+      if (!/^[a-f0-9]{64}$/u.test(recoveryId ?? "")) throw new Error("Missing recovery identity");
+      recoveryKey = `sap-shorts:script-draft:${JSON.stringify([location.origin, location.pathname, recoveryId])}`;
+      storage = sessionStorage;
+      if (
+        !storage ||
+        ["getItem", "setItem", "removeItem"].some((name) => typeof storage[name] !== "function")
+      )
+        throw new Error("Unavailable browser storage");
+      const saved = storage.getItem(recoveryKey);
+      if (saved === null) return;
+      hasSavedDraft = true;
+      let record;
+      try {
+        if (typeof saved !== "string" || !fitsRecovery(saved)) throw new Error("Oversized draft");
+        record = JSON.parse(saved);
+        if (
+          !record ||
+          typeof record !== "object" ||
+          Array.isArray(record) ||
+          Object.keys(record).length !== 3 ||
+          record.schemaVersion !== 1 ||
+          record.recoveryId !== recoveryId ||
+          !validFields(record.fields)
+        )
+          throw new Error("Incompatible draft");
+      } catch {
+        clearSavedDraft();
+        recoveryMessage(
+          "An incompatible or damaged browser draft was ignored. The starting script is ready to edit.",
+        );
+        return;
+      }
+      record.fields = Object.fromEntries(fieldIds.map((id) => [id, record.fields[id]]));
+      if (JSON.stringify(record.fields) === startingSignature) {
+        clearSavedDraft();
+        return;
+      }
+      pendingRecovery = record.fields;
+      byId("resume-draft").hidden = false;
+      byId("discard-draft").hidden = false;
+      recoveryMessage(
+        "An unsaved draft from this tab matches this starting script. Resume it, or start with the original. Editing and downloading wait for your choice.",
+      );
+    } catch {
+      unavailable();
+    }
+  }
   const element = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -204,15 +330,18 @@
       `npm run shorts -- produce ${draft.baseEpisodeId}@${draft.presentation.variant} --serve`;
     download.disabled = !!errors.length;
     reviewChanges(draft);
+    saveRecovery();
     return { draft, errors };
   }
   const update = () => {
+    if (pendingRecovery) return;
     status.textContent = "";
     readDraft();
   };
   byId("editor-fields").addEventListener("input", update);
   byId("editor-fields").addEventListener("change", update);
   download.addEventListener("click", () => {
+    if (pendingRecovery) return;
     const { draft, errors } = readDraft();
     if (errors.length) return;
     const filename = `${draft.baseEpisodeId}--${draft.presentation.variant}.json`;
@@ -228,7 +357,53 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     status.textContent = `Downloaded ${filename}. Import this file before producing the new version.`;
   });
-  byId("editor-fields").disabled = false;
-  byId("download-controls").hidden = false;
-  readDraft();
+  function enableEditor() {
+    byId("editor-fields").disabled = false;
+    byId("download-controls").hidden = false;
+    byId("resume-draft").hidden = true;
+    byId("discard-draft").hidden = true;
+    readDraft();
+  }
+  byId("resume-draft").addEventListener("click", () => {
+    if (!pendingRecovery) return;
+    for (const id of fieldIds) byId(id).value = pendingRecovery[id];
+    lastSavedFields = JSON.stringify(rawFields());
+    pendingRecovery = null;
+    recoveryMessage(
+      "Recovered this tab's unsaved draft. Check the validation messages and review changes before downloading.",
+    );
+    enableEditor();
+    byId("variant-name").focus();
+  });
+  byId("discard-draft").addEventListener("click", () => {
+    if (!pendingRecovery) return;
+    pendingRecovery = null;
+    for (const id of fieldIds) byId(id).value = startingFields[id];
+    try {
+      clearSavedDraft();
+      recoveryMessage("Saved draft discarded. The starting script is ready to edit.");
+    } catch {
+      unavailable();
+    }
+    enableEditor();
+    byId("variant-name").focus();
+  });
+  addEventListener("pageshow", () => {
+    if (!pendingRecovery) return;
+    // Let navigation restore its scroll position before bringing the pending choice into view.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (!pendingRecovery) return;
+        byId("draft-recovery").scrollIntoView({ block: "center", behavior: "instant" });
+        byId("resume-draft").focus({ preventScroll: true });
+      }),
+    );
+  });
+  prepareRecovery();
+  if (pendingRecovery) {
+    byId("editor-fields").disabled = true;
+    byId("download-controls").hidden = true;
+    download.disabled = true;
+    byId("resume-draft").focus();
+  } else enableEditor();
 })();

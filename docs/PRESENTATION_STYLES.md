@@ -79,7 +79,12 @@ the current base before writing and refuses existing versions. It does not
 generate media. New scripts need their own production result; earlier recordings
 remain available under their original selectors. The workshop's word counts and
 pacing warnings are draft guidance; narration duration is measured after recording.
-Changes stay only in the open page until downloaded. Reloading discards unsaved edits.
+Where browser storage is available, the same tab and address can recover edits
+after reloading. Choose **Resume saved draft** or **Start with original** before
+editing again. Recovery keeps raw wording and voices, including incomplete drafts
+that still need correction. It applies only to the exact starting input. Download
+the JSON to keep a portable copy; closing the tab, changing the address, or browser
+storage restrictions may lose recovery.
 
 Review rewritten claims against the official sources. Structural validation does
 not fact-check new wording. Dated news retains its original source-review date;

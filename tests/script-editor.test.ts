@@ -60,7 +60,43 @@ test("workshop escapes edited text and has a readable no-JavaScript fallback", a
   assert.match(expired, /review valid through <strong>2026-10-22<\/strong>/u);
 });
 
-async function workshop(selector: string, availableVoices = ["af_heart", "am_michael"]) {
+type RecoveryStorage = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+};
+
+function recoveryStorage() {
+  const data = new Map<string, string>();
+  const calls = { get: 0, set: 0, remove: 0 };
+  return {
+    data,
+    calls,
+    getItem(key: string) {
+      calls.get++;
+      return data.get(key) ?? null;
+    },
+    setItem(key: string, value: string) {
+      calls.set++;
+      data.set(key, value);
+    },
+    removeItem(key: string) {
+      calls.remove++;
+      data.delete(key);
+    },
+  };
+}
+
+async function workshop(
+  selector: string,
+  availableVoices = ["af_heart", "am_michael"],
+  recovery: {
+    storage?: RecoveryStorage | null;
+    blockedAccess?: boolean;
+    pathname?: string;
+    mutatePayload?: (payload: Record<string, unknown>) => void;
+  } = {},
+) {
   const html = await createScriptEditor(await readContentEpisode(selector), {
     reservedNames: ["taken"],
     availableVoices,
@@ -70,7 +106,13 @@ async function workshop(selector: string, availableVoices = ["af_heart", "am_mic
   );
   assert.ok(match?.[1]);
   const payload = JSON.parse(match[1]);
+  recovery.mutatePayload?.(payload);
+  const storage = recovery.storage === undefined ? recoveryStorage() : recovery.storage;
   let focused = "";
+  let scrollPosition = 0;
+  const scrolledIntoView: string[] = [];
+  const pageListeners = new Map<string, () => void>();
+  let animationFrames: (() => void)[] = [];
   class Element {
     value = "";
     hidden = false;
@@ -113,8 +155,12 @@ async function workshop(selector: string, availableVoices = ["af_heart", "am_mic
     click() {
       this.listeners.get("click")?.();
     }
-    focus() {
+    focus(_options?: { preventScroll?: boolean }) {
       focused = this.id;
+    }
+    scrollIntoView() {
+      scrolledIntoView.push(this.id);
+      scrollPosition = 0;
     }
     remove() {}
   }
@@ -131,7 +177,7 @@ async function workshop(selector: string, availableVoices = ["af_heart", "am_mic
     assert.ok(result, `Unknown editor element: ${id}`);
     return result;
   };
-  node("editor-data").textContent = match[1];
+  node("editor-data").textContent = JSON.stringify(payload);
   for (const id of [
     "editor-fields",
     "download-controls",
@@ -144,6 +190,10 @@ async function workshop(selector: string, availableVoices = ["af_heart", "am_mic
     "review-changes-summary",
     "review-changes-count",
     "review-changes-list",
+    "draft-recovery",
+    "draft-recovery-message",
+    "resume-draft",
+    "discard-draft",
   ])
     node(id);
   node("variant-name", payload.seed.presentation.variant);
@@ -173,7 +223,18 @@ async function workshop(selector: string, availableVoices = ["af_heart", "am_mic
     constructor(readonly parts: string[]) {}
   }
   const downloads: TestBlob[] = [];
-  runInNewContext(await readFile(resolve(projectRoot, "templates/script-editor.js"), "utf8"), {
+  const context = {
+    TextEncoder,
+    addEventListener: (name: string, handler: () => void) => pageListeners.set(name, handler),
+    requestAnimationFrame: (handler: () => void) => animationFrames.push(handler),
+    location: {
+      origin: "http://localhost:4173",
+      pathname: recovery.pathname ?? `/episodes/${selector}/edit.html`,
+    },
+    get sessionStorage() {
+      if (recovery.blockedAccess) throw new Error("Blocked browser storage");
+      return storage;
+    },
     structuredClone,
     document: {
       getElementById: get,
@@ -189,7 +250,11 @@ async function workshop(selector: string, availableVoices = ["af_heart", "am_mic
       revokeObjectURL() {},
     },
     setTimeout: (handler: () => void) => handler(),
-  });
+  };
+  runInNewContext(
+    await readFile(resolve(projectRoot, "templates/script-editor.js"), "utf8"),
+    context,
+  );
   const update = () => get("editor-fields").listeners.get("input")?.();
   const download = () => get("download-script").listeners.get("click")?.();
   const descendants = (element: Element): Element[] => [
@@ -214,6 +279,19 @@ async function workshop(selector: string, availableVoices = ["af_heart", "am_mic
     restore,
     focused: () => focused,
     seed: payload.seed,
+    payload,
+    storage,
+    pageshow: () => pageListeners.get("pageshow")?.(),
+    restoreScroll: (value: number) => {
+      scrollPosition = value;
+    },
+    scrollPosition: () => scrollPosition,
+    scrolledIntoView,
+    animationFrame: () => {
+      const callbacks = animationFrames;
+      animationFrames = [];
+      for (const callback of callbacks) callback();
+    },
   };
 }
 
@@ -622,4 +700,273 @@ test("unchanged input, blur, and download reads preserve review controls while s
     JSON.parse(ui.downloads[0]?.parts.join("") ?? "null").title,
     "Keep this revised title",
   );
+});
+
+test("same-tab recovery gates editing and restores exact raw solo, dialogue and news fields", async () => {
+  for (const selector of ["CAP-02", "CAP-01@duo", "NEWS-02@duo"]) {
+    const storage = recoveryStorage();
+    const first = await workshop(selector, undefined, { storage });
+    const narration = selector.includes("duo") ? "turn-0-0" : "narration-0";
+    first.get("variant-name").value = " recovered-version ";
+    first.get("draft-title").value = " Raw <title> ";
+    first.get("publication-text").value = " A revised post.\n\nKeep this line. ";
+    first.get(narration).value = "  Check your access.\n";
+    first.get("overlay-0").value = " Raw <headline> ";
+    first.get("speaker-voice-0").value = "am_michael";
+    if (selector.includes("duo")) first.get("speaker-voice-1").value = "af_heart";
+    first.update();
+    assert.equal(storage.data.size, 1);
+    const saved = JSON.parse([...storage.data.values()][0] ?? "null");
+    const second = await workshop(selector, undefined, { storage });
+    assert.equal(second.get("editor-fields").disabled, true);
+    assert.equal(second.get("download-controls").hidden, true);
+    assert.equal(second.get("resume-draft").hidden, false);
+    assert.equal(second.get("discard-draft").hidden, false);
+    assert.equal(second.focused(), "resume-draft", "pending recovery brings its choice into view");
+    second.download();
+    second.update();
+    assert.equal(second.downloads.length, 0);
+    assert.equal(second.get(narration).value, first.seed.scenes[0].narration);
+    second.get("resume-draft").click();
+    assert.equal(second.get("editor-fields").disabled, false);
+    assert.equal(second.get("download-controls").hidden, false);
+    for (const [id, value] of Object.entries(saved.fields))
+      assert.equal(second.get(id).value, value);
+    assert.equal(second.focused(), "variant-name");
+    assert.match(second.get("draft-recovery-message").textContent, /Recovered/u);
+    assert.equal(storage.calls.set, 1, "resume does not rewrite the same raw fields");
+    second.download();
+    const definition = JSON.parse(second.downloads[0]?.parts.join("") ?? "null");
+    const checked = await validatePresentationDefinition(definition);
+    assert.equal(definition.presentation.variant, "recovered-version");
+    assert.equal(definition.scenes[0].narration, "Check your access.");
+    const original = await readContentEpisode(selector);
+    assert.deepEqual(checked.episode.sources, original.sources);
+    assert.deepEqual(checked.episode.claims, original.claims);
+    if (isNewsEpisode(original)) {
+      assert.ok(isNewsEpisode(checked.episode));
+      assert.deepEqual(checked.episode.news, original.news);
+    }
+  }
+});
+
+test("recovery retains invalid text and duplicate voices without bypassing download guards", async () => {
+  const storage = recoveryStorage();
+  const first = await workshop("NEWS-02@duo", undefined, { storage });
+  first.get("variant-name").value = "taken";
+  first.get("turn-0-0").value = "   ";
+  first.get("speaker-voice-0").value = "am_michael";
+  first.update();
+  const second = await workshop("NEWS-02@duo", undefined, { storage });
+  second.get("resume-draft").click();
+  assert.equal(second.get("turn-0-0").value, "   ");
+  assert.equal(second.get("download-script").disabled, true);
+  assert.match(second.get("draft-errors").textContent, /already exists/u);
+  assert.match(second.get("draft-errors").textContent, /different voice/u);
+  assert.match(second.get("draft-errors").textContent, /needs text/u);
+  second.download();
+  assert.equal(second.downloads.length, 0);
+  second.restore("Restore scene 1");
+  assert.equal(second.get("download-script").disabled, true);
+  second.restore("Restore starting voices");
+  second.get("variant-name").value = "recovered-news";
+  second.update();
+  second.download();
+  assert.equal(second.downloads.length, 1);
+  await validatePresentationDefinition(JSON.parse(second.downloads[0]?.parts.join("") ?? "null"));
+});
+
+test("recovery rejects damaged, oversized, stale and injected records without altering the starting script", async () => {
+  const storage = recoveryStorage();
+  const original = await workshop("CAP-02", undefined, { storage });
+  original.get("draft-title").value = "A saved draft";
+  original.update();
+  const key = [...storage.data.keys()][0];
+  assert.ok(key);
+  const valid = JSON.parse(storage.data.get(key) ?? "null");
+  const cases = [
+    "{broken",
+    "[]",
+    "null",
+    JSON.stringify({ ...valid, recoveryId: "0".repeat(64) }),
+    JSON.stringify({ ...valid, schemaVersion: 2 }),
+    JSON.stringify({ ...valid, claims: ["injected"] }),
+    JSON.stringify({ ...valid, fields: { ...valid.fields, baseInputHash: "injected" } }),
+    JSON.stringify({ ...valid, fields: { ...valid.fields, "draft-title": 123 } }),
+    JSON.stringify({ ...valid, fields: { ...valid.fields, "speaker-voice-0": "af_bella" } }),
+    JSON.stringify({ ...valid, fields: { ...valid.fields, "draft-title": "😀".repeat(40000) } }),
+  ];
+  const missing = structuredClone(valid);
+  delete missing.fields["overlay-0"];
+  cases.push(JSON.stringify(missing));
+  for (const saved of cases) {
+    storage.data.set(key, saved);
+    const ui = await workshop("CAP-02", undefined, { storage });
+    assert.equal(ui.get("draft-title").value, original.seed.title);
+    assert.equal(ui.get("editor-fields").disabled, false);
+    assert.equal(ui.get("download-controls").hidden, false);
+    assert.match(ui.get("draft-recovery-message").textContent, /ignored/u);
+    assert.equal(storage.data.has(key), false);
+    ui.download();
+    assert.equal(ui.downloads.length, 1);
+  }
+  storage.data.set(key, JSON.stringify(valid));
+  const changedAddress = await workshop("CAP-02", undefined, {
+    storage,
+    pathname: "/other/edit.html",
+  });
+  assert.equal(changedAddress.get("draft-title").value, original.seed.title);
+  assert.equal(changedAddress.get("editor-fields").disabled, false);
+  const changedContext = await workshop("CAP-02", ["af_heart"], { storage });
+  assert.notEqual(changedContext.payload.recoveryId, original.payload.recoveryId);
+  assert.equal(changedContext.get("draft-title").value, original.seed.title);
+  assert.equal(changedContext.get("editor-fields").disabled, false);
+  assert.equal(
+    storage.data.get(key),
+    JSON.stringify(valid),
+    "another scope cannot consume the saved draft",
+  );
+});
+
+test("browser storage absence and get/set/remove failures leave editing and downloads usable", async () => {
+  const bad = () => {
+    throw new Error("Storage blocked or full");
+  };
+  for (const options of [
+    { storage: null },
+    { blockedAccess: true },
+    { storage: {} as RecoveryStorage },
+    { storage: { getItem: bad, setItem: bad, removeItem: bad } },
+    { storage: { getItem: () => null, setItem: bad, removeItem: bad } },
+    { storage: { getItem: () => "{broken", setItem: bad, removeItem: bad } },
+  ]) {
+    const ui = await workshop("CAP-02", undefined, options);
+    ui.get("variant-name").value = "storage-unavailable";
+    ui.update();
+    ui.download();
+    assert.equal(ui.get("editor-fields").disabled, false);
+    assert.equal(ui.downloads.length, 1);
+    assert.match(ui.get("draft-recovery-message").textContent, /unavailable/u);
+  }
+  const store = recoveryStorage();
+  const first = await workshop("CAP-02", undefined, { storage: store });
+  first.get("draft-title").value = "Saved";
+  first.update();
+  const brokenRemove = { ...store, removeItem: bad };
+  const second = await workshop("CAP-02", undefined, { storage: brokenRemove });
+  second.get("discard-draft").click();
+  assert.equal(second.get("draft-title").value, first.seed.title);
+  assert.equal(second.get("editor-fields").disabled, false);
+  assert.match(second.get("draft-recovery-message").textContent, /unavailable/u);
+  second.download();
+  assert.equal(second.downloads.length, 1);
+});
+
+test("recovery writes and announcements stay stable, discard clears only this draft, and unsafe current fields clear stale recovery", async () => {
+  const storage = recoveryStorage();
+  storage.data.set("unrelated", "keep");
+  const ui = await workshop("CAP-02", undefined, { storage });
+  assert.equal(storage.calls.set, 0, "opening an unchanged script creates no draft");
+  ui.get("draft-title").value = "Saved title";
+  ui.update();
+  const announcements = ui.get("draft-recovery-message").textUpdates;
+  ui.update();
+  ui.get("editor-fields").listeners.get("change")?.();
+  ui.download();
+  assert.equal(storage.calls.set, 1);
+  assert.equal(ui.get("draft-recovery-message").textUpdates, announcements);
+  const reload = await workshop("CAP-02", undefined, { storage });
+  reload.get("discard-draft").click();
+  assert.equal(reload.get("draft-title").value, ui.seed.title);
+  assert.equal(reload.get("variant-name").value, ui.seed.presentation.variant);
+  assert.deepEqual([...storage.data], [["unrelated", "keep"]]);
+  assert.equal(reload.focused(), "variant-name");
+  reload.get("draft-title").value = "New draft";
+  reload.update();
+  assert.equal(storage.data.size, 2);
+  reload.get("publication-text").value = "😀".repeat(40000);
+  reload.update();
+  assert.deepEqual([...storage.data], [["unrelated", "keep"]]);
+  assert.equal(reload.get("publication-text").value.length, 80000);
+  assert.match(reload.get("draft-recovery-message").textContent, /cannot be kept/u);
+  reload.restore("Restore post");
+  assert.equal(storage.data.size, 2, "a corrected draft becomes recoverable again");
+  reload.get("speaker-voice-0").value = "injected-voice";
+  reload.update();
+  assert.deepEqual([...storage.data], [["unrelated", "keep"]]);
+  reload.restore("Restore starting voices");
+  reload.restore("Restore title");
+  assert.deepEqual(
+    [...storage.data],
+    [["unrelated", "keep"]],
+    "returning all fields to the start removes recovery",
+  );
+});
+
+test("a reordered baseline record is cleared instead of falsely offering recovery", async () => {
+  const storage = recoveryStorage();
+  const ui = await workshop("CAP-02", undefined, { storage });
+  ui.get("draft-title").value = "A changed title";
+  ui.update();
+  const key = [...storage.data.keys()][0];
+  assert.ok(key);
+  const record = JSON.parse(storage.data.get(key) ?? "null");
+  record.fields["draft-title"] = ui.seed.title;
+  record.fields = Object.fromEntries(Object.entries(record.fields).reverse());
+  storage.data.set(key, JSON.stringify(record));
+  const next = await workshop("CAP-02", undefined, { storage });
+  assert.equal(next.get("editor-fields").disabled, false);
+  assert.equal(next.get("draft-title").value, ui.seed.title);
+  assert.equal(storage.data.size, 0);
+});
+
+test("pending recovery becomes visible after restored scroll without stealing focus after a choice", async () => {
+  const storage = recoveryStorage();
+  const first = await workshop("CAP-02", undefined, { storage });
+  first.get("publication-text").value = "A post edited near the bottom of the page.";
+  first.update();
+  const pending = await workshop("CAP-02", undefined, { storage });
+  assert.equal(pending.focused(), "resume-draft");
+  pending.pageshow();
+  pending.restoreScroll(4049);
+  pending.animationFrame();
+  assert.equal(pending.scrollPosition(), 4049);
+  pending.animationFrame();
+  assert.equal(pending.scrollPosition(), 0);
+  assert.deepEqual(pending.scrolledIntoView, ["draft-recovery"]);
+  assert.equal(pending.focused(), "resume-draft");
+  for (const choice of ["resume-draft", "discard-draft"]) {
+    first.update();
+    // Preserve a valid saved record for both independent navigation cases.
+    if (!storage.data.size) {
+      first.get("draft-title").value = "Another change";
+      first.update();
+    }
+    const quickChoice = await workshop("CAP-02", undefined, { storage });
+    quickChoice.pageshow();
+    quickChoice.get(choice).click();
+    quickChoice.get("publication-text").focus();
+    quickChoice.restoreScroll(4000);
+    quickChoice.animationFrame();
+    quickChoice.animationFrame();
+    assert.equal(quickChoice.scrollPosition(), 4000);
+    assert.equal(quickChoice.focused(), "publication-text");
+    assert.deepEqual(quickChoice.scrolledIntoView, []);
+    quickChoice.pageshow();
+    quickChoice.animationFrame();
+    quickChoice.animationFrame();
+    assert.equal(
+      quickChoice.scrollPosition(),
+      4000,
+      "later pageshow preserves ordinary editor position",
+    );
+  }
+  const original = await workshop("CAP-02");
+  original.get("publication-text").focus();
+  original.restoreScroll(3900);
+  original.pageshow();
+  original.animationFrame();
+  original.animationFrame();
+  assert.equal(original.scrollPosition(), 3900);
+  assert.equal(original.focused(), "publication-text");
 });

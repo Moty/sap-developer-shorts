@@ -100,3 +100,25 @@ code-URL replacement. Earlier artifacts remain intact. The rebuilt studio and
 episode/whole-studio downloads preserve that link and AI disclosures. Separately,
 18 decoded frames across all eleven deliveries were visually inspected. Neither
 review claims audible listening or continuous full-video inspection.
+
+### Same-tab draft recovery
+
+Astra planned and implemented raw-field recovery, scoped by URL and a hash of
+the complete starting editor context, then independently reviewed its boundaries.
+Twenty focused workshop tests cover matching and stale records, invalid drafts,
+allowed voices, raw text, storage failures, size limits, targeted restores,
+explicit resume/discard gating, stable writes, and lifecycle callbacks.
+
+Real WK browser testing reproduced restored scrolling overriding an immediate
+focus action. The pending choice is now brought into view after page restoration
+using a finite, guarded callback. This follows the documented navigation order
+where page events can precede persisted scroll restoration
+([MDN](https://developer.mozilla.org/en-US/docs/Web/API/Window/popstate_event#when_popstate_is_sent)).
+Resolving the choice cancels the callback's effect; normal page position is left
+alone. Desktop and phone checks verified the final behavior.
+
+Full minimum checks/build pass with 163 workflow tests and five live CAP checks.
+Recovered solo, conversation, news, and extracted-studio downloads import into
+isolated QA storage while preserving their evidence and dates. Astra's final
+read-only integration review found no blocker. Storage failure remains an honest
+fallback: editing/download work, and failed removal never claims a draft cleared.
