@@ -85,6 +85,7 @@ label:first-child {
   margin-top: 0;
 }
 input,
+select,
 textarea {
   display: block;
   width: 100%;
@@ -105,12 +106,14 @@ textarea[id^="turn"] {
   min-height: 136px;
 }
 input:disabled,
+select:disabled,
 textarea:disabled {
   opacity: 1;
   color: #263e35;
   -webkit-text-fill-color: #263e35;
 }
 input:focus-visible,
+select:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
 a:focus-visible,
@@ -130,6 +133,7 @@ code:focus-visible {
   margin: 0;
 }
 .scene-heading span,
+.voice-help,
 .scene-count,
 .scene-visual,
 #variant-help {

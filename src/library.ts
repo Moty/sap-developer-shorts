@@ -14,6 +14,7 @@ import {
 import { createLibraryPages } from "./library-review.js";
 import { buildVtt, readPcmWav } from "./media/audio.js";
 import { validateTiming } from "./media/package.js";
+import { verifiedKokoroVoices } from "./media/voice-assets.js";
 import { collectVoiceSamples, type VoiceSample } from "./media/voice-audition.js";
 import { loadVerifiedRun, productionSettings } from "./media/worker.js";
 import { inside, projectRoot, sourceFile } from "./paths.js";
@@ -50,7 +51,12 @@ export interface LibraryContent {
   topics: Topic[];
   newsTopics: NewsTopic[];
   budgetCents: number;
-  voiceCatalog?: { selected: string; installed: string[]; samples: VoiceSample[] };
+  voiceCatalog?: {
+    selected: string;
+    installed: string[];
+    available?: string[];
+    samples: VoiceSample[];
+  };
 }
 
 async function readConfined(directory: string, name: string) {
@@ -270,6 +276,8 @@ export async function buildLibrary(
       );
   const settings = await productionSettings();
   const voiceCatalog = await collectVoiceSamples(artifactRoot, settings);
+  const availableVoices =
+    settings.localPreview.engine === "kokoro" ? await verifiedKokoroVoices() : [];
   for (const entry of library.entries) {
     const download = buildEpisodePackage(entry, now);
     if (download) entry.download = download;
@@ -296,7 +304,11 @@ export async function buildLibrary(
     topics: content.topics,
     newsTopics: content.newsTopics,
     budgetCents: settings.pilotBudgetCents,
-    voiceCatalog: { ...voiceCatalog, selected: settings.localPreview.voice },
+    voiceCatalog: {
+      ...voiceCatalog,
+      selected: settings.localPreview.voice,
+      available: availableVoices,
+    },
   });
   const runtimeHashes: Record<string, string> = {};
   for (const [name, bytes] of Object.entries(await readRuntimeFiles()))

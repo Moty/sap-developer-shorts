@@ -17,6 +17,24 @@ npm run shorts -- serve LIBRARY_DIRECTORY
 
 Use the directory printed by `library`. Setup downloads Python 3.12 if needed, an isolated environment, the English text-processing model, and pinned Kokoro assets. Allow several gigabytes of disk space. Subsequent synthesis runs offline on the CPU; no script is sent to a speech service. Installed dependencies and model/voice files are fingerprinted in `.state/neural-voice/runtime.json`. That directory is ignored by Git and is not part of the portable review library.
 
+## Choose a voice for one revision
+
+Open **Revise script** on a studio episode card. Under **Choose the voices**,
+select a narrator, or a different voice for each person in a conversation. Listen
+to the saved samples through the nearby link, choose a new version name, and
+download/import the script. Produce the new version using the printed command.
+The project default stays Heart, and previous recordings retain their voices.
+Speaker names and conversation turns stay fixed.
+
+The workshop offers supported profiles whose local model/config/voice files
+matched their saved hashes when the studio was built. It retains an unavailable
+original voice with a setup note rather than substituting one. Install another
+profile explicitly with `voice-setup`, then rebuild the studio to offer it.
+Saving/importing a draft does not require local voice assets; actual production
+rechecks the selected assets and Python environment. Two-person conversations
+require different voices. Changing a voice needs a new recording and measured
+caption timing; saved speech from another voice cannot be reused.
+
 ## Change the built-in voice
 
 The active voice has one setting: `localPreview.voice` in `config/production.json`. Model revision and asset filenames are pinned separately in `config/neural-voice.json`; that file no longer duplicates the voice selection. List the 28 supported American and British English voices with:

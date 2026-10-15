@@ -162,6 +162,7 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}\n<section id=
     const prefix = `episodes/${episodeSelector(entry.episode)}`;
     files[`${prefix}/edit.html`] = await createScriptEditor(entry.episode, {
       defaultVoice: content.voiceCatalog?.selected ?? "af_heart",
+      availableVoices: content.voiceCatalog?.available ?? [],
       reservedNames: entries
         .filter((other) => other.episode.id === entry.episode.id)
         .flatMap((other) =>

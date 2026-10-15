@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
@@ -7,8 +8,12 @@ import { readContentEpisode } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
 import { isNewsEpisode } from "../src/domain.js";
 import { createLibraryPages } from "../src/library-review.js";
+import type { MediaRequest } from "../src/media/model.js";
+import { narrationIdentity } from "../src/media/reuse.js";
+import { productionSettings } from "../src/media/worker.js";
 import { projectRoot } from "../src/paths.js";
 import { createScriptEditor, scriptEditorSeed } from "../src/script-editor.js";
+import { importScript } from "../src/script-import.js";
 import { validatePresentationDefinition } from "../src/variants.js";
 
 test("script workshop seeds preserve tutorial, dialogue, and news inputs with a current base binding", async () => {
@@ -54,9 +59,10 @@ test("workshop escapes edited text and has a readable no-JavaScript fallback", a
   assert.match(expired, /Checked 2026-10-15/u);
 });
 
-async function workshop(selector: string) {
+async function workshop(selector: string, availableVoices = ["af_heart", "am_michael"]) {
   const html = await createScriptEditor(await readContentEpisode(selector), {
     reservedNames: ["taken"],
+    availableVoices,
   });
   const match = html.match(
     /<script type="application\/json" id="editor-data">([\s\S]*?)<\/script>/u,
@@ -98,6 +104,10 @@ async function workshop(selector: string) {
   node("variant-name", payload.seed.presentation.variant);
   node("draft-title", payload.seed.title);
   node("publication-text", payload.seed.publicationText);
+  for (const [index, speaker] of payload.seed.presentation.speakers.entries()) {
+    node(`speaker-voice-${index}`, speaker.voice);
+    node(`speaker-voice-${index}-help`);
+  }
   for (const [index, scene] of payload.seed.scenes.entries()) {
     node(`overlay-${index}`, scene.overlay);
     node(`scene-${index}-count`);
@@ -192,4 +202,118 @@ test("prepared scripts with no recording still get a workshop without claiming m
   assert.match(String(pages["review.html"]), /CAP-02%40quiz\/edit.html/u);
   assert.doesNotMatch(String(pages["review.html"]), /Watch MP4/u);
   assert.match(String(pages["review.html"]), /No recording yet/u);
+});
+
+test("a workshop voice change imports as a new revision without changing the default or source", async (t) => {
+  const configPath = resolve(projectRoot, "config/production.json");
+  const configBefore = await readFile(configPath);
+  const sourceBefore = await readContentEpisode("CAP-02");
+  const ui = await workshop("CAP-02");
+  ui.get("variant-name").value = "michael-review";
+  ui.get("speaker-voice-0").value = "am_michael";
+  ui.update();
+  assert.equal(ui.get("download-script").disabled, false);
+  ui.download();
+  const draft = JSON.parse(ui.downloads[0]?.parts.join("") ?? "null");
+  const root = await mkdtemp(resolve(tmpdir(), "sap-workshop-voice-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const presentationDirectory = resolve(root, "presentations");
+  await mkdir(presentationDirectory);
+  const input = resolve(root, "download.json");
+  await writeFile(input, JSON.stringify(draft));
+  const result = await importScript(input, { presentationDirectory });
+  assert.equal(result.selector, "CAP-02@michael-review");
+  assert.deepEqual(result.episode.presentation?.speakers, [
+    { id: "narrator", name: "Narrator", voice: "am_michael" },
+  ]);
+  assert.deepEqual(result.episode.scenes, sourceBefore.scenes);
+  assert.deepEqual(await readContentEpisode("CAP-02"), sourceBefore);
+  assert.deepEqual(await readFile(configPath), configBefore);
+  assert.equal(
+    (await productionSettings()).localPreview.voice,
+    JSON.parse(configBefore.toString()).localPreview.voice,
+  );
+
+  const request = {
+    provider: "local-kokoro",
+    generatorHash: hash("generator"),
+    voiceRuntimeHash: hash("runtime"),
+    settings: await productionSettings(),
+    episode: { ...result.episode, presentation: structuredClone(result.episode.presentation) },
+  } as MediaRequest;
+  const changedIdentity = narrationIdentity(request);
+  const speaker = request.episode.presentation?.speakers[0];
+  assert.ok(speaker);
+  speaker.voice = "af_heart";
+  assert.notEqual(
+    narrationIdentity(request),
+    changedIdentity,
+    "per-revision voices cannot reuse mismatched speech",
+  );
+});
+
+test("conversation voice choices preserve names and turns and block duplicate or injected choices", async () => {
+  const original = await readContentEpisode("CAP-01@duo");
+  const ui = await workshop("CAP-01@duo");
+  ui.get("speaker-voice-0").value = "am_michael";
+  ui.update();
+  ui.download();
+  assert.equal(ui.downloads.length, 0);
+  assert.match(ui.get("draft-errors").textContent, /different voice for each/u);
+  ui.get("speaker-voice-1").value = "af_heart";
+  ui.update();
+  ui.download();
+  const checked = await validatePresentationDefinition(
+    JSON.parse(ui.downloads[0]?.parts.join("") ?? "null"),
+  );
+  assert.deepEqual(
+    checked.episode.presentation?.speakers.map(({ id, name }) => ({ id, name })),
+    original.presentation?.speakers.map(({ id, name }) => ({ id, name })),
+  );
+  assert.deepEqual(checked.episode.scenes, original.scenes);
+  assert.deepEqual(
+    checked.episode.presentation?.speakers.map(({ voice }) => voice),
+    ["am_michael", "af_heart"],
+  );
+  for (const voice of ["../outside", "af_bella", ""]) {
+    ui.get("speaker-voice-0").value = voice;
+    ui.update();
+    ui.download();
+    assert.equal(ui.downloads.length, 1);
+    assert.match(ui.get("draft-errors").textContent, /available voice/u);
+  }
+});
+
+test("missing original voices stay selectable and drafts remain portable without local assets", async () => {
+  const ui = await workshop("CAP-02", []);
+  assert.equal(ui.get("speaker-voice-0").value, "af_heart");
+  assert.match(ui.get("speaker-voice-0-help").textContent, /voice-setup af_heart/u);
+  assert.equal(ui.get("download-script").disabled, false);
+  ui.download();
+  const checked = await validatePresentationDefinition(
+    JSON.parse(ui.downloads[0]?.parts.join("") ?? "null"),
+  );
+  assert.equal(checked.episode.presentation?.speakers[0]?.voice, "af_heart");
+  const pages = await createLibraryPages({
+    entries: [
+      { episode: await readContentEpisode("CAP-02"), preview: null, sourceReviewExpired: false },
+    ],
+    topics: [],
+    newsTopics: [],
+    budgetCents: 500,
+    voiceCatalog: {
+      selected: "af_heart",
+      installed: ["af_heart", "af_bella", "am_michael"],
+      available: ["am_michael", "invalid"],
+      samples: [],
+    },
+  });
+  const html = String(pages["episodes/CAP-02/edit.html"]);
+  assert.match(html, /<option value="af_heart" selected>.*Setup needed/u);
+  assert.match(html, /<option value="am_michael">/u);
+  assert.doesNotMatch(html, /<option value="af_bella"/u);
+  assert.doesNotMatch(html, /<option value="invalid"/u);
+  assert.match(html, /href="\.\.\/\.\.\/review\.html#voices" target="_blank" rel="noopener"/u);
+  assert.match(html, /Listen to saved voice samples/u);
+  assert.match(html, /opens in a new tab/u);
 });

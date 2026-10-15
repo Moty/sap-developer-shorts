@@ -433,3 +433,42 @@ Formatting retains the existing nonfatal CSS hidden!important warning, required
 for hidden controls to override component display rules. No new formatting issue.
 Production jobsDB/original media unchanged; no synthesis or spend this milestone.
 Next: commit/push, CI, then Astra-planned per-revision installed voice picker.
+
+03:23 PT: Recovery milestone1cfce33 pushed; Node22/24 CI success38718670508.
+Completed Astra-planned per-revision workshop voice selectors. Astra implemented
+read-only voice-assets helper/seven tests and independently reviewed parent UI.
+Options require streamed hash-checked confined pinned model/config/voice assets;
+missing originals remain selectable with explicit setup guidance. No automatic
+installation/download/synthesis during inventory, portable imports unchanged.
+Distinct dialogue voices required; IDs/names/turns/defaultHeart preserved.
+Astra's only UX finding fixed: samples open a labeled new tab, keeping drafts.
+
+Full minimum22.13 checks/build:119 workflow + five CAP assertions, logs
+check-workshop-voices-final.log / format-workshop-voices-final.log in QA area.
+Nineteen focused workshop/import/presentation checks and seven helper checks pass.
+Browser actual solo download CAP-02--voice-workshop-check.json imported through
+CLI and produced job40cfd427-e3d0-4f53-86a3-68e11385959c, READY report
+artifacts/productions/8506dc3e-8509-4ce2-8420-b5740d348284/production.json.
+Video artifacts/videos/CAP-02--voice-workshop-check/video-5d51f188aa1cac34/short.mp4,
+59.633333s, opening2.725034s, -16.45LUFS/-4.37dBTP, full decode/audio pass.
+New audio SHA b16898ea691ab12660c5ee8a600cbdf0f9b27b3db85836cff3ab07c5f19543f3
+is distinct; originalHeartWAV matches its saved sourceAudioHash. No donor reuse.
+QA source moved to .state/overnight/CAP-02--voice-workshop-check.json; saved ten-entry
+QA library515ff616 has133 checked hashes/ten ZIPs. Original prepared content intact.
+
+Native NEWS02duo swapped-voice download imported into ignored browser-script-imports;
+all scenes/claims/sources/dates/names unchanged, exact Michael/Heart voices retained.
+Duplicate selection disabled browser download; swapping resolved it. Actual sample
+link opened new owned tab6, original draft name remained keep-my-draft, tab6 closed.
+Keyboard Tab reaches second selector. Phone390 and desktop1280 have no horizontal
+overflow; viewport reset. Proof voice-picker-phone.png / voice-picker-studio.png.
+Evidence voice-picker-production-evidence.json / dialogue-voice-import-evidence.json.
+No audible playback; no subjective listening claim. All local zero-cost operations.
+
+Final prepared studio artifacts/library-b527fc38-a148-4868-b549-d36a70c16575:
+nine MP4s/ZIPs/editors, two samples,120 hashes and all ZIP CRC/member hashes pass.
+Owned server34495 serves4173; prior22913 stopped. Browser on NEWS02duo workshop,
+fresh defaults, marked deliverable. Next commit/push/CI then consider Astra's
+NEWS02@myth-fact plan: useful announcement-versus-customer-access correction,
+professionalHeart/nohumor, same existing evidence/dates/visuals. Reread both official
+sources before authoring. No new infrastructure. Maintain06:45audit/07stop+pause.

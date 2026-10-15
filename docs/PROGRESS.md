@@ -457,3 +457,31 @@ copied narration hashes stayed unchanged. Quarantine retained the damaged bytes
 and previous READY receipt; repeat rendering reused the repaired video. Full
 decode/audio checks pass, and its rebuilt ZIP passed independent CRC/member
 hash verification. Original media and the production jobs database were untouched.
+
+## Milestone 3n: narrator choices for script revisions
+
+The script workshop now offers a labeled voice selector for each existing
+speaker. It changes only the new revision's speaker voices, preserving names,
+turns, format, evidence, and the project default. Conversations require distinct
+voices. The saved-samples link opens a labeled new tab, preserving unsaved edits.
+
+Options come from a read-only, streamed hash check of the pinned local model,
+configuration, and individual voice assets. Missing originals remain selected
+with setup guidance; damaged alternatives are excluded. No installation,
+synthesis, or runtime-snapshot write occurs during discovery. Import stays
+portable; actual production rechecks its environment and asset bytes.
+
+Minimum Node 22.13.0 checks/build pass: **119 workflow tests** and five live CAP
+assertions. Astra independently reviewed the implementation and passed focused
+checks. Browser checks cover solo selection, duplicate/swapped conversation
+voices, native JSON downloads, preserved draft while opening samples, keyboard
+focus, and 390/1280-pixel layouts without horizontal overflow.
+
+A real browser-saved Heart-to-Michael CAP data revision imported and produced a
+59.633333-second MP4 with a 2.725034-second opening, full decode/audio success,
+-16.45LUFS and -4.37dBTP. Its narration differs from the original Heart recording;
+the original audio remains intact and Heart remains the default. A browser-saved
+news conversation with swapped voices imported with every source, claim, news
+date, speaker name, and turn unchanged. Temporary test revisions remain outside
+prepared content. The final studio retains nine MP4s/packages/workshops and two
+voice samples, with 120 matching hashes and all ZIP CRC/member hashes checked.

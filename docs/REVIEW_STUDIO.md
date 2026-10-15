@@ -1,7 +1,7 @@
 # Review studio
 
 Use **Revise script** on an episode card to open its script workshop. Edit an
-existing delivery, download a new named version, then use `script-import` and the
+existing delivery, choose voices for its speakers, download a new named version, then use `script-import` and the
 printed production command. Source/claim/demo inputs and source-review dates stay
 fixed. Edits are held only in the page until downloaded; existing versions and
 recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
@@ -47,7 +47,13 @@ pronunciation, voice, speed, synthesis code, and pinned local runtime. Only
 complete samples with matching WAV hashes are copied into the portable library;
 changed, outdated, and incomplete samples are excluded. The library manifest
 records those identities and copied audio hashes. Choosing a default is a CLI
-action, and prepared styles keep their authored speakers.
+action. The script workshop can override a new revision's speaker voices while
+keeping the global default and existing recordings. Its choices use a build-time
+inventory of hash-checked local model/config/voice assets. Missing originals are
+retained with a setup notice; other missing or damaged voices are not offered.
+Production checks current assets and dependencies again. Dialogue requires
+different voices; speaker names and turns stay fixed. A saved draft can still be
+imported on a machine without its voices installed.
 
 The collector reads completed preview runs inside the configured artifact root. An episode must match the current ID, revision, and exact canonical editorial input. Original artifacts and evidence must pass the existing preview loader's checks. For narration, the media receipt must identify the same source manifest and job, the required media files must match their saved hashes, and WAV samples and caption timing must agree with the episode.
 

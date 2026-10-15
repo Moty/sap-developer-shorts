@@ -45,8 +45,10 @@ Run narration jobs one at a time on this Mac. Each provider operation has a boun
 ## Add a delivery version
 
 For an existing delivery, use **Revise script** on its studio card. The workshop
-lets you edit the title, narration, on-screen headlines, and companion post. It
-keeps the format, voices, scene order/timing, visuals, sources, and claims fixed.
+lets you choose a voice for each existing speaker and edit the title, narration,
+on-screen headlines, and companion post. It keeps the format, speaker names,
+scene order/timing, visuals, sources, and claims fixed. Voice choices apply only
+to the new version; the global default remains unchanged.
 Dialogue turns retain their speakers; their text is joined into narration for
 you. Choose a new lowercase version name and download the revised script.
 
