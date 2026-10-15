@@ -24,6 +24,11 @@ read the CSV's stock counts, choose which products pass the positive-stock filte
 then see the checked result. Its visuals, exact URLs, and evidence come from CAP-02.
 Try `npm run shorts -- produce CAP-02@quiz`.
 
+For SAP news, `NEWS-02@duo` is a casual Joule Work conversation between Mira
+(Heart) and Max (Michael), with light humor. It inherits the solo short's dated
+sources and rollout/access qualifications. Both the tutorial and news conversation
+are linked from the storytelling gallery. Try `npm run shorts -- produce NEWS-02@duo`.
+
 These are saved, authored scripts. Clicking a preview opens its recorded version. The studio does not automatically rewrite an arbitrary episode or purchase avatar media. The storytelling gallery links to the best available example for each format and distinguishes a prepared script, preview, or MP4. Myth/fact, countdown, and story still need authored, reviewed scripts before their previews exist.
 
 ```sh

@@ -166,3 +166,28 @@ test("format examples reflect scripts, previews, and exports instead of hardcode
   assert.match(cards("quiz"), /Watch saved example/);
   assert.match(cards("quiz"), /sources need rechecking/);
 });
+
+test("the conversation gallery retains ordinary links to news and tutorial examples", async () => {
+  const news = await entry("NEWS-02@duo");
+  const tutorial = await entry("CAP-01@duo");
+  for (const value of [news, tutorial])
+    value.video = {
+      renderKey: "fixture",
+      durationSeconds: 55,
+      files: { "review.html": Buffer.from("<!--LIBRARY_BACK-->Video fixture") },
+    };
+  const pages = await createLibraryPages({
+    entries: [news, tutorial],
+    topics: [],
+    newsTopics: [],
+    budgetCents: 500,
+  });
+  const html =
+    String(pages["review.html"]).match(
+      /data-story-format="dialogue">([\s\S]*?)<\/article>/u,
+    )?.[1] ?? "";
+  assert.match(html, /NEWS-02%40duo\/video\/review.html/u);
+  assert.match(html, /CAP-01%40duo\/video\/review.html/u);
+  assert.match(html, /Watch tutorial conversation/u);
+  assert.equal(recordedNarrator(news), "Kokoro · Mira (Heart) + Max (Michael)");
+});

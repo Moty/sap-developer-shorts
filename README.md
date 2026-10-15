@@ -82,7 +82,7 @@ Use the printed artifact directory with `npm run shorts -- serve ARTIFACT_DIRECT
 
 The NEWS-01 warm local preview measures **57.0 seconds**, with a **2.5-second hook** and eighteen captions using model timing estimates. A verified vertical MP4 is available; stock avatar animation remains pending.
 
-The follow-up [NEWS-02](content/episodes/NEWS-02.json) focuses on Joule Work’s interface, business context, and managed activation, with sources reviewed October 15, 2026. It preserves the distinction between an announced rollout and access for a particular customer. Prepare its local video and ZIP with `npm run shorts -- produce NEWS-02 --serve`.
+The follow-up [NEWS-02](content/episodes/NEWS-02.json) focuses on Joule Work’s interface, business context, and managed activation, with sources reviewed October 15, 2026. It preserves the distinction between an announced rollout and access for a particular customer. Prepare its local video and ZIP with `npm run shorts -- produce NEWS-02 --serve`, or use `NEWS-02@duo` for Mira and Max’s casual conversation with light humor. Both have editable scripts in the studio.
 
 See [the news workflow](docs/NEWS_WORKFLOW.md), [reusable news script template](templates/news_script_template.md), and [news editor prompt](prompts/v1/news-editor.md). Research is currently an editorial step; this does not automatically discover or rank global SAP news, watch pages, or publish posts.
 

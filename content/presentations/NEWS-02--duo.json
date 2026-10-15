@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "NEWS-02",
+  "baseInputHash": "ec02b31595f11cfab261a0a9f3af28fc4f161e7c7d679f336ff88564e7d23f07",
+  "title": "Joule Work: a conversation about rollout and access",
+  "presentation": {
+    "variant": "duo",
+    "tone": "casual",
+    "format": "dialogue",
+    "humor": "light",
+    "speakers": [
+      { "id": "mira", "name": "Mira", "voice": "af_heart" },
+      { "id": "max", "name": "Max", "voice": "am_michael" }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "overlay": "Can we use Joule Work?",
+      "narration": "Can we use Joule Work?",
+      "dialogue": [{ "speakerId": "max", "text": "Can we use Joule Work?" }]
+    },
+    {
+      "id": "context",
+      "overlay": "Rollout is beginning",
+      "narration": "Sources checked October fifteenth. SAP reports rollout beginning, with selected customers already using Joule Work.",
+      "dialogue": [
+        {
+          "speakerId": "mira",
+          "text": "Sources checked October fifteenth. SAP reports rollout beginning, with selected customers already using Joule Work."
+        }
+      ]
+    },
+    {
+      "id": "interface",
+      "overlay": "What does it do?",
+      "narration": "What does it actually help people do? Joule Work uses natural language for tasks across SAP and third-party data.",
+      "dialogue": [
+        { "speakerId": "max", "text": "What does it actually help people do?" },
+        {
+          "speakerId": "mira",
+          "text": "Joule Work uses natural language for tasks across SAP and third-party data."
+        }
+      ]
+    },
+    {
+      "id": "grounding",
+      "overlay": "Where does business context come from?",
+      "narration": "Less acronym bingo, please. What supplies context? SAP says its Knowledge Graph supplies business context for Joule. We haven't tested a customer environment here.",
+      "dialogue": [
+        { "speakerId": "max", "text": "Less acronym bingo, please. What supplies context?" },
+        {
+          "speakerId": "mira",
+          "text": "SAP says its Knowledge Graph supplies business context for Joule. We haven't tested a customer environment here."
+        }
+      ]
+    },
+    {
+      "id": "activation",
+      "overlay": "Managed activation through SAP for Me",
+      "narration": "How is it activated? SAP lists Joule Work among managed experiences activated through SAP for Me.",
+      "dialogue": [
+        { "speakerId": "max", "text": "How is it activated?" },
+        {
+          "speakerId": "mira",
+          "text": "SAP lists Joule Work among managed experiences activated through SAP for Me."
+        }
+      ]
+    },
+    {
+      "id": "takeaway",
+      "overlay": "Confirm your organization's access",
+      "narration": "What should our team check? Confirm your organization’s availability and activation requirements before planning adoption.",
+      "dialogue": [
+        { "speakerId": "max", "text": "What should our team check?" },
+        {
+          "speakerId": "mira",
+          "text": "Confirm your organization’s availability and activation requirements before planning adoption."
+        }
+      ]
+    },
+    {
+      "id": "cta",
+      "overlay": "Which workflow would you explore?",
+      "narration": "Read the dated sources in the post. Which business workflow would you explore first?",
+      "dialogue": [
+        { "speakerId": "mira", "text": "Read the dated sources in the post." },
+        { "speakerId": "max", "text": "Which business workflow would you explore first?" }
+      ]
+    }
+  ],
+  "publicationText": "Joule Work after SAP Connect, explained as a conversation between two fictional AI hosts.\n\nAn editorial brief checked October 15, 2026: the interface, Knowledge Graph context, and SAP-managed activation through SAP for Me.\n\nThe announcement describes a beginning rollout with selected customers already using Joule Work. Check your organization’s availability and activation requirements before planning adoption. No customer environment was tested for this short.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich business workflow would you explore first?\n\n#SAP #SAPConnect #Joule #BusinessAI"
+}

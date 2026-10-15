@@ -3,9 +3,11 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
 import { readContentEpisode, readEpisode, validateEpisode } from "../src/contracts.js";
+import { isNewsEpisode } from "../src/domain.js";
 import { pronounce, sampleRate, splitNarration } from "../src/media/audio.js";
 import type { NarrationTiming } from "../src/media/model.js";
 import { validateTiming } from "../src/media/package.js";
+import { validateNewsEpisode } from "../src/news/contracts.js";
 import { projectRoot } from "../src/paths.js";
 import { episodeSelector, variantFile } from "../src/presentation.js";
 import { applyPresentationVariant } from "../src/variants.js";
@@ -75,6 +77,41 @@ test("the prepared quiz keeps CAP-02's checked CSV, exact queries, evidence, and
       visual,
     }));
   assert.deepEqual(inputs(quiz), inputs(base));
+});
+
+test("the news conversation retains dated evidence and cannot bypass freshness checks", async () => {
+  const base = await readContentEpisode("NEWS-02");
+  const duo = await readContentEpisode("NEWS-02@duo");
+  assert.ok(isNewsEpisode(base) && isNewsEpisode(duo));
+  assert.deepEqual(duo.news, base.news);
+  assert.deepEqual(duo.sources, base.sources);
+  assert.deepEqual(duo.claims, base.claims);
+  assert.deepEqual(
+    duo.scenes.map(({ id, startSeconds, endSeconds, visual, claimIds }) => ({
+      id,
+      startSeconds,
+      endSeconds,
+      visual,
+      claimIds,
+    })),
+    base.scenes.map(({ id, startSeconds, endSeconds, visual, claimIds }) => ({
+      id,
+      startSeconds,
+      endSeconds,
+      visual,
+      claimIds,
+    })),
+  );
+  assert.deepEqual(
+    duo.presentation?.speakers.map(({ voice }) => voice),
+    ["af_heart", "am_michael"],
+  );
+  for (const scene of duo.scenes)
+    assert.equal(scene.dialogue?.map(({ text }) => text.trim()).join(" "), scene.narration);
+  assert.throws(
+    () => validateNewsEpisode(duo, { requireFresh: true, now: new Date("2026-10-23T00:00:00Z") }),
+    /source review is stale/u,
+  );
 });
 
 test("speaker captions are bound to the exact dialogue turns rather than only their combined text", async () => {

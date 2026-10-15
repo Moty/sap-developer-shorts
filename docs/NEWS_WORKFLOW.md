@@ -4,6 +4,12 @@ The project supports two editorial formats through the same `validate`, `verify`
 
 ## Start from a news page
 
+For a prepared conversational example, use `NEWS-02@duo`: the Joule Work brief
+with Mira (Heart) and Max (Michael), a short comic beat, named captions, and the
+same dated source/availability cards as the solo. Produce it with
+`npm run shorts -- produce NEWS-02@duo`. The studio keeps both versions and offers
+**Revise script** for their wording; a delivery revision never refreshes sources.
+
 1. Read the primary announcement and its linked official detail pages. Record publication dates when supplied and the date you actually read them. The initial source policy accepts HTTPS pages on `sap.com` and its subdomains; adding other publishers requires an explicit policy change.
 2. Choose the audience and angle. Rank candidates using editorial relevance, recency, practical impact, and clear availability. A priority in `content/news/backlog.json` is an editorial choice, not an engagement metric or proof of global popularity. Leave unresearched follow-ups as `needs-research`.
 3. Copy `content/episodes/NEWS-01.json` to a new `NEWS-NN.json`, set a new ID and revision, and add its `draft-ready` backlog entry only after research. Use the template and news-editor prompt below. Do not turn a tutorial into news by removing its checks.

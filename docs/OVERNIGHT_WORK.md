@@ -345,3 +345,45 @@ the next highest-value bounded enhancement, comparing a finished SAP-news delive
 against remaining user-facing workflow gaps. Inspect its latest reply before
 starting. Preserve deadline06:45finalchecks/07:00stop+pauseautomation and bounded
 sleep prevention; do not extend caffeine process or spend/publish/merge/bypass.
+
+02:52 PT: Editor milestone pushed as `df456b1`; Node22/24 CI passed
+(run38714849289). Post-commit CAP02quiz production preserved job9b58520c and
+rendered a receipt for the updated registered runtime provenance:
+`artifacts/videos/CAP-02--quiz/video-4fadb3995e55382a/short.mp4`.
+Its library `artifacts/library-ce0e9dc4-271b-4015-970e-b9583767462f` had107 matching
+hashes; no speech regeneration. The earlier editor studio remained valid.
+
+Completed Astra-planned NEWS-02@duo. Parent and Astra reread the official SAP
+release/guide;108-word casual Heart/Michael conversation preserves all dated
+claims, rollout/access qualifications, and managed-activation scope. One light
+acronym joke; no availability joke or new customer/test claims. Full minimum-Node
+checks/build pass:98 workflow tests + five CAP assertions. Astra independently
+passed sixteen focused tests, no blocker. Tests include stale-news rejection and
+combined news/dialogue workshop seed. Evidence `.state/overnight/check-news-duo.log`,
+`news-duo-evidence.json`, `news-duo-library-evidence.json`, `news-duo-review.png`,
+`news-duo-phone.png`, `news-duo-formats.png`, `news-duo-editor-roundtrip.json`.
+
+Job `4764f530-25f5-4583-b0e6-a35629059916`,57.005167-second MP4,2.530023-second
+opening,19 caption cues with Mira/Max; -16.21LUFS/-4.43dBTP,full decode/audio passed.
+Video `artifacts/videos/NEWS-02--duo/video-c649d173eb676cb0/short.mp4`.
+READY report `artifacts/productions/fe542cae-af54-4f2c-8e3d-b3c558c081e3/production.json`.
+Studio `artifacts/library-38982bc3-79e7-4b7f-9e3c-7c1c64e6e812`, port4173 owned
+session55294. Nine prepared MP4s/ZIPs/editors,two samples,120 hashes verified;
+every ZIP CRC/member hash passes. Utility `.state/overnight/verify-library.py`
+accepts a studio path and optional evidence-output path for future independent
+byte checks. Intermediate35805 stopped. Browser phone width390 no overflow,
+paused native video readyState4. Frames0009/0011 inspected for Max→Mira switch,
+source date and rollout scope. No audible playback/subjective listening claim.
+
+Real download `/Users/I851396/Downloads/NEWS-02--workshop-news-duo.json` imported
+into ignored browser-script-imports with news/claims/sources/scenes/speakers all
+preserved. Gallery links expose news and tutorial dialogue without new controls.
+Heart default retained. All cost zero; no sleep interruption since recovered
+earlier24s narration deadline. Existing bounded awake PID76680 remains active.
+
+Next: commit/push news dialogue, confirm CI and update last-result. Astra is doing
+a broad read-only correctness/security regression review of tonight's production,
+recovery, ZIP, editor/import, studio, and news paths. It is also evaluating the
+next bounded improvement, including installed narrator selection per workshop
+revision while retaining global Heart. Inspect findings before further feature
+work. Continue only within06:45finalaudit/07:00stop+pauseautomation deadline.

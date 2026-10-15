@@ -398,3 +398,28 @@ the full workflow. Final studio retains eight prepared MP4s/packages, eight
 workshops, two voice samples, and **107 matching artifact hashes**. All ZIP CRC and
 member hashes pass. Keyboard focus, duplicate-name blocking, and phone width were
 checked in browser; viewport restored. No money was spent or post published.
+
+## Milestone 3l: conversational SAP news
+
+Added `NEWS-02@duo`, a casual Joule Work briefing with Mira (Heart), Max (Michael),
+and light humor. Astra planned the questions/answers, and both official sources
+were reread. The 108-word script keeps beginning rollout, selected-customer use,
+managed activation, and organization-specific access qualifications distinct.
+Its news dates, claims, availability cards, sources, and scene inputs are inherited.
+The companion draft identifies fictional AI hosts. The gallery links to both
+tutorial and news conversations; the existing CAP comparison remains intact.
+
+The local recording measures **57.005 seconds**, with a **2.530-second opening**
+and nineteen estimated caption cues attributed to Mira/Max. Full MP4 decoding and
+audio checks pass at -16.21 LUFS and -4.43 dBTP. Rendered frames show the correct
+speaker switch, dated source footer, and rollout/scope cards. Browser metadata
+and the 390-pixel phone layout pass; no audible playback or subjective listening
+assessment is claimed. The news dialogue's real workshop download imported with
+all evidence, scene inputs, dates, and speakers preserved.
+
+Minimum Node 22.13.0 checks pass: **98 workflow tests**, five live CAP assertions,
+formatting, types, validation, and build. Astra independently passed sixteen
+focused tests and found no blocker. The studio has nine prepared MP4s/packages,
+nine script workshops, two voice samples, and **120 matching artifact hashes**;
+all ZIP CRC/member hashes pass. Heart remains the default; everything is local
+and unpublished.

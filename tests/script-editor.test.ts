@@ -12,7 +12,7 @@ import { createScriptEditor, scriptEditorSeed } from "../src/script-editor.js";
 import { validatePresentationDefinition } from "../src/variants.js";
 
 test("script workshop seeds preserve tutorial, dialogue, and news inputs with a current base binding", async () => {
-  for (const selector of ["CAP-01", "CAP-02@quiz", "CAP-01@duo", "NEWS-02"]) {
+  for (const selector of ["CAP-01", "CAP-02@quiz", "CAP-01@duo", "NEWS-02", "NEWS-02@duo"]) {
     const original = await readContentEpisode(selector);
     const seed = await scriptEditorSeed(original, "af_bella");
     const { episode } = await validatePresentationDefinition(seed);

@@ -33,9 +33,17 @@ const videoLinkFor = (entry: LibraryEntry) =>
 function formatOption(format: (typeof presentationFormats)[number], entries: LibraryEntry[]) {
   const score = (entry: LibraryEntry) =>
     (entry.sourceReviewExpired ? 0 : 10) + (entry.video ? 3 : entry.preview ? 2 : 1);
-  const example = entries
+  const candidates = entries
     .filter((entry) => (entry.episode.presentation?.format ?? "explainer") === format.id)
-    .sort((a, b) => score(b) - score(a))[0];
+    .sort((a, b) => score(b) - score(a));
+  const example = candidates[0];
+  const otherConversation =
+    format.id === "dialogue" && example
+      ? candidates.find(
+          (entry) =>
+            entry.preview && isNewsEpisode(entry.episode) !== isNewsEpisode(example.episode),
+        )
+      : undefined;
   const status = !example
     ? "Script needed"
     : !example.preview
@@ -44,7 +52,10 @@ function formatOption(format: (typeof presentationFormats)[number], entries: Lib
   const action = example?.preview
     ? `<a class="format-example" href="${example.video ? videoLinkFor(example) : linkFor(example)}">${example.video ? (example.sourceReviewExpired ? "Watch saved example" : "Watch example") : "Review example"} <span aria-hidden="true">↗</span></a><small>${esc(example.episode.title)}</small>`
     : "";
-  return `<article class="style-option" data-story-format="${esc(format.id)}"><span class="style-icon" aria-hidden="true">${format.id === "dialogue" ? "↔" : format.id === "quiz" ? "?" : "✦"}</span><h3>${esc(format.name)}</h3><p>${esc(format.description)}</p><small>${esc(status)}</small>${action}</article>`;
+  const additional = otherConversation
+    ? `<a class="format-example" href="${otherConversation.video ? videoLinkFor(otherConversation) : linkFor(otherConversation)}">${otherConversation.video ? (otherConversation.sourceReviewExpired ? "Watch saved" : "Watch") : "Review"} ${isNewsEpisode(otherConversation.episode) ? "news" : "tutorial"} conversation <span aria-hidden="true">↗</span></a><small>${esc(otherConversation.episode.title)} · ${esc(studioReadiness(otherConversation).label)}</small>`
+    : "";
+  return `<article class="style-option" data-story-format="${esc(format.id)}"><span class="style-icon" aria-hidden="true">${format.id === "dialogue" ? "↔" : format.id === "quiz" ? "?" : "✦"}</span><h3>${esc(format.name)}</h3><p>${esc(format.description)}</p><small>${esc(status)}</small>${action}${additional}</article>`;
 }
 
 function card(entry: LibraryEntry) {
