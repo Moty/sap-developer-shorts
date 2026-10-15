@@ -21,6 +21,12 @@ The command prints a standalone review page and MP4 path under ignored `artifact
 
 Frames are drawn from registered, hash-matching source code and saved demo evidence. News cards retain the recorded availability category, timing, and scope. Tutorial frames never invent product output. The renderer uses the saved validated pixel layout; it wraps text using bundled font metrics and fails rather than clipping code, captions, or results. Long headlines can reduce to 56 pixels in the default layout. Other main text retains its configured readable size.
 
+Code wraps at whitespace where possible, keeping paths and identifiers together
+when they fit. Oversized uninterrupted values, such as long URLs, continue across
+visual lines without losing characters. Indentation and blank lines are retained;
+font sizes and overflow rejection are unchanged. Verified source files are not
+rewritten by the visual wrapping.
+
 Scene and caption transitions follow the recorded audio timeline at 30 frames/second. Quantization adds at most one video frame to a transition; the caption boundaries themselves remain Kokoro model estimates. Names label dialogue speakers visually and in the caption file; they are not spoken as narration. Speaker badges do not imply that stock-avatar animation has been rendered.
 
 The MP4 uses H.264, `yuv420p`, AAC at 48 kHz stereo, and a fast-start container. Two-pass loudness processing targets -16 LUFS with headroom. Export checks require finite audio measurements, integrated loudness within 1.5 LU of the target, and true peak below -0.5 dBTP. These are this project's review thresholds, not a claim of platform certification.

@@ -544,3 +544,28 @@ Astra is planning a separate improvement to existing code-line wrapping, which
 currently can split identifiers and quoted paths across visual lines. Earlier
 artifacts remain intact. No audible playback or subjective listening assessment
 is claimed.
+
+## Milestone 3q: readable code lines
+
+Video code panels now prefer whitespace boundaries instead of splitting every
+line by character. Quoted paths and keywords stay together when they fit; long
+URLs and other oversized tokens still wrap by Unicode code point. Indentation,
+repeated/trailing spaces, and blank lines are preserved. Prose, fonts, and height
+checks retain their existing behavior; an oversized glyph is rejected.
+
+Astra implemented the bounded change and thirteen focused checks passed. Parent
+review and full minimum Node 22.13.0 checks/build pass: **125 workflow tests** and
+five live CAP assertions. Regressions exercise actual service/schema/CSV sources,
+quoted paths, exact character reconstruction, long URLs, Unicode, whitespace,
+prose behavior, and source-height rejection. Controlled before/after rendering of
+21 news frames produced identical bytes; the Kokoro generator fingerprint stayed
+unchanged.
+
+All seven prepared tutorial MP4s were refreshed sequentially from their saved
+jobs and audio. Every original MP4 and WAV hash remains intact. The rebuilt
+studio and each tutorial ZIP select the new verified export. All eleven packages
+pass CRC/member hashes and 146 studio artifact hashes match. Actual service and
+query frames were inspected; the paused browser video was sought to 25.247s using
+native controls and checked at desktop and 390px phone widths. Paths and keywords
+remain whole in the displayed service code. No audible playback, speech
+regeneration, or subjective listening assessment was performed.

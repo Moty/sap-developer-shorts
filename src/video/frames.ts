@@ -43,6 +43,7 @@ export function wrapVideoText(
   width: number,
   code = false,
 ): string[] {
+  if (code) return wrapVideoCode(context, text, width);
   const lines: string[] = [];
   for (const paragraph of text.replaceAll("\r", "").split("\n")) {
     if (!paragraph) {
@@ -50,14 +51,14 @@ export function wrapVideoText(
       continue;
     }
     let line = "";
-    const tokens = code ? [...paragraph] : paragraph.split(/(\s+)/u);
+    const tokens = paragraph.split(/(\s+)/u);
     for (const token of tokens) {
       if (context.measureText(line + token).width <= width) {
         line += token;
         continue;
       }
       if (line.trim()) lines.push(line.trimEnd());
-      line = code ? token : token.trimStart();
+      line = token.trimStart();
       if (context.measureText(line).width > width) {
         const word = line;
         line = "";
@@ -71,6 +72,40 @@ export function wrapVideoText(
       }
     }
     lines.push(line.trimEnd());
+  }
+  return lines;
+}
+
+function wrapVideoCode(context: SKRSContext2D, value: string, width: number): string[] {
+  const lines: string[] = [];
+  for (const paragraph of value.replaceAll("\r", "").split("\n")) {
+    let line = "";
+    for (const token of paragraph.match(/\s+|\S+/gu) ?? []) {
+      if (context.measureText(line + token).width <= width) {
+        line += token;
+        continue;
+      }
+      if (line.length) {
+        lines.push(line);
+        line = "";
+      }
+      if (context.measureText(token).width <= width) {
+        line = token;
+        continue;
+      }
+      // Only oversized tokens (for example URLs) need character wrapping.
+      // Keep every character, including indentation and trailing whitespace.
+      for (const character of token) {
+        if (context.measureText(character).width > width)
+          throw new Error("Video code character does not fit its readable text bounds");
+        if (context.measureText(line + character).width > width) {
+          lines.push(line);
+          line = "";
+        }
+        line += character;
+      }
+    }
+    lines.push(line);
   }
   return lines;
 }

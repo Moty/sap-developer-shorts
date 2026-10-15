@@ -571,3 +571,51 @@ still11lines/590.48px within730. More valuable than fillingstoryformat. Add mean
 wrapping/real-source regressions; fullchecks; rerender savedtutorialaudio sequentially,
 verifyoldbytes/samejobs/hashes/newkeys/correctstudioZIP. No implementation yet.
 Maintain06:45finalaudit/07stop+pauseautomation; boundedawakePID76680notextended.
+
+03:50 PT, in progress: Countdown milestonee07b2c7 pushed; Node22/24 CI passed
+38722882666. Aftercommitproduce reused same job/WAV/MP4, READY report
+artifacts/productions/454edcb1-22b3-48ac-b452-a9aef2936e6f/production.json.
+Latest studio artifacts/library-dee29294-2abd-40cc-9350-aa86cc70cb75 independently
+verified146hashes/11ZIPs, now served4173 by owned session33481 (1019 stopped).
+Next code-readability milestone is actively being implemented by Astra in only
+src/video/frames.ts and tests/video-text.test.ts. Parent owns remaining work.
+Wait for frozen files/focusedtests, inspect diff, run fullminimumcheck/build,
+then refresh seven prepared tutorial exports sequentially from saved jobs/audio,
+verify exact WAV/job/oldbytes/newkeys/correctstudio+ZIP, inspect realservice/query
+frames and browser. Do not regenerate speech or touch valid old artifacts.
+
+03:59 PT: Code readability milestone complete locally. Astra implemented only
+src/video/frames.ts +tests/video-text.test.ts,13 focused checks/type/lint passed.
+Parent reviewed exactdiff and fullminimum22.13check/build125+5 passed in
+check-code-wrap.log. Token-based code wrapping retains every normalized logical
+line's characters/spaces/indent/blanklines; only oversizedtokens splitbyUnicode
+codepoints, unfittableglyph rejects. Prose/fonts/overflowguard unchanged. Tests
+cover actualservice/schema/CSV, quotedpath/projection, reconstruction, URL/Unicode,
+whitespace, prose, actualsourceframes and excessiveheight rejection.
+
+Controlled HEAD-before versus current renderer comparison:21 actual news frames
+from NEWS01/NEWS02duo/mythfact byte-identical; Kokorogenerator fingerprintunchanged
+cea8b62a340122e6079be9060ac39bfd4e2d9b6d5ab201100108a40e141d601a.
+Evidence code-wrap-isolation-evidence.json, helperverify-code-wrap-isolation.mjs.
+Seven tutorial exports refreshed sequentially with originaljobs/WAVhashes andoldMP4
+bytes allassertedintact; no speechregeneration. Evidence tutorial-code-wrap-exports.json
+andrefresh-tutorial-code-wrap.log. Newdirectories:
+CAP01 video-1a7e62a90d9ba636; casual video-f8635c9cab22afad;
+comic video-5b4c9dca8104705b; duo video-16322f45817deaaf;
+countdown video-722656aa0c0dde80; CAP02 video-7408396c290143fb;
+CAP02quiz video-b7b2a129d2ac7fe8.
+
+Studio artifacts/library-366049d7-0f4a-434e-991f-462ec5a87392 has11MP4/ZIP/editors,
+2samples,146 independentlyverifiedhashes/all ZIP CRC+memberhashes. Explicitcheck
+allseven tutorialstudio+ZIP MP4s equal refreshedverifiedfiles. Server57991serves4173,
+33481stopped. Actualcountdownframes0014/0019 inspected:quotedpath+projection stay
+whole, URL/results unchanged. BrowserusednativeArrowRightseek (WK1%perpress)to25.247402s,
+remainedpaused,readyState4. Desktop1280+phone390withnooverflow; viewportreset.
+Initialscreenshotbeforeseekdecode/resizepaintwasblank; replacedafterfreshAX/state
+confirmedpaint. Validproof code-wrap-video-review.png / code-wrap-video-phone.png.
+No audibleplayback/listeningclaim, spend, timeout, orsleepinterruption.
+
+Nextcommit/push/CI, aftercommitcountdownproduce shouldreuseexactrecording/export,
+verifynewlibrary andupdate last-result. Then consultAstrafornexthighestvaluebounded
+improvement; do notfillremainingstoryformatsolelytofillgallery. Currentclock~04PT,
+06:45finalaudit/07stop+pauseautomationunchanged. BoundedawakePID76680notextended.
