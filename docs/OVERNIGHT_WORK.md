@@ -145,3 +145,38 @@ belongs in test/data. Produce one professional Heart MP4, companion draft, and
 normal studio card; update backlog after fresh verification. Keep comparison
 specifically CAP-01 and preserve all prior valid artifacts. Astra has supplied a
 seven-scene ~125-word/58-second draft in its latest review response.
+
+01:48 PT: Voice milestone pushed as `12bf0f9`; Node 22/24 CI passed.
+Completed CAP-02 following Astra's plan and official CAP source research.
+116-word script, exact registered CSV and observed queries, three sourced claims.
+Fresh five-check evidence precedes backlog promotion; normal verification passed.
+Full checks pass on minimum Node: 75 workflow tests + five live assertions,
+formatting/types/validation/build. Astra independently validated the claims,
+exact URLs, evidence, and the generic opening-card fix discovered in browser QA.
+Tutorial opening cards now use their episode title; a Canvas regression covers
+the original fixed-pilot-copy bug. News/CTA logic is unchanged.
+
+CAP-02 narration job `cf1b7a9e-fa3a-4d51-8324-ee318c028c2a`: 53.655147 seconds,
+2.350023 opening, 18 caption cues. Reused that audio for the corrected MP4:
+`artifacts/videos/CAP-02/video-6b77fb2fa6b40a4a/short.mp4` (53.666667 seconds,
+-16.11 LUFS, -4.44 dBTP). Latest READY production report:
+`artifacts/productions/82f86d3f-26c9-4dca-be79-da83669ef356/production.json`.
+Current studio: `artifacts/library-4dc7fa79-53f0-4633-a3c8-0bf60539dda2`, served
+on port 4173 (owned session 69851), six MP4s and 69 checked artifact hashes.
+Browser currently shows CAP-02 video, paused, normal viewport. Evidence:
+`.state/overnight/check-cap02.log`, `cap02-evidence.json`, `cap02-fresh-evidence.json`,
+`cap02-review.png`, `cap02-phone.png`, and produce/verify logs.
+
+Next: commit/push CAP-02 and check CI, then implement Astra's bounded episode
+download package plan. Build a ZIP directly from the already validated selected
+LibraryEntry while building the studio; avoid independent/latest bundle caches.
+Preserve the receipt selector/voice/media identity and package verified buffers.
+Include MP4, poster, captions, exact companion draft, portable review, transcript,
+sources, README, and internal provenance/file hashes; exclude local paths/config.
+News packages retain dated review/valid-through and conspicuous recheck notices;
+bundling never refreshes sources. Use a pinned portable ZIP dependency after
+checking current primary metadata (Astra found fflate 0.8.3); keep MP4/PNG stored
+without recompression. Add static download links and ZIP content type. Verify
+extraction/hash matching, corrupt export exclusion, voice identity selection,
+expired-news notices, and portable paths. Full Astra plan is in its latest
+message; request its independent review before committing the next milestone.

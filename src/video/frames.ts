@@ -280,7 +280,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
           : "Try the working example."
         : isNewsEpisode(episode)
           ? "What changed.\nWhy it matters.\nWhen it ships."
-          : "An entity is data.\nA service is the API.";
+          : episode.title;
     y +=
       text(
         ctx,

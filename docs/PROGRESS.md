@@ -240,3 +240,33 @@ Browser checks confirmed both durations, error-free muted playback, paused
 handoff, working selection instructions, and a 390-pixel layout without
 horizontal overflow. This was a silent playback/structure check; no subjective
 listening evaluation of the new passage is claimed.
+
+## Milestone 3f: a second verified CAP lesson
+
+- Added CAP-02, “Seed and query local CAP data,” following Astra's content plan
+  and current official CAP initial-data/OData documentation. Its seven scenes
+  show the exact registered CSV, all three products ordered by title, and the
+  already-asserted combined stock-filter/select/order query.
+- Ran the local verifier before promoting CAP-02 in the thirty-topic backlog,
+  then the ordinary episode verification and full production workflow. The
+  script and companion draft distinguish initial versus development-only data,
+  preserve the returned-ID caveat, and label new filters as viewer exercises.
+- Video review exposed a presenter-card sentence specific to the first pilot.
+  Tutorial opening cards now display their current episode title. A Canvas
+  regression verifies that changing the tutorial title changes the opening,
+  even with identical overlays/captions. The recorded audio was reused when
+  rerendering the corrected video.
+
+The Heart recording measures **53.655 seconds**, a **2.350-second opening**, and
+eighteen estimated caption cues. Its 1080 × 1920 H.264/AAC MP4 measures 53.667
+seconds, -16.11 LUFS, and -4.44 dBTP; complete decoding and audio checks pass.
+The studio retains all prior styles/news and voice samples, with **six MP4s and
+69 matching copied artifact hashes**. Browser QA confirmed the new card/search
+path, correct opening, native video metadata, paused state, and a 390-pixel phone
+layout without horizontal overflow. CSV and filtered-result frames were also
+inspected directly. The viewport override was reset.
+
+Minimum Node 22.13.0 checks pass: **75 workflow tests**, five live CAP assertions,
+formatting, types, validation, and build. Astra independently validated claims,
+exact displayed URLs, saved live evidence, and the title regression/news frames.
+See [the CAP data lesson](CAP_DATA_TUTORIAL.md).

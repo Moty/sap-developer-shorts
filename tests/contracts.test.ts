@@ -11,11 +11,11 @@ test("the backlog retains thirty tutorials and adds a separate SAP news collecti
   assert.equal(newsTopics.length, 6);
   assert.deepEqual(
     topics.filter((topic) => topic.status === "pilot-ready").map((topic) => topic.id),
-    ["CAP-01"],
+    ["CAP-01", "CAP-02"],
   );
   assert.deepEqual(
     episodes.map((episode) => episode.id),
-    ["CAP-01", "NEWS-01"],
+    ["CAP-01", "CAP-02", "NEWS-01"],
   );
 });
 

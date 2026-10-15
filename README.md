@@ -54,6 +54,13 @@ Each invocation creates a separate directory under ignored `artifacts/`:
 
 The silent storyboard uses provisional timing. A warm, conversational female narration preview is also available: the current CAP pilot measures 58.7 seconds, with a 3.0-second hook and nineteen captions using model timing estimates. This is a local voice preview; the final avatar-provider voice must be measured again.
 
+The second tutorial, [CAP-02](content/episodes/CAP-02.json), shows the checked-in
+CSV seed data, all three products ordered by title, and the exact asserted
+stock-above-zero query. Its current Heart recording measures 53.7 seconds.
+Run `npm run shorts -- produce CAP-02 --serve` to prepare or resume the complete
+short. See [the CAP data lesson](docs/CAP_DATA_TUTORIAL.md) for the queries,
+source notes, and initial-data/test-data distinction.
+
 ## Create SAP news shorts
 
 News episodes use official SAP sources and record when each announcement was checked. Each card distinguishes availability, rollout, early access, planned release, or announcement only. News source reviews have their own evidence and do not claim that a product demo was executed.

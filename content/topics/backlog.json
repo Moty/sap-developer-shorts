@@ -2,7 +2,7 @@
   {
     "id": "ABAP-01",
     "pillar": "ABAP",
-    "title": "Stop using `READ TABLE` \u2014 Table Expressions in 60 seconds.",
+    "title": "Stop using `READ TABLE` — Table Expressions in 60 seconds.",
     "status": "needs-research",
     "prerequisites": ["A named ABAP backend with ADT access and ABAP Unit."],
     "sources": [],
@@ -97,11 +97,28 @@
     "id": "CAP-02",
     "pillar": "CAP",
     "title": "Seed and query local CAP demo data",
-    "status": "needs-research",
-    "prerequisites": ["Node.js LTS, npm, and the release-specific CAP dependencies."],
-    "sources": [],
-    "supportedRelease": null,
-    "verifiedOn": null,
+    "status": "pilot-ready",
+    "prerequisites": [
+      "Install Node.js 22.13+ (22 LTS recommended) and npm.",
+      "Run npm ci at the repository root before recording.",
+      "Use the checked-in inventory project; keep installation outside the video."
+    ],
+    "sources": [
+      {
+        "id": "cap-initial-data",
+        "title": "SAP CAP: Adding Initial Data",
+        "url": "https://cap.cloud.sap/docs/guides/databases/initial-data",
+        "retrievedOn": "2026-10-15"
+      },
+      {
+        "id": "cap-odata",
+        "title": "SAP CAP: Serving OData APIs — Query Options",
+        "url": "https://cap.cloud.sap/docs/guides/protocols/odata#feature-overview",
+        "retrievedOn": "2026-10-15"
+      }
+    ],
+    "supportedRelease": "@sap/cds 10.1.1; @cap-js/sqlite 3.1.2; Node.js 22.13+",
+    "verifiedOn": "2026-10-15",
     "outcome": "Demonstrate local CSV seed data and an asserted OData filter before any ERP connection."
   },
   {

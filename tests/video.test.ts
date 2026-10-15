@@ -194,6 +194,27 @@ test("a completed video receipt rejects changed artifacts and files outside its 
   await assert.rejects(readVideoReceipt(directory), /must stay inside/);
 });
 
+test("a new tutorial title changes its opening card even when scene captions and overlays are identical", async () => {
+  const episode = await readEpisode("CAP-01");
+  const { layout } = await readLayout();
+  const timing: NarrationTiming = {
+    schemaVersion: 1,
+    mode: "local-preview",
+    voice: "test",
+    rate: 180,
+    sampleRate: 22050,
+    durationSeconds: 55,
+    scenes: [],
+    cues: [],
+  };
+  const moment = { startFrame: 0, endFrame: 90, sceneIndex: 0, cueIndex: null };
+  const first = await drawVideoFrame({ episode, timing, layout, code: {} }, moment);
+  const next = structuredClone(episode);
+  next.title = (await readEpisode("CAP-02")).title;
+  const second = await drawVideoFrame({ episode: next, timing, layout, code: {} }, moment);
+  assert.notEqual(hash(first), hash(second), "opening must reflect the tutorial being reviewed");
+});
+
 test("every news card and its availability text fits the vertical export without clipping", async () => {
   const episode = await readContentEpisode("NEWS-01");
   const { layout } = await readLayout();

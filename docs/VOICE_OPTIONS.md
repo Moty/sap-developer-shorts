@@ -54,7 +54,7 @@ npm run shorts -- produce CAP-01 --serve
 `voice-select` validates the profile and atomically updates only
 `localPreview.voice`; it does not install, synthesize, or change authored speakers.
 Inspect effective voices and the precise file to edit with
-`npm run shorts -- voices CAP-01@duo`. The professional CAP pilot and news brief
+`npm run shorts -- voices CAP-01@duo`. The CAP tutorials and news brief
 use the global default; prepared casual/comic/dialogue styles declare their own
 speakers. Heart remains the shipped default.
 

@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "id": "CAP-02",
+  "version": 1,
+  "title": "Seed and query local CAP data",
+  "audience": "Full-stack developers new to SAP CAP",
+  "language": "en",
+  "targetDurationSeconds": 58,
+  "environment": {
+    "description": "Local development prototype; @sap/cds 10.1.1, @cap-js/sqlite 3.1.2, Node.js 22+ with node:sqlite. No SAP cloud account required.",
+    "prerequisites": [
+      "Install Node.js 22.13+ (22 LTS recommended) and npm.",
+      "Run npm ci at the repository root before recording.",
+      "Use the checked-in inventory project; keep installation outside the video."
+    ]
+  },
+  "demo": {
+    "id": "cap-inventory",
+    "expectedChecks": [
+      "odata-metadata",
+      "seed-products",
+      "filter-in-stock",
+      "missing-product",
+      "readonly-service"
+    ]
+  },
+  "sources": [
+    {
+      "id": "cap-initial-data",
+      "title": "SAP CAP: Adding Initial Data",
+      "url": "https://cap.cloud.sap/docs/guides/databases/initial-data",
+      "retrievedOn": "2026-10-15"
+    },
+    {
+      "id": "cap-odata",
+      "title": "SAP CAP: Serving OData APIs — Query Options",
+      "url": "https://cap.cloud.sap/docs/guides/protocols/odata#feature-overview",
+      "retrievedOn": "2026-10-15"
+    }
+  ],
+  "claims": [
+    {
+      "id": "csv-seed",
+      "text": "This local inventory demo loads three products from the checked-in demo-Products.csv.",
+      "sourceIds": ["cap-initial-data"],
+      "evidenceChecks": ["seed-products"]
+    },
+    {
+      "id": "ordered-products",
+      "text": "The demonstrated title-order query returns Mechanical Keyboard, Monitor Arm, then USB-C Dock.",
+      "sourceIds": ["cap-odata"],
+      "evidenceChecks": ["seed-products"]
+    },
+    {
+      "id": "positive-stock",
+      "text": "The demonstrated stock-above-zero query returns the keyboard with 12 units and dock with 7, excluding the zero-stock monitor arm.",
+      "sourceIds": ["cap-odata"],
+      "evidenceChecks": ["filter-in-stock"]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "phase": "hook",
+      "startSeconds": 0,
+      "endSeconds": 3,
+      "narration": "Give your CAP demo real data.",
+      "overlay": "Make your CAP demo useful",
+      "visual": {
+        "kind": "presenter",
+        "label": "One CSV. Two checked queries."
+      }
+    },
+    {
+      "id": "context",
+      "phase": "context",
+      "startSeconds": 3,
+      "endSeconds": 11,
+      "narration": "The inventory service already exposes Products. Add predictable seed rows, then check what this local API returns.",
+      "overlay": "Start with the prepared service",
+      "visual": {
+        "kind": "code",
+        "label": "srv/inventory-service.cds",
+        "codePath": "demos/cap/inventory/srv/inventory-service.cds"
+      }
+    },
+    {
+      "id": "seed",
+      "phase": "demo",
+      "startSeconds": 11,
+      "endSeconds": 22,
+      "narration": "Add this CSV under db slash data. Demo dash Products identifies our entity. Its header names ID, title, and stock.",
+      "overlay": "1. Seed three sample products",
+      "visual": {
+        "kind": "code",
+        "label": "db/data/demo-Products.csv",
+        "codePath": "demos/cap/inventory/db/data/demo-Products.csv"
+      }
+    },
+    {
+      "id": "list",
+      "phase": "demo",
+      "startSeconds": 22,
+      "endSeconds": 32,
+      "narration": "Run npm run demo. Open Products ordered by title. Three seeded rows appear, including a monitor arm with zero stock.",
+      "overlay": "2. Query all three rows",
+      "visual": {
+        "kind": "output",
+        "label": "Captured result — title and stock shown",
+        "captureKey": "products",
+        "instructions": [
+          "npm run demo",
+          "http://localhost:4004/odata/v4/inventory/Products?$orderby=title"
+        ]
+      }
+    },
+    {
+      "id": "filter",
+      "phase": "demo",
+      "startSeconds": 32,
+      "endSeconds": 43,
+      "narration": "Now filter stock greater than zero and order by title. The keyboard and dock remain. The response still includes each product's ID.",
+      "overlay": "3. Keep stock above zero",
+      "visual": {
+        "kind": "output",
+        "label": "Exact checked query — IDs also returned",
+        "captureKey": "filtered",
+        "instructions": [
+          "http://localhost:4004/odata/v4/inventory/Products?$filter=stock%20gt%200&$select=title,stock&$orderby=title"
+        ]
+      }
+    },
+    {
+      "id": "payoff",
+      "phase": "payoff",
+      "startSeconds": 43,
+      "endSeconds": 51,
+      "narration": "These are sample rows in a local, in-memory database. Development-only test data belongs in test slash data.",
+      "overlay": "Sample project, local database",
+      "visual": {
+        "kind": "output",
+        "label": "Two products with stock — verified locally",
+        "captureKey": "filtered"
+      }
+    },
+    {
+      "id": "cta",
+      "phase": "cta",
+      "startSeconds": 51,
+      "endSeconds": 58,
+      "narration": "Try the checked-in project and its five checks. Which filter would you test next?",
+      "overlay": "Try it. Then test your next filter.",
+      "visual": {
+        "kind": "presenter",
+        "label": "Runnable demo and checks in the repository"
+      }
+    }
+  ],
+  "pronunciation": {
+    "CAP": "cap",
+    "CDS": "see dee ess",
+    "OData": "oh data",
+    "API": "ay pee eye",
+    "SQLite": "S Q Lite",
+    "CSV": "see ess vee",
+    "ID": "eye dee",
+    "db": "dee bee"
+  },
+  "publication": {
+    "channel": "linkedin",
+    "text": "Give a local CAP demo predictable data before connecting anything else.\n\nThis short uses the checked-in inventory service and demo-Products.csv. The live checks confirm three rows ordered by title. The exact stock-above-zero query returns Mechanical Keyboard (12) and USB-C Dock (7); Monitor Arm (0) is excluded.\n\nThe video cards show title and stock. The captured response also contains ID; this is not a payload-reduction example.\n\nThis sample uses an in-memory SQLite database. SAP distinguishes initial data in db/data (development and production) from development-only test/data. The sample rows here are for this local project, not a recommendation for productive data.\n\nCode and setup: Code link pending repository publication\nInitial-data guide: https://cap.cloud.sap/docs/guides/databases/initial-data\nOData options: https://cap.cloud.sap/docs/guides/protocols/odata#feature-overview\n\nWhich stock threshold would you test next? That is an exercise; the demonstrated, asserted filter is stock greater than zero.\n\n#SAP #CAP #OData #SAPDevelopers"
+  }
+}
