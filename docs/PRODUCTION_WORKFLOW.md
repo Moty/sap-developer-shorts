@@ -1,5 +1,8 @@
 # Produce a local short
 
+Starting on another Mac? Use [New Mac setup](NEW_MAC_SETUP.md) for prerequisites
+and the first end-to-end test before running production.
+
 The local production command combines verification, saved narration, vertical
 MP4 export, and a refreshed review studio:
 

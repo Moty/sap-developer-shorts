@@ -4,6 +4,9 @@ The selected style is a **warm, conversational female narrator**. The default lo
 
 ## Local setup
 
+For a new Mac, follow [the complete setup guide](NEW_MAC_SETUP.md) first; it
+includes Homebrew, the Node PATH setting, FFmpeg, and clean-checkout verification.
+
 Use Node 22.13+, macOS, and [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```sh

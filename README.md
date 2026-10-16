@@ -4,6 +4,15 @@ A local preparation workflow for SAP shorts: hands-on developer tutorials and da
 
 The implementation turns the editorial blueprint into a reproducible pilot package: a script, vertical storyboard, live demo evidence, companion post copy, and local Kokoro narration. It now exports verified vertical MP4s with visible captions and speaker labels. **Stock avatar animation, any final provider voice, and publishing remain pending.** No provider credentials are needed for the local workflow.
 
+## Start on another Mac
+
+Follow the [fresh Mac setup and test guide](docs/NEW_MAC_SETUP.md). It covers
+cloning `main`, installing tools with the committed [Brewfile](Brewfile), checking
+a clean installation, setting up Heart and Michael, and producing
+`CAP-01@casual-v2`. All scripts, dependency pins, fonts, tests, and instructions
+are in Git. Existing recordings and downloaded models are local; the guide also
+explains how to transfer the exact saved studio as a ZIP.
+
 ## Browse the review studio
 
 To prepare a complete local video and refreshed studio in one command:
@@ -209,6 +218,8 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 
 ## Project map
 
+- [New Mac setup](docs/NEW_MAC_SETUP.md): prerequisites, clean-checkout checks, local narration/video setup, and exact-recording transfer.
+- [Quality review](docs/QUALITY_REVIEW.md): revised casual narration, pronunciation corrections, and an audiovisual review prompt.
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): original assessment and full roadmap.
 - [Progress](docs/PROGRESS.md): delivered scope, evidence, and next milestone.
 - [Media workflow](docs/MEDIA_WORKFLOW.md): narration, job recovery, spending records, and current provider limitations.

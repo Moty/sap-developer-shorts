@@ -1,5 +1,9 @@
 # Local development and episode review
 
+For a fresh checkout on another Mac, begin with [New Mac setup](NEW_MAC_SETUP.md).
+It covers system tools, locked application dependencies, core checks, optional
+voice setup, and transferring saved recordings separately from Git.
+
 ## Content contracts
 
 The application also accepts the separate `NEWS-NN` format for dated news briefs. Its source-review evidence and availability checks do not replace tutorial execution checks. News uses the same preview and narration commands; see [news authoring and freshness](NEWS_WORKFLOW.md).
