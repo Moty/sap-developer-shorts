@@ -6,7 +6,26 @@ import { readContentEpisode } from "../src/contracts.js";
 import { readLayout } from "../src/layout.js";
 import type { NarrationTiming } from "../src/media/model.js";
 import { sourceFile } from "../src/paths.js";
-import { drawVideoFrame, loadVideoFonts, wrapVideoText } from "../src/video/frames.js";
+import {
+  codeHighlights,
+  drawVideoFrame,
+  loadVideoFonts,
+  wrapVideoText,
+} from "../src/video/frames.js";
+
+test("code emphasis matches complete spoken identifiers, preserves columns, and ignores filler words", () => {
+  const line = "  key ID: UUID; title: String(100); stock: Integer; stocking: Integer;";
+  const ranges = codeHighlights(line, "An ID, a title, and a stock count.");
+  assert.deepEqual(
+    ranges.map(({ start, end }) => line.slice(start, end)),
+    ["ID", "title", "stock"],
+  );
+  assert.equal(ranges[0]?.start, 6, "leading indentation stays in its original columns");
+  assert.deepEqual(codeHighlights("from this and that", "from this and that"), []);
+  assert.deepEqual(codeHighlights("InventoryService Products", "service product"), []);
+  assert.deepEqual(codeHighlights(line, ""), []);
+  assert.deepEqual(codeHighlights("Products", "products"), [{ start: 0, end: 8 }]);
+});
 
 async function codeContext() {
   await loadVideoFonts();

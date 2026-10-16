@@ -118,6 +118,7 @@ function text(
   color: string,
   family = "Shorts Body",
   label = "text",
+  spokenFocus?: string,
 ) {
   context.font = `${size}px "${family}"`;
   context.fillStyle = color;
@@ -127,9 +128,32 @@ function text(
   if (lines.length * lineHeight > box.height + 1)
     throw new Error(`Video ${label} does not fit its readable text bounds (${lines.length} lines)`);
   lines.forEach((line, index) => {
+    if (family === "Shorts Code" && spokenFocus) {
+      for (const { start, end } of codeHighlights(line, spokenFocus)) {
+        const left = box.x + context.measureText(line.slice(0, start)).width;
+        const width = context.measureText(line.slice(start, end)).width;
+        context.fillStyle = "#35524b";
+        context.fillRect(left - 2, box.y + index * lineHeight - 2, width + 4, lineHeight);
+      }
+      context.fillStyle = color;
+    }
     context.fillText(line, box.x, box.y + index * lineHeight);
   });
   return lines.length * lineHeight;
+}
+
+// Match complete identifiers mentioned by the current caption; never rewrite,
+// reveal, or move source code to create visual emphasis.
+export function codeHighlights(line: string, narration: string) {
+  const ignored = new Set(["the", "and", "with", "from", "this", "that", "for", "you", "your"]);
+  const terms = new Set(
+    (narration.match(/[A-Za-z_$][A-Za-z0-9_$]*/gu) ?? [])
+      .map((term) => term.toLowerCase())
+      .filter((term) => (term.length >= 3 || term === "id") && !ignored.has(term)),
+  );
+  return [...line.matchAll(/[A-Za-z_$][A-Za-z0-9_$]*/gu)]
+    .filter((match) => terms.has(match[0].toLowerCase()))
+    .map((match) => ({ start: match.index, end: match.index + match[0].length }));
 }
 
 function panel(
@@ -223,7 +247,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   if (scene.visual.kind === "code" && "codePath" in scene.visual && scene.visual.codePath) {
     const source = code[scene.visual.codePath];
     if (!source) throw new Error("Missing verified source code for video");
-    text(ctx, source, body, box.fontSize, "#d6ead7", "Shorts Code", "source code");
+    text(ctx, source, body, box.fontSize, "#d6ead7", "Shorts Code", "source code", cue?.text);
   } else if (scene.visual.kind === "output" && "captureKey" in scene.visual) {
     if (!evidence || !scene.visual.captureKey) throw new Error("Missing captured demo result");
     if (scene.visual.instructions?.length) {

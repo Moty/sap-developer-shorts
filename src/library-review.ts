@@ -108,7 +108,7 @@ function comparisonSection(entries: LibraryEntry[]) {
         capComparisonSelectors.indexOf(episodeSelector(a.episode)) -
         capComparisonSelectors.indexOf(episodeSelector(b.episode)),
     );
-  return `<section id="styles" class="styles-section"><div class="section-heading"><div><p class="eyebrow">FIND YOUR DELIVERY</p><h2>Compare the CAP pilot</h2></div><a class="format-guide-link" href="#formats">More storytelling formats ↓</a></div><p class="styles-intro">Same working demo. Four ways to tell the story. Compare the recorded voices, pacing, and SAP geek humor.</p>${
+  return `<section id="styles" class="styles-section"><div class="section-heading"><div><p class="eyebrow">FIND YOUR DELIVERY</p><h2>Compare the CAP pilot</h2></div><a class="format-guide-link" href="#formats">More storytelling formats ↓</a></div><p class="styles-intro">Same working demo. Compare presentation styles and the revised casual script, including recorded voices, pacing, and SAP geek humor.</p>${
     examples.length
       ? `<nav class="style-choices" aria-label="CAP pilot presentation style">${examples.map((entry) => `<a href="#${comparisonId(entry)}" data-style-choice>${esc(comparisonLabel(entry))}</a>`).join("")}</nav><div class="comparison-panels">${examples
           .map((entry) => {

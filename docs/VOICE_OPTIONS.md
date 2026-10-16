@@ -88,6 +88,14 @@ To use the legacy system preview instead, set `localPreview.engine` to `system` 
 
 ## Current results
 
+For the revised casual comparison and a reusable audiovisual review process,
+see [Quality review](QUALITY_REVIEW.md). `CAP-01@casual-v2` keeps Heart and adds
+plain-text pronunciation overrides to that version only. A presentation JSON
+may include `"pronunciation": { "API": "A P I", "npm": "N P M", "URL": "U R L" }`.
+These entries merge with the base glossary; caption spelling stays unchanged.
+Workshop downloads/imports preserve the overrides, and speech identity includes
+the resulting glossary, so an old pronunciation cannot be reused silently.
+
 | Episode | Local neural duration | Opening | Captions |
 | --- | --- | --- | --- |
 | CAP-01 revision 2 | 58.730 seconds | 2.975 seconds | 19 |

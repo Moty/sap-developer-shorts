@@ -10,7 +10,43 @@ import { validateTiming } from "../src/media/package.js";
 import { validateNewsEpisode } from "../src/news/contracts.js";
 import { projectRoot } from "../src/paths.js";
 import { episodeSelector, variantFile } from "../src/presentation.js";
-import { applyPresentationVariant } from "../src/variants.js";
+import { applyPresentationVariant, validatePresentationDefinition } from "../src/variants.js";
+
+test("pronunciation revisions preserve the base and caption words while rejecting malformed speech overrides", async () => {
+  const base = await readEpisode("CAP-01");
+  const before = JSON.stringify(base);
+  const file = JSON.parse(
+    await readFile(resolve(projectRoot, variantFile("CAP-01@casual-v2")), "utf8"),
+  );
+  const { episode } = await validatePresentationDefinition(file);
+  assert.equal(JSON.stringify(base), before);
+  assert.equal((await readEpisode("CAP-01")).pronunciation.API, "ay pee eye");
+  assert.equal(episode.pronunciation.CAP, base.pronunciation.CAP);
+  assert.equal(pronounce("That's your API.", episode.pronunciation), "That's your A P I.");
+  assert.equal(pronounce("Type npm run demo.", episode.pronunciation), "Type N P M run demo.");
+  assert.equal(episode.scenes[0]?.narration, "Where's my CAP API?");
+  assert.deepEqual(episode.claims, base.claims);
+  assert.deepEqual(
+    episode.scenes.map((scene) => scene.visual),
+    base.scenes.map((scene) => scene.visual),
+  );
+  for (const pronunciation of [
+    null,
+    [],
+    "API",
+    { API: 4 },
+    { API: " " },
+    { "": "A" },
+    { API: "[API](/phones/)" },
+    { API: "<break>" },
+    { API: "A\nP\nI" },
+    Object.fromEntries(Array.from({ length: 65 }, (_, i) => [`term${i}`, "word"])),
+  ]) {
+    const invalid = { ...file, pronunciation };
+    await assert.rejects(validatePresentationDefinition(invalid), /pronunciations/);
+    assert.throws(() => applyPresentationVariant(base, invalid), /pronunciations/);
+  }
+});
 
 test("delivery variants inherit technical sources, checks, and visuals, and reject a changed base or structural overrides", async () => {
   const base = await readEpisode("CAP-01");

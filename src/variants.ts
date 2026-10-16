@@ -20,7 +20,27 @@ export type PresentationDefinition = {
     dialogue?: { speakerId: string; text: string }[];
   }[];
   publicationText?: string;
+  pronunciation?: Record<string, string>;
 };
+
+function assertPronunciations(glossary: unknown): asserts glossary is Record<string, string> {
+  if (
+    !glossary ||
+    typeof glossary !== "object" ||
+    Array.isArray(glossary) ||
+    Object.keys(glossary).length > 64 ||
+    Object.entries(glossary).some(
+      ([term, spoken]) =>
+        !term.trim() ||
+        term.length > 80 ||
+        typeof spoken !== "string" ||
+        !spoken.trim() ||
+        spoken.length > 160 ||
+        /[[\]<>\r\n]/u.test(term + spoken),
+    )
+  )
+    throw new Error("Presentation pronunciations need short terms and plain spoken text");
+}
 
 export async function validatePresentationDefinition(value: unknown, expectedSelector?: string) {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -37,6 +57,7 @@ export async function validatePresentationDefinition(value: unknown, expectedSel
           "presentation",
           "scenes",
           "publicationText",
+          "pronunciation",
         ].includes(key),
     ) ||
     definition.schemaVersion !== 1 ||
@@ -49,6 +70,7 @@ export async function validatePresentationDefinition(value: unknown, expectedSel
     (Object.hasOwn(definition, "publicationText") && typeof definition.publicationText !== "string")
   )
     throw new Error("Presentation variant metadata is invalid");
+  if (Object.hasOwn(definition, "pronunciation")) assertPronunciations(definition.pronunciation);
   const selector = `${definition.baseEpisodeId}@${definition.presentation.variant}`;
   const file = variantFile(selector);
   if (expectedSelector !== undefined && expectedSelector !== selector)
@@ -68,13 +90,14 @@ export function applyPresentationVariant(
   base: ContentEpisode,
   value: Pick<
     PresentationDefinition,
-    "baseInputHash" | "title" | "presentation" | "scenes" | "publicationText"
+    "baseInputHash" | "title" | "presentation" | "scenes" | "publicationText" | "pronunciation"
   >,
 ): ContentEpisode {
   if (value.baseInputHash !== hash(JSON.stringify(base)))
     throw new Error("Presentation base changed; review and rebind the variant before production");
   if (!Array.isArray(value.scenes) || value.scenes.length !== base.scenes.length)
     throw new Error("Presentation must provide every scene exactly once");
+  if (Object.hasOwn(value, "pronunciation")) assertPronunciations(value.pronunciation);
   const episode = structuredClone(base);
   episode.title = value.title;
   episode.presentation = value.presentation;
@@ -93,6 +116,8 @@ export function applyPresentationVariant(
     Object.assign(scene, override);
   }
   if (value.publicationText !== undefined) episode.publication.text = value.publicationText;
+  if (value.pronunciation !== undefined)
+    episode.pronunciation = { ...episode.pronunciation, ...value.pronunciation };
   return isNewsEpisode(episode) ? validateNewsEpisode(episode) : validateEpisode(episode);
 }
 

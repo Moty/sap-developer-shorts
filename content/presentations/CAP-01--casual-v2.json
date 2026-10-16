@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
+  "title": "CAP: from data model to working API",
+  "presentation": {
+    "variant": "casual-v2",
+    "tone": "casual",
+    "format": "explainer",
+    "humor": "none",
+    "speakers": [{ "id": "narrator", "name": "Narrator", "voice": "af_heart" }]
+  },
+  "pronunciation": { "API": "A P I", "npm": "N P M", "URL": "U R L" },
+  "scenes": [
+    { "id": "hook", "narration": "Where's my CAP API?" },
+    {
+      "id": "context",
+      "narration": "A CAP entity describes your data, and a service projection exposes it through OData. Let's try this inventory app."
+    },
+    {
+      "id": "model",
+      "narration": "Start with Products: an ID, a title, and a stock count. Three sample rows are already in the project."
+    },
+    {
+      "id": "service",
+      "narration": "Now expose Products through InventoryService, and there's your API. It's read-only, so this example accepts queries and rejects creates."
+    },
+    {
+      "id": "query",
+      "narration": "In the terminal, type npm run demo. Open the Products URL and filter for stock above zero: the keyboard and dock are in stock."
+    },
+    {
+      "id": "payoff",
+      "narration": "Clear the filter to see all three products. Deployment and authentication are separate steps."
+    },
+    {
+      "id": "cta",
+      "narration": "Try the project and its checks. Which entity would you expose first?"
+    }
+  ]
+}

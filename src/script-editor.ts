@@ -21,6 +21,11 @@ export async function scriptEditorSeed(episode: ContentEpisode, defaultVoice = "
     },
   );
   presentation.variant = `${(presentation.variant ?? "my").slice(0, 27)}-edit`;
+  const pronunciation = Object.fromEntries(
+    Object.entries(episode.pronunciation).filter(
+      ([term, spoken]) => base.pronunciation[term] !== spoken,
+    ),
+  );
   const definition: PresentationDefinition = {
     schemaVersion: 1,
     baseEpisodeId: base.id,
@@ -34,6 +39,7 @@ export async function scriptEditorSeed(episode: ContentEpisode, defaultVoice = "
       ...(scene.dialogue ? { dialogue: structuredClone(scene.dialogue) } : {}),
     })),
     publicationText: episode.publication.text,
+    ...(Object.keys(pronunciation).length ? { pronunciation } : {}),
   };
   return definition;
 }

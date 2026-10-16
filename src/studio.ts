@@ -6,6 +6,7 @@ import { episodeSelector, presentationLabel, toneLabels } from "./presentation.j
 export const capComparisonSelectors: readonly string[] = [
   "CAP-01",
   "CAP-01@casual",
+  "CAP-01@casual-v2",
   "CAP-01@comic",
   "CAP-01@duo",
 ];
@@ -46,6 +47,7 @@ export function comparisonId(entry: LibraryEntry): string {
 
 export function comparisonLabel(entry: LibraryEntry): string {
   const value = entry.episode.presentation;
+  if (value?.variant === "casual-v2") return "Casual revised";
   if (value?.format === "dialogue") return "Conversation";
   if (!value || value.format === "explainer") return toneLabels[value?.tone ?? "professional"];
   return presentationLabel(entry.episode);

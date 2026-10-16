@@ -17,13 +17,23 @@ import { importScript } from "../src/script-import.js";
 import { validatePresentationDefinition } from "../src/variants.js";
 
 test("script workshop seeds preserve tutorial, dialogue, and news inputs with a current base binding", async () => {
-  for (const selector of ["CAP-01", "CAP-02@quiz", "CAP-01@duo", "NEWS-02", "NEWS-02@duo"]) {
+  for (const selector of [
+    "CAP-01",
+    "CAP-01@casual-v2",
+    "CAP-02@quiz",
+    "CAP-01@duo",
+    "NEWS-02",
+    "NEWS-02@duo",
+  ]) {
     const original = await readContentEpisode(selector);
     const seed = await scriptEditorSeed(original, "af_bella");
     const { episode } = await validatePresentationDefinition(seed);
     assert.deepEqual(episode.sources, original.sources);
     assert.deepEqual(episode.claims, original.claims);
     assert.deepEqual(episode.scenes, original.scenes);
+    assert.deepEqual(episode.pronunciation, original.pronunciation);
+    if (selector === "CAP-01@casual-v2")
+      assert.deepEqual(seed.pronunciation, { API: "A P I", npm: "N P M", URL: "U R L" });
     assert.equal(seed.baseInputHash, hash(JSON.stringify(await readContentEpisode(original.id))));
     assert.notEqual(episode.presentation?.variant, original.presentation?.variant);
     assert.deepEqual(
@@ -296,7 +306,7 @@ async function workshop(
 }
 
 test("the actual workshop script downloads validated solo/dialogue revisions and derives exact turn narration", async () => {
-  for (const selector of ["CAP-02@quiz", "CAP-01@duo"]) {
+  for (const selector of ["CAP-02@quiz", "CAP-01@casual-v2", "CAP-01@duo"]) {
     const ui = await workshop(selector);
     ui.get("variant-name").value = "workshop-check";
     ui.get(selector.includes("duo") ? "turn-0-0" : "narration-0").value =
@@ -308,6 +318,10 @@ test("the actual workshop script downloads validated solo/dialogue revisions and
     assert.equal(ui.downloads.length, 1);
     const definition = JSON.parse(ui.downloads[0]?.parts.join("") ?? "null");
     const checked = await validatePresentationDefinition(definition);
+    assert.deepEqual(
+      checked.episode.pronunciation,
+      (await readContentEpisode(selector)).pronunciation,
+    );
     assert.match(checked.selector, /@workshop-check$/u);
     assert.equal(checked.episode.scenes[0]?.overlay, 'Predict <stock> & "answer"');
     assert.equal(checked.episode.scenes[0]?.narration, "Which CAP products have stock?");
@@ -402,6 +416,35 @@ test("a workshop voice change imports as a new revision without changing the def
     changedIdentity,
     "per-revision voices cannot reuse mismatched speech",
   );
+});
+
+test("a downloaded pronunciation revision imports intact and changes the speech identity without changing captions", async (t) => {
+  const original = await readContentEpisode("CAP-01@casual-v2");
+  const ui = await workshop("CAP-01@casual-v2");
+  ui.get("variant-name").value = "pronunciation-review";
+  ui.update();
+  ui.download();
+  const draft = JSON.parse(ui.downloads[0]?.parts.join("") ?? "null");
+  const directory = await mkdtemp(resolve(tmpdir(), "sap-workshop-pronunciation-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const input = resolve(directory, "download.json");
+  const presentationDirectory = resolve(directory, "presentations");
+  await mkdir(presentationDirectory);
+  await writeFile(input, JSON.stringify(draft));
+  const result = await importScript(input, { presentationDirectory });
+  assert.deepEqual(result.episode.pronunciation, original.pronunciation);
+  assert.deepEqual(result.episode.scenes, original.scenes);
+  const request = {
+    provider: "local-kokoro",
+    generatorHash: hash("generator"),
+    voiceRuntimeHash: hash("runtime"),
+    settings: await productionSettings(),
+    episode: result.episode,
+  } as MediaRequest;
+  const changed = structuredClone(request);
+  changed.episode.pronunciation.API = "ay pee eye";
+  assert.notEqual(narrationIdentity(request), narrationIdentity(changed));
+  assert.deepEqual(changed.episode.scenes, request.episode.scenes);
 });
 
 test("conversation voice choices preserve names and turns and block duplicate or injected choices", async () => {
