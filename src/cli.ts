@@ -180,10 +180,42 @@ try {
     const result = await buildLibrary();
     console.log(`Library: ${resolve(result.directory, "review.html")}`);
     console.log(`Serve: npm run shorts -- serve ${result.directory}`);
-  } else if (command === "serve" && args.length === 1 && args[0]) {
-    const { url } = await startPreviewServer(args[0]);
-    console.log(`Preview: ${url}`);
-    console.log("Serving this artifact locally. Stop with Ctrl+C.");
+  } else if (command === "serve" && args.length <= 1) {
+    let directory = args[0];
+    if (!directory) {
+      const { readdir, stat } = await import("node:fs/promises");
+      const { projectRoot } = await import("./paths.js");
+      const artifactsDir = resolve(projectRoot, "artifacts");
+      try {
+        const entries = await readdir(artifactsDir, { withFileTypes: true });
+        const libraries = entries
+          .filter((e) => e.isDirectory() && e.name.startsWith("library-"))
+          .map((e) => resolve(artifactsDir, e.name));
+        if (libraries.length) {
+          const stats = await Promise.all(libraries.map(async (p) => ({ p, s: await stat(p) })));
+          stats.sort((a, b) => b.s.mtimeMs - a.s.mtimeMs);
+          directory = stats[0]?.p;
+        }
+      } catch {}
+      if (!directory) {
+        const { buildLibrary } = await import("./library.js");
+        const built = await buildLibrary();
+        directory = built.directory;
+      }
+    }
+    const { url, server } = await startPreviewServer(directory);
+    console.log(`Local:   ${url}`);
+    const { networkInterfaces } = await import("node:os");
+    const nets = networkInterfaces();
+    const port = (server.address() as { port?: number })?.port ?? 4173;
+    const addrs = Object.values(nets)
+      .flatMap((n) => n ?? [])
+      .filter((a) => !a.internal && a.family === "IPv4")
+      .map((a) => a.address);
+    if (addrs[0]) {
+      console.log(`Network: http://${addrs[0]}:${port}/review.html`);
+    }
+    console.log("Serving this artifact locally and across your network. Stop with Ctrl+C.");
   } else if (command === "doctor" && !args.length) {
     if (!(await doctor())) process.exitCode = 1;
   } else if (command === "validate" && args.length <= 1) {

@@ -500,6 +500,28 @@ h2 {
   font-size: 12px;
   color: #947a44;
 }
+.quality-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.q-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 520;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #ebf3ee;
+  color: #27523d;
+  border: 1px solid #d0e2d6;
+}
+.q-badge.warning {
+  background: #fdf5ea;
+  color: #8c6418;
+  border-color: #ebd7b7;
+}
 .card-actions {
   display: flex;
   align-items: center;
@@ -1497,4 +1519,53 @@ code:focus-visible {
   .voice-card {
     padding: 18px;
   }
+}
+
+button.produce-card-btn {
+  background: #2f5741;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  transition: opacity 0.2s;
+}
+button.produce-card-btn:hover {
+  background: #244433;
+}
+button.produce-card-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.studio-produce-banner {
+  background: #1a382b;
+  color: #edf6ed;
+  padding: 16px 24px;
+  border-bottom: 2px solid #52896f;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.studio-produce-banner .banner-content {
+  max-width: 1200px;
+  margin: auto;
+}
+.studio-progress-bar {
+  background: #11241c;
+  border-radius: 8px;
+  height: 8px;
+  width: 100%;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.studio-progress-fill {
+  background: #60c294;
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s ease;
 }

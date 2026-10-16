@@ -1,7 +1,10 @@
 (() => {
-  const { seed, scenes, reservedNames, availableVoices, recoveryId } = JSON.parse(
+  const { seed, scenes, reservedNames, availableVoices, recoveryId, pronunciation } = JSON.parse(
     document.getElementById("editor-data").textContent,
   );
+  let activePronunciation = { ...(pronunciation || seed.pronunciation || {}) };
+  const startingPronunciation = structuredClone(activePronunciation);
+  let renderGlossaryUi = null;
   const byId = (id) => document.getElementById(id);
   const words = (text) => text.trim().split(/\s+/u).filter(Boolean).length;
   const download = byId("download-script");
@@ -252,6 +255,34 @@
       },
       "publication-text",
     );
+    const pronunciationChanges = [];
+    const allTerms = Array.from(
+      new Set([...Object.keys(startingPronunciation), ...Object.keys(activePronunciation)]),
+    ).sort();
+    for (const term of allTerms) {
+      const before = startingPronunciation[term];
+      const after = activePronunciation[term];
+      if (before !== after) {
+        pronunciationChanges.push({
+          label: `Term: ${term}`,
+          before: before ? `"${before}"` : "(none)",
+          after: after ? `"${after}"` : "(removed)",
+        });
+      }
+    }
+    if (pronunciationChanges.length) {
+      section(
+        "Pronunciation glossary",
+        pronunciationChanges,
+        "Restore pronunciations",
+        () => {
+          activePronunciation = structuredClone(startingPronunciation);
+          if (typeof renderGlossaryUi === "function") renderGlossaryUi();
+          update();
+        },
+        "variant-name",
+      );
+    }
     byId("review-changes-list").replaceChildren(...items);
     const summary = items.length ? `Review changes (${items.length})` : "Review changes";
     const count = items.length
@@ -321,6 +352,22 @@
       warning.hidden = !problems.length;
       if (problems.length) errors.push(`Scene ${index + 1}: ${problems.join(" ")}`);
     }
+    for (const [term, spoken] of Object.entries(activePronunciation)) {
+      if (
+        !term.trim() ||
+        term.length > 80 ||
+        !spoken.trim() ||
+        spoken.length > 160 ||
+        /[[\]<>\r\n]/u.test(term + spoken)
+      ) {
+        errors.push(`Pronunciation term "${term}" must be plain text without brackets.`);
+      }
+    }
+    if (JSON.stringify(activePronunciation) !== JSON.stringify(startingPronunciation)) {
+      draft.pronunciation = structuredClone(activePronunciation);
+    } else if (seed.pronunciation) {
+      draft.pronunciation = structuredClone(seed.pronunciation);
+    }
     byId("draft-count").textContent =
       `${total} spoken words · ${scenes.at(-1).endSeconds}s planned · not yet recorded`;
     byId("draft-errors").textContent = errors.length
@@ -357,12 +404,266 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     status.textContent = `Downloaded ${filename}. Import this file before producing the new version.`;
   });
+
+  const produceBtn = byId("produce-script");
+  const progressBox = byId("produce-progress-box");
+  const progressBar = byId("produce-progress-bar");
+  const progressText = byId("produce-progress-text");
+  const produceResult = byId("produce-result");
+
+  function setProduceProgress(stage, message) {
+    if (progressText) progressText.textContent = `${stage}: ${message || ""}`;
+    const stagePercent = {
+      PREFLIGHT: "20%",
+      NARRATION: "50%",
+      RENDER: "80%",
+      LIBRARY: "95%",
+      READY: "100%",
+    };
+    if (progressBar && stagePercent[stage]) {
+      progressBar.style.width = stagePercent[stage];
+    }
+  }
+
+  if (produceBtn) {
+    produceBtn.addEventListener("click", async () => {
+      if (pendingRecovery) return;
+      const { draft, errors } = readDraft();
+      if (errors.length) return;
+      const selector = `${draft.baseEpisodeId}@${draft.presentation.variant}`;
+      produceBtn.disabled = true;
+      download.disabled = true;
+      if (progressBox) progressBox.hidden = false;
+      if (produceResult) produceResult.hidden = true;
+      setProduceProgress("PREFLIGHT", "Saving revised script and starting production...");
+
+      try {
+        const response = await fetch("/api/produce", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ definition: draft }),
+        });
+        if (response.status === 409) {
+          const data = await response.json();
+          alert(
+            `Another production job is running (${data.selector} · ${data.stage}). Please wait.`,
+          );
+          produceBtn.disabled = false;
+          download.disabled = false;
+          if (progressBox) progressBox.hidden = true;
+          return;
+        }
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || `Server returned ${response.status}`);
+        }
+        const data = await response.json();
+        const sse = new EventSource(`/api/productions/${encodeURIComponent(data.jobId)}/stream`);
+        sse.addEventListener("status", (e) => {
+          try {
+            const p = JSON.parse(e.data);
+            setProduceProgress(p.stage, p.message);
+          } catch {}
+        });
+        sse.addEventListener("progress", (e) => {
+          try {
+            const p = JSON.parse(e.data);
+            setProduceProgress(p.stage, p.message);
+          } catch {}
+        });
+        sse.addEventListener("complete", () => {
+          sse.close();
+          setProduceProgress("READY", "Production complete!");
+          produceBtn.disabled = false;
+          download.disabled = false;
+          if (produceResult) {
+            produceResult.hidden = false;
+            produceResult.innerHTML = `<strong>Production Succeeded!</strong><p><a class="watch-now-btn" href="../../episodes/${encodeURIComponent(selector)}/video/review.html">Watch MP4 ↗</a> <a href="../../review.html#${encodeURIComponent(`compare-${selector.replace("@", "--")}`)}">View in Studio ↗</a></p>`;
+          }
+        });
+        sse.addEventListener("error", () => {
+          sse.close();
+          setProduceProgress("FAILED", "Production failed. Check server logs for details.");
+          produceBtn.disabled = false;
+          download.disabled = false;
+        });
+      } catch (error) {
+        setProduceProgress("FAILED", error.message);
+        produceBtn.disabled = false;
+        download.disabled = false;
+      }
+    });
+  }
+
+  function setupAuditioning() {
+    if (typeof document.querySelectorAll !== "function") return;
+
+    async function runAudition(text, speakerIndex, statusEl, audioEl, btnEl) {
+      if (!text?.trim()) {
+        if (statusEl) {
+          statusEl.className = "audition-status error";
+          statusEl.textContent = "Please enter text to audition.";
+        }
+        return;
+      }
+      const voiceSelect = byId(`speaker-voice-${speakerIndex}`) || byId("speaker-voice-0");
+      const voice = voiceSelect ? voiceSelect.value : availableVoices[0] || "af_heart";
+      if (btnEl) btnEl.disabled = true;
+      if (statusEl) {
+        statusEl.className = "audition-status loading";
+        statusEl.textContent = "Synthesizing...";
+      }
+      try {
+        const res = await fetch("/api/audition", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: text.trim(),
+            voice,
+            speed: 0.96,
+            pronunciation: activePronunciation,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Audition failed" }));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        const spoken = decodeURIComponent(res.headers.get("x-spoken-text") || "");
+        const dur = res.headers.get("x-duration-seconds") || "";
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        if (audioEl) {
+          audioEl.src = url;
+          audioEl.hidden = false;
+          audioEl.play().catch(() => {});
+        }
+        if (statusEl) {
+          statusEl.className = "audition-status success";
+          statusEl.textContent = `✓ ${dur}s · "${spoken}"`;
+        }
+      } catch (err) {
+        if (statusEl) {
+          statusEl.className = "audition-status error";
+          statusEl.textContent = `Error: ${err.message}`;
+        }
+      } finally {
+        if (btnEl) btnEl.disabled = false;
+      }
+    }
+
+    const auditionBtns = document.querySelectorAll(".audition-btn");
+    auditionBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetId = btn.getAttribute("data-target");
+        const speakerIndex = Number.parseInt(btn.getAttribute("data-speaker-index") || "0", 10);
+        const input = byId(targetId);
+        const statusEl = byId(`audition-status-${targetId}`);
+        const audioEl = byId(`audio-${targetId}`);
+        runAudition(input ? input.value : "", speakerIndex, statusEl, audioEl, btn);
+      });
+    });
+
+    function setupGlossary() {
+      const listEl = byId("glossary-list");
+      const countEl = byId("glossary-count");
+      if (!listEl) return;
+
+      renderGlossaryUi = function render() {
+        const entries = Object.entries(activePronunciation);
+        if (countEl) countEl.textContent = String(entries.length);
+        const items = entries.map(([term, spoken]) => {
+          const li = element("li", "glossary-item");
+          li.setAttribute("data-term", term);
+          const badge = element("span", "glossary-term-badge", term);
+          const arrow = element("span", "glossary-arrow", "→");
+          const input = element("input", "glossary-spoken-input");
+          input.type = "text";
+          input.value = spoken;
+          input.maxLength = 80;
+          input.setAttribute("data-term", term);
+          input.setAttribute("aria-label", `Pronunciation for ${term}`);
+          input.addEventListener("input", () => {
+            const val = input.value.trim();
+            if (val) activePronunciation[term] = val;
+            update();
+          });
+          const auditionBtn = element("button", "audition-term-btn", "🔊");
+          auditionBtn.type = "button";
+          auditionBtn.title = `Audition ${term}`;
+          auditionBtn.addEventListener("click", () => {
+            const spokenVal = activePronunciation[term] || input.value.trim() || term;
+            const sandboxStatus = byId("sandbox-status");
+            const sandboxPlayer = byId("sandbox-player");
+            runAudition(spokenVal, 0, sandboxStatus, sandboxPlayer, auditionBtn);
+          });
+          const removeBtn = element("button", "remove-term-btn", "✕");
+          removeBtn.type = "button";
+          removeBtn.title = `Remove ${term}`;
+          removeBtn.addEventListener("click", () => {
+            delete activePronunciation[term];
+            render();
+            update();
+          });
+          li.append(badge, arrow, input, auditionBtn, removeBtn);
+          return li;
+        });
+        listEl.replaceChildren(...items);
+      };
+
+      renderGlossaryUi();
+
+      const addBtn = byId("add-term-btn");
+      if (addBtn) {
+        addBtn.addEventListener("click", () => {
+          const keyInput = byId("new-term-key");
+          const valInput = byId("new-term-val");
+          const errEl = byId("glossary-add-error");
+          const key = keyInput ? keyInput.value.trim() : "";
+          const val = valInput ? valInput.value.trim() : "";
+          if (!key || !val) {
+            if (errEl) {
+              errEl.textContent = "Please enter both term and spoken pronunciation.";
+              errEl.hidden = false;
+            }
+            return;
+          }
+          if (/[[\]<>\r\n]/u.test(key + val)) {
+            if (errEl) {
+              errEl.textContent = "Brackets and special characters are not allowed.";
+              errEl.hidden = false;
+            }
+            return;
+          }
+          activePronunciation[key] = val;
+          if (keyInput) keyInput.value = "";
+          if (valInput) valInput.value = "";
+          if (errEl) errEl.hidden = true;
+          renderGlossaryUi();
+          update();
+        });
+      }
+    }
+
+    setupGlossary();
+
+    const sandboxBtn = byId("sandbox-audition-btn");
+    if (sandboxBtn) {
+      sandboxBtn.addEventListener("click", () => {
+        const textInput = byId("sandbox-text");
+        const sandboxStatus = byId("sandbox-status");
+        const sandboxPlayer = byId("sandbox-player");
+        runAudition(textInput ? textInput.value : "", 0, sandboxStatus, sandboxPlayer, sandboxBtn);
+      });
+    }
+  }
+
   function enableEditor() {
     byId("editor-fields").disabled = false;
     byId("download-controls").hidden = false;
     byId("resume-draft").hidden = true;
     byId("discard-draft").hidden = true;
     readDraft();
+    setupAuditioning();
   }
   byId("resume-draft").addEventListener("click", () => {
     if (!pendingRecovery) return;

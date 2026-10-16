@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname } from "node:path";
+import { handleApiRequest } from "./api.js";
 import { inside } from "./paths.js";
 
 const contentTypes: Record<string, string> = {
@@ -15,9 +16,22 @@ const contentTypes: Record<string, string> = {
   ".zip": "application/zip",
 };
 
-export async function startPreviewServer(directory: string, port = 4173) {
-  const root = await realpath(directory);
+export async function startPreviewServer(directory: string, port = 4173, host = "0.0.0.0") {
+  let root = await realpath(directory);
   async function respond(request: IncomingMessage, response: ServerResponse) {
+    const url = new URL(request.url ?? "/", "http://localhost");
+    if (url.pathname.startsWith("/api/")) {
+      const handled = await handleApiRequest(request, response, url, {
+        onLibraryUpdated: async (newDirectory) => {
+          try {
+            root = await realpath(newDirectory);
+          } catch {
+            /* retain current root on error */
+          }
+        },
+      });
+      if (handled) return;
+    }
     if (request.method !== "GET" && request.method !== "HEAD") {
       response.writeHead(405, { Allow: "GET, HEAD" }).end();
       return;
@@ -90,7 +104,7 @@ export async function startPreviewServer(directory: string, port = 4173) {
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
+    server.listen(port, host, resolve);
   });
   const address = server.address();
   if (!address || typeof address === "string")

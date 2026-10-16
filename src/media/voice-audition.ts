@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { hash } from "../digest.js";
 import { inside, projectRoot, sourceFile } from "../paths.js";
 import { escapeHtml as esc } from "../review.js";
-import { readPcmWav, sampleRate } from "./audio.js";
+import { pronounce, readPcmWav, sampleRate } from "./audio.js";
 import { currentNarrationGeneratorHash } from "./fingerprint.js";
 import type { ProductionSettings } from "./model.js";
 import {
@@ -281,5 +281,47 @@ export async function buildAuditionPage(
     return directory;
   } finally {
     await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+export async function auditionPhrase(
+  text: string,
+  options: {
+    voice?: string;
+    speed?: number;
+    pronunciation?: Record<string, string>;
+  } = {},
+): Promise<{ audio: Buffer; durationSeconds: number; spokenText: string }> {
+  const voice = options.voice ?? "af_heart";
+  const speed = options.speed ?? 0.96;
+  const pronunciation = options.pronunciation ?? {};
+  const runtime = await neuralRuntime([voice]);
+  const root = resolve(projectRoot, "artifacts", ".auditions");
+  const tempDir = resolve(root, randomUUID());
+  await mkdir(tempDir, { recursive: true });
+  try {
+    const request: NeuralSpeechRequest = {
+      episode: {
+        pronunciation,
+        scenes: [{ id: "audition", narration: text }],
+      },
+      settings: {
+        localPreview: {
+          engine: "kokoro",
+          voice,
+          speed,
+          sampleRate,
+          wordsPerMinute: 160,
+        },
+      },
+      voiceRuntimeHash: runtime.hash,
+    };
+    await synthesizeNeuralScene(request, 0, tempDir, AbortSignal.timeout(kokoroOperationTimeoutMs));
+    const audio = await readFile(resolve(tempDir, "scene-0.wav"));
+    const durationSeconds = readPcmWav(audio).length / 2 / sampleRate;
+    const spokenText = pronounce(text, pronunciation);
+    return { audio, durationSeconds, spokenText };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }

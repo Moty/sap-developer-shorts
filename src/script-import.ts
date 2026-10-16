@@ -32,6 +32,13 @@ export async function importScript(path: string, options: { presentationDirector
   } finally {
     await input.close();
   }
+  return savePresentation(value, options);
+}
+
+export async function savePresentation(
+  value: unknown,
+  options: { presentationDirectory?: string } = {},
+) {
   const validated = await validatePresentationDefinition(value);
   const requestedDirectory = resolve(
     options.presentationDirectory ?? resolve(projectRoot, "content/presentations"),

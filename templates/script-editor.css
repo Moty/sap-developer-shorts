@@ -304,7 +304,7 @@ footer {
   margin: 32px 0 12px;
 }
 [hidden] {
-  display: none !important;
+  display: none;
 }
 .sr-only {
   position: absolute;
@@ -345,4 +345,264 @@ footer {
   .change-item {
     padding: 14px;
   }
+}
+
+.save-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 16px 0;
+}
+.produce-btn {
+  background: #245d4b;
+  color: #fff;
+  border: 0;
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 650;
+  padding: 14px 22px;
+}
+.produce-btn:hover {
+  background: #1c4a3b;
+}
+.secondary-btn {
+  background: #dfe7e3;
+  color: #245d4b;
+  border: 1px solid #b8c9c2;
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 650;
+  padding: 14px 20px;
+}
+.secondary-btn:hover {
+  background: #d0dcd7;
+}
+.produce-progress-box {
+  background: #eaf1ed;
+  border: 1px solid #bad2c7;
+  border-radius: 9px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.progress-bar {
+  background: #cadbd3;
+  height: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.progress-fill {
+  background: #245d4b;
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+.watch-now-btn {
+  display: inline-block;
+  background: #245d4b;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-right: 12px;
+}
+.narration-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.audition-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: #f0f6f2;
+  border: 1px solid #b7d1c4;
+  color: #1f4e3f;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+.audition-btn:hover {
+  background: #e2ede6;
+}
+.audition-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.audition-status {
+  font-size: 12px;
+  color: #557266;
+}
+.audition-status.loading {
+  color: #245d4b;
+  font-style: italic;
+}
+.audition-status.success {
+  color: #185a36;
+  font-weight: 500;
+}
+.audition-status.error {
+  color: #b02323;
+}
+.audition-player {
+  display: block;
+  margin-top: 8px;
+  height: 32px;
+  width: 100%;
+  max-width: 380px;
+}
+.glossary-section {
+  margin-top: 20px;
+}
+.glossary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.glossary-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.glossary-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8faf9;
+  border: 1px solid #dbe6e0;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.glossary-term-badge {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e4eee8;
+  color: #174233;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.glossary-arrow {
+  color: #6b8277;
+  font-size: 12px;
+}
+.glossary-spoken-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1px solid #c2d6cc;
+  border-radius: 4px;
+  background: #fff;
+  color: #1b2e25;
+}
+.glossary-spoken-input:focus {
+  outline: none;
+  border-color: #245d4b;
+  box-shadow: 0 0 0 2px rgba(36, 93, 75, 0.15);
+}
+.audition-term-btn {
+  border: 1px solid #b8d2c4;
+  background: #eaf3ee;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 7px;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.audition-term-btn:hover {
+  background: #d8e9e0;
+}
+.remove-term-btn {
+  border: 1px solid #e0c8c8;
+  background: #fdf5f5;
+  color: #a33;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 4px 7px;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.remove-term-btn:hover {
+  background: #fae4e4;
+}
+.glossary-add-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px;
+  background: #f1f7f3;
+  border: 1px dashed #bcd2c8;
+  border-radius: 6px;
+}
+.glossary-add-row input {
+  padding: 5px 8px;
+  font-size: 12px;
+  border: 1px solid #bcd2c8;
+  border-radius: 4px;
+  background: #fff;
+}
+.glossary-add-row input:first-child {
+  width: 90px;
+}
+.glossary-add-row input:nth-child(3) {
+  flex: 1;
+  min-width: 0;
+}
+.add-term-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #245d4b;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.add-term-btn:hover {
+  background: #1b4739;
+}
+.audition-sandbox {
+  margin-top: 24px;
+  padding: 14px;
+  background: #f1f7f3;
+  border: 1px solid #d0e4d9;
+  border-radius: 8px;
+}
+.audition-sandbox h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #245d4b;
+}
+.sandbox-input-row {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+.sandbox-input-row input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #bcd2c8;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.sandbox-input-row button {
+  padding: 6px 12px;
+  background: #245d4b;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
 }

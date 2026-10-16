@@ -193,6 +193,11 @@ async function workshop(
     "download-controls",
     "download-script",
     "download-status",
+    "produce-script",
+    "produce-progress-box",
+    "produce-progress-bar",
+    "produce-progress-text",
+    "produce-result",
     "draft-count",
     "draft-errors",
     "produce-command",
@@ -1013,3 +1018,16 @@ test("pending recovery becomes visible after restored scroll without stealing fo
   assert.equal(original.scrollPosition(), 3900);
   assert.equal(original.focused(), "publication-text");
 });
+
+test("workshop allows enhancing pronunciations and saves overrides to downloadable draft", async () => {
+  const ui = await workshop("NEWS-01");
+  ui.get("variant-name").value = "custom-pronounce";
+  ui.update();
+  ui.download();
+  assert.equal(ui.get("download-script").disabled, false);
+  const draft = JSON.parse(ui.downloads[0]?.parts.join("") ?? "null");
+  const checked = await validatePresentationDefinition(draft);
+  assert.equal(checked.episode.pronunciation.SAP, "S.A.P.");
+  assert.equal(checked.episode.pronunciation.Signavio, "Signavio");
+});
+

@@ -102,6 +102,21 @@ def render(root, input_path, output_path, alignment_path):
             raise ValueError("Only American and British English speaker profiles are supported")
         if language not in pipelines:
             pipelines[language] = KPipeline(lang_code=language, model=model, repo_id=runtime["repository"])
+            if hasattr(pipelines[language], "g2p") and hasattr(pipelines[language].g2p, "lexicon") and hasattr(pipelines[language].g2p.lexicon, "golds"):
+                pipelines[language].g2p.lexicon.golds.update({
+                    "api": "ˈA pˈi ˈI",
+                    "ay": "ˈA",
+                    "odata": "ˈO dˈAtɐ",
+                    "cds": "sˈi dˈi ˈɛs",
+                    "npm": "ˈɛn pˈi ˈɛm",
+                    "uuid": "jˈu jˈu ˈI dˈi",
+                    "url": "jˈu ˌɑr ˈɛl",
+                    "ui5": "jˈu ˈI fˈIv",
+                    "btp": "bˈi tˈi pˈi",
+                    "sap": "ˌɛsˌApˈi",
+                    "s.a.p.": "ˌɛsˌApˈi",
+                    "signavio": "sɪɡnˈɑːviˌoʊ",
+                })
         voice_path = paths.get(f"voice:{segment['voice']}")
         if voice_path is None and segment["voice"] == runtime["voice"]:
             voice_path = paths.get("voice")
@@ -153,7 +168,7 @@ def render(root, input_path, output_path, alignment_path):
         audio_parts.append(samples)
         offset += duration
         if index < len(segments) - 1:
-            pause = np.zeros(round(22050 * 0.14), dtype=samples.dtype)
+            pause = np.zeros(round(22050 * 0.28), dtype=samples.dtype)
             audio_parts.append(pause)
             offset += len(pause) / 22050
     samples = np.concatenate(audio_parts)
