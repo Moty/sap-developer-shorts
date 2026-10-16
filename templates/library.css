@@ -541,7 +541,19 @@ h2 {
 .review-link:hover {
   text-decoration: underline;
 }
-.avatar-note,
+.avatar-note {
+  font-size: 11px;
+  color: #174233;
+  font-weight: 600;
+  background: #e4eee8;
+  border: 1px solid #c2d6cc;
+  border-radius: 4px;
+  padding: 3px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
 .preview-pending {
   font-size: 11px;
   color: #748167;

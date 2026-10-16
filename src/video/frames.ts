@@ -3,6 +3,7 @@ import { createCanvas, GlobalFonts, type SKRSContext2D } from "@napi-rs/canvas";
 import { hash } from "../digest.js";
 import { type ContentEpisode, type DemoEvidence, isNewsEpisode } from "../domain.js";
 import type { VideoLayout } from "../layout.js";
+import { determineViseme, drawAvatarBadge } from "../media/avatar.js";
 import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
@@ -404,22 +405,18 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     episode.presentation?.speakers.find((item) => item.id === cue?.speakerId) ??
     episode.presentation?.speakers[0];
   const badge = layout.presenter;
-  panel(ctx, badge.x, badge.y, badge.width, badge.height, accent, 40);
-  text(
+  const isSpeaking = Boolean(cue && (!cue.speakerId || cue.speakerId === speaker?.id));
+  const viseme = determineViseme(cue?.text, isSpeaking);
+  drawAvatarBadge(
     ctx,
-    speaker?.name ?? "SAP",
-    { x: badge.x + 20, y: badge.y + 60, width: badge.width - 40, height: 65 },
-    40,
-    "#173b35",
-    "Shorts Heading",
-    "speaker badge",
-  );
-  text(
-    ctx,
-    speaker ? "AI HOST" : "SHORTS",
-    { x: badge.x + 20, y: badge.y + 138, width: badge.width - 40, height: 40 },
-    24,
-    "#356050",
+    badge,
+    {
+      id: speaker?.id ?? "narrator",
+      name: speaker?.name ?? (isNewsEpisode(episode) ? "SAP" : "Host"),
+      accentColor: accent,
+    },
+    viseme,
+    isSpeaking,
   );
   text(
     ctx,

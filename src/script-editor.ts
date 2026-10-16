@@ -77,10 +77,10 @@ export async function createScriptEditor(
     .replaceAll("\u2029", "\\u2029");
   const voiceName = (id: string) => kokoroVoices.find((voice) => voice.id === id)?.name ?? id;
   const speakers = seed.presentation.speakers;
-  const voiceFields = `<section class="draft-details voice-editor" aria-labelledby="voice-heading"><h2 id="voice-heading">Choose the voices</h2><p>These choices apply to your new version. The project default and existing recordings stay as they are.</p>${speakers
+  const voiceFields = `<section class="draft-details voice-editor" aria-labelledby="voice-heading"><h2 id="voice-heading">Choose the voices & presenters</h2><p>These choices apply to your new version. Each presenter features an animated talking-head avatar in the video.</p>${speakers
     .map(
       (speaker, index) =>
-        `<label for="speaker-voice-${index}">${esc(speaker.name)} voice</label><select id="speaker-voice-${index}" aria-describedby="speaker-voice-${index}-help">${kokoroVoices
+        `<div class="speaker-config-row"><div class="speaker-avatar-preview"><div class="avatar-icon avatar-${esc(speaker.id)}">🎭</div><span class="avatar-name-label">${esc(speaker.name)}</span></div><div class="speaker-input-wrap"><label for="speaker-voice-${index}">${esc(speaker.name)} voice</label><select id="speaker-voice-${index}" aria-describedby="speaker-voice-${index}-help">${kokoroVoices
           .filter((voice) => availableVoices.includes(voice.id) || voice.id === speaker.voice)
           .map(
             (voice) =>
@@ -88,7 +88,7 @@ export async function createScriptEditor(
           )
           .join(
             "",
-          )}</select><p class="voice-help" id="speaker-voice-${index}-help">${availableVoices.includes(speaker.voice) ? "Local voice assets checked when this studio was built." : "Original voice retained. Its local assets need setup before production."}</p>`,
+          )}</select><p class="voice-help" id="speaker-voice-${index}-help">${availableVoices.includes(speaker.voice) ? "Local voice assets checked when this studio was built." : "Original voice retained. Its local assets need setup before production."}</p></div></div>`,
     )
     .join(
       "",
