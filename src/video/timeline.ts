@@ -8,16 +8,31 @@ export interface VideoMoment {
   cueIndex: number | null;
 }
 
-export function videoTimeline(timing: NarrationTiming): VideoMoment[] {
+export function videoTimeline(
+  timing: NarrationTiming,
+  options?: { animateAvatar?: boolean },
+): VideoMoment[] {
   const total = Math.ceil(timing.durationSeconds * videoFps);
   if (!Number.isFinite(total) || total <= 0) throw new Error("Invalid video duration");
   const frame = (seconds: number) => Math.min(total, Math.max(0, Math.ceil(seconds * videoFps)));
+  const avatarSteps: number[] = [];
+  if (options?.animateAvatar) {
+    const stepFrames = 5; // 6 Hz syllable & viseme cadence at 30 fps
+    for (const cue of timing.cues) {
+      const start = frame(cue.startSeconds);
+      const end = frame(cue.endSeconds);
+      for (let f = start + stepFrames; f < end; f += stepFrames) {
+        avatarSteps.push(f);
+      }
+    }
+  }
   const boundaries = [
     ...new Set([
       0,
       total,
       ...timing.scenes.flatMap((scene) => [frame(scene.startSeconds), frame(scene.endSeconds)]),
       ...timing.cues.flatMap((cue) => [frame(cue.startSeconds), frame(cue.endSeconds)]),
+      ...avatarSteps,
     ]),
   ].sort((a, b) => a - b);
   return boundaries.slice(0, -1).map((start, index) => {

@@ -3,11 +3,11 @@ import { createCanvas, GlobalFonts, type SKRSContext2D } from "@napi-rs/canvas";
 import { hash } from "../digest.js";
 import { type ContentEpisode, type DemoEvidence, isNewsEpisode } from "../domain.js";
 import type { VideoLayout } from "../layout.js";
-import { determineViseme, drawAvatarBadge } from "../media/avatar.js";
+import { drawAvatarBadge, resolveCueAnimation } from "../media/avatar.js";
 import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
-import type { VideoMoment } from "./timeline.js";
+import { type VideoMoment, videoFps } from "./timeline.js";
 
 export const videoFontFiles = [
   "assets/fonts/DejaVuSans.ttf",
@@ -229,9 +229,28 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   text(ctx, scene.overlay, layout.headline, headlineSize, "#f7faf2", "Shorts Heading", "headline");
   const box = layout.demo;
   panel(ctx, box.x, box.y, box.width, box.height, "#0d232d");
+  // Subtle window header divider & terminal control dots
+  ctx.save();
+  ctx.strokeStyle = "rgba(184, 219, 188, 0.14)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(box.x + 24, box.y + 84);
+  ctx.lineTo(box.x + box.width - 24, box.y + 84);
+  ctx.stroke();
+  const dotColors = ["#d96c63", "#e0b25b", "#59b381"];
+  dotColors.forEach((dotColor, idx) => {
+    ctx.fillStyle = dotColor;
+    ctx.globalAlpha = 0.72;
+    ctx.beginPath();
+    ctx.arc(box.x + box.width - 88 + idx * 24, box.y + 44, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
   if (comic) {
     ctx.strokeStyle = accent;
     ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.roundRect(box.x, box.y, box.width, box.height, 24);
     ctx.stroke();
   }
   text(
@@ -376,6 +395,8 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   }
   if (cue) {
     const captionY = layout.captions.y;
+    // Left vertical accent bar beside active caption
+    panel(ctx, layout.captions.x - 20, captionY + 6, 6, 52, accent, 3);
     if (cue.speakerName) {
       text(
         ctx,
@@ -401,22 +422,46 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       "captions",
     );
   }
+  const timeSeconds = (moment.startFrame + 0.5) / videoFps;
+  const fallbackSpeakerId =
+    cue?.speakerId ??
+    [...timing.cues]
+      .reverse()
+      .find((item) => item.endSeconds <= timeSeconds && item.speakerId)?.speakerId ??
+    scene.dialogue?.[0]?.speakerId;
   const speaker =
-    episode.presentation?.speakers.find((item) => item.id === cue?.speakerId) ??
+    episode.presentation?.speakers.find((item) => item.id === fallbackSpeakerId) ??
     episode.presentation?.speakers[0];
+  const coSpeaker =
+    episode.presentation?.format === "dialogue"
+      ? episode.presentation.speakers.find((item) => item.id !== speaker?.id)
+      : undefined;
   const badge = layout.presenter;
+  const speakerId = speaker?.id ?? "narrator";
   const isSpeaking = Boolean(cue && (!cue.speakerId || cue.speakerId === speaker?.id));
-  const viseme = determineViseme(cue?.text, isSpeaking);
+  const animation = resolveCueAnimation(cue, timeSeconds, isSpeaking, speakerId);
   drawAvatarBadge(
     ctx,
     badge,
     {
-      id: speaker?.id ?? "narrator",
+      id: speakerId,
       name: speaker?.name ?? (isNewsEpisode(episode) ? "SAP" : "Host"),
       accentColor: accent,
     },
-    viseme,
+    animation.viseme,
     isSpeaking,
+    {
+      animation,
+      ...(coSpeaker
+        ? {
+            coSpeaker: {
+              id: coSpeaker.id,
+              name: coSpeaker.name,
+              accentColor: accent,
+            },
+          }
+        : {}),
+    },
   );
   text(
     ctx,

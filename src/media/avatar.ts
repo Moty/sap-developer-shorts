@@ -1,12 +1,30 @@
 import type { SKRSContext2D } from "@napi-rs/canvas";
 
-export type VisemeShape = "rest" | "open_a" | "open_e" | "open_o" | "open_u" | "smile";
+export type VisemeShape =
+  | "rest"
+  | "open_a"
+  | "open_e"
+  | "open_o"
+  | "open_u"
+  | "smile"
+  | "consonant";
 
 export interface AvatarSpeaker {
   id: string;
   name: string;
   accentColor?: string;
   role?: string;
+}
+
+export interface AvatarAnimationState {
+  viseme: VisemeShape;
+  jawOpen: number;
+  isBlinking: boolean;
+  headBobY: number;
+  headTilt: number;
+  browLift: number;
+  voiceEnergy: number;
+  activeWordIndex: number;
 }
 
 /**
@@ -31,9 +49,718 @@ export function determineViseme(word: string | undefined, isSpeaking: boolean): 
   return "smile";
 }
 
+function jawOpenForViseme(viseme: VisemeShape): number {
+  switch (viseme) {
+    case "open_a":
+      return 1.0;
+    case "open_o":
+      return 0.78;
+    case "open_e":
+      return 0.56;
+    case "open_u":
+      return 0.45;
+    case "consonant":
+      return 0.18;
+    case "smile":
+      return 0.22;
+    default:
+      return 0;
+  }
+}
+
 /**
- * Draws a stylized, vector developer avatar badge into the video frame canvas.
- * Renders into bounds (typically 240x240 in layout.presenter).
+ * Computes frame-accurate syllable viseme, jaw movement, eye blink, brow expression,
+ * and voice energy for a cue at a given timestamp in seconds.
+ */
+export function resolveCueAnimation(
+  cue:
+    | {
+        text: string;
+        spokenText?: string;
+        startSeconds: number;
+        endSeconds: number;
+      }
+    | undefined,
+  timeSeconds: number,
+  isSpeaking: boolean,
+  speakerId = "narrator",
+): AvatarAnimationState {
+  // Periodic organic blink (~every 3.4s, phase-offset per speaker)
+  const speakerOffset =
+    speakerId === "mira" ? 0.4 : speakerId === "max" ? 1.9 : 1.1;
+  const blinkCycle = (timeSeconds + speakerOffset) % 3.4;
+  const isBlinking = blinkCycle >= 3.18 && blinkCycle <= 3.36;
+
+  if (!isSpeaking || !cue) {
+    return {
+      viseme: "rest",
+      jawOpen: 0,
+      isBlinking,
+      headBobY: 0,
+      headTilt: 0,
+      browLift: 0,
+      voiceEnergy: 0,
+      activeWordIndex: -1,
+    };
+  }
+
+  const duration = Math.max(0.08, cue.endSeconds - cue.startSeconds);
+  const elapsed = Math.max(0, Math.min(duration, timeSeconds - cue.startSeconds));
+  const progress = elapsed / duration;
+
+  const displayWords = cue.text.trim().split(/\s+/u).filter(Boolean);
+  const spokenSource = (cue.spokenText ?? cue.text).trim();
+  const spokenWords = spokenSource.split(/\s+/u).filter(Boolean);
+
+  // Weight words by character length so multi-syllable words get proportional time
+  const weights = spokenWords.map((w) => Math.max(2, w.replace(/[^a-zA-Z0-9]/gu, "").length));
+  const totalWeight = weights.reduce((acc, w) => acc + w, 0) || 1;
+  const targetWeight = progress * totalWeight;
+
+  let cumulative = 0;
+  let spokenIndex = 0;
+  let wordLocalProgress = 0;
+  for (let i = 0; i < spokenWords.length; i++) {
+    const w = weights[i] ?? 2;
+    if (cumulative + w >= targetWeight || i === spokenWords.length - 1) {
+      spokenIndex = i;
+      wordLocalProgress = Math.max(0, Math.min(1, (targetWeight - cumulative) / w));
+      break;
+    }
+    cumulative += w;
+  }
+
+  const activeWordIndex =
+    displayWords.length > 0
+      ? Math.min(
+          displayWords.length - 1,
+          Math.floor((spokenIndex / Math.max(1, spokenWords.length)) * displayWords.length),
+        )
+      : -1;
+
+  const currentWord = spokenWords[spokenIndex] ?? cue.text;
+  const cleanWord = currentWord.toLowerCase().replace(/[^a-z]/gu, "");
+
+  // Extract vowel groups (syllable nuclei) inside the current word
+  const vowelGroups = cleanWord.match(/[aeiouy]+/gu) ?? [];
+  const syllableCount = Math.max(1, vowelGroups.length);
+  const syllablePosition = wordLocalProgress * syllableCount;
+  const syllableIndex = Math.min(syllableCount - 1, Math.floor(syllablePosition));
+  const syllablePhase = syllablePosition - syllableIndex;
+
+  // Alternate between vowel peak and consonant closure at syllable boundaries
+  // so consecutive words/syllables visibly open and close the mouth
+  const syllableBeat = Math.floor(elapsed * 6.0);
+  let viseme: VisemeShape;
+  if (
+    (syllableCount > 1 && syllablePhase > 0.76) ||
+    (wordLocalProgress > 0.84 && spokenIndex < spokenWords.length - 1)
+  ) {
+    viseme = "consonant";
+  } else if (vowelGroups[syllableIndex]) {
+    viseme = determineViseme(vowelGroups[syllableIndex], true);
+    // Add subtle alternation if the same vowel repeats across adjacent beats
+    if (syllableBeat % 4 === 3 && viseme !== "open_a") {
+      viseme = "consonant";
+    }
+  } else {
+    viseme = determineViseme(currentWord, true);
+  }
+
+  const jawOpen = jawOpenForViseme(viseme);
+  const isQuestion = cue.text.includes("?");
+  const isExclaim = cue.text.includes("!") || cue.text.includes("≠");
+  const browLift =
+    (isQuestion ? 2.8 : isExclaim ? 2.0 : 0.6) + (jawOpen > 0.7 ? 1.4 : 0);
+
+  const headBobY = Math.sin(elapsed * 8.5) * 1.6 * (0.4 + jawOpen * 0.6);
+  const headTilt = Math.sin(elapsed * 4.2 + (speakerId === "max" ? 1.2 : 0)) * 0.02;
+  const voiceEnergy = Math.min(
+    1,
+    0.35 + jawOpen * 0.55 + Math.abs(Math.sin(elapsed * 11)) * 0.1,
+  );
+
+  return {
+    viseme,
+    jawOpen,
+    isBlinking,
+    headBobY,
+    headTilt,
+    browLift,
+    voiceEnergy,
+    activeWordIndex,
+  };
+}
+
+interface CharacterPalette {
+  bgTop: string;
+  bgBottom: string;
+  jacketMain: string;
+  jacketShade: string;
+  shirtColor: string;
+  skinLight: string;
+  skinMid: string;
+  skinShadow: string;
+  hairColor: string;
+  hairHighlight: string;
+  irisColor: string;
+  lipColor: string;
+  hasGlasses: boolean;
+  glassesStyle: "round-teal" | "thin-gold" | "none";
+  hasStubble: boolean;
+  hasLapelPin: boolean;
+}
+
+function paletteForSpeaker(speakerId: string): CharacterPalette {
+  const id = speakerId.toLowerCase();
+  if (id === "max") {
+    return {
+      bgTop: "#1b3d4d",
+      bgBottom: "#0a1c26",
+      jacketMain: "#204759",
+      jacketShade: "#142f3c",
+      shirtColor: "#d9ebf2",
+      skinLight: "#f2cfb6",
+      skinMid: "#e3b89b",
+      skinShadow: "#c49476",
+      hairColor: "#1d2226",
+      hairHighlight: "#353f47",
+      irisColor: "#35637a",
+      lipColor: "#9c5650",
+      hasGlasses: false,
+      glassesStyle: "none",
+      hasStubble: true,
+      hasLapelPin: false,
+    };
+  }
+  if (id === "mira") {
+    return {
+      bgTop: "#1a443e",
+      bgBottom: "#0a1f1d",
+      jacketMain: "#215c4a",
+      jacketShade: "#143d31",
+      shirtColor: "#f0f5ef",
+      skinLight: "#f6d8c2",
+      skinMid: "#eac3a8",
+      skinShadow: "#cca084",
+      hairColor: "#22332f",
+      hairHighlight: "#39544d",
+      irisColor: "#386b58",
+      lipColor: "#b05858",
+      hasGlasses: true,
+      glassesStyle: "round-teal",
+      hasStubble: false,
+      hasLapelPin: false,
+    };
+  }
+  // Distinct 3rd persona: SAP Advocate / Solo News Host
+  return {
+    bgTop: "#173a4f",
+    bgBottom: "#091b26",
+    jacketMain: "#0f3850",
+    jacketShade: "#082334",
+    shirtColor: "#f5f8fa",
+    skinLight: "#f0cbb0",
+    skinMid: "#e0b495",
+    skinShadow: "#be8f70",
+    hairColor: "#2b211c",
+    hairHighlight: "#4a3931",
+    irisColor: "#63462a",
+    lipColor: "#9e534d",
+    hasGlasses: true,
+    glassesStyle: "thin-gold",
+    hasStubble: false,
+    hasLapelPin: true,
+  };
+}
+
+function drawCharacterPortrait(
+  ctx: SKRSContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  speakerId: string,
+  anim: AvatarAnimationState,
+  isSpeaking: boolean,
+  accent: string,
+): void {
+  const pal = paletteForSpeaker(speakerId);
+  const scale = radius / 112;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  // 1. Studio backdrop radial gradient
+  const bgGrad = ctx.createRadialGradient(
+    cx - radius * 0.25,
+    cy - radius * 0.35,
+    radius * 0.1,
+    cx,
+    cy,
+    radius * 1.1,
+  );
+  bgGrad.addColorStop(0, pal.bgTop);
+  bgGrad.addColorStop(1, pal.bgBottom);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+  // Subtle ambient rim glow when active
+  if (isSpeaking) {
+    const glow = ctx.createRadialGradient(cx, cy + radius * 0.2, radius * 0.2, cx, cy, radius);
+    glow.addColorStop(0, "rgba(184, 219, 188, 0.12)");
+    glow.addColorStop(1, "rgba(184, 219, 188, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+  }
+
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+
+  // 2. Back hair layer (behind neck and shoulders for Mira)
+  if (speakerId.toLowerCase() === "mira") {
+    ctx.fillStyle = pal.hairColor;
+    ctx.beginPath();
+    ctx.ellipse(0, -4 + anim.headBobY * 0.6, 52, 54, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 3. Torso / Shoulders / Jacket
+  const torsoGrad = ctx.createLinearGradient(0, 48, 0, 120);
+  torsoGrad.addColorStop(0, pal.jacketMain);
+  torsoGrad.addColorStop(1, pal.jacketShade);
+  ctx.fillStyle = torsoGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 106, 92, 62, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Inner shirt / collar V-neck
+  ctx.fillStyle = pal.shirtColor;
+  ctx.beginPath();
+  ctx.moveTo(-24, 52);
+  ctx.lineTo(0, 86);
+  ctx.lineTo(24, 52);
+  ctx.closePath();
+  ctx.fill();
+
+  // Jacket lapels or hoodie seams
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-24, 54);
+  ctx.lineTo(-10, 96);
+  ctx.moveTo(24, 54);
+  ctx.lineTo(10, 96);
+  ctx.stroke();
+
+  if (pal.hasLapelPin) {
+    ctx.fillStyle = "#f0ab00";
+    ctx.beginPath();
+    ctx.arc(26, 78, 4.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 4. Neck & cast chin shadow
+  ctx.fillStyle = pal.skinMid;
+  ctx.beginPath();
+  ctx.roundRect(-16, 26, 32, 36, 8);
+  ctx.fill();
+
+  // Sub-chin cast shadow on neck
+  ctx.fillStyle = "rgba(38, 20, 14, 0.28)";
+  ctx.beginPath();
+  ctx.ellipse(0, 38 + anim.jawOpen * 2.5, 17, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Apply organic head bobbing and tilt
+  ctx.save();
+  ctx.translate(0, anim.headBobY);
+  ctx.rotate(anim.headTilt);
+
+  const jawDrop = anim.jawOpen * 3.4;
+
+  // 5. Ears (tucked at eye-to-nose level)
+  for (const side of [-1, 1] as const) {
+    ctx.fillStyle = pal.skinMid;
+    ctx.beginPath();
+    ctx.ellipse(side * 42, -3, 8, 13, side * -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = pal.skinShadow;
+    ctx.beginPath();
+    ctx.ellipse(side * 42, -3, 4, 7, side * -0.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 6. 3D-shaded Head & Dynamic Jaw Contour
+  const faceGrad = ctx.createRadialGradient(-12, -18, 8, 0, 0, 56);
+  faceGrad.addColorStop(0, pal.skinLight);
+  faceGrad.addColorStop(0.65, pal.skinMid);
+  faceGrad.addColorStop(1, pal.skinShadow);
+  ctx.fillStyle = faceGrad;
+
+  ctx.beginPath();
+  ctx.moveTo(-41, -12);
+  // Upper cranium curve
+  ctx.bezierCurveTo(-41, -46, 41, -46, 41, -12);
+  // Right cheek & jaw dropping dynamically with speech
+  ctx.bezierCurveTo(41, 16, 24, 38 + jawDrop, 0, 40 + jawDrop);
+  // Left jaw & cheek
+  ctx.bezierCurveTo(-24, 38 + jawDrop, -41, 16, -41, -12);
+  ctx.closePath();
+  ctx.fill();
+
+  // Subtle facial stubble for Max
+  if (pal.hasStubble) {
+    ctx.fillStyle = "rgba(30, 38, 44, 0.13)";
+    ctx.beginPath();
+    ctx.moveTo(-36, 4);
+    ctx.bezierCurveTo(-34, 24, -18, 37 + jawDrop, 0, 39 + jawDrop);
+    ctx.bezierCurveTo(18, 37 + jawDrop, 34, 24, 36, 4);
+    ctx.bezierCurveTo(28, 18, 16, 26 + jawDrop * 0.7, 0, 27 + jawDrop * 0.7);
+    ctx.bezierCurveTo(-16, 26 + jawDrop * 0.7, -28, 18, -36, 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Warm cheek blush
+  ctx.fillStyle = "rgba(218, 112, 98, 0.14)";
+  ctx.beginPath();
+  ctx.ellipse(-23, 5, 9, 5.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(23, 5, 9, 5.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 7. Nose bridge & soft nose tip
+  ctx.strokeStyle = pal.skinShadow;
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-1, -10);
+  ctx.lineTo(-3, 2);
+  ctx.quadraticCurveTo(0, 5, 4, 2);
+  ctx.stroke();
+
+  // 8. Eyes (Sclera, Colored Iris, Pupil, Specular Catchlights, or Blink)
+  const eyeY = -8;
+  const eyeX = 17;
+  if (anim.isBlinking) {
+    ctx.strokeStyle = "#1c2826";
+    ctx.lineWidth = 2.6;
+    for (const side of [-1, 1] as const) {
+      ctx.beginPath();
+      ctx.moveTo(side * (eyeX - 8), eyeY);
+      ctx.quadraticCurveTo(side * eyeX, eyeY + 4, side * (eyeX + 8), eyeY);
+      ctx.stroke();
+    }
+  } else {
+    for (const side of [-1, 1] as const) {
+      const ex = side * eyeX;
+      // White sclera
+      ctx.fillStyle = "#f9fbfa";
+      ctx.beginPath();
+      ctx.ellipse(ex, eyeY, 8.2, 5.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Colored Iris
+      ctx.fillStyle = pal.irisColor;
+      ctx.beginPath();
+      ctx.arc(ex, eyeY, 4.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Dark Pupil
+      ctx.fillStyle = "#10181a";
+      ctx.beginPath();
+      ctx.arc(ex, eyeY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Primary & secondary specular catchlights
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(ex - 1.6, eyeY - 1.8, 1.4, 0, Math.PI * 2);
+      ctx.arc(ex + 1.4, eyeY + 1.4, 0.7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Upper eyelid lash crease
+      ctx.strokeStyle = "#1c2826";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(ex, eyeY + 1.5, 8.5, Math.PI * 1.12, Math.PI * 1.88);
+      ctx.stroke();
+    }
+  }
+
+  // 9. Expressive Eyebrows (cleanly on forehead above glasses)
+  const browY = -21 - anim.browLift;
+  ctx.strokeStyle = pal.hairColor;
+  ctx.lineWidth = 2.8;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-26, browY + 1.5);
+  ctx.quadraticCurveTo(-17, browY - 2.5, -8, browY + 0.5);
+  ctx.moveTo(8, browY + 0.5);
+  ctx.quadraticCurveTo(17, browY - 2.5, 26, browY + 1.5);
+  ctx.stroke();
+
+  // 10. Glasses (positioned cleanly around eyes, never overlapping hair)
+  if (pal.hasGlasses) {
+    ctx.save();
+    ctx.strokeStyle = pal.glassesStyle === "thin-gold" ? "#c89d54" : "#3a5e55";
+    ctx.lineWidth = pal.glassesStyle === "thin-gold" ? 2.0 : 2.6;
+    // Left lens frame
+    ctx.beginPath();
+    ctx.roundRect(-29, -16, 22, 16, 5);
+    ctx.stroke();
+    // Right lens frame
+    ctx.beginPath();
+    ctx.roundRect(7, -16, 22, 16, 5);
+    ctx.stroke();
+    // Nose bridge
+    ctx.beginPath();
+    ctx.moveTo(-7, -9);
+    ctx.quadraticCurveTo(0, -11, 7, -9);
+    ctx.stroke();
+    // Temple arms
+    ctx.beginPath();
+    ctx.moveTo(-29, -10);
+    ctx.lineTo(-40, -7);
+    ctx.moveTo(29, -10);
+    ctx.lineTo(40, -7);
+    ctx.stroke();
+
+    // Subtle diagonal glass reflection sheen
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-25, -13);
+    ctx.lineTo(-20, -4);
+    ctx.moveTo(11, -13);
+    ctx.lineTo(16, -4);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 11. Hair Crown & Side Locks (strictly above forehead y <= -27 so eyes/brows stay 100% clear)
+  ctx.fillStyle = pal.hairColor;
+  const id = speakerId.toLowerCase();
+  if (id === "max") {
+    // Textured short architect crop + neat sideburns
+    ctx.beginPath();
+    ctx.moveTo(-41, -10);
+    ctx.bezierCurveTo(-44, -42, -24, -56, 2, -55);
+    ctx.bezierCurveTo(28, -55, 44, -40, 41, -10);
+    // Sideburn right
+    ctx.lineTo(38, -8);
+    ctx.lineTo(36, -24);
+    // Forehead hairline stays at y = -30
+    ctx.bezierCurveTo(20, -33, -18, -33, -36, -24);
+    ctx.lineTo(-38, -8);
+    ctx.closePath();
+    ctx.fill();
+
+    // Hair highlight crest
+    ctx.strokeStyle = pal.hairHighlight;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, -34, 24, Math.PI * 1.2, Math.PI * 1.75);
+    ctx.stroke();
+  } else if (id === "mira") {
+    // Side-parted crown with temple locks framing outside the glasses
+    ctx.beginPath();
+    ctx.moveTo(-42, 4);
+    ctx.bezierCurveTo(-47, -34, -30, -56, 0, -56);
+    ctx.bezierCurveTo(30, -56, 47, -34, 42, 4);
+    ctx.lineTo(38, 2);
+    // Right temple sweep stays outside x = 35 and rises above y = -28
+    ctx.bezierCurveTo(38, -18, 28, -30, 10, -32);
+    // Side part arch well above eyebrows (y = -32 to -28)
+    ctx.bezierCurveTo(-6, -34, -28, -30, -37, -18);
+    ctx.lineTo(-38, 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Crown sheen highlight
+    ctx.strokeStyle = pal.hairHighlight;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(-4, -35, 26, Math.PI * 1.15, Math.PI * 1.7);
+    ctx.stroke();
+  } else {
+    // SAP Solo Host: tailored side-parted executive hair
+    ctx.beginPath();
+    ctx.moveTo(-41, -6);
+    ctx.bezierCurveTo(-45, -38, -26, -55, 0, -55);
+    ctx.bezierCurveTo(28, -55, 45, -38, 41, -6);
+    ctx.lineTo(37, -6);
+    ctx.bezierCurveTo(36, -24, 18, -32, -8, -32);
+    ctx.bezierCurveTo(-24, -31, -35, -24, -37, -6);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 12. Anatomical Mouth & Viseme Articulation
+  const mouthY = 18 + jawDrop * 0.55;
+  drawMouthViseme(ctx, 0, mouthY, anim.viseme, pal.lipColor);
+
+  ctx.restore(); // End head transform
+  ctx.restore(); // End circular portrait clip
+
+  // Outer frame ring & voice energy equalizer
+  ctx.save();
+  ctx.strokeStyle = isSpeaking ? accent : "rgba(184, 219, 188, 0.38)";
+  ctx.lineWidth = isSpeaking ? 4.5 : 2.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (isSpeaking) {
+    const haloRadius = radius + 4 + anim.voiceEnergy * 4;
+    ctx.strokeStyle = "rgba(184, 219, 188, 0.30)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, haloRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMouthViseme(
+  ctx: SKRSContext2D,
+  mx: number,
+  my: number,
+  viseme: VisemeShape,
+  lipColor: string,
+): void {
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  switch (viseme) {
+    case "open_a": {
+      // Wide open vowel ("ah", "api", "data") with upper teeth and tongue
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 2, 12.5, 9.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#3b1519";
+      ctx.fill();
+      ctx.save();
+      ctx.clip();
+      // Upper teeth
+      ctx.fillStyle = "#f7faf7";
+      ctx.fillRect(mx - 11, my - 8, 22, 5.5);
+      // Curved pink tongue
+      ctx.fillStyle = "#d96b6b";
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 9, 9, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      // Lip outline
+      ctx.strokeStyle = lipColor;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 2, 12.5, 9.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+
+    case "open_e": {
+      // Spread vowel ("ee", "entity", "key")
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 1, 13.5, 6.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#3b1519";
+      ctx.fill();
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = "#f7faf7";
+      ctx.fillRect(mx - 12, my - 5, 24, 4.5);
+      ctx.fillStyle = "#d96b6b";
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 6, 9, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = lipColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 1, 13.5, 6.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+
+    case "open_o": {
+      // Rounded vowel ("oh", "odata", "expose")
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 2, 8.5, 8.5, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#3b1519";
+      ctx.fill();
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = "#f7faf7";
+      ctx.fillRect(mx - 7, my - 6.5, 14, 3.5);
+      ctx.fillStyle = "#d96b6b";
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 7.5, 6, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = lipColor;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 2, 8.5, 8.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+
+    case "open_u": {
+      // Tighter rounded vowel ("oo", "joule", "two")
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 1.5, 6.0, 6.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#3b1519";
+      ctx.fill();
+      ctx.strokeStyle = lipColor;
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+      break;
+    }
+
+    case "consonant": {
+      // Mid-syllable consonant transition (partially closed lips with subtle teeth line)
+      ctx.beginPath();
+      ctx.ellipse(mx, my + 0.5, 10.5, 3.0, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "#4a1c20";
+      ctx.fill();
+      ctx.strokeStyle = lipColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      break;
+    }
+
+    case "smile": {
+      // Friendly expressive smile curve
+      ctx.strokeStyle = lipColor;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(mx - 11, my - 1);
+      ctx.quadraticCurveTo(mx, my + 6.5, mx + 11, my - 1);
+      ctx.stroke();
+      break;
+    }
+
+    default: {
+      // Warm, approachable resting expression (subtle upward corner curve)
+      ctx.strokeStyle = lipColor;
+      ctx.lineWidth = 2.3;
+      ctx.beginPath();
+      ctx.moveTo(mx - 9.5, my);
+      ctx.quadraticCurveTo(mx, my + 2.8, mx + 9.5, my);
+      ctx.stroke();
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draws a stylized, studio-lit developer avatar badge into the video frame canvas.
+ * Supports syllable-level facial animation and an optional co-host picture-in-picture badge.
  */
 export function drawAvatarBadge(
   ctx: SKRSContext2D,
@@ -41,199 +768,72 @@ export function drawAvatarBadge(
   speaker: AvatarSpeaker,
   viseme: VisemeShape,
   isSpeaking: boolean,
+  options?: {
+    animation?: AvatarAnimationState;
+    coSpeaker?: AvatarSpeaker;
+  },
 ): void {
   const cx = bounds.x + bounds.width / 2;
   const cy = bounds.y + bounds.height / 2 - 10;
   const radius = Math.min(bounds.width, bounds.height) / 2 - 8;
   const accent = speaker.accentColor ?? "#b8dbbc";
 
-  ctx.save();
+  const anim: AvatarAnimationState = options?.animation ?? {
+    viseme,
+    jawOpen: jawOpenForViseme(viseme),
+    isBlinking: false,
+    headBobY: 0,
+    headTilt: 0,
+    browLift: 0,
+    voiceEnergy: isSpeaking ? 0.6 : 0,
+    activeWordIndex: -1,
+  };
 
-  // Circular clip for avatar portrait
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
+  // Draw primary speaker portrait
+  drawCharacterPortrait(ctx, cx, cy, radius, speaker.id, anim, isSpeaking, accent);
 
-  // Background portrait gradient
-  const bgGrad = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius);
-  bgGrad.addColorStop(0, "#193c47");
-  bgGrad.addColorStop(1, "#0d232c");
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-
-  // Subtle background ring
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  // Shoulders & torso
-  ctx.fillStyle = speaker.id === "max" ? "#1e434f" : "#245242";
-  ctx.beginPath();
-  ctx.ellipse(cx, cy + radius + 15, radius * 0.95, radius * 0.7, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Collar / neckline
-  ctx.fillStyle = "#f0f4ea";
-  ctx.beginPath();
-  ctx.moveTo(cx - 24, cy + radius - 20);
-  ctx.lineTo(cx, cy + radius - 2);
-  ctx.lineTo(cx + 24, cy + radius - 20);
-  ctx.closePath();
-  ctx.fill();
-
-  // Neck
-  ctx.fillStyle = "#e0be9f";
-  ctx.fillRect(cx - 18, cy + 18, 36, 32);
-
-  // Head
-  ctx.fillStyle = "#eccab0";
-  ctx.beginPath();
-  ctx.ellipse(cx, cy - 2, 42, 50, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Hair style based on speaker identity
-  ctx.fillStyle = speaker.id === "max" ? "#231f20" : "#2c3d38";
-  if (speaker.id === "max") {
-    // Short styled crop
+  // If this is a duo conversation, draw the listening co-host in a small PiP badge
+  if (options?.coSpeaker && options.coSpeaker.id !== speaker.id) {
+    const pipRadius = 30;
+    const pipCx = bounds.x + bounds.width - pipRadius - 4;
+    const pipCy = bounds.y + pipRadius + 4;
+    const idleAnim: AvatarAnimationState = {
+      viseme: "smile",
+      jawOpen: 0,
+      isBlinking: false,
+      headBobY: 0,
+      headTilt: 0,
+      browLift: 0,
+      voiceEnergy: 0,
+      activeWordIndex: -1,
+    };
+    // Dark separator ring behind PiP
+    ctx.save();
+    ctx.fillStyle = "#0b202a";
     ctx.beginPath();
-    ctx.ellipse(cx, cy - 36, 46, 26, 0, 0, Math.PI * 2);
+    ctx.arc(pipCx, pipCy, pipRadius + 3, 0, Math.PI * 2);
     ctx.fill();
-  } else {
-    // Mira: side-swept hair with bangs
-    ctx.beginPath();
-    ctx.ellipse(cx - 6, cy - 34, 48, 28, -0.15, 0, Math.PI * 2);
-    ctx.fill();
-    // Side fringe
-    ctx.beginPath();
-    ctx.ellipse(cx + 34, cy - 10, 16, 32, 0.2, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.restore();
+
+    drawCharacterPortrait(
+      ctx,
+      pipCx,
+      pipCy,
+      pipRadius,
+      options.coSpeaker.id,
+      idleAnim,
+      false,
+      accent,
+    );
   }
 
-  // Glasses for technical character (Mira)
-  if (speaker.id === "mira" || speaker.id === "narrator") {
-    ctx.strokeStyle = "#5f7e73";
-    ctx.lineWidth = 2.5;
-    // Left rim
-    ctx.beginPath();
-    ctx.rect(cx - 30, cy - 15, 22, 16);
-    ctx.stroke();
-    // Right rim
-    ctx.beginPath();
-    ctx.rect(cx + 8, cy - 15, 22, 16);
-    ctx.stroke();
-    // Bridge
-    ctx.beginPath();
-    ctx.moveTo(cx - 8, cy - 8);
-    ctx.lineTo(cx + 8, cy - 8);
-    ctx.stroke();
-  }
-
-  // Eyes
-  ctx.fillStyle = "#162828";
-  ctx.beginPath();
-  ctx.arc(cx - 19, cy - 8, 3.5, 0, Math.PI * 2);
-  ctx.arc(cx + 19, cy - 8, 3.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Eye highlights
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.arc(cx - 20, cy - 9.5, 1.2, 0, Math.PI * 2);
-  ctx.arc(cx + 18, cy - 9.5, 1.2, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Eyebrows
-  ctx.strokeStyle = "#2c3d38";
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.moveTo(cx - 30, cy - 20);
-  ctx.quadraticCurveTo(cx - 19, cy - 23, cx - 9, cy - 20);
-  ctx.moveTo(cx + 9, cy - 20);
-  ctx.quadraticCurveTo(cx + 19, cy - 23, cx + 30, cy - 20);
-  ctx.stroke();
-
-  // Mouth rendering based on viseme
-  const mouthY = cy + 24;
-  ctx.fillStyle = "#7b3535";
-  ctx.strokeStyle = "#7b3535";
-  ctx.lineWidth = 2;
-
-  switch (viseme) {
-    case "open_a":
-      // Wide open vertical mouth
-      ctx.beginPath();
-      ctx.ellipse(cx, mouthY + 2, 14, 11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // Teeth bar
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(cx - 9, mouthY - 3, 18, 4);
-      break;
-
-    case "open_e":
-      // Stretched wide horizontal smile
-      ctx.beginPath();
-      ctx.ellipse(cx, mouthY + 1, 16, 7, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(cx - 11, mouthY - 2, 22, 3);
-      break;
-
-    case "open_o":
-      // Rounded circular mouth
-      ctx.beginPath();
-      ctx.arc(cx, mouthY + 2, 9, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-
-    case "open_u":
-      // Small puckered circle
-      ctx.beginPath();
-      ctx.arc(cx, mouthY + 2, 5.5, 0, Math.PI * 2);
-      ctx.fill();
-      break;
-
-    case "smile":
-      // Friendly open curve
-      ctx.beginPath();
-      ctx.arc(cx, mouthY - 2, 12, 0.15 * Math.PI, 0.85 * Math.PI);
-      ctx.stroke();
-      break;
-
-    default:
-      // Neutral resting line
-      ctx.beginPath();
-      ctx.moveTo(cx - 10, mouthY);
-      ctx.lineTo(cx + 10, mouthY);
-      ctx.stroke();
-      break;
-  }
-
-  ctx.restore();
-
-  // Outer border ring with speaker accent
-  ctx.save();
-  ctx.strokeStyle = isSpeaking ? accent : "rgba(184, 219, 188, 0.45)";
-  ctx.lineWidth = isSpeaking ? 4.5 : 2.5;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Active speaker pulse ring
-  if (isSpeaking) {
-    ctx.strokeStyle = "rgba(184, 219, 188, 0.25)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  // Name pill below the circle
+  // Name pill below the circle with live audio indicator bars
   const pillY = bounds.y + bounds.height - 24;
   const pillWidth = bounds.width - 24;
   const pillHeight = 26;
   const pillX = bounds.x + 12;
 
+  ctx.save();
   ctx.fillStyle = isSpeaking ? accent : "#1b3e44";
   ctx.beginPath();
   ctx.roundRect(pillX, pillY, pillWidth, pillHeight, 13);
@@ -244,6 +844,19 @@ export function drawAvatarBadge(
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(speaker.name.toUpperCase(), cx, pillY + pillHeight / 2);
+
+  // Subtle live equalizer bars inside the pill when speaking
+  if (isSpeaking) {
+    const barBaseX = pillX + 18;
+    const barCenterY = pillY + pillHeight / 2;
+    ctx.fillStyle = "#15352c";
+    for (let i = 0; i < 3; i++) {
+      const h = 4 + ((i === 1 ? anim.voiceEnergy : anim.voiceEnergy * 0.65) * 9);
+      ctx.beginPath();
+      ctx.roundRect(barBaseX + i * 4.5, barCenterY - h / 2, 2.5, h, 1);
+      ctx.fill();
+    }
+  }
 
   ctx.restore();
 }
