@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
-import { resetJobsForTest } from "../src/api.js";
+import { getActiveJob, resetJobsForTest } from "../src/api.js";
+import { encodePcmWav, pronounce, sampleRate } from "../src/media/audio.js";
+import { projectRoot } from "../src/paths.js";
 import { startPreviewServer } from "../src/serve.js";
 
 test("Studio API health and voices endpoints", async (t) => {
@@ -49,7 +51,20 @@ test("Studio API production validation and error handling", async (t) => {
   resetJobsForTest();
   const directory = await mkdtemp(resolve(tmpdir(), "sap-shorts-api-"));
   await writeFile(resolve(directory, "review.html"), "Studio Review");
-  const { server, url } = await startPreviewServer(directory, 0);
+  const audio = encodePcmWav(Buffer.alloc(sampleRate * 2, 1));
+  let auditionCalls = 0;
+  const { server, url } = await startPreviewServer(directory, 0, "127.0.0.1", {
+    audition: async (text, options = {}) => {
+      auditionCalls++;
+      assert.equal(text, "CAP");
+      assert.deepEqual(options, { voice: "af_heart", speed: 0.96, pronunciation: { CAP: "cap" } });
+      return {
+        audio,
+        durationSeconds: 1,
+        spokenText: pronounce(text, options.pronunciation ?? {}),
+      };
+    },
+  });
 
   t.after(async () => {
     await new Promise<void>((resolve, reject) => {
@@ -93,12 +108,43 @@ test("Studio API production validation and error handling", async (t) => {
     body: JSON.stringify({
       text: "CAP",
       voice: "af_heart",
+      speed: 0.96,
       pronunciation: { CAP: "cap" },
     }),
   });
   assert.equal(goodAudition.status, 200);
   assert.equal(goodAudition.headers.get("content-type"), "audio/wav");
   assert.equal(goodAudition.headers.get("x-spoken-text"), encodeURIComponent("cap"));
+  assert.equal(goodAudition.headers.get("x-duration-seconds"), "1.00");
   const audioBuf = await goodAudition.arrayBuffer();
-  assert.ok(audioBuf.byteLength > 1000);
+  assert.deepEqual(Buffer.from(audioBuf), audio);
+  assert.equal(auditionCalls, 1);
+});
+
+test("Studio API rejects a duplicate edited script before starting a different production", async (t) => {
+  resetJobsForTest();
+  const directory = await mkdtemp(resolve(tmpdir(), "sap-shorts-api-collision-"));
+  await writeFile(resolve(directory, "review.html"), "Studio Review");
+  const { server, url } = await startPreviewServer(directory, 0);
+  t.after(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+      server.closeAllConnections();
+    });
+    await rm(directory, { recursive: true, force: true });
+    resetJobsForTest();
+  });
+  const source = resolve(projectRoot, "content/presentations/CAP-01--casual-v2.json");
+  const before = await readFile(source);
+  const definition = JSON.parse(before.toString("utf8"));
+  definition.title = "New wording with a duplicate version name";
+  const response = await fetch(new URL("/api/produce", url), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ selector: "CAP-02", definition }),
+  });
+  assert.equal(response.status, 409);
+  assert.match(((await response.json()) as { error: string }).error, /choose a new version name/);
+  assert.equal(getActiveJob(), null);
+  assert.deepEqual(await readFile(source), before);
 });

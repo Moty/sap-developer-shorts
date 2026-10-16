@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { installedKokoroVoices } from "./media/voice-audition.js";
+import { type auditionPhrase, installedKokoroVoices } from "./media/voice-audition.js";
 import { kokoroVoices } from "./media/voices.js";
 import { type ProductionReport, produce } from "./production.js";
 import { savePresentation } from "./script-import.js";
@@ -20,6 +20,7 @@ export interface ProductionJobState {
 export interface ApiOptions {
   onLibraryUpdated?: (newDirectory: string) => void | Promise<void>;
   artifactRoot?: string;
+  audition?: typeof auditionPhrase;
 }
 
 let activeJob: ProductionJobState | null = null;
@@ -123,8 +124,9 @@ export async function handleApiRequest(
         sendJson(response, 400, { error: "Text is required for audition" });
         return true;
       }
-      const { auditionPhrase } = await import("./media/voice-audition.js");
-      const result = await auditionPhrase(body.text.trim(), {
+      const audition =
+        options.audition ?? (await import("./media/voice-audition.js")).auditionPhrase;
+      const result = await audition(body.text.trim(), {
         ...(body.voice !== undefined ? { voice: body.voice } : {}),
         ...(body.speed !== undefined ? { speed: body.speed } : {}),
         ...(body.pronunciation !== undefined ? { pronunciation: body.pronunciation } : {}),
@@ -167,18 +169,8 @@ export async function handleApiRequest(
       };
       let selector = body?.selector;
       if (body?.definition) {
-        try {
-          const saved = await savePresentation(body.definition);
-          selector = saved.selector;
-        } catch (error) {
-          const message = (error as Error).message;
-          // If script already exists with identical version name, check if selector was provided
-          if (message.includes("already exists") && body.selector) {
-            selector = body.selector;
-          } else {
-            throw error;
-          }
-        }
+        const saved = await savePresentation(body.definition);
+        selector = saved.selector;
       }
 
       if (
@@ -281,7 +273,10 @@ export async function handleApiRequest(
         statusUrl: `/api/productions/${jobId}`,
       });
     } catch (error) {
-      sendJson(response, 400, { error: (error as Error).message });
+      const collision =
+        error instanceof Error &&
+        (error.cause as NodeJS.ErrnoException | undefined)?.code === "EEXIST";
+      sendJson(response, collision ? 409 : 400, { error: (error as Error).message });
     }
     return true;
   }

@@ -35,6 +35,7 @@ export async function runtimeFiles(): Promise<string[]> {
   const extension = extname(fileURLToPath(import.meta.url));
   const names = [
     "cli",
+    "api",
     "contracts",
     "domain",
     "demos",
@@ -67,6 +68,7 @@ export async function runtimeFiles(): Promise<string[]> {
     "news/pipeline",
     "news/review",
     "media/model",
+    "media/avatar",
     "media/store",
     "media/worker",
     "media/audio",

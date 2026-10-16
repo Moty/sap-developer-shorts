@@ -425,9 +425,8 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   const timeSeconds = (moment.startFrame + 0.5) / videoFps;
   const fallbackSpeakerId =
     cue?.speakerId ??
-    [...timing.cues]
-      .reverse()
-      .find((item) => item.endSeconds <= timeSeconds && item.speakerId)?.speakerId ??
+    [...timing.cues].reverse().find((item) => item.endSeconds <= timeSeconds && item.speakerId)
+      ?.speakerId ??
     scene.dialogue?.[0]?.speakerId;
   const speaker =
     episode.presentation?.speakers.find((item) => item.id === fallbackSpeakerId) ??

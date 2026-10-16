@@ -90,14 +90,10 @@ test("drawAvatarBadge renders solo and duo co-speaker badges without errors", ()
       true,
       "mira",
     );
-    drawAvatarBadge(
-      ctx,
-      bounds,
-      { id: "mira", name: "Mira" },
-      viseme,
-      true,
-      { animation: { ...anim, viseme }, coSpeaker: { id: "max", name: "Max" } },
-    );
+    drawAvatarBadge(ctx, bounds, { id: "mira", name: "Mira" }, viseme, true, {
+      animation: { ...anim, viseme },
+      coSpeaker: { id: "max", name: "Max" },
+    });
     drawAvatarBadge(ctx, bounds, { id: "max", name: "Max" }, viseme, false);
     drawAvatarBadge(ctx, bounds, { id: "narrator", name: "SAP" }, viseme, true);
   }

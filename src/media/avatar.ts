@@ -86,8 +86,7 @@ export function resolveCueAnimation(
   speakerId = "narrator",
 ): AvatarAnimationState {
   // Periodic organic blink (~every 3.4s, phase-offset per speaker)
-  const speakerOffset =
-    speakerId === "mira" ? 0.4 : speakerId === "max" ? 1.9 : 1.1;
+  const speakerOffset = speakerId === "mira" ? 0.4 : speakerId === "max" ? 1.9 : 1.1;
   const blinkCycle = (timeSeconds + speakerOffset) % 3.4;
   const isBlinking = blinkCycle >= 3.18 && blinkCycle <= 3.36;
 
@@ -170,15 +169,11 @@ export function resolveCueAnimation(
   const jawOpen = jawOpenForViseme(viseme);
   const isQuestion = cue.text.includes("?");
   const isExclaim = cue.text.includes("!") || cue.text.includes("≠");
-  const browLift =
-    (isQuestion ? 2.8 : isExclaim ? 2.0 : 0.6) + (jawOpen > 0.7 ? 1.4 : 0);
+  const browLift = (isQuestion ? 2.8 : isExclaim ? 2.0 : 0.6) + (jawOpen > 0.7 ? 1.4 : 0);
 
   const headBobY = Math.sin(elapsed * 8.5) * 1.6 * (0.4 + jawOpen * 0.6);
   const headTilt = Math.sin(elapsed * 4.2 + (speakerId === "max" ? 1.2 : 0)) * 0.02;
-  const voiceEnergy = Math.min(
-    1,
-    0.35 + jawOpen * 0.55 + Math.abs(Math.sin(elapsed * 11)) * 0.1,
-  );
+  const voiceEnergy = Math.min(1, 0.35 + jawOpen * 0.55 + Math.abs(Math.sin(elapsed * 11)) * 0.1);
 
   return {
     viseme,
@@ -851,7 +846,7 @@ export function drawAvatarBadge(
     const barCenterY = pillY + pillHeight / 2;
     ctx.fillStyle = "#15352c";
     for (let i = 0; i < 3; i++) {
-      const h = 4 + ((i === 1 ? anim.voiceEnergy : anim.voiceEnergy * 0.65) * 9);
+      const h = 4 + (i === 1 ? anim.voiceEnergy : anim.voiceEnergy * 0.65) * 9;
       ctx.beginPath();
       ctx.roundRect(barBaseX + i * 4.5, barCenterY - h / 2, 2.5, h, 1);
       ctx.fill();

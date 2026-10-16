@@ -182,7 +182,7 @@ export async function renderVideo(
   const renderSources: Record<string, string> = {};
   for (const [name, bytes] of Object.entries(await readRuntimeFiles()))
     renderSources[name] = hash(bytes);
-  for (const name of [...videoFontFiles, "src/media/avatar.ts", "package-lock.json"])
+  for (const name of [...videoFontFiles, "package-lock.json"])
     renderSources[name] = hash(await readFile(await sourceFile(name)));
   const sourceAudioHash = hash(audio);
   const sourceCodeCommit = isNewsEpisode(episode)

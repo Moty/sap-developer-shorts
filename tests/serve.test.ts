@@ -15,6 +15,7 @@ test("the local preview server supports audio byte ranges and confines reads to 
   await writeFile(resolve(directory, "outside.json"), "Private test fixture");
   await symlink(resolve(directory, "outside.json"), resolve(artifact, "escape.json"));
   const { server, url } = await startPreviewServer(artifact, 0);
+  assert.equal((server.address() as { address: string }).address, "127.0.0.1");
   t.after(async () => {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));

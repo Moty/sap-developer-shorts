@@ -203,19 +203,9 @@ try {
         directory = built.directory;
       }
     }
-    const { url, server } = await startPreviewServer(directory);
+    const { url } = await startPreviewServer(directory);
     console.log(`Local:   ${url}`);
-    const { networkInterfaces } = await import("node:os");
-    const nets = networkInterfaces();
-    const port = (server.address() as { port?: number })?.port ?? 4173;
-    const addrs = Object.values(nets)
-      .flatMap((n) => n ?? [])
-      .filter((a) => !a.internal && a.family === "IPv4")
-      .map((a) => a.address);
-    if (addrs[0]) {
-      console.log(`Network: http://${addrs[0]}:${port}/review.html`);
-    }
-    console.log("Serving this artifact locally and across your network. Stop with Ctrl+C.");
+    console.log("Serving this artifact on this computer. Stop with Ctrl+C.");
   } else if (command === "doctor" && !args.length) {
     if (!(await doctor())) process.exitCode = 1;
   } else if (command === "validate" && args.length <= 1) {

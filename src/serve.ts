@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname } from "node:path";
-import { handleApiRequest } from "./api.js";
+import { type ApiOptions, handleApiRequest } from "./api.js";
 import { inside } from "./paths.js";
 
 const contentTypes: Record<string, string> = {
@@ -16,12 +16,18 @@ const contentTypes: Record<string, string> = {
   ".zip": "application/zip",
 };
 
-export async function startPreviewServer(directory: string, port = 4173, host = "0.0.0.0") {
+export async function startPreviewServer(
+  directory: string,
+  port = 4173,
+  host = "127.0.0.1",
+  apiOptions: Omit<ApiOptions, "onLibraryUpdated"> = {},
+) {
   let root = await realpath(directory);
   async function respond(request: IncomingMessage, response: ServerResponse) {
     const url = new URL(request.url ?? "/", "http://localhost");
     if (url.pathname.startsWith("/api/")) {
       const handled = await handleApiRequest(request, response, url, {
+        ...apiOptions,
         onLibraryUpdated: async (newDirectory) => {
           try {
             root = await realpath(newDirectory);

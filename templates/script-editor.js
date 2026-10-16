@@ -446,7 +446,9 @@
         if (response.status === 409) {
           const data = await response.json();
           alert(
-            `Another production job is running (${data.selector} · ${data.stage}). Please wait.`,
+            data.jobId
+              ? `Another production job is running (${data.selector} · ${data.stage}). Please wait.`
+              : data.error || "Choose a new version name before producing this script.",
           );
           produceBtn.disabled = false;
           download.disabled = false;

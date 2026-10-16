@@ -208,6 +208,9 @@ The verifier checks OData V4 metadata, all three seeded products, two products m
 
 ## Develop the workflow
 
+See [testing and current verification](docs/TESTING.md) for model-free automated
+checks, local speech/video integration, and the limits of Firebase validation.
+
 ```sh
 npm run check       # Formatting, types, workflow tests, live CAP checks, content validation
 npm run build       # Compile the TypeScript application

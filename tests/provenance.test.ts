@@ -88,6 +88,13 @@ test("compiled previews identify executed JavaScript and reject extra discovered
     hash(await readFile(resolve(directory, "dist/src/review.js"))),
   );
   assert.ok(!manifest.runtimeHashes["src/review.ts"]);
+  for (const name of ["api", "media/avatar"]) {
+    assert.equal(
+      manifest.runtimeHashes[`dist/src/${name}.js`],
+      hash(await readFile(resolve(directory, `dist/src/${name}.js`))),
+    );
+    assert.ok(!manifest.runtimeHashes[`src/${name}.ts`]);
+  }
 
   const extra = resolve(directory, "demos/cap/inventory/db/extra.cds");
   await writeFile(
