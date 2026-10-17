@@ -69,6 +69,8 @@ export async function runtimeFiles(): Promise<string[]> {
     "news/review",
     "media/model",
     "media/avatar",
+    "media/face-assets",
+    "media/photo-texture",
     "media/store",
     "media/worker",
     "media/audio",
@@ -87,7 +89,9 @@ export async function runtimeFiles(): Promise<string[]> {
   return names.map((name) =>
     relative(
       projectRoot,
-      fileURLToPath(new URL(`./${name}${extension}`, import.meta.url)),
+      fileURLToPath(
+        new URL(`./${name}${name === "media/photo-texture" ? ".js" : extension}`, import.meta.url),
+      ),
     ).replaceAll("\\", "/"),
   );
 }

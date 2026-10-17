@@ -10,6 +10,7 @@ import {
 import { hash } from "../digest.js";
 import type { SpeakerAvatarConfig } from "../domain.js";
 import { projectRoot } from "../paths.js";
+import { warpPhotoMouth } from "./photo-texture.js";
 
 export type VisemeShape =
   | "rest"
@@ -142,10 +143,16 @@ export async function saveCustomAvatar(
 
 const loadedAvatarCache = new Map<string, { sha256: string; image: Image }>();
 
-export async function loadAvatarImage(imageId: string, rootDir = projectRoot): Promise<Image> {
+export async function loadAvatarImage(
+  imageId: string,
+  rootDir = projectRoot,
+  expectedHash?: string,
+): Promise<Image> {
   const filePath = await resolveAvatarPath(imageId, rootDir);
   const bytes = await readFile(filePath);
   const sha = hash(bytes);
+  if (expectedHash && sha !== expectedHash)
+    throw new Error("Portrait changed since mouth detection. Select the photo and detect again.");
   const cached = loadedAvatarCache.get(filePath);
   if (cached && cached.sha256 === sha) return cached.image;
   const image = await loadImage(bytes);
@@ -407,38 +414,34 @@ function drawPhotoAvatarPortrait(
   isSpeaking: boolean,
   accent: string,
 ): void {
-  const mouthX = Math.max(0.2, Math.min(0.8, config?.mouthX ?? 0.5));
-  const mouthY = Math.max(0.4, Math.min(0.9, config?.mouthY ?? 0.68));
-  const mouthScale = Math.max(0.5, Math.min(2, config?.mouthScale ?? 1));
   const diameter = radius * 2;
+  // Render at fixed portrait resolution, then scale the same source pixels for
+  // preview and export. Each frame starts from the original photograph.
+  const surface = createCanvas(256, 256);
+  const surfaceCtx = surface.getContext("2d");
   const cropSide = Math.min(image.width, image.height);
-  const sx = (image.width - cropSide) / 2;
-  const sy = (image.height - cropSide) / 2;
-
+  surfaceCtx.drawImage(
+    image,
+    (image.width - cropSide) / 2,
+    (image.height - cropSide) / 2,
+    cropSide,
+    cropSide,
+    0,
+    0,
+    256,
+    256,
+  );
+  const pixels = surfaceCtx.getImageData(0, 0, 256, 256);
+  pixels.data.set(
+    warpPhotoMouth(pixels.data, 256, 256, config ?? {}, isSpeaking ? anim.viseme : "rest"),
+  );
+  surfaceCtx.putImageData(pixels, 0, 0);
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.clip();
   ctx.translate(cx, cy);
-  // Match the editor's square crop and calibration coordinates exactly.
-  ctx.drawImage(image, sx, sy, cropSide, cropSide, -radius, -radius, diameter, diameter);
-
-  if (isSpeaking && anim.viseme !== "rest") {
-    const mx = (mouthX - 0.5) * diameter;
-    const my = (mouthY - 0.5) * diameter;
-    const unit = (diameter / 140) * mouthScale;
-    ctx.save();
-    ctx.translate(mx, my);
-    // Photos need a smaller vertical opening than illustrated characters.
-    ctx.scale(unit, unit * 0.5);
-    // A hard boundary prevents any future mouth drawing from reaching the jaw,
-    // neck, or collar. Leave the original photograph untouched outside it.
-    ctx.beginPath();
-    ctx.ellipse(0, 1, 16, 12, 0, 0, Math.PI * 2);
-    ctx.clip();
-    drawMouthViseme(ctx, 0, 0, anim.viseme, "rgba(145, 58, 68, 0.75)");
-    ctx.restore();
-  }
+  ctx.drawImage(surface, -radius, -radius, diameter, diameter);
 
   // Subtle studio vignette rim inside circle
   const rimGrad = ctx.createRadialGradient(0, 0, radius * 0.72, 0, 0, radius);

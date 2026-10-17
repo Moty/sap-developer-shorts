@@ -351,6 +351,34 @@
                     "type": "number",
                     "minimum": 0.2,
                     "maximum": 0.7
+                  },
+                  "mouthAngle": {
+                    "type": "number",
+                    "minimum": -0.55,
+                    "maximum": 0.55
+                  },
+                  "mouthAspect": {
+                    "type": "number",
+                    "minimum": 0.2,
+                    "maximum": 0.6
+                  },
+                  "calibration": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "imageSha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "modelSha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "detector": {
+                        "const": "mediapipe-0.10.32"
+                      }
+                    },
+                    "required": ["imageSha256", "modelSha256", "detector"]
                   }
                 },
                 "required": ["mode"]

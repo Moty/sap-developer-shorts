@@ -175,6 +175,29 @@ test("separate artifact roots keep separate jobs and reuse verified speech into 
   assert.equal(packaged.outputDirectory, resolve(other.directory, "media", packaged.id));
 });
 
+test("avatar-only revisions preserve the narration identity while voice changes invalidate it", async (t) => {
+  const { job } = await fixture(t);
+  job.request.episode.presentation = {
+    tone: "casual",
+    format: "explainer",
+    humor: "none",
+    speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+  };
+  const identity = narrationIdentity(job.request);
+  const speaker = job.request.episode.presentation.speakers[0];
+  assert.ok(speaker);
+  speaker.avatar = {
+    mode: "photo",
+    imageId: "portrait.png",
+    mouthX: 0.46,
+    mouthY: 0.61,
+    mouthAngle: 0.1,
+  };
+  assert.equal(narrationIdentity(job.request), identity);
+  speaker.voice = "af_bella";
+  assert.notEqual(narrationIdentity(job.request), identity);
+});
+
 test("speech reuse refuses changed speech, voices, generator versions, legacy requests, and altered donor bytes", async (t) => {
   const { root, store, job, source, settings } = await fixture(t);
   const identity = narrationIdentity(job.request);

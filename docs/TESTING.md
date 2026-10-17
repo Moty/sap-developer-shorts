@@ -79,3 +79,34 @@ readable code and captions. This technical check does not replace listening.
 Firebase configuration JSON was parsed locally. Firestore/Storage rules have
 not been exercised against Firebase emulators or a deployed project in this
 verification. No cloud deployment, paid provider call, or publication was made.
+
+## Photo alignment and texture motion
+
+`tests/photo-motion.test.ts` exercises the actual workshop renderer and video
+badge renderer, checks pixel stability outside the mouth at different scales,
+and verifies rotated masks and landmark rejection. `tests/face-assets.test.ts`
+checks local module/WASM serving, the asset allowlist, and image-hash mismatch
+rejection. Workshop tests cover calibration import and recovery, including native
+select semantics; narration tests preserve reuse for avatar-only changes.
+
+For a browser smoke test, install the model with `avatar-setup`, rebuild/serve the
+library, and choose a saved single-person photo in the workshop. Check automatic
+alignment and Test Lip Motion. Reload, Resume saved draft, and confirm the photo
+and guide survive. Move a slider while detection is loading: the late detection
+must not overwrite it. Start an upload, then select another photo: the late upload
+may be saved but must not replace the newer selection. Replace a same-named file,
+then Detect mouth automatically: it must load fresh bytes. Produce a new version
+and compare the video with the preview; inspect the neck/collar for motion.
+
+Model inference is a local browser smoke test, not a CI network download. CI uses
+synthetic textured fixtures; private portraits and generated proof media stay
+outside the committed test fixtures. See [PHOTO_AVATARS.md](PHOTO_AVATARS.md).
+
+Local validation on 2026-10-16 (macOS): 186 automated tests plus 5 live CAP checks
+passed on Node 22.13.0, and the compiled build completed. In the in-app browser,
+MediaPipe aligned both a saved user portrait and a bundled portrait; reload/resume
+retained the latter selection and geometry. A 47.73-second Heart-narrated photo
+variant rendered successfully and passed the exporter's format, full-decode,
+timing and audio-level checks. Astra reviewed the implementation and the fixes
+for stale loads/uploads and native-select recovery. These checks establish
+workflow correctness; naturalness still needs human review of the resulting video.

@@ -5,6 +5,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { createCanvas } from "@napi-rs/canvas";
 import { drawAvatarBadge, type VisemeShape } from "../src/media/avatar.js";
+import { mouthGeometry, warpPhotoMouth } from "../src/media/photo-texture.js";
 import { projectRoot } from "../src/paths.js";
 
 function portraitFixture() {
@@ -93,7 +94,7 @@ test("photo video frames animate only the calibrated mouth, even with head and b
 test("actual workshop photo preview leaves every pixel outside the mouth stationary", async () => {
   const script = await readFile(resolve(projectRoot, "templates/script-editor.js"), "utf8");
   const start = script.indexOf("      function renderSpeakerCanvas(");
-  const end = script.indexOf("      function ensureImageLoaded(", start);
+  const end = script.indexOf("      async function ensureImageLoaded(", start);
   assert.ok(start >= 0 && end > start);
   for (const width of [140, 280]) {
     for (const mouthScale of [0.5, 1, 2]) {
@@ -107,6 +108,8 @@ test("actual workshop photo preview leaves every pixel outside the mouth station
       };
       const render = runInNewContext(`${script.slice(start, end)}; renderSpeakerCanvas`, {
         byId: (id: string) => fields[id],
+        warpPhotoMouth,
+        readMouthMetadata: () => ({}),
         loadedImages: new Map([["fixture.png", portraitFixture()]]),
       }) as (index: number, jawOpen: number, viseme: string, guide: boolean) => void;
       const pixels = () => canvas.getContext("2d").getImageData(0, 0, width, width).data;
@@ -123,5 +126,104 @@ test("actual workshop photo preview leaves every pixel outside the mouth station
       render(0, 0, "rest", false);
       assert.deepEqual(pixels(), before, "rest must restore the original portrait");
     }
+  }
+});
+
+test("landmarks produce rotated lip geometry and reject unclear or unsupported faces", () => {
+  const points = Array.from({ length: 478 }, () => ({ x: 0.5, y: 0.5 }));
+  points[61] = { x: 0.36, y: 0.59 };
+  points[291] = { x: 0.56, y: 0.61 };
+  points[0] = { x: 0.46, y: 0.58 };
+  points[17] = { x: 0.46, y: 0.62 };
+  const geometry = mouthGeometry(points);
+  assert.equal(geometry.mouthX, 0.46);
+  assert.equal(geometry.mouthY, 0.6);
+  assert.ok(geometry.mouthAngle > 0.09 && geometry.mouthAngle < 0.11);
+  assert.ok(geometry.mouthScale > 1 && geometry.mouthScale < 1.1);
+  assert.throws(() => mouthGeometry([]), /could not be located/);
+  points[291] = { x: 0.8, y: 0.8 };
+  assert.throws(() => mouthGeometry(points), /front-facing/);
+});
+
+test("texture warp preserves source, rest and every pixel beyond rotated lip bounds", () => {
+  const width = 140;
+  const source = portraitFixture().getContext("2d").getImageData(0, 0, width, width).data;
+  const copy = new Uint8ClampedArray(source);
+  for (const mouthAngle of [-0.5, 0, 0.5]) {
+    for (const mouthAspect of [0.2, 0.6]) {
+      const config = { mouthX: 0.46, mouthY: 0.6, mouthScale: 1.25, mouthAngle, mouthAspect };
+      assert.deepEqual(warpPhotoMouth(source, width, width, config, "rest"), source);
+      const after = warpPhotoMouth(source, width, width, config, "open_a");
+      for (let y = 0; y < width; y++)
+        for (let x = 0; x < width; x++) {
+          const dx = x - width * config.mouthX,
+            dy = y - width * config.mouthY;
+          const u = dx * Math.cos(mouthAngle) + dy * Math.sin(mouthAngle);
+          const v = -dx * Math.sin(mouthAngle) + dy * Math.cos(mouthAngle);
+          if ((u / (16 * 1.25)) ** 2 + (v / (16 * mouthAspect * 1.25)) ** 2 < 1) continue;
+          const p = (y * width + x) * 4;
+          assert.deepEqual(after.slice(p, p + 4), source.slice(p, p + 4));
+        }
+      assert.deepEqual(warpPhotoMouth(source, width, width, config, "open_a"), after);
+    }
+  }
+  assert.deepEqual(source, copy, "animation never accumulates edits on the source");
+});
+
+test("actual async detector preserves newer manual edits and rejects missing/multiple faces", async () => {
+  const script = await readFile(resolve(projectRoot, "templates/script-editor.js"), "utf8");
+  const start = script.indexOf("      async function detectMouth(");
+  const end = script.indexOf("      refreshAvatarUi =", start);
+  assert.ok(start >= 0 && end > start);
+  for (const scenario of ["manual", "selection", "no-face", "multiple", "missing-model"]) {
+    const fields: Record<string, { value: string }> = {
+      "speaker-avatar-image-0": { value: "old.png" },
+      "speaker-avatar-mouth-x-0": { value: "0.41" },
+      "speaker-avatar-mouth-y-0": { value: "0.62" },
+      "speaker-avatar-mouth-scale-0": { value: "1.1" },
+      "speaker-avatar-geometry-0": { value: "{}" },
+    };
+    let release: () => void = () => {};
+    const ready = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const revisions = new Map<number, number>();
+    const notices: string[] = [];
+    let applied = 0;
+    const detect = runInNewContext(`${script.slice(start, end)}; detectMouth`, {
+      byId: (id: string) => fields[id],
+      revisions,
+      invalidate: (index: number) => revisions.set(index, (revisions.get(index) || 0) + 1),
+      detectStatus: (_index: number, message: string) => notices.push(message),
+      ensureImageLoaded: async () => ({ img: portraitFixture(), sha: "a".repeat(64) }),
+      detector: async () => {
+        await ready;
+        if (scenario === "missing-model") throw new Error("Missing model");
+        return { detect: () => ({ faceLandmarks: scenario === "multiple" ? [[], []] : [] }) };
+      },
+      document: { createElement: () => createCanvas(512, 512) },
+      renderSpeakerCanvas: () => {
+        applied++;
+      },
+      update: () => {},
+      mouthGeometry,
+      faceDetector: { modelSha256: "b".repeat(64), version: "mediapipe-0.10.32" },
+    }) as (index: number) => Promise<void>;
+    const xField = fields["speaker-avatar-mouth-x-0"];
+    const imageField = fields["speaker-avatar-image-0"];
+    assert.ok(xField && imageField);
+    const pending = detect(0);
+    if (scenario === "manual") {
+      xField.value = "0.49";
+      revisions.set(0, 2);
+    }
+    if (scenario === "selection") imageField.value = "new.png";
+    release();
+    await pending;
+    assert.equal(applied, 0);
+    assert.equal(xField.value, scenario === "manual" ? "0.49" : "0.41");
+    if (scenario === "no-face") assert.match(notices.at(-1) ?? "", /No clear face/);
+    if (scenario === "multiple") assert.match(notices.at(-1) ?? "", /More than one face/);
+    if (scenario === "missing-model") assert.match(notices.at(-1) ?? "", /adjust manually/);
   }
 });

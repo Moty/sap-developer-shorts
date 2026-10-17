@@ -4,6 +4,8 @@ A local preparation workflow for SAP shorts: hands-on developer tutorials and da
 
 The implementation turns the editorial blueprint into a reproducible pilot package: a script, vertical storyboard, live demo evidence, companion post copy, and local Kokoro narration. It now exports verified vertical MP4s with visible captions and speaker labels. **Stock avatar animation, any final provider voice, and publishing remain pending.** No provider credentials are needed for the local workflow.
 
+Photo presenters now support local automatic mouth alignment and restrained motion of the original lip pixels. See [photo setup and limitations](docs/PHOTO_AVATARS.md).
+
 ## Start on another Mac
 
 Follow the [fresh Mac setup and test guide](docs/NEW_MAC_SETUP.md). It covers

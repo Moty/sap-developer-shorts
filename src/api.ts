@@ -111,6 +111,25 @@ export async function handleApiRequest(
     return true;
   }
 
+  if (request.method === "GET" && path.startsWith("/api/face-assets/")) {
+    try {
+      const { faceAsset } = await import("./media/face-assets.js");
+      const { bytes, contentType } = await faceAsset(path.slice("/api/face-assets/".length));
+      response.writeHead(200, {
+        "content-type": contentType,
+        "content-length": bytes.length,
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      });
+      response.end(bytes);
+    } catch {
+      sendJson(response, 404, {
+        error: "Local detector asset unavailable. Run npm run shorts -- avatar-setup",
+      });
+    }
+    return true;
+  }
+
   // GET /api/avatars
   if (request.method === "GET" && path === "/api/avatars") {
     try {
@@ -139,6 +158,7 @@ export async function handleApiRequest(
       response.writeHead(200, {
         "content-type": mime,
         "content-length": bytes.length,
+        "x-image-sha256": (await import("./digest.js")).hash(bytes),
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
       });

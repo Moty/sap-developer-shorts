@@ -441,11 +441,19 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   const animation = resolveCueAnimation(cue, timeSeconds, isSpeaking, speakerId);
   const speakerPhoto =
     speaker?.avatar?.mode === "photo" && speaker.avatar.imageId
-      ? await loadAvatarImage(speaker.avatar.imageId)
+      ? await loadAvatarImage(
+          speaker.avatar.imageId,
+          undefined,
+          speaker.avatar.calibration?.imageSha256,
+        )
       : undefined;
   const coSpeakerPhoto =
     coSpeaker?.avatar?.mode === "photo" && coSpeaker.avatar.imageId
-      ? await loadAvatarImage(coSpeaker.avatar.imageId)
+      ? await loadAvatarImage(
+          coSpeaker.avatar.imageId,
+          undefined,
+          coSpeaker.avatar.calibration?.imageSha256,
+        )
       : undefined;
   drawAvatarBadge(
     ctx,

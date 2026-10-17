@@ -227,6 +227,14 @@ async function workshop(
     node(`speaker-avatar-mode-${index}`, speaker.avatar?.mode ?? "illustrated");
     node(`speaker-avatar-photo-panel-${index}`);
     node(`speaker-avatar-image-${index}`, speaker.avatar?.imageId ?? "");
+    node(
+      `speaker-avatar-geometry-${index}`,
+      JSON.stringify({
+        mouthAngle: speaker.avatar?.mouthAngle,
+        mouthAspect: speaker.avatar?.mouthAspect,
+        calibration: speaker.avatar?.calibration,
+      }),
+    );
     node(`speaker-avatar-mouth-y-${index}`, String(speaker.avatar?.mouthY ?? 0.68));
     node(`speaker-avatar-mouth-x-${index}`, String(speaker.avatar?.mouthX ?? 0.5));
     node(`speaker-avatar-mouth-scale-${index}`, String(speaker.avatar?.mouthScale ?? 1));
@@ -1080,4 +1088,50 @@ test("workshop configures custom photo avatar with mouth calibration and validat
   assert.equal(ui.get("speaker-avatar-mode-0").value, "illustrated");
   assert.equal(ui.get("speaker-avatar-photo-panel-0").hidden, true);
   assert.equal(ui.changes().length, 0);
+});
+
+test("automatic mouth calibration survives download, import and tab recovery", async () => {
+  const { faceModelSha, faceDetectorVersion } = await import("../src/media/face-assets.js");
+  const metadata = {
+    mouthAngle: 0.12,
+    mouthAspect: 0.32,
+    calibration: {
+      imageSha256: "a".repeat(64),
+      modelSha256: faceModelSha,
+      detector: faceDetectorVersion,
+    },
+  };
+  const storage = recoveryStorage();
+  const ui = await workshop("CAP-01@duo", undefined, { storage });
+  ui.get("variant-name").value = "detected-mouth";
+  ui.get("speaker-avatar-mode-0").value = "photo";
+  ui.get("speaker-avatar-image-0").value = "mira-portrait.png";
+  ui.get("speaker-avatar-mouth-x-0").value = "0.461";
+  ui.get("speaker-avatar-geometry-0").value = JSON.stringify(metadata);
+  ui.update();
+  const resumed = await workshop("CAP-01@duo", undefined, { storage });
+  const select = resumed.get("speaker-avatar-image-0");
+  let selectedImage = "";
+  Object.defineProperty(select, "value", {
+    get: () => selectedImage,
+    set: (value: string) => {
+      selectedImage = [...select.options, ...select.children].some(
+        (option) => option.value === value,
+      )
+        ? value
+        : "";
+    },
+  });
+  resumed.get("resume-draft").click();
+  assert.equal(select.value, "mira-portrait.png");
+  resumed.download();
+  const draft = JSON.parse(resumed.downloads[0]?.parts.join("") ?? "null");
+  const checked = await validatePresentationDefinition(draft);
+  const avatar = checked.episode.presentation?.speakers[0]?.avatar;
+  assert.equal(avatar?.mouthX, 0.461);
+  assert.deepEqual(avatar?.calibration, metadata.calibration);
+  assert.equal(avatar?.mouthAngle, metadata.mouthAngle);
+  assert.equal(avatar?.mouthAspect, metadata.mouthAspect);
+  resumed.restore("Restore starting avatars");
+  assert.equal(resumed.get("speaker-avatar-geometry-0").value, "{}");
 });

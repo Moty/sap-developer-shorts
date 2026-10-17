@@ -197,3 +197,11 @@ started without `node_modules/`, `.state/`, `artifacts/`, or `.env`. System tool
 were already installed. This verifies the source-only application setup; it is
 not a test of Homebrew installation or fresh voice downloads on the destination
 Mac. The narration/video path was exercised separately on the original Mac.
+
+## Optional automatic photo-mouth alignment
+
+Run `npm run shorts -- avatar-setup` after `npm ci`, then rebuild and serve the
+studio. The workshop detects lips locally when a photo is selected or uploaded;
+manual correction remains available. See [photo presenter setup, privacy and
+limitations](PHOTO_AVATARS.md). Copy personal portraits privately between machines;
+they and the optional detector model are not supplied by a Git pull.

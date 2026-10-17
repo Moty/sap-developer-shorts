@@ -11,6 +11,9 @@ export interface SpeakerAvatarConfig {
   mouthX?: number;
   mouthY?: number;
   mouthScale?: number;
+  mouthAngle?: number;
+  mouthAspect?: number;
+  calibration?: { imageSha256: string; modelSha256: string; detector: "mediapipe-0.10.32" };
   eyeY?: number;
 }
 

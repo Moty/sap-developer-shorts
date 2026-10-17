@@ -23,7 +23,11 @@ export function narrationIdentity(request: MediaRequest): string | null {
         : request.settings.localPreview.wordsPerMinute,
       sampleRate: request.settings.localPreview.sampleRate,
       pronunciation: request.episode.pronunciation,
-      speakers: request.episode.presentation?.speakers,
+      speakers: request.episode.presentation?.speakers.map(({ id, name, voice }) => ({
+        id,
+        name,
+        voice,
+      })),
       scenes: request.episode.scenes.map((scene) => ({
         id: scene.id,
         narration: scene.narration,

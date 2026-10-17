@@ -1,10 +1,10 @@
 (() => {
-  const { seed, scenes, reservedNames, availableVoices, recoveryId, pronunciation } = JSON.parse(
-    document.getElementById("editor-data").textContent,
-  );
+  const { seed, scenes, reservedNames, availableVoices, recoveryId, pronunciation, faceDetector } =
+    JSON.parse(document.getElementById("editor-data").textContent);
   let activePronunciation = { ...(pronunciation || seed.pronunciation || {}) };
   const startingPronunciation = structuredClone(activePronunciation);
   let renderGlossaryUi = null;
+  let refreshAvatarUi = () => {};
   const byId = (id) => document.getElementById(id);
   const words = (text) => text.trim().split(/\s+/u).filter(Boolean).length;
   const download = byId("download-script");
@@ -13,7 +13,12 @@
   const recoveryLimit = 128 * 1024;
   const fieldIds = ["variant-name", "draft-title", "publication-text"];
   for (const [index] of seed.presentation.speakers.entries())
-    fieldIds.push(`speaker-voice-${index}`);
+    fieldIds.push(
+      `speaker-voice-${index}`,
+      ...["mode", "image", "mouth-x", "mouth-y", "mouth-scale", "geometry"].map(
+        (name) => `speaker-avatar-${name}-${index}`,
+      ),
+    );
   for (const [index, scene] of seed.scenes.entries()) {
     fieldIds.push(`overlay-${index}`);
     if (scene.dialogue)
@@ -232,6 +237,9 @@
           byId(`speaker-avatar-mouth-scale-${index}`).value = String(
             speaker.avatar?.mouthScale ?? 1,
           );
+          byId(`speaker-avatar-geometry-${index}`).value =
+            startingFields[`speaker-avatar-geometry-${index}`];
+          refreshAvatarUi(index);
         }
       },
       "speaker-avatar-mode-0",
@@ -326,6 +334,36 @@
       byId("review-changes-count").textContent = count;
     reviewedDraft = signature;
   }
+  function readMouthMetadata(index) {
+    try {
+      const value = JSON.parse(byId(`speaker-avatar-geometry-${index}`)?.value || "{}");
+      const metadata = {};
+      if (Number.isFinite(value.mouthAngle) && Math.abs(value.mouthAngle) <= 0.55)
+        metadata.mouthAngle = value.mouthAngle;
+      if (
+        Number.isFinite(value.mouthAspect) &&
+        value.mouthAspect >= 0.2 &&
+        value.mouthAspect <= 0.6
+      )
+        metadata.mouthAspect = value.mouthAspect;
+      const c = value.calibration;
+      if (
+        c &&
+        /^[a-f0-9]{64}$/u.test(c.imageSha256) &&
+        c.modelSha256 === faceDetector?.modelSha256 &&
+        c.detector === faceDetector?.version
+      )
+        metadata.calibration = {
+          imageSha256: c.imageSha256,
+          modelSha256: c.modelSha256,
+          detector: c.detector,
+        };
+      return metadata;
+    } catch {
+      return {};
+    }
+  }
+
   function readDraft() {
     const draft = structuredClone(seed);
     draft.presentation.variant = byId("variant-name").value.trim();
@@ -359,9 +397,10 @@
         speaker.avatar = {
           mode: "photo",
           imageId,
-          mouthX: Number.isFinite(mouthX) ? Number(mouthX.toFixed(2)) : 0.5,
-          mouthY: Number.isFinite(mouthY) ? Number(mouthY.toFixed(2)) : 0.68,
-          mouthScale: Number.isFinite(mouthScale) ? Number(mouthScale.toFixed(2)) : 1,
+          ...readMouthMetadata(index),
+          mouthX: Number.isFinite(mouthX) ? Number(mouthX.toFixed(3)) : 0.5,
+          mouthY: Number.isFinite(mouthY) ? Number(mouthY.toFixed(3)) : 0.68,
+          mouthScale: Number.isFinite(mouthScale) ? Number(mouthScale.toFixed(3)) : 1,
         };
       } else if (seed.presentation.speakers[index].avatar) {
         speaker.avatar = { mode: "illustrated" };
@@ -726,6 +765,114 @@
 
     function setupAvatars() {
       const loadedImages = new Map();
+      const imageHashes = new Map();
+      const imageLoads = new Map();
+      const revisions = new Map();
+      let detectorPromise;
+      const invalidate = (index) => revisions.set(index, (revisions.get(index) || 0) + 1);
+      const detectStatus = (index, text) => {
+        byId(`speaker-avatar-detect-status-${index}`).textContent = text;
+      };
+      async function detector() {
+        if (!detectorPromise)
+          detectorPromise = (async () => {
+            const { FaceLandmarker, FilesetResolver } = await import(
+              "/api/face-assets/vision_bundle.mjs"
+            );
+            const files = await FilesetResolver.forVisionTasks("/api/face-assets");
+            return FaceLandmarker.createFromOptions(files, {
+              baseOptions: {
+                modelAssetPath: "/api/face-assets/face_landmarker.task",
+                delegate: "CPU",
+              },
+              runningMode: "IMAGE",
+              numFaces: 2,
+              minFaceDetectionConfidence: 0.65,
+              minFacePresenceConfidence: 0.65,
+            });
+          })().catch((error) => {
+            detectorPromise = undefined;
+            throw error;
+          });
+        return detectorPromise;
+      }
+      async function detectMouth(index) {
+        invalidate(index);
+        const revision = revisions.get(index);
+        const imageId = byId(`speaker-avatar-image-${index}`).value;
+        const current = () =>
+          revisions.get(index) === revision &&
+          byId(`speaker-avatar-image-${index}`).value === imageId;
+        if (!imageId) {
+          detectStatus(index, "Select or upload a portrait first.");
+          return;
+        }
+        detectStatus(index, "Locating lips on this device…");
+        try {
+          const portrait = await ensureImageLoaded(imageId, index, true);
+          const model = await detector();
+          if (!current()) return;
+          const img = portrait.img;
+          // Detect the exact square crop used in both preview and export.
+          const square = document.createElement("canvas");
+          square.width = square.height = 512;
+          const side = Math.min(img.width, img.height);
+          square
+            .getContext("2d")
+            .drawImage(
+              img,
+              (img.width - side) / 2,
+              (img.height - side) / 2,
+              side,
+              side,
+              0,
+              0,
+              512,
+              512,
+            );
+          const result = model.detect(square);
+          if (result.faceLandmarks.length !== 1)
+            throw new Error(
+              result.faceLandmarks.length
+                ? "More than one face found. Use a single-person portrait."
+                : "No clear face found. Try a front-facing portrait.",
+            );
+          const geometry = mouthGeometry(result.faceLandmarks[0]);
+          const imageSha256 = portrait.sha;
+          if (!/^[a-f0-9]{64}$/u.test(imageSha256 || ""))
+            throw new Error("Photo verification unavailable. Reload the studio.");
+          if (!current()) return;
+          byId(`speaker-avatar-mouth-x-${index}`).value = String(geometry.mouthX);
+          byId(`speaker-avatar-mouth-y-${index}`).value = String(geometry.mouthY);
+          byId(`speaker-avatar-mouth-scale-${index}`).value = String(geometry.mouthScale);
+          byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify({
+            mouthAngle: geometry.mouthAngle,
+            mouthAspect: geometry.mouthAspect,
+            calibration: {
+              imageSha256,
+              modelSha256: faceDetector.modelSha256,
+              detector: faceDetector.version,
+            },
+          });
+          detectStatus(
+            index,
+            "Mouth located. Check the guide and test the lip motion; fine-tune if needed.",
+          );
+          renderSpeakerCanvas(index);
+          update();
+        } catch (error) {
+          if (current())
+            detectStatus(
+              index,
+              `Automatic alignment unavailable: ${error.message} You can adjust manually. If setup is needed, run npm run shorts -- avatar-setup.`,
+            );
+        }
+      }
+      refreshAvatarUi = (index) => {
+        invalidate(index);
+        detectStatus(index, "");
+        ensureImageLoaded(byId(`speaker-avatar-image-${index}`).value, index).catch(() => {});
+      };
 
       function renderSpeakerCanvas(index, jawOpen = 0, viseme = "rest", showCrosshair = true) {
         const canvas = byId(`speaker-avatar-canvas-${index}`);
@@ -772,88 +919,79 @@
         const my = h * mouthY;
         const unit = (w / 140) * mouthScale;
 
+        const metadata = readMouthMetadata(index);
         if (jawOpen > 0 && viseme !== "rest") {
-          // Same calibrated mouth boundary as the video renderer. The photo,
-          // including its chin, neck and clothing, is never shifted or warped.
-          ctx.save();
-          ctx.translate(mx, my);
-          ctx.scale(unit, unit * 0.5);
-          ctx.beginPath();
-          ctx.ellipse(0, 1, 16, 12, 0, 0, Math.PI * 2);
-          ctx.clip();
-          if (viseme === "smile") {
-            ctx.strokeStyle = "rgba(145, 58, 68, 0.75)";
-            ctx.lineWidth = 2.5;
-            ctx.lineCap = "round";
-            ctx.beginPath();
-            ctx.moveTo(-11, -1);
-            ctx.quadraticCurveTo(0, 6.5, 11, -1);
-            ctx.stroke();
-          } else {
-            const shapes = {
-              open_a: [12.5, 9.5, 2],
-              open_e: [13.5, 6.2, 1],
-              open_o: [8.5, 8.5, 2],
-              open_u: [6, 6.2, 1.5],
-              consonant: [10.5, 3, 0.5],
-            };
-            const [mw, mh, offsetY] = shapes[viseme] || shapes.consonant;
-            ctx.beginPath();
-            ctx.ellipse(0, offsetY, mw, mh, 0, 0, Math.PI * 2);
-            ctx.fillStyle = "#3b1519";
-            ctx.fill();
-            ctx.save();
-            ctx.clip();
-            if (viseme !== "consonant" && viseme !== "open_u") {
-              ctx.fillStyle = "#f7faf7";
-              ctx.fillRect(-mw * 0.9, offsetY - mh, mw * 1.8, mh * 0.55);
-              ctx.fillStyle = "#d96b6b";
-              ctx.beginPath();
-              ctx.ellipse(0, offsetY + mh * 0.85, mw * 0.7, mh * 0.6, 0, 0, Math.PI * 2);
-              ctx.fill();
-            }
-            ctx.restore();
-            ctx.strokeStyle = "rgba(145, 58, 68, 0.75)";
-            ctx.lineWidth = 2.2;
-            ctx.beginPath();
-            ctx.ellipse(0, offsetY, mw, mh, 0, 0, Math.PI * 2);
-            ctx.stroke();
-          }
-          ctx.restore();
+          const pixels = ctx.getImageData(0, 0, w, h);
+          pixels.data.set(
+            warpPhotoMouth(pixels.data, w, h, { mouthX, mouthY, mouthScale, ...metadata }, viseme),
+          );
+          ctx.putImageData(pixels, 0, 0);
         } else if (showCrosshair) {
           ctx.save();
           ctx.strokeStyle = "rgba(87, 199, 163, 0.9)";
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([4, 3]);
+          ctx.lineWidth = w / 140;
+          ctx.setLineDash([(4 * w) / 140, (3 * w) / 140]);
           ctx.beginPath();
-          ctx.ellipse(mx, my + unit * 0.5, 16 * unit, 6 * unit, 0, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(mx - 24 * mouthScale, my);
-          ctx.lineTo(mx + 24 * mouthScale, my);
-          ctx.moveTo(mx, my - 11 * mouthScale);
-          ctx.lineTo(mx, my + 11 * mouthScale);
+          ctx.ellipse(
+            mx,
+            my,
+            16 * unit,
+            Math.max(3, Math.min(10, 16 * (metadata.mouthAspect ?? 0.375))) * unit,
+            metadata.mouthAngle ?? 0,
+            0,
+            Math.PI * 2,
+          );
           ctx.stroke();
           ctx.restore();
         }
       }
 
-      function ensureImageLoaded(imageId, index) {
+      async function ensureImageLoaded(imageId, index, fresh = false) {
         if (!imageId) {
           renderSpeakerCanvas(index);
           return;
         }
-        if (loadedImages.has(imageId)) {
+        if (!fresh && loadedImages.has(imageId)) {
           renderSpeakerCanvas(index);
-          return;
+          return { img: loadedImages.get(imageId), sha: imageHashes.get(imageId) };
         }
-        if (typeof Image !== "function") return;
-        const img = new Image();
-        img.onload = () => {
-          loadedImages.set(imageId, img);
+        const loading = (async () => {
+          const response = await fetch(`/api/avatars/${encodeURIComponent(imageId)}`, {
+            cache: "no-store",
+          });
+          if (!response.ok) throw new Error("Cannot load this portrait.");
+          const sha = response.headers.get("x-image-sha256");
+          const url = URL.createObjectURL(await response.blob());
+          try {
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = () => reject(new Error("Cannot decode this portrait."));
+              img.src = url;
+            });
+            return { img, sha };
+          } finally {
+            URL.revokeObjectURL(url);
+          }
+        })();
+        imageLoads.set(imageId, loading);
+        const portrait = await loading;
+        if (imageLoads.get(imageId) === loading) {
+          loadedImages.set(imageId, portrait.img);
+          imageHashes.set(imageId, portrait.sha);
           renderSpeakerCanvas(index);
-        };
-        img.src = `/api/avatars/${encodeURIComponent(imageId)}`;
+          const calibration = readMouthMetadata(index).calibration;
+          if (
+            byId(`speaker-avatar-image-${index}`).value === imageId &&
+            calibration &&
+            calibration.imageSha256 !== portrait.sha
+          )
+            detectStatus(
+              index,
+              "This photo has changed. Detect the mouth again before testing or producing.",
+            );
+        }
+        return portrait;
       }
 
       function populateSelect(selectEl, avatars) {
@@ -889,7 +1027,9 @@
             const selectEl = byId(`speaker-avatar-image-${index}`);
             if (selectEl) {
               populateSelect(selectEl, avatars);
-              ensureImageLoaded(selectEl.value, index);
+              ensureImageLoaded(selectEl.value, index).catch((error) =>
+                detectStatus(index, error.message),
+              );
             }
           }
         })
@@ -899,7 +1039,8 @@
         const selectEl = byId(`speaker-avatar-image-${index}`);
         if (selectEl) {
           selectEl.addEventListener("change", () => {
-            ensureImageLoaded(selectEl.value, index);
+            byId(`speaker-avatar-geometry-${index}`).value = "{}";
+            detectMouth(index);
             update();
           });
         }
@@ -911,15 +1052,20 @@
           const slider = byId(sliderId);
           if (slider) {
             slider.addEventListener("input", () => {
+              invalidate(index);
+              detectStatus(index, "Manual adjustment applied.");
               renderSpeakerCanvas(index);
             });
           }
         }
+        byId(`speaker-avatar-detect-${index}`).addEventListener("click", () => detectMouth(index));
         const uploadInput = byId(`speaker-avatar-upload-${index}`);
         if (uploadInput) {
           uploadInput.addEventListener("change", () => {
             const file = uploadInput.files?.[0];
             if (!file) return;
+            invalidate(index);
+            const uploadRevision = revisions.get(index);
             const statusEl = byId(`speaker-avatar-upload-status-${index}`);
             if (statusEl) {
               statusEl.className = "audition-status loading";
@@ -939,7 +1085,7 @@
                 const body = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
                 const avatarId = body.imageId || body.avatar?.id;
-                if (avatarId && selectEl) {
+                if (avatarId && selectEl && revisions.get(index) === uploadRevision) {
                   let exists = false;
                   for (const opt of Array.from(selectEl.options)) {
                     if (opt.value === avatarId) exists = true;
@@ -951,7 +1097,8 @@
                   }
                   selectEl.value = avatarId;
                   loadedImages.delete(avatarId);
-                  ensureImageLoaded(avatarId, index);
+                  byId(`speaker-avatar-geometry-${index}`).value = "{}";
+                  detectMouth(index);
                   update();
                 }
                 if (statusEl) {
@@ -971,6 +1118,15 @@
         const testBtn = byId(`speaker-avatar-test-${index}`);
         if (testBtn) {
           testBtn.addEventListener("click", () => {
+            const calibration = readMouthMetadata(index).calibration;
+            const imageId = byId(`speaker-avatar-image-${index}`).value;
+            if (calibration && imageHashes.get(imageId) !== calibration.imageSha256) {
+              detectStatus(
+                index,
+                "This photo has changed. Detect the mouth again before testing or producing.",
+              );
+              return;
+            }
             const visemeCycle = [
               { v: "open_a", j: 0.85 },
               { v: "consonant", j: 0.25 },
@@ -1012,6 +1168,22 @@
   }
   byId("resume-draft").addEventListener("click", () => {
     if (!pendingRecovery) return;
+    // A native select drops values that are not yet in its option list.
+    // Restore validated image options before the asynchronous saved-photo list loads.
+    for (const [index] of seed.presentation.speakers.entries()) {
+      const id = `speaker-avatar-image-${index}`;
+      const value = pendingRecovery[id];
+      const select = byId(id);
+      if (
+        value &&
+        /^[a-z0-9][a-z0-9_-]{0,47}\.(png|jpg|jpeg|webp)$/u.test(value) &&
+        !Array.from(select.options).some((option) => option.value === value)
+      ) {
+        const option = element("option", "", value);
+        option.value = value;
+        select.append(option);
+      }
+    }
     for (const id of fieldIds) byId(id).value = pendingRecovery[id];
     lastSavedFields = JSON.stringify(rawFields());
     pendingRecovery = null;
