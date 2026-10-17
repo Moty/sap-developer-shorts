@@ -1,14 +1,17 @@
 {
-  "schemaVersion": 1,
-  "baseEpisodeId": "NEWS-02",
-  "baseInputHash": "ec02b31595f11cfab261a0a9f3af28fc4f161e7c7d679f336ff88564e7d23f07",
   "title": "Joule Work: announcement versus access",
   "presentation": {
-    "variant": "myth-fact",
-    "tone": "professional",
-    "format": "myth-fact",
     "humor": "none",
-    "speakers": [{ "id": "narrator", "name": "Narrator", "voice": "af_heart" }]
+    "tone": "professional",
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "af_heart"
+      }
+    ],
+    "format": "myth-fact",
+    "variant": "myth-fact"
   },
   "scenes": [
     {
@@ -47,5 +50,8 @@
       "narration": "Read the dated sources, then confirm your organization's access before adoption. Which workflow would you explore?"
     }
   ],
-  "publicationText": "Joule Work: distinguish the announcement from your organization's access.\n\nMyth: a product announcement means everyone already has access. Fact: SAP describes Joule Work's customer rollout beginning, with selected customers already using it. This does not establish your organization's entitlement.\n\nAn editorial source review checked October 15, 2026. SAP describes natural-language work across SAP and third-party data, business context from Knowledge Graph, and managed activation through SAP for Me. The guide's portfolio-wide October availability statement does not establish individual access.\n\nNo customer environment was tested for this short. Confirm your organization's availability and activation requirements before planning adoption, and recheck the dated official sources.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich workflow would you explore?\n\n#SAP #SAPConnect #Joule #BusinessAI"
+  "schemaVersion": 1,
+  "baseEpisodeId": "NEWS-02",
+  "publicationText": "Joule Work: distinguish the announcement from your organization's access.\n\nMyth: a product announcement means everyone already has access. Fact: SAP describes Joule Work's customer rollout beginning, with selected customers already using it. This does not establish your organization's entitlement.\n\nAn editorial source review checked October 15, 2026. SAP describes natural-language work across SAP and third-party data, business context from Knowledge Graph, and managed activation through SAP for Me. The guide's portfolio-wide October availability statement does not establish individual access.\n\nNo customer environment was tested for this short. Confirm your organization's availability and activation requirements before planning adoption, and recheck the dated official sources.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich workflow would you explore?\n\n#SAP #SAPConnect #Joule #BusinessAI",
+  "baseInputHash": "ec02b31595f11cfab261a0a9f3af28fc4f161e7c7d679f336ff88564e7d23f07"
 }

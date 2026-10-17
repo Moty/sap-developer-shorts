@@ -1,21 +1,21 @@
 {
-  "schemaVersion": 1,
-  "baseEpisodeId": "CAP-01",
-  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
-  "title": "My entity needs a service introduction",
   "presentation": {
-    "variant": "comic",
-    "tone": "comic",
     "format": "explainer",
-    "humor": "sap-geek",
     "speakers": [
       {
         "id": "narrator",
         "name": "Narrator",
         "voice": "af_heart"
       }
-    ]
+    ],
+    "humor": "sap-geek",
+    "variant": "comic",
+    "tone": "comic"
   },
+  "title": "My entity needs a service introduction",
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
   "scenes": [
     {
       "id": "hook",

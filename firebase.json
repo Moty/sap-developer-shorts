@@ -17,7 +17,7 @@
         ]
       },
       {
-        "source": "**/*.@(vtt|json|html)",
+        "source": "**/*.@(vtt|json|html|js)",
         "headers": [
           {
             "key": "Cache-Control",

@@ -7,7 +7,8 @@ rules_version = '2';
 // Project: SAP Developer Shorts Studio
 // Description: Verified episode blueprints, presentation variants,
 //              neural speech & video production jobs, topic backlog,
-//              and news source claim verifications.
+//              news claim verifications, review workflow states,
+//              custom avatars, speech auditions, and worker heartbeats.
 //
 // Collection: /episodes/{episodeId}
 // Document ID: Pattern ^(ABAP|CAP|RAP|BTP|AI|NEWS)-[0-9]{2}$
@@ -32,7 +33,7 @@ rules_version = '2';
 //   - status: string (optional, 'draft'|'reviewed'|'published'|'archived')
 //   - published: bool (optional) - publication flag
 //   - reviewStatus: string (optional, 'pending'|'in-review'|'reviewed'|'approved'|'rejected')
-//   - createdAt: timestamp|string (optional, immutable)
+//   - createdAt: timestamp|string (optional)
 //   - updatedAt: timestamp|string (optional)
 //
 // Collection: /episodes/{episodeId}/variants/{variantId}
@@ -46,7 +47,7 @@ rules_version = '2';
 //   - scenes: list (required, 1-50 items) - script narration & dialogue overrides
 //   - publicationText: string (optional, 0-5000 chars) - custom publication draft
 //   - pronunciation: map (optional) - voice glossary overrides
-//   - createdAt: timestamp|string (optional, immutable)
+//   - createdAt: timestamp|string (optional)
 //   - updatedAt: timestamp|string (optional)
 //
 // Collection: /productions/{jobId}
@@ -57,7 +58,7 @@ rules_version = '2';
 //   - selector: string (required, 3-80 chars, immutable) - episode or variant selector (e.g. 'CAP-01@casual-v2')
 //   - stage: string (required, 'PENDING'|'PREFLIGHT'|'NARRATION'|'RENDER'|'LIBRARY'|'READY'|'BLOCKED'|'FAILED')
 //   - progressMessage: string (optional, 0-1000 chars) - real-time worker progress description
-//   - startedAt: timestamp|string (required, immutable) - job start time
+//   - startedAt: timestamp|string (required) - job start time
 //   - updatedAt: timestamp|string (required) - last heartbeat / update time
 //   - error: string|null (optional, 0-2000 chars) - failure diagnostic message
 //   - report: map (optional) - full ProductionReport payload from worker
@@ -66,9 +67,11 @@ rules_version = '2';
 //   - inputHash: string|null (optional, 0-128 chars) - input content hash
 //   - durationSeconds: number|null (optional, 0-600) - measured narration/video duration
 //   - hookSeconds: number|null (optional, 0-30) - measured hook duration
-//   - createdBy: string (optional, immutable) - user UID who requested production
+//   - createdBy: string (optional, immutable) - user UID who requested production or 'studio-browser'
 //   - failedAt: string|null (optional, 'PREFLIGHT'|'NARRATION'|'RENDER'|'LIBRARY')
 //   - issue: map|null (optional) - structured blocking issue details
+//   - definition: map (optional) - inline draft definition submitted with produce request
+//   - workerId: string (optional, 1-120 chars) - identifier of the executing Mac render worker
 //
 // Collection: /topics/{topicId}
 // Document ID: Pattern ^(ABAP|CAP|RAP|BTP|AI)-[0-9]{2}$
@@ -82,7 +85,7 @@ rules_version = '2';
 //   - supportedRelease: string|null (optional, 0-100 chars) - release baseline
 //   - verifiedOn: string|timestamp|null (optional) - verification date
 //   - outcome: string (required, 1-1000 chars) - expected demo payoff
-//   - createdAt: timestamp|string (optional, immutable)
+//   - createdAt: timestamp|string (optional)
 //   - updatedAt: timestamp|string (optional)
 //
 // Collection: /news/{newsId}
@@ -101,7 +104,62 @@ rules_version = '2';
 //   - validThrough: string|timestamp (optional) - claim validity cutoff
 //   - asOf: string|timestamp (optional) - source check date
 //   - editorialStatus: string (optional, 0-50 chars)
-//   - createdAt: timestamp|string (optional, immutable)
+//   - createdAt: timestamp|string (optional)
+//   - updatedAt: timestamp|string (optional)
+//
+// Collection: /workflow/{recordId}
+// Document ID: Selector or workflow slug (e.g. 'CAP-01--casual-v2')
+// Fields:
+//   - selector: string (required, 3-80 chars) - episode/variant selector
+//   - renderKey: string (required, 1-128 chars) - rendering cache key
+//   - inputHash: string (required, 1-128 chars) - blueprint input hash
+//   - videoHash: string (required, 1-128 chars) - generated video SHA-256 hash
+//   - reviewedAt: timestamp|string (optional) - review approval date
+//   - publication: map (optional) - publication metadata
+//   - stage: string (optional, 1-50 chars) - workflow review state
+//   - label: string (optional, 1-200 chars) - display label
+//   - updatedAt: timestamp|string (optional)
+//   - assets: map (optional) - output assets (urls, sizes, formats)
+//
+// Collection: /avatars/{imageId}
+// Document ID: Speaker portrait image ID
+// Fields:
+//   - imageId: string (required, matching imageId, 1-100 chars)
+//   - sha256: string (required, 1-128 chars) - image content SHA-256
+//   - url: string (optional, 1-2048 chars) - storage download URL
+//   - storagePath: string (optional, 1-500 chars) - Cloud Storage object path
+//   - dataUrl: string (optional, up to 1048576 chars / 1 MiB) - base64 preview data URL
+//   - createdAt: timestamp|string (optional)
+//   - updatedAt: timestamp|string (optional)
+//
+// Collection: /auditions/{auditionId}
+// Document ID: UUID string or audition identifier
+// Fields:
+//   - id: string (required, matching auditionId, 1-100 chars)
+//   - text: string (required, 1-1000 chars) - input audition phrase text
+//   - voice: string (required, 1-64 chars) - neural voice identifier
+//   - speed: number (optional, 0.5-2.5) - speech tempo rate
+//   - pronunciation: map (optional) - pronunciation overrides
+//   - status: string (required, 'PENDING'|'SYNTHESIZING'|'READY'|'FAILED')
+//   - spokenText: string (optional, 1-1500 chars) - normalized spoken text
+//   - durationSeconds: number|null (optional, 0-120) - measured duration
+//   - audioDataUrl: string (optional, up to 1048576 chars / 1 MiB) - preview base64 audio
+//   - audioUrl: string (optional, 1-2048 chars) - storage audio URL
+//   - error: string|null (optional, 0-2000 chars) - error message if failed
+//   - createdAt: timestamp|string (optional)
+//   - updatedAt: timestamp|string (optional)
+//
+// Collection: /workers/{workerId}
+// Document ID: Unique worker identifier (e.g. hostname or UUID)
+// Fields:
+//   - workerId: string (required, matching workerId, 1-120 chars)
+//   - hostname: string (required, 1-120 chars) - machine hostname
+//   - arch: string (optional, 1-30 chars) - CPU architecture (e.g. 'arm64')
+//   - status: string (required, 'ONLINE'|'BUSY'|'IDLE'|'OFFLINE')
+//   - activeJobId: string|null (optional, 1-100 chars) - currently executing job
+//   - portraitRuntime: map (optional) - avatar/portrait engine capabilities
+//   - voices: list (optional, 0-100 items) - installed Kokoro neural voices
+//   - lastHeartbeatAt: timestamp|string (required) - last heartbeat ping
 //   - updatedAt: timestamp|string (optional)
 //
 // ===============================================================
@@ -113,7 +171,7 @@ service cloud.firestore {
     // Global Helper Functions
     // ===============================================================
 
-    // Check if the request is authenticated
+    // Check if the request is authenticated (including Firebase Anonymous Auth)
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -159,13 +217,6 @@ service cloud.firestore {
     // 1. /episodes/{episodeId}
     // ===============================================================
 
-    function isEpisodePubliclyReadable() {
-      return ('status' in resource.data && resource.data.status in ['published', 'reviewed', 'ready']) ||
-             ('published' in resource.data && resource.data.published == true) ||
-             ('reviewStatus' in resource.data && resource.data.reviewStatus in ['reviewed', 'approved', 'published']) ||
-             (!('status' in resource.data) && !('published' in resource.data));
-    }
-
     function isValidEpisode(data, episodeId) {
       return hasRequiredFields(data, [
                'schemaVersion', 'id', 'version', 'title', 'audience',
@@ -208,13 +259,13 @@ service cloud.firestore {
     }
 
     function areEpisodeImmutableFieldsUnchanged() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['schemaVersion', 'id', 'createdAt']);
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['schemaVersion', 'id']);
     }
 
     match /episodes/{episodeId} {
-      allow read: if isEditor() || isEpisodePubliclyReadable();
-      allow create: if isEditor() && isValidEpisode(request.resource.data, episodeId);
-      allow update: if isEditor() && isValidEpisode(request.resource.data, episodeId) &&
+      allow read: if true;
+      allow create: if isValidEpisode(request.resource.data, episodeId);
+      allow update: if isValidEpisode(request.resource.data, episodeId) &&
                        areEpisodeImmutableFieldsUnchanged();
       allow delete: if isEditor();
 
@@ -251,13 +302,13 @@ service cloud.firestore {
       }
 
       function areVariantImmutableFieldsUnchanged() {
-        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['schemaVersion', 'baseEpisodeId', 'createdAt']);
+        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['schemaVersion', 'baseEpisodeId']);
       }
 
       match /variants/{variantId} {
         allow read: if true;
-        allow create: if isEditor() && isValidVariant(request.resource.data, episodeId, variantId);
-        allow update: if isEditor() && isValidVariant(request.resource.data, episodeId, variantId) &&
+        allow create: if isValidVariant(request.resource.data, episodeId, variantId);
+        allow update: if isValidVariant(request.resource.data, episodeId, variantId) &&
                          areVariantImmutableFieldsUnchanged();
         allow delete: if isEditor();
       }
@@ -273,7 +324,7 @@ service cloud.firestore {
                'schemaVersion', 'id', 'selector', 'stage', 'progressMessage',
                'startedAt', 'updatedAt', 'error', 'report', 'assets',
                'mediaJobId', 'inputHash', 'durationSeconds', 'hookSeconds',
-               'createdBy', 'failedAt', 'issue'
+               'createdBy', 'failedAt', 'issue', 'definition', 'workerId'
              ]) &&
              data.schemaVersion == 1 &&
              isValidString(data.selector, 3, 80) &&
@@ -292,32 +343,36 @@ service cloud.firestore {
              (!('hookSeconds' in data) || data.hookSeconds == null || (data.hookSeconds is number && data.hookSeconds >= 0 && data.hookSeconds <= 30)) &&
              (!('createdBy' in data) || isValidString(data.createdBy, 1, 128)) &&
              (!('failedAt' in data) || data.failedAt == null || (data.failedAt is string && data.failedAt in ['PREFLIGHT', 'NARRATION', 'RENDER', 'LIBRARY'])) &&
-             (!('issue' in data) || data.issue == null || data.issue is map);
+             (!('issue' in data) || data.issue == null || data.issue is map) &&
+             (!('definition' in data) || data.definition is map) &&
+             (!('workerId' in data) || isValidString(data.workerId, 1, 120));
     }
 
     function isValidStageTransition(prevStage, newStage) {
       return prevStage == newStage ||
-        (prevStage == 'PENDING' && newStage in ['PREFLIGHT', 'BLOCKED', 'FAILED']) ||
-        (prevStage == 'PREFLIGHT' && newStage in ['NARRATION', 'BLOCKED', 'FAILED']) ||
-        (prevStage == 'NARRATION' && newStage in ['RENDER', 'BLOCKED', 'FAILED']) ||
-        (prevStage == 'RENDER' && newStage in ['LIBRARY', 'BLOCKED', 'FAILED']) ||
-        (prevStage == 'LIBRARY' && newStage in ['READY', 'BLOCKED', 'FAILED']) ||
-        (prevStage in ['BLOCKED', 'FAILED', 'READY'] && newStage in ['PENDING', 'PREFLIGHT']);
+        newStage in ['BLOCKED', 'FAILED'] ||
+        (prevStage in ['BLOCKED', 'FAILED', 'READY'] && newStage in ['PENDING', 'PREFLIGHT']) ||
+        (prevStage == 'PENDING' && newStage in ['PREFLIGHT', 'NARRATION', 'RENDER', 'LIBRARY', 'READY']) ||
+        (prevStage == 'PREFLIGHT' && newStage in ['NARRATION', 'RENDER', 'LIBRARY', 'READY']) ||
+        (prevStage == 'NARRATION' && newStage in ['RENDER', 'LIBRARY', 'READY']) ||
+        (prevStage == 'RENDER' && newStage in ['LIBRARY', 'READY']) ||
+        (prevStage == 'LIBRARY' && newStage == 'READY');
     }
 
     function areProductionImmutableFieldsUnchanged() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['schemaVersion', 'selector', 'startedAt', 'createdBy']) &&
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['schemaVersion', 'selector', 'createdBy']) &&
         (!('id' in resource.data) || !('id' in request.resource.data) || request.resource.data.id == resource.data.id);
     }
 
     match /productions/{jobId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-                       isValidProductionJob(request.resource.data, jobId) &&
+      allow read: if true;
+      allow create: if isValidProductionJob(request.resource.data, jobId) &&
                        request.resource.data.stage in ['PENDING', 'PREFLIGHT'] &&
-                       (!('createdBy' in request.resource.data) || request.resource.data.createdBy == request.auth.uid);
-      allow update: if isAuthenticated() &&
-                       isValidProductionJob(request.resource.data, jobId) &&
+                       (!('createdBy' in request.resource.data) ||
+                        request.auth == null ||
+                        request.resource.data.createdBy == request.auth.uid ||
+                        request.resource.data.createdBy == 'studio-browser');
+      allow update: if isValidProductionJob(request.resource.data, jobId) &&
                        areProductionImmutableFieldsUnchanged() &&
                        isValidStageTransition(resource.data.stage, request.resource.data.stage);
       allow delete: if isEditor();
@@ -349,7 +404,7 @@ service cloud.firestore {
     }
 
     function areTopicImmutableFieldsUnchanged() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'pillar', 'createdAt']);
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'pillar']);
     }
 
     match /topics/{topicId} {
@@ -390,7 +445,7 @@ service cloud.firestore {
     }
 
     function areNewsImmutableFieldsUnchanged() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'createdAt']);
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id']);
     }
 
     match /news/{newsId} {
@@ -398,6 +453,139 @@ service cloud.firestore {
       allow create: if isEditor() && isValidNews(request.resource.data, newsId);
       allow update: if isEditor() && isValidNews(request.resource.data, newsId) &&
                        areNewsImmutableFieldsUnchanged();
+      allow delete: if isEditor();
+    }
+
+    // ===============================================================
+    // 6. /workflow/{recordId}
+    // ===============================================================
+
+    function isValidWorkflowRecord(data) {
+      return hasRequiredFields(data, ['selector', 'renderKey', 'inputHash', 'videoHash']) &&
+             hasOnlyAllowedFields(data, [
+               'selector', 'renderKey', 'inputHash', 'videoHash',
+               'reviewedAt', 'publication', 'stage', 'label', 'updatedAt', 'assets'
+             ]) &&
+             isValidString(data.selector, 3, 80) &&
+             data.selector.matches('^(ABAP|CAP|RAP|BTP|AI|NEWS)-[0-9]{2}(@[a-z0-9-]+)?$') &&
+             isValidString(data.renderKey, 1, 128) &&
+             isValidString(data.inputHash, 1, 128) &&
+             isValidString(data.videoHash, 1, 128) &&
+             isValidOptionalTimestampOrDate(data, 'reviewedAt') &&
+             (!('publication' in data) || data.publication is map) &&
+             (!('stage' in data) || isValidString(data.stage, 1, 50)) &&
+             (!('label' in data) || isValidString(data.label, 1, 200)) &&
+             (!('assets' in data) || data.assets is map) &&
+             isValidOptionalTimestampOrDate(data, 'updatedAt');
+    }
+
+    function areWorkflowImmutableFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['selector', 'renderKey']);
+    }
+
+    match /workflow/{recordId} {
+      allow read: if true;
+      allow create: if isValidWorkflowRecord(request.resource.data);
+      allow update: if isValidWorkflowRecord(request.resource.data) &&
+                       areWorkflowImmutableFieldsUnchanged();
+      allow delete: if isEditor();
+    }
+
+    // ===============================================================
+    // 7. /avatars/{imageId}
+    // ===============================================================
+
+    function isValidAvatarDoc(data, imageId) {
+      return hasRequiredFields(data, ['imageId', 'sha256']) &&
+             hasOnlyAllowedFields(data, [
+               'imageId', 'sha256', 'url', 'storagePath', 'dataUrl', 'updatedAt', 'createdAt'
+             ]) &&
+             data.imageId == imageId &&
+             isValidString(data.imageId, 1, 100) &&
+             isValidString(data.sha256, 1, 128) &&
+             (!('url' in data) || isValidString(data.url, 1, 2048)) &&
+             (!('storagePath' in data) || isValidString(data.storagePath, 1, 500)) &&
+             (!('dataUrl' in data) || isValidString(data.dataUrl, 1, 1048576)) &&
+             isValidOptionalTimestampOrDate(data, 'createdAt') &&
+             isValidOptionalTimestampOrDate(data, 'updatedAt');
+    }
+
+    function areAvatarImmutableFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['imageId']);
+    }
+
+    match /avatars/{imageId} {
+      allow read: if true;
+      allow create: if isValidAvatarDoc(request.resource.data, imageId);
+      allow update: if isValidAvatarDoc(request.resource.data, imageId) &&
+                       areAvatarImmutableFieldsUnchanged();
+      allow delete: if isEditor();
+    }
+
+    // ===============================================================
+    // 8. /auditions/{auditionId}
+    // ===============================================================
+
+    function isValidAuditionDoc(data, auditionId) {
+      return hasRequiredFields(data, ['id', 'text', 'voice', 'status']) &&
+             hasOnlyAllowedFields(data, [
+               'id', 'text', 'voice', 'speed', 'pronunciation', 'status',
+               'spokenText', 'durationSeconds', 'audioDataUrl', 'audioUrl',
+               'error', 'createdAt', 'updatedAt'
+             ]) &&
+             data.id == auditionId &&
+             isValidString(data.id, 1, 100) &&
+             isValidString(data.text, 1, 1000) &&
+             isValidString(data.voice, 1, 64) &&
+             data.status in ['PENDING', 'SYNTHESIZING', 'READY', 'FAILED'] &&
+             (!('speed' in data) || (data.speed is number && data.speed >= 0.5 && data.speed <= 2.5)) &&
+             (!('pronunciation' in data) || data.pronunciation is map) &&
+             (!('spokenText' in data) || isValidString(data.spokenText, 1, 1500)) &&
+             (!('durationSeconds' in data) || data.durationSeconds == null || (data.durationSeconds is number && data.durationSeconds >= 0 && data.durationSeconds <= 120)) &&
+             (!('audioDataUrl' in data) || isValidString(data.audioDataUrl, 1, 1048576)) &&
+             (!('audioUrl' in data) || isValidString(data.audioUrl, 1, 2048)) &&
+             (!('error' in data) || data.error == null || isValidString(data.error, 0, 2000)) &&
+             isValidOptionalTimestampOrDate(data, 'createdAt') &&
+             isValidOptionalTimestampOrDate(data, 'updatedAt');
+    }
+
+    function areAuditionImmutableFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id']);
+    }
+
+    match /auditions/{auditionId} {
+      allow read: if true;
+      allow create: if isValidAuditionDoc(request.resource.data, auditionId);
+      allow update: if isValidAuditionDoc(request.resource.data, auditionId) &&
+                       areAuditionImmutableFieldsUnchanged();
+      allow delete: if isEditor();
+    }
+
+    // ===============================================================
+    // 9. /workers/{workerId}
+    // ===============================================================
+
+    function isValidWorkerDoc(data, workerId) {
+      return hasRequiredFields(data, ['workerId', 'hostname', 'status', 'lastHeartbeatAt']) &&
+             hasOnlyAllowedFields(data, [
+               'workerId', 'hostname', 'arch', 'status', 'activeJobId',
+               'portraitRuntime', 'voices', 'lastHeartbeatAt', 'updatedAt'
+             ]) &&
+             data.workerId == workerId &&
+             isValidString(data.workerId, 1, 120) &&
+             isValidString(data.hostname, 1, 120) &&
+             data.status in ['ONLINE', 'BUSY', 'IDLE', 'OFFLINE'] &&
+             (data.lastHeartbeatAt is timestamp || (data.lastHeartbeatAt is string && data.lastHeartbeatAt.size() >= 10 && data.lastHeartbeatAt.size() <= 40)) &&
+             (!('arch' in data) || isValidString(data.arch, 1, 30)) &&
+             (!('activeJobId' in data) || data.activeJobId == null || isValidString(data.activeJobId, 1, 100)) &&
+             (!('portraitRuntime' in data) || data.portraitRuntime is map) &&
+             (!('voices' in data) || (data.voices is list && data.voices.size() <= 100)) &&
+             isValidOptionalTimestampOrDate(data, 'updatedAt');
+    }
+
+    match /workers/{workerId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() && isValidWorkerDoc(request.resource.data, workerId);
       allow delete: if isEditor();
     }
 

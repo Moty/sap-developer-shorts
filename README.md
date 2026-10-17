@@ -6,14 +6,25 @@ The implementation turns the editorial blueprint into a reproducible pilot packa
 
 Photo presenters support learned, audio-driven face and head animation entirely on Apple Silicon, with calm, conversational and expressive delivery. See [local portrait narration](docs/LOCAL_PORTRAITS.md). A separate [lightweight photo effect](docs/PHOTO_AVATARS.md) remains available for quick previews.
 
-## Start on another Mac
+## Start on another Mac (Turnkey Bootstrap)
 
-Follow the [fresh Mac setup and test guide](docs/NEW_MAC_SETUP.md). It covers
-cloning `main`, installing tools with the committed [Brewfile](Brewfile), checking
-a clean installation, setting up Heart and Michael, and producing
-`CAP-01@casual-v2`. All scripts, dependency pins, fonts, tests, and instructions
-are in Git. Existing recordings and downloaded models are local; the guide also
-explains how to transfer the exact saved studio as a ZIP.
+For Apple Silicon Macs (including Apple M-series laptops and Mac minis), run the automated bootstrap:
+
+```sh
+git clone https://github.com/Moty/sap-developer-shorts.git
+cd sap-developer-shorts
+npm ci
+npm run mac:setup
+```
+
+This installs and verifies Node 22, Homebrew tools (`ffmpeg`, `uv`), MediaPipe face calibration models, Kokoro neural voices, and the Ditto Apple Silicon MPS runtime in one step. See the [fresh Mac setup guide](docs/NEW_MAC_SETUP.md) for step-by-step instructions.
+
+## Hybrid Cloud Studio & Local Render Worker
+
+In addition to running locally, the studio runs as a cloud-hosted web application on Google Firebase with local Mac background rendering:
+* **Cloud Web Studio**: Access the responsive studio anywhere at `https://sap-shorts-160871.web.app/review.html`.
+* **Local Mac Render Worker**: Run `npm run firebase:worker` on your Mac. It claims production jobs from Cloud Firestore, renders speech (Kokoro) and talking-head video (Ditto MPS) locally with zero cloud API costs, and uploads results to Cloud Storage.
+* See [Hybrid Firebase Studio & Mac Worker](docs/FIREBASE_HYBRID_STUDIO.md) for full architecture and commands.
 
 ## Browse the review studio
 
@@ -225,6 +236,7 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 ## Project map
 
 - [New Mac setup](docs/NEW_MAC_SETUP.md): prerequisites, clean-checkout checks, local narration/video setup, and exact-recording transfer.
+- [Hybrid Firebase Studio & Mac Render Worker](docs/FIREBASE_HYBRID_STUDIO.md): Firebase Hosting UI, Firestore job queues, Apple Silicon local rendering, and single-command bootstrap.
 - [Quality review](docs/QUALITY_REVIEW.md): revised casual narration, pronunciation corrections, and an audiovisual review prompt.
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): original assessment and full roadmap.
 - [Progress](docs/PROGRESS.md): delivered scope, evidence, and next milestone.

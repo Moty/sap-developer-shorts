@@ -1,13 +1,7 @@
 {
-  "schemaVersion": 1,
-  "baseEpisodeId": "CAP-01",
-  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
-  "title": "Two developers, one missing CAP service",
   "presentation": {
-    "variant": "duo",
-    "tone": "comic",
     "format": "dialogue",
-    "humor": "sap-geek",
+    "tone": "comic",
     "speakers": [
       {
         "id": "mira",
@@ -19,7 +13,9 @@
         "name": "Max",
         "voice": "am_michael"
       }
-    ]
+    ],
+    "humor": "sap-geek",
+    "variant": "duo"
   },
   "scenes": [
     {
@@ -116,5 +112,9 @@
         }
       ]
     }
-  ]
+  ],
+  "title": "Two developers, one missing CAP service",
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7"
 }

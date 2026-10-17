@@ -1,0 +1,88 @@
+{
+  "title": "SAP Connect: available now or still planned?",
+  "baseInputHash": "4784b3c7007fe8c4982b8b37f843b6684af78e0af8f3c795086e40239ece3f89",
+  "schemaVersion": 1,
+  "publicationText": "SAP Connect 2026, in under a minute: what is rolling out, what is available, and what remains planned?\n\nAn editorial selection, with sources checked October 14, 2026. Availability may depend on your environment.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich announcement should we unpack next?\n\n#SAP #SAPConnect #BusinessAI",
+  "presentation": {
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "am_michael",
+        "avatar": {
+          "mode": "photo",
+          "imageId": "image.png",
+          "animation": "neural",
+          "mouthAngle": 0.0271,
+          "mouthAspect": 0.2,
+          "motion": {
+            "style": "conversational",
+            "intensity": 1
+          },
+          "faceLandmarks": {
+            "leftEye": [0.4669, 0.4376, 0.0468, 0.0193],
+            "rightEye": [0.6325, 0.4438, 0.0462, 0.019],
+            "jawY": 0.7269,
+            "faceX": 0.5434,
+            "faceY": 0.5097,
+            "faceRx": 0.1874,
+            "faceRy": 0.2261
+          },
+          "calibration": {
+            "imageSha256": "99ef5a4d52d675093ce75b93cdd1c4bcfcb9c74fed06110f831ff4426413eec5",
+            "modelSha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+            "detector": "mediapipe-0.10.32"
+          },
+          "mouthX": 0.544,
+          "mouthY": 0.614,
+          "mouthScale": 0.731
+        }
+      }
+    ],
+    "variant": "my-revision-3",
+    "humor": "none",
+    "format": "explainer",
+    "tone": "professional"
+  },
+  "pronunciation": {
+    "Reltio": "Rellteeoh"
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "Announced does not mean available.",
+      "overlay": "Announced ≠ available"
+    },
+    {
+      "id": "context",
+      "narration": "Three SAP Connect announcements, checked October fourteenth. Here is what is rolling out, available now, or still planned.",
+      "overlay": "Three announcements. Three statuses."
+    },
+    {
+      "id": "joule",
+      "narration": "First, SAP says Joule Work is starting its customer rollout, bringing natural language interaction to work across SAP and third party data.",
+      "overlay": "1. Joule Work / rollout"
+    },
+    {
+      "id": "reltio",
+      "narration": "Second, SAP Reltio is generally available. It reconciles fragmented business records across applications to give AI more consistent context.",
+      "overlay": "2. SAP Reltio / available now"
+    },
+    {
+      "id": "signavio",
+      "narration": "Third, SAP Signavio plans deeper analysis of multiagent workflows and AI support for process consulting. General availability is planned for the first quarter of twenty twenty seven.",
+      "overlay": "3. SAP Signavio / planned Q1 2027"
+    },
+    {
+      "id": "takeaway",
+      "narration": "My takeaway: check the use case, data foundation, and availability together.",
+      "overlay": "Check the use case and release status."
+    },
+    {
+      "id": "cta",
+      "narration": "Read the official sources below. Which announcement should we unpack next?",
+      "overlay": "Which announcement should we unpack?"
+    }
+  ],
+  "baseEpisodeId": "NEWS-01"
+}

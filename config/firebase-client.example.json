@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "projectId": "your-firebase-project-id",
+  "appId": "1:000000000000:web:0000000000000000000000",
+  "authDomain": "your-firebase-project-id.firebaseapp.com",
+  "storageBucket": "your-firebase-project-id.firebasestorage.app",
+  "databaseId": "(default)",
+  "apiKey": "AIzaSy..."
+}

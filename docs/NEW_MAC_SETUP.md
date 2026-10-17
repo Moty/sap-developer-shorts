@@ -53,7 +53,24 @@ their exact versions. See [Homebrew Bundle](https://docs.brew.sh/Brew-Bundle-and
 For an existing clean checkout, use `git switch main` and `git pull --ff-only`
 instead of cloning. Preserve any local edits before switching or updating.
 
-## 2. Verify a fresh checkout
+## Turnkey Bootstrap (Recommended for Apple Silicon / M-Series)
+
+Instead of stepping through manual installs, run the all-in-one bootstrap:
+
+```sh
+npm ci
+npm run mac:setup
+```
+
+This automated runner checks Node >= 22.13, verifies `ffmpeg` and `uv`, downloads the MediaPipe face landmark model, installs Kokoro neural voice profiles, checks the Apple Silicon Ditto MPS runtime, and builds the initial studio library.
+
+To connect your Mac as a background render worker for the Firebase Studio:
+```sh
+npm run firebase:worker
+```
+See [Hybrid Firebase Studio & Local Mac Worker](FIREBASE_HYBRID_STUDIO.md) for full cloud configuration.
+
+## 2. Verify a fresh checkout (Manual Steps)
 
 Run these commands from the repository root:
 

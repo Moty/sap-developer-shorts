@@ -1,15 +1,20 @@
 {
-  "schemaVersion": 1,
-  "baseEpisodeId": "CAP-02",
   "baseInputHash": "2695022e46085023b46436d30b6468b5eced280f5507e4b3e19353499ea663e4",
-  "title": "Which products survive this filter?",
   "presentation": {
-    "variant": "quiz",
-    "tone": "professional",
     "format": "quiz",
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "af_heart"
+      }
+    ],
     "humor": "none",
-    "speakers": [{ "id": "narrator", "name": "Narrator", "voice": "af_heart" }]
+    "tone": "professional",
+    "variant": "quiz"
   },
+  "schemaVersion": 1,
+  "publicationText": "Quick CAP challenge: which products survive a stock-greater-than-zero filter?\n\nThe sample CSV starts with Mechanical Keyboard (12), USB-C Dock (7), and Monitor Arm (0). Predict the result before the reveal. The checked query keeps the keyboard and dock.\n\nThe video cards show title and stock; the real response also includes ID. This is a local inventory sample with five live checks, not production data.\n\nCode and setup: Code link pending repository publication\nSAP CAP initial data: https://cap.cloud.sap/docs/guides/databases/initial-data\nOData query options: https://cap.cloud.sap/docs/guides/protocols/odata#feature-overview\n\nWhat threshold would you try next? Predict it, then verify it in the project.\n\n#SAP #CAP #OData #SAPDevelopers",
   "scenes": [
     {
       "id": "hook",
@@ -47,5 +52,6 @@
       "overlay": "Predict it. Then verify it."
     }
   ],
-  "publicationText": "Quick CAP challenge: which products survive a stock-greater-than-zero filter?\n\nThe sample CSV starts with Mechanical Keyboard (12), USB-C Dock (7), and Monitor Arm (0). Predict the result before the reveal. The checked query keeps the keyboard and dock.\n\nThe video cards show title and stock; the real response also includes ID. This is a local inventory sample with five live checks, not production data.\n\nCode and setup: Code link pending repository publication\nSAP CAP initial data: https://cap.cloud.sap/docs/guides/databases/initial-data\nOData query options: https://cap.cloud.sap/docs/guides/protocols/odata#feature-overview\n\nWhat threshold would you try next? Predict it, then verify it in the project.\n\n#SAP #CAP #OData #SAPDevelopers"
+  "baseEpisodeId": "CAP-02",
+  "title": "Which products survive this filter?"
 }

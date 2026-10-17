@@ -1,12 +1,8 @@
 {
-  "schemaVersion": 1,
-  "baseEpisodeId": "NEWS-01",
-  "baseInputHash": "4784b3c7007fe8c4982b8b37f843b6684af78e0af8f3c795086e40239ece3f89",
-  "title": "SAP Connect: available now or still planned?",
   "presentation": {
+    "humor": "none",
     "tone": "professional",
     "format": "explainer",
-    "humor": "none",
     "speakers": [
       {
         "id": "narrator",
@@ -44,6 +40,14 @@
     ],
     "variant": "my-edit-edit-edit1"
   },
+  "publicationText": "SAP Connect 2026, in under a minute: what is rolling out, what is available, and what remains planned?\n\nAn editorial selection, with sources checked October 14, 2026. Availability may depend on your environment.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich announcement should we unpack next?\n\n#SAP #SAPConnect #BusinessAI",
+  "baseEpisodeId": "NEWS-01",
+  "pronunciation": {
+    "Reltio": "Rellteeoh"
+  },
+  "title": "SAP Connect: available now or still planned?",
+  "baseInputHash": "4784b3c7007fe8c4982b8b37f843b6684af78e0af8f3c795086e40239ece3f89",
+  "schemaVersion": 1,
   "scenes": [
     {
       "id": "hook",
@@ -80,9 +84,5 @@
       "narration": "Read the official sources below. Which announcement should we unpack next?",
       "overlay": "Which announcement should we unpack?"
     }
-  ],
-  "publicationText": "SAP Connect 2026, in under a minute: what is rolling out, what is available, and what remains planned?\n\nAn editorial selection, with sources checked October 14, 2026. Availability may depend on your environment.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich announcement should we unpack next?\n\n#SAP #SAPConnect #BusinessAI",
-  "pronunciation": {
-    "Reltio": "Rellteeoh"
-  }
+  ]
 }

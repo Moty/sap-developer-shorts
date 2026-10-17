@@ -77,6 +77,14 @@ records are deliberately outside their hashed media inventory. A static copy
 cannot claim fresh publication status: it displays the connection limitation.
 The original video bytes, captions and packages are unchanged by review actions.
 
+## Hybrid Cloud Studio (Firebase)
+
+In addition to running locally with `npm run shorts -- serve`, the exact same responsive Studio is deployable to **Google Firebase Hosting**, backed by Cloud Firestore and Cloud Storage, with local Apple Silicon Mac render workers:
+* **Live Studio**: Viewable and editable on mobile, iPad, or desktop via Firebase Hosting.
+* **Local Mac Render Daemon**: `npm run firebase:worker` claims cloud jobs, renders neural Kokoro TTS and Ditto MPS talking-heads on your Mac, and streams results back to Firebase in real time.
+* **Dual-Mode Operation**: The same UI operates seamlessly offline on localhost or online via Firebase through a zero-dependency client bridge.
+* See [Hybrid Firebase Studio & Local Mac Worker](FIREBASE_HYBRID_STUDIO.md) for architecture, bootstrap, and CLI commands.
+
 ## Validation and audit
 
 The original audit found large duplicate-title cards, workflow status buried

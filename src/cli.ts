@@ -354,9 +354,62 @@ try {
     } finally {
       store.close();
     }
+  } else if (command === "mac-setup") {
+    const { runMacSetup } = await import("./mac-setup.js");
+    await runMacSetup({
+      skipHeavyModels: args.includes("--skip-heavy-models"),
+    });
+  } else if (command === "firebase-export" && args.length <= 1) {
+    const { exportStudioForFirebase } = await import("./firebase/export-studio.js");
+    const result = await exportStudioForFirebase(args[0] ? { outputDirectory: args[0] } : {});
+    console.log(`Firebase Studio exported: ${result.outputDirectory}`);
+    console.log(`Source library: ${result.sourceLibraryDirectory}`);
+    console.log(`HTML files patched: ${result.patchedHtmlFiles.length}`);
+    console.log(`Custom avatars bundled: ${result.bundledAvatars.length}`);
+    console.log(`Face detector bundled: ${result.faceAssetsBundled}`);
+    console.log("\nDeploy to Firebase Hosting:");
+    console.log("  npx firebase deploy --only hosting");
+  } else if (command === "firebase-worker") {
+    const { startFirebaseWorkerDaemon } = await import("./firebase/worker.js");
+    const workerIdIndex = args.indexOf("--worker-id");
+    const customWorkerId = workerIdIndex !== -1 ? args[workerIdIndex + 1] : undefined;
+    const pollIndex = args.indexOf("--poll-ms");
+    const pollIntervalMs = pollIndex !== -1 ? Number(args[pollIndex + 1]) : 3000;
+    const { stop } = await startFirebaseWorkerDaemon({
+      ...(customWorkerId
+        ? {
+            workerIdentity: (await import("./firebase/config.js")).resolveWorkerIdentity(
+              customWorkerId,
+            ),
+          }
+        : {}),
+      pollIntervalMs,
+    });
+    process.on("SIGINT", () => {
+      console.log("\nStopping Firebase worker...");
+      void stop().then(() => process.exit(0));
+    });
+    process.on("SIGTERM", () => {
+      void stop().then(() => process.exit(0));
+    });
+    console.log("Firebase worker running. Press Ctrl+C to stop.");
+  } else if (command === "firebase-sync") {
+    const { syncStudioWithFirebase } = await import("./firebase/worker.js");
+    console.log("Syncing local studio state with Firebase Cloud...");
+    const report = await syncStudioWithFirebase();
+    console.log(
+      `Avatars:   pulled ${report.pulledAvatars.length}, pushed ${report.pushedAvatars.length}`,
+    );
+    console.log(
+      `Variants:  pulled ${report.pulledVariants.length}, pushed ${report.pushedVariants.length}`,
+    );
+    console.log(
+      `Workflows: pulled ${report.pulledWorkflows.length}, pushed ${report.pushedWorkflows.length}`,
+    );
+    console.log("Sync complete.");
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  talking-head-setup             Install and verify local portrait models\n  portrait-status                Check the local portrait renderer\n  portrait-render IMAGE AUDIO [STYLE] Render picture + audio locally\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nPortrait generation runs locally. Publishing is not implemented.",
+      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  mac-setup [--skip-heavy-models] One-command setup on any Mac (prereqs, models, studio)\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  firebase-export [OUTPUT_DIR]   Export studio to dist/studio with Cloud CSP & bridge\n  firebase-worker                Run local Mac render worker daemon for Firebase UI\n  firebase-sync                  Bi-directionally sync local drafts, avatars & workflow\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  talking-head-setup             Install and verify local portrait models\n  portrait-status                Check the local portrait renderer\n  portrait-render IMAGE AUDIO [STYLE] Render picture + audio locally\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nPortrait generation runs locally. Publishing is not implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

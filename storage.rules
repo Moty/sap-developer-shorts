@@ -6,11 +6,27 @@ service firebase.storage {
       allow read: if true;
       allow write: if request.auth != null;
     }
-    
+
     // Voice audition sample audio
     match /voices/{voiceId}/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null;
+    }
+
+    // Custom speaker portrait images (normalized 512x512 PNGs)
+    match /avatars/{imageId} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size <= 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // On-demand phrase audition WAV files
+    match /auditions/{auditionId} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.resource.size <= 10 * 1024 * 1024
+                   && request.resource.contentType.matches('audio/.*');
     }
 
     // Default deny for unauthenticated writes

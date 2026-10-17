@@ -1,21 +1,21 @@
 {
-  "schemaVersion": 1,
-  "baseEpisodeId": "CAP-01",
-  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
-  "title": "CAP, explained like a colleague",
   "presentation": {
-    "variant": "casual",
     "tone": "casual",
-    "format": "explainer",
     "humor": "none",
+    "variant": "casual",
     "speakers": [
       {
         "id": "narrator",
         "name": "Narrator",
         "voice": "af_heart"
       }
-    ]
+    ],
+    "format": "explainer"
   },
+  "title": "CAP, explained like a colleague",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
+  "baseEpisodeId": "CAP-01",
+  "schemaVersion": 1,
   "scenes": [
     {
       "id": "hook",

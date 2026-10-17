@@ -1,18 +1,11 @@
 {
-  "schemaVersion": 1,
-  "baseEpisodeId": "CAP-01",
   "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
-  "title": "CAP: from data model to working API",
-  "presentation": {
-    "variant": "casual-v2",
-    "tone": "casual",
-    "format": "explainer",
-    "humor": "none",
-    "speakers": [{ "id": "narrator", "name": "Narrator", "voice": "af_heart" }]
-  },
-  "pronunciation": { "API": "A P I", "npm": "N P M", "URL": "U R L" },
+  "schemaVersion": 1,
   "scenes": [
-    { "id": "hook", "narration": "Where's my CAP API?" },
+    {
+      "id": "hook",
+      "narration": "Where's my CAP API?"
+    },
     {
       "id": "context",
       "narration": "A CAP entity describes your data, and a service projection exposes it through OData. Let's try this inventory app."
@@ -37,5 +30,25 @@
       "id": "cta",
       "narration": "Try the project and its checks. Which entity would you expose first?"
     }
-  ]
+  ],
+  "title": "CAP: from data model to working API",
+  "baseEpisodeId": "CAP-01",
+  "presentation": {
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "af_heart"
+      }
+    ],
+    "tone": "casual",
+    "format": "explainer",
+    "humor": "none",
+    "variant": "casual-v2"
+  },
+  "pronunciation": {
+    "URL": "U R L",
+    "API": "A P I",
+    "npm": "N P M"
+  }
 }
