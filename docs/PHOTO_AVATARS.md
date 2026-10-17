@@ -26,7 +26,9 @@ In **Revise script**, choose **Custom Photo / Uploaded Portrait**, then select o
 upload a clear, front-facing photo containing one person. Uploads are normalized
 to a square before detection. New selections automatically locate the lips;
 **Detect mouth automatically** repeats detection using fresh photo bytes.
-Check the guide, press **Test Lip Motion**, and adjust the three sliders if needed.
+Check the guide in the enlarged 200px preview, press **Test Lip Motion**, and
+adjust the three sliders if needed. This button runs a silent sequence of sample
+mouth poses; it does not play or analyze narration.
 Save a new version and produce its video. Avatar-only changes can reuse matching
 verified narration; voice or script changes still require their own recording.
 
@@ -61,9 +63,12 @@ an editable studio through this project's local server to use detection.
 No face, multiple faces, heavy head tilt, a small/obscured mouth or an unavailable
 model leaves manual controls usable. Detection is an estimate, not a promise of
 perfect placement. Browser inference runs once per selection on the main thread;
-initial WASM startup may briefly pause a slower device. Lip motion always starts
-from the original pixels and fades to zero at the small mouth boundary. The neck,
-collar and background are not animated. Existing videos are not rewritten;
+initial WASM startup may briefly pause a slower device. Detection centers movement
+on the inner mouth opening. Lip motion maps the original pixels between explicit
+upper/lower lip positions and a stationary feather boundary. Older calibrations
+can be refreshed with **Detect mouth automatically**. The neck,
+collar and background are not animated. Photo eyes, eyelids and eyebrows also
+stay still; blink/brow motion currently applies only to illustrated presenters. Existing videos are not rewritten;
 produce a new version to see this renderer.
 
 For neural talking-head generation, [MuseTalk](https://github.com/TMElyralab/MuseTalk)

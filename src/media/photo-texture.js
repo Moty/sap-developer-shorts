@@ -11,13 +11,14 @@
 export function warpPhotoMouth(source, width, height, config, viseme, strength = 1) {
   const output = new Uint8ClampedArray(source);
   if (viseme === "rest" || strength <= 0) return output;
+  // Width scale, upper-lip displacement and lower-lip displacement at 140px.
   const shapes = {
-    open_a: [0.98, 1.35],
-    open_e: [1.04, 0.95],
-    open_o: [0.84, 1.2],
-    open_u: [0.8, 0.88],
-    consonant: [1, 0.62],
-    smile: [1.04, 0.94],
+    open_a: [0.98, -1.2, 2],
+    open_e: [1.04, -0.6, 1],
+    open_o: [0.84, -0.9, 1.7],
+    open_u: [0.8, -0.4, 1],
+    consonant: [1, 1.2, -1.8],
+    smile: [1.06, 0.3, -0.5],
   };
   const shape = shapes[viseme];
   if (!shape) return output;
@@ -25,12 +26,15 @@ export function warpPhotoMouth(source, width, height, config, viseme, strength =
   const mx = width * (config.mouthX ?? 0.5);
   const my = height * (config.mouthY ?? 0.68);
   const rx = 16 * unit;
-  const ry = Math.max(3, Math.min(10, 16 * (config.mouthAspect ?? 0.375))) * unit;
+  const lipHeight = 16 * (config.mouthAspect ?? 0.375) * unit;
+  // A stationary feather boundary surrounds the moving lip core. Using the
+  // lip height itself as the boundary previously suppressed motion below 1px.
+  const ry = Math.max(8 * unit, lipHeight + 4 * unit);
   const angle = config.mouthAngle ?? 0;
   const c = Math.cos(angle),
     s = Math.sin(angle);
   const fx = (shape[0] - 1) * Math.min(1, strength);
-  const fy = (shape[1] - 1) * Math.min(1, strength);
+  const amount = Math.min(1, strength);
   const extentX = Math.abs(rx * c) + Math.abs(ry * s);
   const extentY = Math.abs(rx * s) + Math.abs(ry * c);
   for (
@@ -49,10 +53,26 @@ export function warpPhotoMouth(source, width, height, config, viseme, strength =
         v = -dx * s + dy * c;
       const r2 = (u / rx) ** 2 + (v / ry) ** 2;
       if (r2 >= 1) continue;
-      // The zero-displacement boundary and smooth falloff avoid a patch seam.
-      const weight = (1 - r2) ** 2;
-      const su = u / (1 + fx * weight),
-        sv = v / (1 + fy * weight);
+      const horizontalFalloff = 1 - (u / rx) ** 2;
+      const boundary = ry * Math.sqrt(horizontalFalloff);
+      const core = Math.min(lipHeight, boundary * 0.55);
+      const epsilon = boundary * 0.01;
+      // Ordered source/destination landmarks keep each vertical slice monotonic:
+      // fixed boundary -> upper lip -> opening -> lower lip -> fixed boundary.
+      const upper = Math.max(
+        -boundary + epsilon,
+        Math.min(-core * 0.2, -core + shape[1] * unit * amount * horizontalFalloff),
+      );
+      const lower = Math.min(
+        boundary - epsilon,
+        Math.max(core * 0.2, core + shape[2] * unit * amount * horizontalFalloff),
+      );
+      let sv;
+      if (v < upper) sv = -boundary + ((v + boundary) / (upper + boundary)) * (boundary - core);
+      else if (v < 0) sv = (v / upper) * -core;
+      else if (v < lower) sv = (v / lower) * core;
+      else sv = core + ((v - lower) / (boundary - lower)) * (boundary - core);
+      const su = u / (1 + fx * (1 - r2) ** 2);
       const px = Math.max(0, Math.min(width - 1.001, mx + su * c - sv * s));
       const py = Math.max(0, Math.min(height - 1.001, my + su * s + sv * c));
       const x0 = Math.floor(px),
@@ -88,7 +108,7 @@ export function mouthGeometry(points) {
   const width = Math.hypot(dx, dy),
     angle = Math.atan2(dy, dx);
   const x = (left.x + right.x) / 2,
-    y = (top.y + bottom.y) / 2;
+    y = (points[13].y + points[14].y) / 2;
   const height = Math.abs(
     (bottom.y - top.y) * Math.cos(angle) - (bottom.x - top.x) * Math.sin(angle),
   );

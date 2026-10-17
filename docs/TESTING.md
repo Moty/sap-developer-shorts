@@ -110,3 +110,13 @@ variant rendered successfully and passed the exporter's format, full-decode,
 timing and audio-level checks. Astra reviewed the implementation and the fixes
 for stale loads/uploads and native-select recovery. These checks establish
 workflow correctness; naturalness still needs human review of the resulting video.
+
+Photo-motion visibility follow-up (2026-10-16): the previous automatic calibration
+produced subpixel movement (approximately 0.26px for open-A at a 140px portrait).
+The moving lip core now has explicit displacement inside a larger stationary
+feather boundary. A colored-lip fixture measures displacement after downsampling
+to 64, 140 and 200px, alongside unchanged-pixel and rest/reset checks. All 187
+tests and 5 live CAP checks pass. A new 47.73-second photo variant was rendered
+using verified existing narration; original videos remain available. Astra's
+review confirmed monotonic mapping and visible open/closed pose differences,
+while noting stretched photo texture remains a limitation.

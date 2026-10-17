@@ -929,14 +929,14 @@
         } else if (showCrosshair) {
           ctx.save();
           ctx.strokeStyle = "rgba(87, 199, 163, 0.9)";
-          ctx.lineWidth = w / 140;
+          ctx.lineWidth = (2 * w) / 140;
           ctx.setLineDash([(4 * w) / 140, (3 * w) / 140]);
           ctx.beginPath();
           ctx.ellipse(
             mx,
             my,
             16 * unit,
-            Math.max(3, Math.min(10, 16 * (metadata.mouthAspect ?? 0.375))) * unit,
+            Math.max(8, 16 * (metadata.mouthAspect ?? 0.375) + 4) * unit,
             metadata.mouthAngle ?? 0,
             0,
             Math.PI * 2,
@@ -1149,7 +1149,7 @@
               const item = visemeCycle[step % visemeCycle.length];
               renderSpeakerCanvas(index, item.j, item.v, false);
               step += 1;
-            }, 140);
+            }, 280);
           });
         }
       }

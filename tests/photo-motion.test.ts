@@ -38,7 +38,7 @@ function assertOnlyMouthChanges(
     // Include one pixel for antialiasing at the calibrated ellipse boundary.
     if (
       Math.abs(x - mouth.x) <= 16 * mouth.unit + 1 &&
-      Math.abs(y - mouth.y - mouth.unit * 0.5) <= 6 * mouth.unit + 1
+      Math.abs(y - mouth.y) <= 10 * mouth.unit + 1
     )
       changedMouthPixels++;
     else changedOutsidePixels++;
@@ -134,7 +134,9 @@ test("landmarks produce rotated lip geometry and reject unclear or unsupported f
   points[61] = { x: 0.36, y: 0.59 };
   points[291] = { x: 0.56, y: 0.61 };
   points[0] = { x: 0.46, y: 0.58 };
-  points[17] = { x: 0.46, y: 0.62 };
+  points[17] = { x: 0.46, y: 0.63 };
+  points[13] = { x: 0.46, y: 0.59 };
+  points[14] = { x: 0.46, y: 0.61 };
   const geometry = mouthGeometry(points);
   assert.equal(geometry.mouthX, 0.46);
   assert.equal(geometry.mouthY, 0.6);
@@ -160,7 +162,8 @@ test("texture warp preserves source, rest and every pixel beyond rotated lip bou
             dy = y - width * config.mouthY;
           const u = dx * Math.cos(mouthAngle) + dy * Math.sin(mouthAngle);
           const v = -dx * Math.sin(mouthAngle) + dy * Math.cos(mouthAngle);
-          if ((u / (16 * 1.25)) ** 2 + (v / (16 * mouthAspect * 1.25)) ** 2 < 1) continue;
+          if ((u / (16 * 1.25)) ** 2 + (v / (Math.max(8, 16 * mouthAspect + 4) * 1.25)) ** 2 < 1)
+            continue;
           const p = (y * width + x) * 4;
           assert.deepEqual(after.slice(p, p + 4), source.slice(p, p + 4));
         }
@@ -225,5 +228,52 @@ test("actual async detector preserves newer manual edits and rejects missing/mul
     if (scenario === "no-face") assert.match(notices.at(-1) ?? "", /No clear face/);
     if (scenario === "multiple") assert.match(notices.at(-1) ?? "", /More than one face/);
     if (scenario === "missing-model") assert.match(notices.at(-1) ?? "", /adjust manually/);
+  }
+});
+
+test("lip movement stays visible after downsampling to the preview and small video portrait", () => {
+  const width = 256;
+  const config = { mouthX: 0.5, mouthY: 0.6, mouthScale: 1, mouthAspect: 0.2 };
+  const fixture = createCanvas(width, width);
+  const ctx = fixture.getContext("2d");
+  ctx.fillStyle = "#9d826b";
+  ctx.fillRect(0, 0, width, width);
+  const lipY = width * config.mouthY + (16 * config.mouthAspect * width) / 140;
+  // A distinct lower-lip feature lets us measure displacement, not just changed pixels.
+  ctx.fillStyle = "#00ff00";
+  ctx.fillRect(width * 0.5 - 7, lipY - 1.5, 14, 3);
+  const source = ctx.getImageData(0, 0, width, width);
+  for (const displayWidth of [64, 140, 200]) {
+    const centroid = (pose: string) => {
+      const image = ctx.createImageData(width, width);
+      image.data.set(warpPhotoMouth(source.data, width, width, config, pose));
+      ctx.putImageData(image, 0, 0);
+      const small = createCanvas(displayWidth, displayWidth);
+      const scaled = small.getContext("2d");
+      scaled.drawImage(fixture, 0, 0, displayWidth, displayWidth);
+      const pixels = scaled.getImageData(0, 0, displayWidth, displayWidth).data;
+      let weightedY = 0,
+        total = 0;
+      for (let y = 0; y < displayWidth; y++)
+        for (let x = 0; x < displayWidth; x++) {
+          const offset = (y * displayWidth + x) * 4;
+          const weight = Math.max(
+            0,
+            (pixels[offset + 1] ?? 0) - Math.max(pixels[offset] ?? 0, pixels[offset + 2] ?? 0),
+          );
+          weightedY += weight * y;
+          total += weight;
+        }
+      assert.ok(total > 0);
+      return weightedY / total;
+    };
+    assert.ok(
+      centroid("open_a") - centroid("rest") > (displayWidth / 140) * 1.25,
+      `lower lip must visibly move at ${displayWidth}px, including the small video view`,
+    );
+    assert.ok(
+      centroid("open_a") - centroid("consonant") > (displayWidth / 140) * 2,
+      `width=${displayWidth}, open=${centroid("open_a")}, closed=${centroid("consonant")}, rest=${centroid("rest")}`,
+    );
   }
 });
