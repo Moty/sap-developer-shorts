@@ -243,6 +243,7 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 - [Media workflow](docs/MEDIA_WORKFLOW.md): narration, job recovery, spending records, and current provider limitations.
 - [Production workflow](docs/PRODUCTION_WORKFLOW.md): one-command local preparation, saved progress, compatible speech reuse, and explicit narrator selection.
 - [Voice options](docs/VOICE_OPTIONS.md): warm local narration, setup, timing limitations, and the ElevenLabs option.
+- [Qwen voice cloning plan](docs/QWEN_VOICE_CLONING_PLAN.md): proposed local speaker-sample narration, private voice profiles, caption alignment, implementation milestones, and acceptance checks; not yet implemented.
 - [Presentation styles](docs/PRESENTATION_STYLES.md): professional, casual, comic, dialogue, humor settings, and reusable delivery variants.
 - [Video export](docs/VIDEO_EXPORT.md): vertical MP4 composition, quality checks, downloads, and saved render recovery.
 - [Local portrait narration](docs/LOCAL_PORTRAITS.md): picture-plus-audio rendering on Apple Silicon, conversational motion controls, setup, and quality limits.
