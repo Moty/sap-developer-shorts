@@ -11,7 +11,27 @@
       {
         "id": "narrator",
         "name": "Narrator",
-        "voice": "af_heart"
+        "voice": "af_heart",
+        "avatar": {
+          "mode": "photo",
+          "animation": "neural",
+          "imageId": "sap-host-portrait.png",
+          "mouthX": 0.5,
+          "mouthY": 0.573,
+          "mouthScale": 1.05,
+          "mouthAngle": 0,
+          "mouthAspect": 0.35,
+          "eyeY": 0.44,
+          "faceLandmarks": {
+            "leftEye": [0.417, 0.44, 0.055, 0.032],
+            "rightEye": [0.583, 0.44, 0.055, 0.032],
+            "jawY": 0.68,
+            "faceX": 0.5,
+            "faceY": 0.48,
+            "faceRx": 0.22,
+            "faceRy": 0.24
+          }
+        }
       }
     ],
     "variant": "my-edit"
