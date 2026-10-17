@@ -74,9 +74,12 @@ export function assertPresentation(episode: ContentEpisode): void {
     new Set(value.speakers.map((speaker) => speaker.id)).size !== count
   )
     throw new Error(`This presentation needs ${count} unique speaker IDs`);
-  for (const speaker of value.speakers)
+  for (const speaker of value.speakers) {
     if (!supportsKokoroVoice(speaker.voice))
       throw new Error(`Unsupported speaker voice: ${speaker.voice}`);
+    if (speaker.avatar?.mode === "photo" && !speaker.avatar.imageId)
+      throw new Error(`Photo avatar mode requires an imageId for speaker ${speaker.id}`);
+  }
   if (count === 2 && new Set(value.speakers.map((speaker) => speaker.voice)).size !== 2)
     throw new Error("Two-person dialogue needs two distinct Kokoro voices");
   const used = new Set<string>();

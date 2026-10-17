@@ -5,12 +5,21 @@ export interface Source {
   retrievedOn: string;
 }
 
+export interface SpeakerAvatarConfig {
+  mode: "illustrated" | "photo";
+  imageId?: string;
+  mouthX?: number;
+  mouthY?: number;
+  mouthScale?: number;
+  eyeY?: number;
+}
+
 export interface Presentation {
   variant?: string;
   tone: "professional" | "casual" | "comic";
   format: "explainer" | "dialogue" | "myth-fact" | "countdown" | "story" | "quiz";
   humor: "none" | "light" | "sap-geek";
-  speakers: { id: string; name: string; voice: string }[];
+  speakers: { id: string; name: string; voice: string; avatar?: SpeakerAvatarConfig }[];
 }
 
 export interface Scene {

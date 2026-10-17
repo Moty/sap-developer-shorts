@@ -224,6 +224,15 @@ async function workshop(
       (option) => ({ value: option[1] as string, textContent: option[2] as string }),
     );
     node(`speaker-voice-${index}-help`);
+    node(`speaker-avatar-mode-${index}`, speaker.avatar?.mode ?? "illustrated");
+    node(`speaker-avatar-photo-panel-${index}`);
+    node(`speaker-avatar-image-${index}`, speaker.avatar?.imageId ?? "");
+    node(`speaker-avatar-mouth-y-${index}`, String(speaker.avatar?.mouthY ?? 0.68));
+    node(`speaker-avatar-mouth-x-${index}`, String(speaker.avatar?.mouthX ?? 0.5));
+    node(`speaker-avatar-mouth-scale-${index}`, String(speaker.avatar?.mouthScale ?? 1));
+    node(`speaker-avatar-mouth-y-val-${index}`);
+    node(`speaker-avatar-mouth-x-val-${index}`);
+    node(`speaker-avatar-mouth-scale-val-${index}`);
   }
   for (const [index, scene] of payload.seed.scenes.entries()) {
     node(`overlay-${index}`, scene.overlay);
@@ -1030,3 +1039,46 @@ test("workshop allows enhancing pronunciations and saves overrides to downloadab
   assert.equal(checked.episode.pronunciation.SAP, "S.A.P.");
   assert.equal(checked.episode.pronunciation.Signavio, "Signavio");
 });
+
+test("workshop configures custom photo avatar with mouth calibration and validates missing photo selection", async () => {
+  const ui = await workshop("CAP-01@duo");
+  ui.get("variant-name").value = "photo-avatar-duo";
+  assert.equal(ui.get("speaker-avatar-photo-panel-0").hidden, true);
+
+  // Switch speaker 0 to photo mode without selecting an image -> should block download
+  ui.get("speaker-avatar-mode-0").value = "photo";
+  ui.update();
+  assert.equal(ui.get("speaker-avatar-photo-panel-0").hidden, false);
+  assert.equal(ui.get("download-script").disabled, true);
+  assert.match(ui.get("draft-errors").textContent, /photo avatar for Mira/u);
+
+  // Provide valid imageId and calibrate mouth coordinates
+  ui.get("speaker-avatar-image-0").value = "mira-portrait.png";
+  ui.get("speaker-avatar-mouth-y-0").value = "0.71";
+  ui.get("speaker-avatar-mouth-x-0").value = "0.49";
+  ui.get("speaker-avatar-mouth-scale-0").value = "1.15";
+  ui.update();
+  assert.equal(ui.get("download-script").disabled, false);
+  assert.equal(ui.changes().length, 1);
+  assert.match(ui.get("review-changes-list").textContent, /mira-portrait\.png/u);
+
+  ui.download();
+  assert.equal(ui.downloads.length, 1);
+  const draft = JSON.parse(ui.downloads[0]?.parts.join("") ?? "null");
+  const checked = await validatePresentationDefinition(draft);
+  assert.deepEqual(checked.episode.presentation?.speakers[0]?.avatar, {
+    mode: "photo",
+    imageId: "mira-portrait.png",
+    mouthX: 0.49,
+    mouthY: 0.71,
+    mouthScale: 1.15,
+  });
+  assert.equal(checked.episode.presentation?.speakers[1]?.avatar, undefined);
+
+  // Restore starting avatars
+  ui.restore("Restore starting avatars");
+  assert.equal(ui.get("speaker-avatar-mode-0").value, "illustrated");
+  assert.equal(ui.get("speaker-avatar-photo-panel-0").hidden, true);
+  assert.equal(ui.changes().length, 0);
+});
+

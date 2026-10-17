@@ -204,6 +204,38 @@
       },
       "speaker-voice-0",
     );
+    const formatAvatar = (avatar) =>
+      avatar?.mode === "photo"
+        ? `Photo (${avatar.imageId || "none"} · mouth ${Math.round((avatar.mouthX ?? 0.5) * 100)}%, ${Math.round((avatar.mouthY ?? 0.68) * 100)}%, scale ${Math.round((avatar.mouthScale ?? 1) * 100)}%)`
+        : "3D Illustrated Character";
+    section(
+      "Avatars",
+      draft.presentation.speakers.map((speaker, index) => {
+        const beforeAvatar = seed.presentation.speakers[index].avatar;
+        const afterAvatar = speaker.avatar;
+        return {
+          label: `${speaker.name} avatar`,
+          before: formatAvatar(beforeAvatar),
+          after: formatAvatar(afterAvatar),
+          changed:
+            JSON.stringify(beforeAvatar ?? { mode: "illustrated" }) !==
+            JSON.stringify(afterAvatar ?? { mode: "illustrated" }),
+        };
+      }),
+      "Restore starting avatars",
+      () => {
+        for (const [index, speaker] of seed.presentation.speakers.entries()) {
+          byId(`speaker-avatar-mode-${index}`).value = speaker.avatar?.mode ?? "illustrated";
+          byId(`speaker-avatar-image-${index}`).value = speaker.avatar?.imageId ?? "";
+          byId(`speaker-avatar-mouth-y-${index}`).value = String(speaker.avatar?.mouthY ?? 0.68);
+          byId(`speaker-avatar-mouth-x-${index}`).value = String(speaker.avatar?.mouthX ?? 0.5);
+          byId(`speaker-avatar-mouth-scale-${index}`).value = String(
+            speaker.avatar?.mouthScale ?? 1,
+          );
+        }
+      },
+      "speaker-avatar-mode-0",
+    );
     for (const [index, scene] of draft.scenes.entries()) {
       const original = seed.scenes[index];
       const fields = [
@@ -309,6 +341,33 @@
       byId(`speaker-voice-${index}-help`).textContent = availableVoices.includes(selected)
         ? "Local voice assets checked when this studio was built. Production checks them again."
         : `Original voice retained. Before production, run npm run shorts -- voice-setup ${original}, then rebuild the studio.`;
+      const avatarMode = byId(`speaker-avatar-mode-${index}`).value;
+      const photoPanel = byId(`speaker-avatar-photo-panel-${index}`);
+      photoPanel.hidden = avatarMode !== "photo";
+      if (avatarMode === "photo") {
+        const imageId = byId(`speaker-avatar-image-${index}`).value.trim();
+        const mouthY = Number.parseFloat(byId(`speaker-avatar-mouth-y-${index}`).value);
+        const mouthX = Number.parseFloat(byId(`speaker-avatar-mouth-x-${index}`).value);
+        const mouthScale = Number.parseFloat(byId(`speaker-avatar-mouth-scale-${index}`).value);
+        byId(`speaker-avatar-mouth-y-val-${index}`).textContent = `${Math.round(mouthY * 100)}%`;
+        byId(`speaker-avatar-mouth-x-val-${index}`).textContent = `${Math.round(mouthX * 100)}%`;
+        byId(`speaker-avatar-mouth-scale-val-${index}`).textContent =
+          `${Math.round(mouthScale * 100)}%`;
+        if (!imageId || !/^[a-z0-9][a-z0-9._-]{0,63}\.(?:png|jpg|jpeg|webp)$/iu.test(imageId)) {
+          errors.push(`Choose or upload a photo avatar for ${speaker.name}.`);
+        }
+        speaker.avatar = {
+          mode: "photo",
+          imageId,
+          mouthX: Number.isFinite(mouthX) ? Number(mouthX.toFixed(2)) : 0.5,
+          mouthY: Number.isFinite(mouthY) ? Number(mouthY.toFixed(2)) : 0.68,
+          mouthScale: Number.isFinite(mouthScale) ? Number(mouthScale.toFixed(2)) : 1,
+        };
+      } else if (seed.presentation.speakers[index].avatar) {
+        speaker.avatar = { mode: "illustrated" };
+      } else {
+        delete speaker.avatar;
+      }
     }
     if (
       draft.presentation.speakers.length > 1 &&
@@ -480,7 +539,14 @@
           download.disabled = false;
           if (produceResult) {
             produceResult.hidden = false;
-            produceResult.innerHTML = `<strong>Production Succeeded!</strong><p><a class="watch-now-btn" href="../../episodes/${encodeURIComponent(selector)}/video/review.html">Watch MP4 ↗</a> <a href="../../review.html#${encodeURIComponent(`compare-${selector.replace("@", "--")}`)}">View in Studio ↗</a></p>`;
+            const strong = element("strong", "", "Production Succeeded!");
+            const p = element("p");
+            const watchLink = element("a", "watch-now-btn", "Watch MP4 ↗");
+            watchLink.href = `../../episodes/${encodeURIComponent(selector)}/video/review.html`;
+            const studioLink = element("a", "", "View in Studio ↗");
+            studioLink.href = `../../review.html#${encodeURIComponent(`compare-${selector.replace("@", "--")}`)}`;
+            p.append(watchLink, element("span", "", " "), studioLink);
+            produceResult.replaceChildren(strong, p);
           }
         });
         sse.addEventListener("error", () => {
@@ -657,6 +723,262 @@
         runAudition(textInput ? textInput.value : "", 0, sandboxStatus, sandboxPlayer, sandboxBtn);
       });
     }
+
+    function setupAvatars() {
+      const loadedImages = new Map();
+
+      function renderSpeakerCanvas(index, jawOpen = 0, viseme = "rest", showCrosshair = true) {
+        const canvas = byId(`speaker-avatar-canvas-${index}`);
+        if (!canvas || typeof canvas.getContext !== "function") return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.fillStyle = "#162d26";
+        ctx.fillRect(0, 0, w, h);
+
+        const imageId = byId(`speaker-avatar-image-${index}`)?.value || "";
+        const img = loadedImages.get(imageId);
+        if (!img) {
+          ctx.fillStyle = "#95b5a8";
+          ctx.font = "600 12px Inter, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(imageId ? "Loading portrait..." : "Upload or pick a photo", w / 2, h / 2);
+          return;
+        }
+
+        const mouthX = Number.parseFloat(byId(`speaker-avatar-mouth-x-${index}`)?.value || "0.5");
+        const mouthY = Number.parseFloat(byId(`speaker-avatar-mouth-y-${index}`)?.value || "0.68");
+        const mouthScale = Number.parseFloat(
+          byId(`speaker-avatar-mouth-scale-${index}`)?.value || "1",
+        );
+
+        const bobY = jawOpen > 0 ? Math.sin(Date.now() * 0.015) * 2.5 : 0;
+        ctx.save();
+        ctx.translate(0, bobY);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const mx = w * mouthX;
+        const my = h * mouthY;
+        const jawDrop = jawOpen * 10 * mouthScale;
+
+        if (jawOpen > 0.04 && viseme !== "rest") {
+          const jawRx = w * 0.23 * mouthScale;
+          const jawRy = h * 0.25 * mouthScale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(mx, my + jawRy * 0.42 + jawDrop * 0.5, jawRx, jawRy, 0, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, 0, jawDrop, w, h);
+          ctx.restore();
+
+          const mw =
+            (viseme === "open_o" || viseme === "open_u" ? 13 : 19) * mouthScale;
+          const mh =
+            Math.max(3, jawOpen * (viseme === "open_a" ? 11 : 8)) * mouthScale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.ellipse(mx, my + jawDrop * 0.44, mw, mh, 0, 0, Math.PI * 2);
+          ctx.fillStyle = "#3a1218";
+          ctx.fill();
+          ctx.clip();
+          ctx.fillStyle = "#f4f6f9";
+          ctx.fillRect(mx - mw * 0.8, my - mh, mw * 1.6, mh * 0.72);
+          ctx.fillStyle = "#c95866";
+          ctx.beginPath();
+          ctx.ellipse(mx, my + mh * 0.85, mw * 0.65, mh * 0.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.strokeStyle = "rgba(145, 58, 68, 0.75)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.ellipse(mx, my + jawDrop * 0.44, mw, mh, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (showCrosshair) {
+          ctx.save();
+          ctx.strokeStyle = "rgba(87, 199, 163, 0.9)";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.ellipse(mx, my, 18 * mouthScale, 7 * mouthScale, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(mx - 24 * mouthScale, my);
+          ctx.lineTo(mx + 24 * mouthScale, my);
+          ctx.moveTo(mx, my - 11 * mouthScale);
+          ctx.lineTo(mx, my + 11 * mouthScale);
+          ctx.stroke();
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+
+      function ensureImageLoaded(imageId, index) {
+        if (!imageId) {
+          renderSpeakerCanvas(index);
+          return;
+        }
+        if (loadedImages.has(imageId)) {
+          renderSpeakerCanvas(index);
+          return;
+        }
+        if (typeof Image !== "function") return;
+        const img = new Image();
+        img.onload = () => {
+          loadedImages.set(imageId, img);
+          renderSpeakerCanvas(index);
+        };
+        img.src = `/api/avatars/${encodeURIComponent(imageId)}`;
+      }
+
+      function populateSelect(selectEl, avatars) {
+        const current =
+          selectEl.value || selectEl.getAttribute("data-initial-value") || "";
+        const defaultOpt = element("option", "", "— Select or upload an image —");
+        defaultOpt.value = "";
+        const opts = [defaultOpt];
+        const seen = new Set();
+        for (const avatar of avatars) {
+          const id = typeof avatar === "string" ? avatar : avatar?.id;
+          if (!id) continue;
+          seen.add(id);
+          const opt = element("option", "", id);
+          opt.value = id;
+          if (id === current) opt.selected = true;
+          opts.push(opt);
+        }
+        if (current && !seen.has(current)) {
+          const opt = element("option", "", current);
+          opt.value = current;
+          opt.selected = true;
+          opts.push(opt);
+        }
+        selectEl.replaceChildren(...opts);
+        selectEl.value = current;
+      }
+
+      fetch("/api/avatars")
+        .then((res) => (res.ok ? res.json() : { avatars: [] }))
+        .then((data) => {
+          const avatars = Array.isArray(data.avatars) ? data.avatars : [];
+          for (const [index] of seed.presentation.speakers.entries()) {
+            const selectEl = byId(`speaker-avatar-image-${index}`);
+            if (selectEl) {
+              populateSelect(selectEl, avatars);
+              ensureImageLoaded(selectEl.value, index);
+            }
+          }
+        })
+        .catch(() => {});
+
+      for (const [index] of seed.presentation.speakers.entries()) {
+        const selectEl = byId(`speaker-avatar-image-${index}`);
+        if (selectEl) {
+          selectEl.addEventListener("change", () => {
+            ensureImageLoaded(selectEl.value, index);
+            update();
+          });
+        }
+        for (const sliderId of [
+          `speaker-avatar-mouth-y-${index}`,
+          `speaker-avatar-mouth-x-${index}`,
+          `speaker-avatar-mouth-scale-${index}`,
+        ]) {
+          const slider = byId(sliderId);
+          if (slider) {
+            slider.addEventListener("input", () => {
+              renderSpeakerCanvas(index);
+            });
+          }
+        }
+        const uploadInput = byId(`speaker-avatar-upload-${index}`);
+        if (uploadInput) {
+          uploadInput.addEventListener("change", () => {
+            const file = uploadInput.files?.[0];
+            if (!file) return;
+            const statusEl = byId(`speaker-avatar-upload-status-${index}`);
+            if (statusEl) {
+              statusEl.className = "audition-status loading";
+              statusEl.textContent = "Uploading & normalizing portrait...";
+            }
+            const reader = new FileReader();
+            reader.onload = async () => {
+              try {
+                const res = await fetch("/api/avatars", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    name: file.name.replace(/\.[^.]+$/u, ""),
+                    dataUrl: String(reader.result || ""),
+                  }),
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+                const avatarId = body.imageId || body.avatar?.id;
+                if (avatarId && selectEl) {
+                  let exists = false;
+                  for (const opt of Array.from(selectEl.options)) {
+                    if (opt.value === avatarId) exists = true;
+                  }
+                  if (!exists) {
+                    const opt = element("option", "", avatarId);
+                    opt.value = avatarId;
+                    selectEl.append(opt);
+                  }
+                  selectEl.value = avatarId;
+                  loadedImages.delete(avatarId);
+                  ensureImageLoaded(avatarId, index);
+                  update();
+                }
+                if (statusEl) {
+                  statusEl.className = "audition-status success";
+                  statusEl.textContent = `✓ Saved ${avatarId}`;
+                }
+              } catch (err) {
+                if (statusEl) {
+                  statusEl.className = "audition-status error";
+                  statusEl.textContent = `Upload failed: ${err.message}`;
+                }
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+        const testBtn = byId(`speaker-avatar-test-${index}`);
+        if (testBtn) {
+          testBtn.addEventListener("click", () => {
+            const visemeCycle = [
+              { v: "open_a", j: 0.85 },
+              { v: "consonant", j: 0.25 },
+              { v: "open_o", j: 0.78 },
+              { v: "open_e", j: 0.65 },
+              { v: "smile", j: 0.45 },
+              { v: "open_u", j: 0.72 },
+              { v: "open_a", j: 0.9 },
+              { v: "rest", j: 0 },
+            ];
+            let step = 0;
+            testBtn.disabled = true;
+            const timer = setInterval(() => {
+              if (step >= visemeCycle.length * 2) {
+                clearInterval(timer);
+                testBtn.disabled = false;
+                renderSpeakerCanvas(index, 0, "rest", true);
+                return;
+              }
+              const item = visemeCycle[step % visemeCycle.length];
+              renderSpeakerCanvas(index, item.j, item.v, false);
+              step += 1;
+            }, 140);
+          });
+        }
+      }
+    }
+
+    setupAvatars();
   }
 
   function enableEditor() {

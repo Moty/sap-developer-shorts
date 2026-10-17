@@ -320,6 +320,40 @@
               "voice": {
                 "type": "string",
                 "minLength": 1
+              },
+              "avatar": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "enum": ["illustrated", "photo"]
+                  },
+                  "imageId": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9_-]{0,47}\\.(png|jpg|jpeg|webp)$"
+                  },
+                  "mouthX": {
+                    "type": "number",
+                    "minimum": 0.2,
+                    "maximum": 0.8
+                  },
+                  "mouthY": {
+                    "type": "number",
+                    "minimum": 0.4,
+                    "maximum": 0.9
+                  },
+                  "mouthScale": {
+                    "type": "number",
+                    "minimum": 0.5,
+                    "maximum": 2.0
+                  },
+                  "eyeY": {
+                    "type": "number",
+                    "minimum": 0.2,
+                    "maximum": 0.7
+                  }
+                },
+                "required": ["mode"]
               }
             },
             "required": ["id", "name", "voice"]

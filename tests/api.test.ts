@@ -119,6 +119,39 @@ test("Studio API production validation and error handling", async (t) => {
   const audioBuf = await goodAudition.arrayBuffer();
   assert.deepEqual(Buffer.from(audioBuf), audio);
   assert.equal(auditionCalls, 1);
+
+  // Avatars upload, list, and fetch endpoints
+  const { createCanvas } = await import("@napi-rs/canvas");
+  const { resolveAvatarPath } = await import("../src/media/avatar.js");
+  const avatarCanvas = createCanvas(128, 128);
+  const actx = avatarCanvas.getContext("2d");
+  actx.fillStyle = "#245d4b";
+  actx.fillRect(0, 0, 128, 128);
+  const avatarDataUrl = `data:image/png;base64,${avatarCanvas.toBuffer("image/png").toString("base64")}`;
+
+  const uploadRes = await fetch(`${base}/api/avatars`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "api-test-avatar", dataUrl: avatarDataUrl }),
+  });
+  assert.equal(uploadRes.status, 201);
+  const uploadData = (await uploadRes.json()) as { imageId: string; url: string };
+  assert.equal(uploadData.imageId, "api-test-avatar.png");
+  t.after(async () => {
+    const savedPath = await resolveAvatarPath("api-test-avatar.png");
+    await rm(savedPath, { force: true });
+  });
+
+  const listRes = await fetch(`${base}/api/avatars`);
+  assert.equal(listRes.status, 200);
+  const listData = (await listRes.json()) as { avatars: string[] };
+  assert.ok(listData.avatars.includes("api-test-avatar.png"));
+
+  const imgRes = await fetch(`${base}/api/avatars/api-test-avatar.png`);
+  assert.equal(imgRes.status, 200);
+  assert.equal(imgRes.headers.get("content-type"), "image/png");
+  const imgBuf = await imgRes.arrayBuffer();
+  assert.ok(imgBuf.byteLength > 500);
 });
 
 test("Studio API rejects a duplicate edited script before starting a different production", async (t) => {
@@ -148,3 +181,5 @@ test("Studio API rejects a duplicate edited script before starting a different p
   assert.equal(getActiveJob(), null);
   assert.deepEqual(await readFile(source), before);
 });
+
+

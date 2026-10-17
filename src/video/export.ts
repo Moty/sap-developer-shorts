@@ -184,6 +184,13 @@ export async function renderVideo(
     renderSources[name] = hash(bytes);
   for (const name of [...videoFontFiles, "package-lock.json"])
     renderSources[name] = hash(await readFile(await sourceFile(name)));
+  for (const speaker of episode.presentation?.speakers ?? []) {
+    if (speaker.avatar?.mode === "photo" && speaker.avatar.imageId) {
+      const { resolveAvatarPath } = await import("../media/avatar.js");
+      const avatarPath = await resolveAvatarPath(speaker.avatar.imageId);
+      renderSources[`assets/avatars/${speaker.avatar.imageId}`] = hash(await readFile(avatarPath));
+    }
+  }
   const sourceAudioHash = hash(audio);
   const sourceCodeCommit = isNewsEpisode(episode)
     ? null

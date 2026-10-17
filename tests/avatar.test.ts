@@ -101,3 +101,98 @@ test("drawAvatarBadge renders solo and duo co-speaker badges without errors", ()
   const png = canvas.toBuffer("image/png");
   assert.ok(png.length > 500);
 });
+
+test("saveCustomAvatar normalizes uploaded portraits and drawAvatarBadge animates photo mode lip-sync", async (t) => {
+  const { rm } = await import("node:fs/promises");
+  const {
+    listCustomAvatars,
+    loadAvatarImage,
+    resolveAvatarPath,
+    saveCustomAvatar,
+  } = await import("../src/media/avatar.js");
+
+  // Create a synthetic 300x400 portrait canvas to upload
+  const srcCanvas = createCanvas(300, 400);
+  const sctx = srcCanvas.getContext("2d");
+  sctx.fillStyle = "#193c47";
+  sctx.fillRect(0, 0, 300, 400);
+  sctx.fillStyle = "#eac0a2";
+  sctx.beginPath();
+  sctx.arc(150, 200, 95, 0, Math.PI * 2);
+  sctx.fill();
+  sctx.fillStyle = "#a84a54";
+  sctx.fillRect(120, 260, 60, 14);
+  const pngBuffer = srcCanvas.toBuffer("image/png");
+
+  const saved = await saveCustomAvatar("Test Speaker Portrait!", pngBuffer);
+  t.after(async () => {
+    await rm(saved.path, { force: true });
+  });
+
+  assert.equal(saved.imageId, "test-speaker-portrait.png");
+  const allAvatars = await listCustomAvatars();
+  assert.ok(allAvatars.includes("test-speaker-portrait.png"));
+
+  await assert.rejects(() => resolveAvatarPath("../outside.png"), /Invalid avatar image filename/u);
+
+  const loadedImg = await loadAvatarImage(saved.imageId);
+  assert.equal(loadedImg.width, 512);
+  assert.equal(loadedImg.height, 512);
+
+  const canvas = createCanvas(300, 300);
+  const ctx = canvas.getContext("2d");
+  const bounds = { x: 30, y: 30, width: 240, height: 240 };
+
+  const visemes: VisemeShape[] = [
+    "rest",
+    "open_a",
+    "open_e",
+    "open_o",
+    "open_u",
+    "smile",
+    "consonant",
+  ];
+
+  for (const viseme of visemes) {
+    drawAvatarBadge(
+      ctx,
+      bounds,
+      {
+        id: "mira",
+        name: "Mira",
+        photoImage: loadedImg,
+        avatar: {
+          mode: "photo",
+          imageId: saved.imageId,
+          mouthX: 0.5,
+          mouthY: 0.68,
+          mouthScale: 1.1,
+        },
+      },
+      viseme,
+      viseme !== "rest",
+      {
+        coSpeaker: {
+          id: "max",
+          name: "Max",
+          photoImage: loadedImg,
+          avatar: { mode: "photo", imageId: saved.imageId },
+        },
+        animation: {
+          viseme,
+          jawOpen: viseme === "rest" ? 0 : 0.85,
+          isBlinking: viseme === "smile",
+          headBobY: -1.5,
+          headTilt: 0.015,
+          browLift: 2,
+          voiceEnergy: 0.8,
+          activeWordIndex: 0,
+        },
+      },
+    );
+  }
+
+  const outPng = canvas.toBuffer("image/png");
+  assert.ok(outPng.length > 1000);
+});
+

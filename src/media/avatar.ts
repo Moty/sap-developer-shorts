@@ -1,4 +1,15 @@
-import type { SKRSContext2D } from "@napi-rs/canvas";
+import { lstat, mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import {
+  type Canvas,
+  createCanvas,
+  type Image,
+  loadImage,
+  type SKRSContext2D,
+} from "@napi-rs/canvas";
+import { hash } from "../digest.js";
+import type { SpeakerAvatarConfig } from "../domain.js";
+import { projectRoot } from "../paths.js";
 
 export type VisemeShape =
   | "rest"
@@ -14,6 +25,8 @@ export interface AvatarSpeaker {
   name: string;
   accentColor?: string;
   role?: string;
+  avatar?: SpeakerAvatarConfig;
+  photoImage?: Image | Canvas;
 }
 
 export interface AvatarAnimationState {
@@ -25,6 +38,128 @@ export interface AvatarAnimationState {
   browLift: number;
   voiceEnergy: number;
   activeWordIndex: number;
+}
+
+export const avatarImagePattern = /^[a-z0-9][a-z0-9_-]{0,47}\.(png|jpg|jpeg|webp)$/u;
+
+export async function resolveAvatarPath(
+  imageId: string,
+  rootDir = projectRoot,
+): Promise<string> {
+  if (!avatarImagePattern.test(imageId)) {
+    throw new Error(`Invalid avatar image filename: ${imageId}`);
+  }
+  const avatarDir = resolve(rootDir, "assets/avatars");
+  try {
+    const dirStat = await lstat(avatarDir);
+    if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) {
+      throw new Error("Avatar directory cannot be a symlink");
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  }
+  const filePath = resolve(avatarDir, imageId);
+  const stat = await lstat(filePath);
+  if (stat.isSymbolicLink() || !stat.isFile()) {
+    throw new Error("Avatar image must be a regular file");
+  }
+  return filePath;
+}
+
+export async function listCustomAvatars(rootDir = projectRoot): Promise<string[]> {
+  const avatarDir = resolve(rootDir, "assets/avatars");
+  try {
+    const dirStat = await lstat(avatarDir);
+    if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) return [];
+    const entries = await readdir(avatarDir, { withFileTypes: true });
+    return entries
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          !entry.isSymbolicLink() &&
+          avatarImagePattern.test(entry.name),
+      )
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+export async function saveCustomAvatar(
+  rawName: string,
+  imageBuffer: Buffer,
+  rootDir = projectRoot,
+): Promise<{ imageId: string; path: string; sha256: string }> {
+  if (!imageBuffer.length || imageBuffer.length > 4 * 1024 * 1024) {
+    throw new Error("Avatar image must be between 1 byte and 4 MB");
+  }
+  const baseSlug = rawName
+    .toLowerCase()
+    .replace(/\.(png|jpg|jpeg|webp)$/iu, "")
+    .replace(/[^a-z0-9_-]+/gu, "-")
+    .replace(/^-+|-+$/gu, "")
+    .slice(0, 40);
+  if (!baseSlug || !/^[a-z0-9]/u.test(baseSlug)) {
+    throw new Error("Avatar name must start with a letter or digit");
+  }
+  const imageId = `${baseSlug}.png`;
+  if (!avatarImagePattern.test(imageId)) {
+    throw new Error("Invalid avatar image identifier");
+  }
+
+  const avatarDir = resolve(rootDir, "assets/avatars");
+  await mkdir(avatarDir, { recursive: true });
+  const dirStat = await lstat(avatarDir);
+  if (dirStat.isSymbolicLink() || !dirStat.isDirectory()) {
+    throw new Error("Avatar directory cannot be a symlink");
+  }
+
+  const targetPath = resolve(avatarDir, imageId);
+  try {
+    const existing = await lstat(targetPath);
+    if (existing.isSymbolicLink()) {
+      throw new Error("Refusing to overwrite symlink avatar target");
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  }
+
+  // Decode and normalize to a clean 512x512 square PNG
+  const decoded = await loadImage(imageBuffer);
+  if (decoded.width < 32 || decoded.height < 32) {
+    throw new Error("Avatar image must be at least 32x32 pixels");
+  }
+  const size = 512;
+  const normCanvas = createCanvas(size, size);
+  const normCtx = normCanvas.getContext("2d");
+  const cropSide = Math.min(decoded.width, decoded.height);
+  const sx = (decoded.width - cropSide) / 2;
+  const sy = (decoded.height - cropSide) / 2;
+  normCtx.drawImage(decoded, sx, sy, cropSide, cropSide, 0, 0, size, size);
+  const pngBytes = await normCanvas.encode("png");
+
+  const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tmpPath, pngBytes);
+  await rename(tmpPath, targetPath);
+
+  return { imageId, path: targetPath, sha256: hash(pngBytes) };
+}
+
+const loadedAvatarCache = new Map<string, { sha256: string; image: Image }>();
+
+export async function loadAvatarImage(
+  imageId: string,
+  rootDir = projectRoot,
+): Promise<Image> {
+  const filePath = await resolveAvatarPath(imageId, rootDir);
+  const bytes = await readFile(filePath);
+  const sha = hash(bytes);
+  const cached = loadedAvatarCache.get(filePath);
+  if (cached && cached.sha256 === sha) return cached.image;
+  const image = await loadImage(bytes);
+  loadedAvatarCache.set(filePath, { sha256: sha, image });
+  return image;
 }
 
 /**
@@ -148,7 +283,6 @@ export function resolveCueAnimation(
   const syllablePhase = syllablePosition - syllableIndex;
 
   // Alternate between vowel peak and consonant closure at syllable boundaries
-  // so consecutive words/syllables visibly open and close the mouth
   const syllableBeat = Math.floor(elapsed * 6.0);
   let viseme: VisemeShape;
   if (
@@ -158,7 +292,6 @@ export function resolveCueAnimation(
     viseme = "consonant";
   } else if (vowelGroups[syllableIndex]) {
     viseme = determineViseme(vowelGroups[syllableIndex], true);
-    // Add subtle alternation if the same vowel repeats across adjacent beats
     if (syllableBeat % 4 === 3 && viseme !== "open_a") {
       viseme = "consonant";
     }
@@ -248,7 +381,6 @@ function paletteForSpeaker(speakerId: string): CharacterPalette {
       hasLapelPin: false,
     };
   }
-  // Distinct 3rd persona: SAP Advocate / Solo News Host
   return {
     bgTop: "#173a4f",
     bgBottom: "#091b26",
@@ -267,6 +399,177 @@ function paletteForSpeaker(speakerId: string): CharacterPalette {
     hasStubble: false,
     hasLapelPin: true,
   };
+}
+
+/**
+ * Renders a 2.5D animated photo portrait with lower-jaw split, pixel-adapted lip-sync
+ * mouth cavity, organic head motion, and eye blinking.
+ */
+function drawPhotoAvatarPortrait(
+  ctx: SKRSContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  image: Image | Canvas,
+  config: SpeakerAvatarConfig | undefined,
+  anim: AvatarAnimationState,
+  isSpeaking: boolean,
+  accent: string,
+): void {
+  const mouthX = Math.max(0.25, Math.min(0.75, config?.mouthX ?? 0.5));
+  const mouthY = Math.max(0.45, Math.min(0.85, config?.mouthY ?? 0.68));
+  const mouthScale = Math.max(0.5, Math.min(2.0, config?.mouthScale ?? 1.0));
+  const eyeY = Math.max(0.25, Math.min(0.65, config?.eyeY ?? 0.42));
+
+  // Sample pixel colors around mouth and eyes from a 128x128 offscreen copy
+  const sampleSize = 128;
+  const sampleCanvas = createCanvas(sampleSize, sampleSize);
+  const sCtx = sampleCanvas.getContext("2d");
+  const srcW = image.width || sampleSize;
+  const srcH = image.height || sampleSize;
+  const cropSide = Math.min(srcW, srcH);
+  const sx = (srcW - cropSide) / 2;
+  const sy = (srcH - cropSide) / 2;
+  sCtx.drawImage(image, sx, sy, cropSide, cropSide, 0, 0, sampleSize, sampleSize);
+
+  const mouthPxX = Math.floor(mouthX * (sampleSize - 1));
+  const mouthPxY = Math.floor(mouthY * (sampleSize - 1));
+  const lipPixel = sCtx.getImageData(mouthPxX, mouthPxY, 1, 1).data;
+  const lipR = Math.max(95, Math.min(210, Math.round((lipPixel[0] ?? 160) * 0.85)));
+  const lipG = Math.max(55, Math.min(130, Math.round((lipPixel[1] ?? 90) * 0.62)));
+  const lipB = Math.max(55, Math.min(130, Math.round((lipPixel[2] ?? 90) * 0.62)));
+  const sampledLipColor = `rgb(${lipR}, ${lipG}, ${lipB})`;
+
+  const eyePxY = Math.floor(Math.max(0, eyeY - 0.04) * (sampleSize - 1));
+  const skinPixel = sCtx.getImageData(Math.floor(0.5 * sampleSize), eyePxY, 1, 1).data;
+  const sampledSkinColor = `rgb(${skinPixel[0] ?? 225}, ${skinPixel[1] ?? 185}, ${skinPixel[2] ?? 160})`;
+
+  const diameter = radius * 2;
+  const scale = radius / 112;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  // Dark studio fallback background
+  ctx.fillStyle = "#0d232c";
+  ctx.fillRect(cx - radius, cy - radius, diameter, diameter);
+
+  ctx.translate(cx, cy);
+  ctx.translate(0, anim.headBobY * scale);
+  ctx.rotate(anim.headTilt);
+
+  // Zoom slightly (1.06x) so head bobbing/tilting never exposes canvas edges
+  const drawSize = diameter * 1.06;
+  const halfSize = drawSize / 2;
+  ctx.drawImage(
+    image,
+    sx,
+    sy,
+    cropSide,
+    cropSide,
+    -halfSize,
+    -halfSize,
+    drawSize,
+    drawSize,
+  );
+
+  const localMouthX = (mouthX - 0.5) * drawSize;
+  const localMouthY = (mouthY - 0.5) * drawSize;
+  const jawDrop = anim.jawOpen * 7.2 * scale * mouthScale;
+
+  // 2.5D Lower-Jaw Split & Vertical Shift when speaking
+  if (anim.jawOpen > 0.04) {
+    const jawRx = radius * 0.36 * mouthScale;
+    const jawRy = radius * 0.24;
+    const jawCenterY = localMouthY + jawRy * 0.65;
+
+    // Soft cast shadow beneath the dropped chin
+    ctx.save();
+    ctx.fillStyle = "rgba(18, 10, 8, 0.24)";
+    ctx.beginPath();
+    ctx.ellipse(localMouthX, jawCenterY + jawDrop + 2 * scale, jawRx * 0.92, jawRy * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Clipped lower jaw shifted downward by jawDrop
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(localMouthX, jawCenterY + jawDrop * 0.5, jawRx, jawRy, 0, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(
+      image,
+      sx,
+      sy,
+      cropSide,
+      cropSide,
+      -halfSize,
+      -halfSize + jawDrop,
+      drawSize,
+      drawSize,
+    );
+    ctx.restore();
+  }
+
+  // Render active syllable viseme cavity at calibrated mouth anchor
+  if (anim.viseme !== "rest") {
+    ctx.save();
+    ctx.translate(localMouthX, localMouthY + jawDrop * 0.22);
+    ctx.scale(scale * mouthScale, scale * mouthScale);
+    drawMouthViseme(ctx, 0, 0, anim.viseme, sampledLipColor);
+    ctx.restore();
+  }
+
+  // Organic Eye Blink overlay at calibrated eyeY
+  if (anim.isBlinking) {
+    const localEyeY = (eyeY - 0.5) * drawSize;
+    const eyeSpread = radius * 0.22;
+    ctx.save();
+    for (const side of [-1, 1] as const) {
+      const ex = localMouthX + side * eyeSpread;
+      ctx.fillStyle = sampledSkinColor;
+      ctx.beginPath();
+      ctx.ellipse(ex, localEyeY, 11 * scale, 6.5 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(28, 22, 20, 0.78)";
+      ctx.lineWidth = 2.2 * scale;
+      ctx.beginPath();
+      ctx.moveTo(ex - 10 * scale, localEyeY);
+      ctx.quadraticCurveTo(ex, localEyeY + 4.5 * scale, ex + 10 * scale, localEyeY);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Subtle studio vignette rim inside circle
+  const rimGrad = ctx.createRadialGradient(0, 0, radius * 0.72, 0, 0, radius);
+  rimGrad.addColorStop(0, "rgba(0, 0, 0, 0)");
+  rimGrad.addColorStop(1, "rgba(8, 24, 32, 0.42)");
+  ctx.fillStyle = rimGrad;
+  ctx.fillRect(-radius, -radius, diameter, diameter);
+
+  ctx.restore(); // End portrait clip
+
+  // Outer frame ring & voice energy halo
+  ctx.save();
+  ctx.strokeStyle = isSpeaking ? accent : "rgba(184, 219, 188, 0.38)";
+  ctx.lineWidth = isSpeaking ? 4.5 : 2.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (isSpeaking) {
+    const haloRadius = radius + 4 + anim.voiceEnergy * 4;
+    ctx.strokeStyle = "rgba(184, 219, 188, 0.30)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, haloRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawCharacterPortrait(
@@ -302,7 +605,6 @@ function drawCharacterPortrait(
   ctx.fillStyle = bgGrad;
   ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
-  // Subtle ambient rim glow when active
   if (isSpeaking) {
     const glow = ctx.createRadialGradient(cx, cy + radius * 0.2, radius * 0.2, cx, cy, radius);
     glow.addColorStop(0, "rgba(184, 219, 188, 0.12)");
@@ -331,7 +633,6 @@ function drawCharacterPortrait(
   ctx.ellipse(0, 106, 92, 62, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Inner shirt / collar V-neck
   ctx.fillStyle = pal.shirtColor;
   ctx.beginPath();
   ctx.moveTo(-24, 52);
@@ -340,7 +641,6 @@ function drawCharacterPortrait(
   ctx.closePath();
   ctx.fill();
 
-  // Jacket lapels or hoodie seams
   ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -363,20 +663,18 @@ function drawCharacterPortrait(
   ctx.roundRect(-16, 26, 32, 36, 8);
   ctx.fill();
 
-  // Sub-chin cast shadow on neck
   ctx.fillStyle = "rgba(38, 20, 14, 0.28)";
   ctx.beginPath();
   ctx.ellipse(0, 38 + anim.jawOpen * 2.5, 17, 9, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Apply organic head bobbing and tilt
   ctx.save();
   ctx.translate(0, anim.headBobY);
   ctx.rotate(anim.headTilt);
 
   const jawDrop = anim.jawOpen * 3.4;
 
-  // 5. Ears (tucked at eye-to-nose level)
+  // 5. Ears
   for (const side of [-1, 1] as const) {
     ctx.fillStyle = pal.skinMid;
     ctx.beginPath();
@@ -397,16 +695,12 @@ function drawCharacterPortrait(
 
   ctx.beginPath();
   ctx.moveTo(-41, -12);
-  // Upper cranium curve
   ctx.bezierCurveTo(-41, -46, 41, -46, 41, -12);
-  // Right cheek & jaw dropping dynamically with speech
   ctx.bezierCurveTo(41, 16, 24, 38 + jawDrop, 0, 40 + jawDrop);
-  // Left jaw & cheek
   ctx.bezierCurveTo(-24, 38 + jawDrop, -41, 16, -41, -12);
   ctx.closePath();
   ctx.fill();
 
-  // Subtle facial stubble for Max
   if (pal.hasStubble) {
     ctx.fillStyle = "rgba(30, 38, 44, 0.13)";
     ctx.beginPath();
@@ -419,7 +713,6 @@ function drawCharacterPortrait(
     ctx.fill();
   }
 
-  // Warm cheek blush
   ctx.fillStyle = "rgba(218, 112, 98, 0.14)";
   ctx.beginPath();
   ctx.ellipse(-23, 5, 9, 5.5, 0, 0, Math.PI * 2);
@@ -436,7 +729,7 @@ function drawCharacterPortrait(
   ctx.quadraticCurveTo(0, 5, 4, 2);
   ctx.stroke();
 
-  // 8. Eyes (Sclera, Colored Iris, Pupil, Specular Catchlights, or Blink)
+  // 8. Eyes
   const eyeY = -8;
   const eyeX = 17;
   if (anim.isBlinking) {
@@ -451,32 +744,27 @@ function drawCharacterPortrait(
   } else {
     for (const side of [-1, 1] as const) {
       const ex = side * eyeX;
-      // White sclera
       ctx.fillStyle = "#f9fbfa";
       ctx.beginPath();
       ctx.ellipse(ex, eyeY, 8.2, 5.8, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Colored Iris
       ctx.fillStyle = pal.irisColor;
       ctx.beginPath();
       ctx.arc(ex, eyeY, 4.6, 0, Math.PI * 2);
       ctx.fill();
 
-      // Dark Pupil
       ctx.fillStyle = "#10181a";
       ctx.beginPath();
       ctx.arc(ex, eyeY, 2.5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Primary & secondary specular catchlights
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
       ctx.arc(ex - 1.6, eyeY - 1.8, 1.4, 0, Math.PI * 2);
       ctx.arc(ex + 1.4, eyeY + 1.4, 0.7, 0, Math.PI * 2);
       ctx.fill();
 
-      // Upper eyelid lash crease
       ctx.strokeStyle = "#1c2826";
       ctx.lineWidth = 2.2;
       ctx.beginPath();
@@ -485,7 +773,7 @@ function drawCharacterPortrait(
     }
   }
 
-  // 9. Expressive Eyebrows (cleanly on forehead above glasses)
+  // 9. Expressive Eyebrows
   const browY = -21 - anim.browLift;
   ctx.strokeStyle = pal.hairColor;
   ctx.lineWidth = 2.8;
@@ -497,25 +785,21 @@ function drawCharacterPortrait(
   ctx.quadraticCurveTo(17, browY - 2.5, 26, browY + 1.5);
   ctx.stroke();
 
-  // 10. Glasses (positioned cleanly around eyes, never overlapping hair)
+  // 10. Glasses
   if (pal.hasGlasses) {
     ctx.save();
     ctx.strokeStyle = pal.glassesStyle === "thin-gold" ? "#c89d54" : "#3a5e55";
     ctx.lineWidth = pal.glassesStyle === "thin-gold" ? 2.0 : 2.6;
-    // Left lens frame
     ctx.beginPath();
     ctx.roundRect(-29, -16, 22, 16, 5);
     ctx.stroke();
-    // Right lens frame
     ctx.beginPath();
     ctx.roundRect(7, -16, 22, 16, 5);
     ctx.stroke();
-    // Nose bridge
     ctx.beginPath();
     ctx.moveTo(-7, -9);
     ctx.quadraticCurveTo(0, -11, 7, -9);
     ctx.stroke();
-    // Temple arms
     ctx.beginPath();
     ctx.moveTo(-29, -10);
     ctx.lineTo(-40, -7);
@@ -523,7 +807,6 @@ function drawCharacterPortrait(
     ctx.lineTo(40, -7);
     ctx.stroke();
 
-    // Subtle diagonal glass reflection sheen
     ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
     ctx.lineWidth = 1.8;
     ctx.beginPath();
@@ -535,53 +818,44 @@ function drawCharacterPortrait(
     ctx.restore();
   }
 
-  // 11. Hair Crown & Side Locks (strictly above forehead y <= -27 so eyes/brows stay 100% clear)
+  // 11. Hair Crown & Side Locks
   ctx.fillStyle = pal.hairColor;
   const id = speakerId.toLowerCase();
   if (id === "max") {
-    // Textured short architect crop + neat sideburns
     ctx.beginPath();
     ctx.moveTo(-41, -10);
     ctx.bezierCurveTo(-44, -42, -24, -56, 2, -55);
     ctx.bezierCurveTo(28, -55, 44, -40, 41, -10);
-    // Sideburn right
     ctx.lineTo(38, -8);
     ctx.lineTo(36, -24);
-    // Forehead hairline stays at y = -30
     ctx.bezierCurveTo(20, -33, -18, -33, -36, -24);
     ctx.lineTo(-38, -8);
     ctx.closePath();
     ctx.fill();
 
-    // Hair highlight crest
     ctx.strokeStyle = pal.hairHighlight;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(0, -34, 24, Math.PI * 1.2, Math.PI * 1.75);
     ctx.stroke();
   } else if (id === "mira") {
-    // Side-parted crown with temple locks framing outside the glasses
     ctx.beginPath();
     ctx.moveTo(-42, 4);
     ctx.bezierCurveTo(-47, -34, -30, -56, 0, -56);
     ctx.bezierCurveTo(30, -56, 47, -34, 42, 4);
     ctx.lineTo(38, 2);
-    // Right temple sweep stays outside x = 35 and rises above y = -28
     ctx.bezierCurveTo(38, -18, 28, -30, 10, -32);
-    // Side part arch well above eyebrows (y = -32 to -28)
     ctx.bezierCurveTo(-6, -34, -28, -30, -37, -18);
     ctx.lineTo(-38, 2);
     ctx.closePath();
     ctx.fill();
 
-    // Crown sheen highlight
     ctx.strokeStyle = pal.hairHighlight;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     ctx.arc(-4, -35, 26, Math.PI * 1.15, Math.PI * 1.7);
     ctx.stroke();
   } else {
-    // SAP Solo Host: tailored side-parted executive hair
     ctx.beginPath();
     ctx.moveTo(-41, -6);
     ctx.bezierCurveTo(-45, -38, -26, -55, 0, -55);
@@ -597,8 +871,8 @@ function drawCharacterPortrait(
   const mouthY = 18 + jawDrop * 0.55;
   drawMouthViseme(ctx, 0, mouthY, anim.viseme, pal.lipColor);
 
-  ctx.restore(); // End head transform
-  ctx.restore(); // End circular portrait clip
+  ctx.restore();
+  ctx.restore();
 
   // Outer frame ring & voice energy equalizer
   ctx.save();
@@ -632,23 +906,19 @@ function drawMouthViseme(
 
   switch (viseme) {
     case "open_a": {
-      // Wide open vowel ("ah", "api", "data") with upper teeth and tongue
       ctx.beginPath();
       ctx.ellipse(mx, my + 2, 12.5, 9.5, 0, 0, Math.PI * 2);
       ctx.fillStyle = "#3b1519";
       ctx.fill();
       ctx.save();
       ctx.clip();
-      // Upper teeth
       ctx.fillStyle = "#f7faf7";
       ctx.fillRect(mx - 11, my - 8, 22, 5.5);
-      // Curved pink tongue
       ctx.fillStyle = "#d96b6b";
       ctx.beginPath();
       ctx.ellipse(mx, my + 9, 9, 6, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      // Lip outline
       ctx.strokeStyle = lipColor;
       ctx.lineWidth = 2.2;
       ctx.beginPath();
@@ -658,7 +928,6 @@ function drawMouthViseme(
     }
 
     case "open_e": {
-      // Spread vowel ("ee", "entity", "key")
       ctx.beginPath();
       ctx.ellipse(mx, my + 1, 13.5, 6.2, 0, 0, Math.PI * 2);
       ctx.fillStyle = "#3b1519";
@@ -681,7 +950,6 @@ function drawMouthViseme(
     }
 
     case "open_o": {
-      // Rounded vowel ("oh", "odata", "expose")
       ctx.beginPath();
       ctx.ellipse(mx, my + 2, 8.5, 8.5, 0, 0, Math.PI * 2);
       ctx.fillStyle = "#3b1519";
@@ -704,7 +972,6 @@ function drawMouthViseme(
     }
 
     case "open_u": {
-      // Tighter rounded vowel ("oo", "joule", "two")
       ctx.beginPath();
       ctx.ellipse(mx, my + 1.5, 6.0, 6.2, 0, 0, Math.PI * 2);
       ctx.fillStyle = "#3b1519";
@@ -716,7 +983,6 @@ function drawMouthViseme(
     }
 
     case "consonant": {
-      // Mid-syllable consonant transition (partially closed lips with subtle teeth line)
       ctx.beginPath();
       ctx.ellipse(mx, my + 0.5, 10.5, 3.0, 0, 0, Math.PI * 2);
       ctx.fillStyle = "#4a1c20";
@@ -728,7 +994,6 @@ function drawMouthViseme(
     }
 
     case "smile": {
-      // Friendly expressive smile curve
       ctx.strokeStyle = lipColor;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -739,7 +1004,6 @@ function drawMouthViseme(
     }
 
     default: {
-      // Warm, approachable resting expression (subtle upward corner curve)
       ctx.strokeStyle = lipColor;
       ctx.lineWidth = 2.3;
       ctx.beginPath();
@@ -753,9 +1017,36 @@ function drawMouthViseme(
   ctx.restore();
 }
 
+function drawSpeakerPortraitByMode(
+  ctx: SKRSContext2D,
+  cx: number,
+  cy: number,
+  radius: number,
+  speaker: AvatarSpeaker,
+  anim: AvatarAnimationState,
+  isSpeaking: boolean,
+  accent: string,
+): void {
+  if (speaker.avatar?.mode === "photo" && speaker.photoImage) {
+    drawPhotoAvatarPortrait(
+      ctx,
+      cx,
+      cy,
+      radius,
+      speaker.photoImage,
+      speaker.avatar,
+      anim,
+      isSpeaking,
+      accent,
+    );
+  } else {
+    drawCharacterPortrait(ctx, cx, cy, radius, speaker.id, anim, isSpeaking, accent);
+  }
+}
+
 /**
- * Draws a stylized, studio-lit developer avatar badge into the video frame canvas.
- * Supports syllable-level facial animation and an optional co-host picture-in-picture badge.
+ * Draws a stylized developer avatar badge (either 3D-shaded illustrated rig or
+ * 2.5D animated photo portrait) into the video frame canvas.
  */
 export function drawAvatarBadge(
   ctx: SKRSContext2D,
@@ -784,10 +1075,8 @@ export function drawAvatarBadge(
     activeWordIndex: -1,
   };
 
-  // Draw primary speaker portrait
-  drawCharacterPortrait(ctx, cx, cy, radius, speaker.id, anim, isSpeaking, accent);
+  drawSpeakerPortraitByMode(ctx, cx, cy, radius, speaker, anim, isSpeaking, accent);
 
-  // If this is a duo conversation, draw the listening co-host in a small PiP badge
   if (options?.coSpeaker && options.coSpeaker.id !== speaker.id) {
     const pipRadius = 30;
     const pipCx = bounds.x + bounds.width - pipRadius - 4;
@@ -802,7 +1091,6 @@ export function drawAvatarBadge(
       voiceEnergy: 0,
       activeWordIndex: -1,
     };
-    // Dark separator ring behind PiP
     ctx.save();
     ctx.fillStyle = "#0b202a";
     ctx.beginPath();
@@ -810,19 +1098,18 @@ export function drawAvatarBadge(
     ctx.fill();
     ctx.restore();
 
-    drawCharacterPortrait(
+    drawSpeakerPortraitByMode(
       ctx,
       pipCx,
       pipCy,
       pipRadius,
-      options.coSpeaker.id,
+      options.coSpeaker,
       idleAnim,
       false,
       accent,
     );
   }
 
-  // Name pill below the circle with live audio indicator bars
   const pillY = bounds.y + bounds.height - 24;
   const pillWidth = bounds.width - 24;
   const pillHeight = 26;
@@ -840,7 +1127,6 @@ export function drawAvatarBadge(
   ctx.textBaseline = "middle";
   ctx.fillText(speaker.name.toUpperCase(), cx, pillY + pillHeight / 2);
 
-  // Subtle live equalizer bars inside the pill when speaking
   if (isSpeaking) {
     const barBaseX = pillX + 18;
     const barCenterY = pillY + pillHeight / 2;

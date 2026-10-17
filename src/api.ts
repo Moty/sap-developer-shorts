@@ -111,6 +111,73 @@ export async function handleApiRequest(
     return true;
   }
 
+  // GET /api/avatars
+  if (request.method === "GET" && path === "/api/avatars") {
+    try {
+      const { listCustomAvatars } = await import("./media/avatar.js");
+      const avatars = await listCustomAvatars();
+      sendJson(response, 200, { avatars });
+    } catch (error) {
+      sendJson(response, 500, { error: (error as Error).message });
+    }
+    return true;
+  }
+
+  // GET /api/avatars/:imageId
+  if (request.method === "GET" && path.startsWith("/api/avatars/")) {
+    try {
+      const imageId = decodeURIComponent(path.slice("/api/avatars/".length));
+      const { resolveAvatarPath } = await import("./media/avatar.js");
+      const { readFile } = await import("node:fs/promises");
+      const filePath = await resolveAvatarPath(imageId);
+      const bytes = await readFile(filePath);
+      const mime = imageId.endsWith(".webp")
+        ? "image/webp"
+        : imageId.endsWith(".jpg") || imageId.endsWith(".jpeg")
+          ? "image/jpeg"
+          : "image/png";
+      response.writeHead(200, {
+        "content-type": mime,
+        "content-length": bytes.length,
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      });
+      response.end(bytes);
+    } catch {
+      sendJson(response, 404, { error: "Avatar image not found" });
+    }
+    return true;
+  }
+
+  // POST /api/avatars
+  if (request.method === "POST" && path === "/api/avatars") {
+    try {
+      const body = (await readJsonBody(request, 6 * 1024 * 1024)) as {
+        name?: string;
+        dataUrl?: string;
+      };
+      if (!body.name || typeof body.name !== "string" || !body.dataUrl || typeof body.dataUrl !== "string") {
+        sendJson(response, 400, { error: "Avatar name and base64 image dataUrl are required" });
+        return true;
+      }
+      const match = /^data:image\/(?:png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=\s]+)$/iu.exec(
+        body.dataUrl.trim(),
+      );
+      const base64Payload = match ? (match[1] ?? "") : body.dataUrl.trim();
+      const buffer = Buffer.from(base64Payload, "base64");
+      const { saveCustomAvatar } = await import("./media/avatar.js");
+      const saved = await saveCustomAvatar(body.name, buffer);
+      sendJson(response, 201, {
+        imageId: saved.imageId,
+        sha256: saved.sha256,
+        url: `/api/avatars/${encodeURIComponent(saved.imageId)}`,
+      });
+    } catch (error) {
+      sendJson(response, 400, { error: (error as Error).message });
+    }
+    return true;
+  }
+
   // POST /api/audition
   if (request.method === "POST" && path === "/api/audition") {
     try {

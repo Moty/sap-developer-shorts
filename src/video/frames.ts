@@ -3,7 +3,7 @@ import { createCanvas, GlobalFonts, type SKRSContext2D } from "@napi-rs/canvas";
 import { hash } from "../digest.js";
 import { type ContentEpisode, type DemoEvidence, isNewsEpisode } from "../domain.js";
 import type { VideoLayout } from "../layout.js";
-import { drawAvatarBadge, resolveCueAnimation } from "../media/avatar.js";
+import { drawAvatarBadge, loadAvatarImage, resolveCueAnimation } from "../media/avatar.js";
 import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
@@ -439,6 +439,14 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   const speakerId = speaker?.id ?? "narrator";
   const isSpeaking = Boolean(cue && (!cue.speakerId || cue.speakerId === speaker?.id));
   const animation = resolveCueAnimation(cue, timeSeconds, isSpeaking, speakerId);
+  const speakerPhoto =
+    speaker?.avatar?.mode === "photo" && speaker.avatar.imageId
+      ? await loadAvatarImage(speaker.avatar.imageId)
+      : undefined;
+  const coSpeakerPhoto =
+    coSpeaker?.avatar?.mode === "photo" && coSpeaker.avatar.imageId
+      ? await loadAvatarImage(coSpeaker.avatar.imageId)
+      : undefined;
   drawAvatarBadge(
     ctx,
     badge,
@@ -446,6 +454,8 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       id: speakerId,
       name: speaker?.name ?? (isNewsEpisode(episode) ? "SAP" : "Host"),
       accentColor: accent,
+      ...(speaker?.avatar ? { avatar: speaker.avatar } : {}),
+      ...(speakerPhoto ? { photoImage: speakerPhoto } : {}),
     },
     animation.viseme,
     isSpeaking,
@@ -457,6 +467,8 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
               id: coSpeaker.id,
               name: coSpeaker.name,
               accentColor: accent,
+              ...(coSpeaker.avatar ? { avatar: coSpeaker.avatar } : {}),
+              ...(coSpeakerPhoto ? { photoImage: coSpeakerPhoto } : {}),
             },
           }
         : {}),
