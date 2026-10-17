@@ -4,7 +4,6 @@ import { isNewsEpisode } from "./domain.js";
 import type { LibraryContent, LibraryEntry } from "./library.js";
 import { auditionText, voiceSampleCard } from "./media/voice-audition.js";
 import { kokoroVoice, kokoroVoices } from "./media/voices.js";
-import { availabilityLabels } from "./news/contracts.js";
 import {
   decorateNewsReviewHtml,
   enhanceNewsReviewHtml,
@@ -12,6 +11,7 @@ import {
 } from "./news/freshness.js";
 import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationFormats, presentationLabel } from "./presentation.js";
+import { publishReview } from "./publish-review.js";
 import { escapeHtml as esc } from "./review.js";
 import { createScriptEditor } from "./script-editor.js";
 import {
@@ -66,41 +66,25 @@ function formatOption(format: (typeof presentationFormats)[number], entries: Lib
 
 function card(entry: LibraryEntry) {
   const { episode, preview } = entry;
+  const selector = episodeSelector(episode);
   const news = isNewsEpisode(episode);
-  const kind = news ? "news" : "tutorial";
-  const description = news ? episode.news.angle : episode.audience;
-  const status = studioReadiness(entry);
-  const visual = news
-    ? episode.claims
-        .slice(0, 3)
-        .map(
-          (claim, index) =>
-            `<div class="story-line"><span class="story-number">0${index + 1}</span><span>${esc(claim.text)}</span><small class="availability-tag ${claim.availability.status}">${availabilityLabels[claim.availability.status]}</small></div>`,
-        )
-        .join("")
-    : episode.scenes
-        .filter((scene) => scene.phase === "demo")
-        .map(
-          (scene, index) =>
-            `<div class="demo-line"><span>0${index + 1}</span><strong>${esc(scene.overlay)}</strong><i aria-hidden="true">↗</i></div>`,
-        )
-        .join("");
+  const version = episode.presentation?.variant ?? "Original";
+  const attention = studioReadiness(entry).attention;
   const search = [
-    episode.id,
+    selector,
     episode.title,
     presentationLabel(episode),
-    description,
-    episode.audience,
     recordedNarrator(entry),
-    ...episode.claims.map((claim) => claim.text),
     ...episode.scenes.map((scene) => scene.narration),
-  ].join(" ");
-  const firstScene = episode.scenes[0];
-  const hookSeconds = firstScene ? firstScene.endSeconds - firstScene.startSeconds : 0;
-  const hookOk = hookSeconds <= 3.5;
-  const pronunciationCount = Object.keys(episode.pronunciation ?? {}).length;
-  const qualityBadges = `<div class="quality-badges"><span class="q-badge ${hookOk ? "" : "warning"}" title="Hook Retention Target: ≤ 3.5s">⚡ Hook ${hookSeconds.toFixed(1)}s${hookOk ? " (optimal)" : " (tighten)"}</span><span class="q-badge" title="EBU R128 Broadcast Normalization (-16 LUFS)">🔊 -16 LUFS</span><span class="q-badge" title="Phonetic glossary terms mapped for clean speech">📖 ${pronunciationCount} ${pronunciationCount === 1 ? "rule" : "rules"}</span></div>`;
-  return `<article class="episode-card" data-kind="${kind}" data-search="${esc(search)}"><div class="episode-art ${kind}"><div class="art-label">${news ? esc(episode.news.event) : "BUILD · RUN · VERIFY"}<span>${news ? "NEWS BRIEF" : "DEVELOPER TUTORIAL"}</span></div>${visual}</div><div class="episode-body"><div class="card-topline"><span class="kind-label">${news ? "SAP news" : "Tutorial"}</span><span class="state ${status.attention ? "attention" : ""}">${esc(status.label)}</span></div><h3>${esc(episode.title)}</h3><p class="delivery-label">${esc(presentationLabel(episode))}</p><p class="recorded-voice">${esc(recordedNarrator(entry))}</p><p class="episode-description">${esc(description)}</p><div class="episode-facts"><span>${preview ? `${preview.durationSeconds.toFixed(1)}s ${preview.kind === "narrated" ? "measured" : "planned"}` : `${episode.targetDurationSeconds}s planned`}</span><span>${episode.sources.length} sources</span><span>${news ? `Checked ${dateLabel(episode.news.asOf)}` : preview ? `${episode.demo.expectedChecks.length} live demo checks` : "Demo check pending"}</span></div>${qualityBadges}${news ? newsReviewNotice(episode.news, entry.sourceReviewExpired) : ""}<div class="card-actions">${entry.video ? `<a class="review-link primary" href="${videoLinkFor(entry)}">Watch MP4 <span aria-hidden="true">↗</span></a>` : ""}<button type="button" class="review-link produce-card-btn" data-selector="${esc(episodeSelector(episode))}">${entry.video ? "Re-render MP4" : "Produce MP4"}</button>${preview ? `<a class="review-link" href="${linkFor(entry)}">Review preview <span aria-hidden="true">↗</span></a>` : '<span class="preview-pending">No matching preview yet</span>'}${entry.download ? `<a class="review-link" href="episodes/${encodeURIComponent(episodeSelector(episode))}/episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}<a class="review-link" href="episodes/${encodeURIComponent(episodeSelector(episode))}/edit.html">Revise script</a><span class="avatar-note">🎭 Avatar active</span></div><details class="source-details"><summary>Official sources <span>${episode.sources.length}</span></summary><ul>${episode.sources.map((source) => `<li><a href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.title)} ↗</a><small>Read ${dateLabel(source.retrievedOn)}</small></li>`).join("")}</ul></details></div></article>`;
+  ]
+    .join(" ")
+    .toLowerCase();
+  const prefix = `episodes/${encodeURIComponent(selector)}`;
+  return `<article class="episode-card work-row" data-selector="${esc(selector)}" data-kind="${news ? "news" : "tutorial"}" data-stage="${entry.video ? "review" : "editing"}" data-attention="${attention}" data-search="${esc(search)}">
+  <div class="work-thumbnail">${entry.video ? `<img src="${prefix}/video/poster.png" alt="" width="54" height="96" loading="lazy">` : `<span>${esc(episode.id.split("-")[0] ?? "SAP")}</span>`}</div>
+  <div class="work-title"><div class="work-meta"><span>${esc(episode.id)} · ${news ? "News" : "Tutorial"}</span><span class="version-name">${esc(version)}</span></div><h3>${esc(episode.title)}</h3><p>${esc(presentationLabel(episode))} · ${preview?.kind === "narrated" ? `${preview.durationSeconds.toFixed(1)}s recorded` : `${episode.targetDurationSeconds}s planned`}</p><p class="work-issue" data-work-issue ${attention ? "" : "hidden"}>${attention ? esc(studioReadiness(entry).label) : ""}</p></div>
+  <div class="work-state"><span class="stage-badge" data-work-stage>${entry.video ? "To review" : "Editing"}</span><small data-work-next>${entry.video ? "Video produced · awaiting your review" : "Script saved · video not produced"}</small></div>
+  <div class="work-actions"><a class="primary-action" data-work-action href="${prefix}/${entry.video ? "publish.html" : "edit.html"}">${entry.video ? "Review video" : "Continue editing"}</a><details class="work-more"><summary aria-label="More actions for ${esc(selector)}">More</summary><div><a href="${prefix}/edit.html">Edit a new version</a>${entry.video ? `<a href="${videoLinkFor(entry)}">Watch MP4</a>` : ""}${preview ? `<a href="${linkFor(entry)}">Review preview</a>` : ""}<button type="button" class="produce-card-btn" data-selector="${esc(selector)}">${entry.video ? "Re-render MP4" : "Produce saved script"}</button>${entry.download ? `<a href="${prefix}/episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}<span>${esc(recordedNarrator(entry))}</span>${!preview ? "<span>No matching preview yet · No recording yet</span>" : ""}${news ? newsReviewNotice(episode.news, entry.sourceReviewExpired) : ""}</div></details></div></article>`;
 }
 
 function comparisonSection(entries: LibraryEntry[]) {
@@ -142,8 +126,6 @@ export async function createLibraryPages(
     readFile(resolve(projectRoot, "templates/library.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/library.js"), "utf8"),
   ]);
-  const narrated = entries.filter((entry) => entry.preview?.kind === "narrated").length;
-  const ready = entries.filter((entry) => entry.preview).length;
   const videos = entries.filter((entry) => entry.video).length;
   const newsCount = entries.filter((entry) => isNewsEpisode(entry.episode)).length;
   const newsIdeas = newsTopics
@@ -152,16 +134,28 @@ export async function createLibraryPages(
   const tutorialIdeas = topics.filter(
     (topic) => !entries.some((entry) => entry.episode.id === topic.id),
   );
-  const latestNews = entries.find((entry) => isNewsEpisode(entry.episode) && entry.preview);
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">`;
-  const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Review studio</title><style>${css}</style></head><body>
-<a class="skip-link" href="#episodes">Skip to episodes</a>
-<aside id="studio-produce-banner" class="studio-produce-banner" hidden aria-live="polite"><div class="banner-content"><strong id="studio-produce-title">Producing video...</strong><p id="studio-produce-message"></p><div class="studio-progress-bar"><div id="studio-produce-progress" class="studio-progress-fill"></div></div></div></aside>
-<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>REVIEW STUDIO</small></span></a><div class="nav-caption">YOUR WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" href="#episodes"><span aria-hidden="true">▦</span> Episodes <small>${entries.length}</small></a><a href="#styles"><span aria-hidden="true">✦</span> Delivery styles</a><a href="#voices"><span aria-hidden="true">♫</span> Narrators</a><a href="#ideas"><span aria-hidden="true">✧</span> Next ideas <small>${newsIdeas.length + tutorialIdeas.length}</small></a><a href="#production"><span aria-hidden="true">◷</span> Production</a></nav><div class="nav-bottom"><span class="local-dot"></span>Local previews<small>Review the story before the final video.</small></div></aside>
-<main class="studio-main"><header class="studio-header"><span>Your content workspace</span><span class="workspace-status"><i></i> Editorial drafts</span></header><section class="studio-intro"><div><p class="eyebrow">SAP KNOWLEDGE, ONE SHORT AT A TIME</p><h1>Demos and news.<br>One place to review.</h1><p>Compare each short, review its sources, and choose a delivery style for your audience.</p>${latestNews ? `<a class="hero-link" href="${linkFor(latestNews)}">Review the SAP news brief <span aria-hidden="true">↗</span></a>` : ""}</div><div class="studio-summary"><span class="eyebrow">ON YOUR DESK</span><div><b>${ready}</b><span>episode previews</span></div><div><b>${narrated}</b><span>with timed narration</span></div><p>${videos ? `${videos} verified MP4 export${videos === 1 ? "" : "s"}<br>Animated talking-head avatars active` : "Local voice · timed captions<br>Animated talking-head avatars active"}</p></div></section>
-${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}\n<section id="episodes" class="episodes-section"><div class="section-heading"><div><p class="eyebrow">YOUR EPISODES</p><h2>Ready for a closer look</h2></div><span class="section-note">${entries.length} editorial drafts</span></div><div class="library-tools" data-enhancement-only hidden><div class="format-filters" role="group" aria-label="Episode format"><button type="button" data-format="all" aria-pressed="true">All <span>${entries.length}</span></button><button type="button" data-format="tutorial" aria-pressed="false">Tutorials <span>${entries.length - newsCount}</span></button><button type="button" data-format="news" aria-pressed="false">News <span>${newsCount}</span></button></div><div class="episode-search"><label for="episode-search"><span aria-hidden="true">⌕</span><span class="sr-only">Search episodes</span></label><input id="episode-search" type="search" placeholder="Search episodes…" autocomplete="off"><button type="button" id="clear-search" aria-label="Clear search" hidden>×</button></div></div><p class="sr-only" id="filter-status" role="status">${entries.length} episodes</p><div class="episode-grid">${entries.map(card).join("")}</div><div id="no-episodes" class="empty-library" ${entries.length ? "hidden" : ""}><h3>No matching episodes</h3><p>Try another search or choose All.</p><button type="button" id="reset-filters">Reset filters</button></div></section>
-<section id="formats" class="formats-section"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Storytelling formats</h2></div></div><p class="styles-intro">Set the tone to professional, casual, or comic. Explore prepared examples below; new deliveries start with a reviewed script.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section"><div class="section-heading"><div><p class="eyebrow">THE NEXT CONVERSATION</p><h2>Ideas to explore next</h2></div><span class="section-note">Editorial selection · research pending</span></div><div class="ideas-list">${newsIdeas.map((topic, index) => `<details class="idea"><summary><span class="idea-number">${String(index + 1).padStart(2, "0")}</span><span><strong>${esc(topic.title)}</strong><small>${esc(topic.event)}</small></span><span class="research-tag">Research needed</span><span aria-hidden="true">+</span></summary><div class="idea-body"><p>${esc(topic.angle)}</p><p class="idea-sources">Start with ${topic.sourceUrls.map((url, i) => `<a href="${esc(url)}" target="_blank" rel="noreferrer">SAP source ${i + 1} ↗</a>`).join(" · ")}</p></div></details>`).join("")}</div><details class="tutorial-backlog"><summary>Explore ${tutorialIdeas.length} more tutorial ideas <span aria-hidden="true">+</span></summary><div>${tutorialIdeas.map((topic) => `<article><span>${esc(topic.pillar)}</span><h3>${esc(topic.title)}</h3><p>Research and environment verification needed.</p></article>`).join("")}</div></details></section>
-<section id="production" class="production-section"><div><p class="eyebrow">YOUR NEXT SHORT</p><h2>Create, watch, refine.</h2><p>Local narration, captions, and MP4 export are available. Review the saved video and companion draft before sharing.</p></div><div class="production-facts"><div><span>Presenter</span><strong>Animated talking-head avatars</strong></div><div><span>First-video limit</span><strong>$${(content.budgetCents / 100).toFixed(2)}</strong></div><div><span>Current output</span><strong>${videos ? "Local voice + MP4 exports" : "Local voice previews"}</strong></div><p>${videos ? "Animated talking-head avatars active in MP4 exports." : "Animated talking-head avatars active in MP4 exports."}</p></div></section><footer class="studio-footer"><span>SAP Shorts / Your review workspace</span><span>Saved library · rebuild to include new episodes</span></footer></main></div><script>${script}</script></body></html>`;
+  const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Workspace</title><style>${css}</style></head><body class="workflow-studio">
+<a class="skip-link" href="#episodes">Skip to workspace</a>
+<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" href="#episodes">My shorts <small>${entries.length}</small></a><a href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length}</small></a><a href="#styles">Delivery styles</a><a href="#voices">Voice library</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
+<main class="studio-main"><header class="workspace-heading"><div><p class="eyebrow">YOUR CONTENT, FROM IDEA TO PUBLISHED</p><h1>My shorts</h1><p>Pick up a draft, review a video, or get your next short out into the world.</p></div><a class="secondary-action" href="#ideas">Explore ideas ↗</a></header>
+<aside id="studio-produce-banner" class="studio-produce-banner" hidden aria-live="polite"><div class="banner-content"><strong id="studio-produce-title">Producing video…</strong><p id="studio-produce-message"></p><div class="studio-progress-bar"><div id="studio-produce-progress" class="studio-progress-fill"></div></div><a id="studio-job-link" href="#episodes">Open working version</a></div></aside>
+<section id="episodes" class="episodes-section"><div class="pipeline-tabs" role="group" aria-label="Filter by stage"><button type="button" data-stage-filter="all" aria-pressed="true">All shorts <b>${entries.length}</b></button>${[
+    ["editing", "Editing", entries.length - videos],
+    ["producing", "Producing", 0],
+    ["review", "To review", videos],
+    ["publish", "To publish", "—"],
+    ["published", "Published", "—"],
+  ]
+    .map(
+      ([stage, label, count]) =>
+        `<button type="button" data-stage-filter="${stage}" aria-pressed="false">${label} <b data-stage-count="${stage}">${count}</b></button>`,
+    )
+    .join("")}</div>
+<div class="library-tools" data-enhancement-only hidden><div class="episode-search"><label for="episode-search"><span class="sr-only">Search episodes</span></label><input id="episode-search" type="search" placeholder="Search titles, versions or scripts…" autocomplete="off"><button type="button" id="clear-search" aria-label="Clear search" hidden>×</button></div><div class="format-filters" role="group" aria-label="Episode format"><button type="button" data-format="all" aria-pressed="true">All types</button><button type="button" data-format="tutorial" aria-pressed="false">Tutorials <span>${entries.length - newsCount}</span></button><button type="button" data-format="news" aria-pressed="false">News <span>${newsCount}</span></button></div><label class="attention-filter"><input type="checkbox" id="attention-filter"> Needs attention</label></div>
+<div class="list-caption"><p id="filter-status" role="status">${new Set(entries.map((entry) => entry.episode.id)).size} topics · ${entries.length} versions</p><span id="workflow-sync" role="status">Saved library · connecting to live status…</span></div><div class="episode-grid">${entries.map(card).join("")}</div><div id="no-episodes" class="empty-library" ${entries.length ? "hidden" : ""}><h3>No shorts in this view</h3><p>Choose another stage or clear your filters. Ideas are in the separate backlog below.</p><button type="button" id="reset-filters">Show all shorts</button></div></section>
+<div class="workspace-resources"><section id="formats" class="formats-section"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Storytelling formats</h2></div></div><p class="styles-intro">Set the tone to professional, casual, or comic. Explore prepared examples below; new deliveries start with a reviewed script.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section"><div class="section-heading"><div><p class="eyebrow">THE NEXT CONVERSATION</p><h2>Ideas to explore next</h2></div><span class="section-note">Editorial selection · research pending</span></div><div class="ideas-list">${newsIdeas.map((topic, index) => `<details class="idea"><summary><span class="idea-number">${String(index + 1).padStart(2, "0")}</span><span><strong>${esc(topic.title)}</strong><small>${esc(topic.event)}</small></span><span class="research-tag">Research needed</span><span aria-hidden="true">+</span></summary><div class="idea-body"><p>${esc(topic.angle)}</p><p class="idea-sources">Start with ${topic.sourceUrls.map((url, i) => `<a href="${esc(url)}" target="_blank" rel="noreferrer">SAP source ${i + 1} ↗</a>`).join(" · ")}</p></div></details>`).join("")}</div><details class="tutorial-backlog"><summary>Explore ${tutorialIdeas.length} more tutorial ideas <span aria-hidden="true">+</span></summary><div>${tutorialIdeas.map((topic) => `<article><span>${esc(topic.pillar)}</span><h3>${esc(topic.title)}</h3><p>Research and environment verification needed.</p></article>`).join("")}</div></details></section>
+${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}</div><footer class="studio-footer"><span>SAP Shorts / Local creator studio</span><span>Produced videos need review. Publication is recorded with a post link.</span></footer></main></div><script>${script}</script></body></html>`;
   const files: Record<string, string | Buffer> = { "review.html": enhanceNewsReviewHtml(html) };
   for (const sample of content.voiceCatalog?.samples ?? [])
     files[`voices/${sample.key}/sample.wav`] = sample.audio;
@@ -189,6 +183,9 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}\n<section id=
             )
           : bytes;
     if (entry.video) {
+      files[`${prefix}/publish.html`] = enhanceNewsReviewHtml(
+        publishReview(entry, css, script, head),
+      );
       for (const [name, bytes] of Object.entries(entry.video.files)) {
         const copied =
           name === "review.html"
@@ -196,7 +193,7 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}\n<section id=
                 .toString("utf8")
                 .replace(
                   "<!--LIBRARY_BACK-->",
-                  `<p><a href="../../../review.html${studioReturnFragment(entry)}">← All episodes and styles</a></p><p class="note">${esc(comparisonLabel(entry))} · ${esc(recordedNarrator(entry))} · ${entry.preview.durationSeconds.toFixed(1)} seconds</p>${entry.sourceReviewExpired ? '<p class="note"><strong>Saved export · sources need rechecking.</strong> Re-read the official sources before producing or sharing a current news brief.</p>' : ""}`,
+                  `<p><a href="../../../review.html${studioReturnFragment(entry)}">← All episodes and styles</a></p><p><a href="../publish.html">Review &amp; publish this video →</a></p><p class="note">${esc(comparisonLabel(entry))} · ${esc(recordedNarrator(entry))} · ${entry.preview.durationSeconds.toFixed(1)} seconds</p>${entry.sourceReviewExpired ? '<p class="note"><strong>Saved export · sources need rechecking.</strong> Re-read the official sources before producing or sharing a current news brief.</p>' : ""}`,
                 )
                 .replace(
                   '<div class="links">',

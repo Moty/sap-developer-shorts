@@ -761,3 +761,305 @@ footer {
   background: transparent;
   accent-color: #245d4b;
 }
+/* Guided editor keeps writing, presenter setup and production separate. */
+.guided-editor main {
+  max-width: 1180px;
+  padding: 28px 32px 120px;
+}
+.guided-editor header {
+  margin-bottom: 24px;
+}
+.guided-editor header h1 {
+  font-size: clamp(25px, 3vw, 36px);
+  max-width: 850px;
+  letter-spacing: -1px;
+}
+.guided-editor header p {
+  max-width: 760px;
+}
+.guided-editor .delivery {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.editor-steps {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0 20px;
+  margin-bottom: 20px;
+  position: sticky;
+  top: 0;
+  background: #f5f7ef;
+  z-index: 8;
+}
+.editor-steps button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  border: 1px solid #d5decf;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #536b5c;
+  background: #fff;
+  min-height: 48px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.editor-steps button span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #eef2e8;
+  font-size: 12px;
+}
+.editor-steps button[aria-current="step"] {
+  border-color: #2d5c46;
+  background: #2d5c46;
+  color: white;
+}
+.editor-steps button[aria-current="step"] span {
+  background: #ffffff20;
+}
+.guided-editor .editor-layout {
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 24px;
+}
+.guided-editor .editor-layout > aside {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.guided-editor .editor-reference {
+  padding: 18px;
+  border: 1px solid #d6dece;
+  border-radius: 10px;
+  background: #fafbf6;
+}
+.editor-reference > summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 28px;
+}
+.guided-editor .editor-reference p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.guided-editor .scene-editor,
+.guided-editor .draft-details,
+.guided-editor .download-panel {
+  border-radius: 12px;
+  padding: 24px;
+}
+.guided-editor [data-editor-pane][hidden] {
+  display: none;
+}
+.guided-editor .scene-heading h2 {
+  font-size: 20px;
+  scroll-margin-top: 100px;
+}
+.guided-editor textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.guided-editor .scene-visual {
+  font-size: 12px;
+}
+.editor-scene-index {
+  margin-top: 24px;
+  padding: 0 16px;
+}
+.editor-scene-index h3 {
+  font-size: 12px;
+  color: #63775f;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.editor-scene-index a {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+  border-bottom: 1px solid #dce3d6;
+  text-decoration: none;
+}
+.guided-editor .editor-scene-index a span {
+  font-size: 11px;
+  color: #6c7d64;
+}
+.guided-editor .speaker-config-row {
+  display: block;
+}
+.guided-editor .speaker-avatar-preview {
+  display: none;
+}
+.guided-editor .avatar-photo-layout {
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 20px;
+}
+.guided-editor .avatar-lipsync-canvas {
+  max-width: 180px;
+  height: auto;
+}
+.guided-editor .avatar-canvas-wrap {
+  align-self: start;
+}
+.manual-calibration {
+  margin-top: 16px;
+  font-size: 13px;
+}
+.manual-calibration summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.editor-actionbar {
+  position: fixed;
+  z-index: 20;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 16px max(24px, calc((100vw - 1116px) / 2));
+  background: #fff;
+  border-top: 1px solid #d3ddcc;
+  box-shadow: 0 -4px 20px #27432d08;
+}
+.editor-actionbar > div {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #355642;
+}
+.editor-actionbar small {
+  display: block;
+  font-size: 11px;
+  margin-top: 4px;
+  color: #7b5a24;
+}
+.editor-actionbar button {
+  white-space: nowrap;
+  min-height: 46px;
+  font: inherit;
+  font-size: 13px;
+  padding: 12px 18px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.guided-editor .draft-recovery {
+  font-size: 13px;
+  padding: 14px 18px;
+}
+.guided-editor .draft-recovery .recovery-help {
+  margin: 4px 0;
+  font-size: 11px;
+}
+.guided-editor .draft-recovery p {
+  margin-block: 4px;
+}
+.guided-editor .glossary-section,
+.guided-editor .audition-sandbox {
+  margin-top: 20px;
+}
+.guided-editor .glossary-item {
+  flex-wrap: wrap;
+}
+@media (max-width: 800px) {
+  .guided-editor main {
+    padding: 20px 16px 150px;
+  }
+  .guided-editor .editor-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .guided-editor .editor-layout > div {
+    min-width: 0;
+  }
+  .guided-editor .editor-layout > aside {
+    order: -1;
+    width: 100%;
+  }
+  .guided-editor .editor-scene-index {
+    display: none;
+  }
+  .guided-editor .editor-layout > aside > [data-editor-pane="voice"] {
+    padding: 0 12px;
+  }
+  .editor-steps {
+    gap: 6px;
+    margin-inline: -4px;
+    padding-bottom: 12px;
+  }
+  .editor-steps button {
+    padding: 10px 8px;
+    font-size: 12px;
+    gap: 6px;
+    text-align: left;
+  }
+  .editor-steps button span {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .guided-editor .scene-editor,
+  .guided-editor .draft-details,
+  .guided-editor .download-panel {
+    padding: 18px;
+  }
+  .guided-editor .scene-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .guided-editor .avatar-photo-layout {
+    grid-template-columns: 1fr;
+  }
+  .guided-editor .avatar-canvas-wrap {
+    justify-self: center;
+  }
+  .editor-actionbar {
+    flex-wrap: wrap;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  .guided-editor .editor-actionbar > div {
+    flex-basis: 100%;
+  }
+  .editor-actionbar button {
+    flex: 1;
+  }
+  .guided-editor .voice-editor {
+    overflow: hidden;
+  }
+}
+
+.pronunciation-tools {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #d6dece;
+  border-radius: 10px;
+}
+.pronunciation-tools > summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 28px;
+}
+.guided-editor .audition-btn,
+.guided-editor .audition-term-btn,
+.guided-editor .remove-term-btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+@media (max-width: 800px) {
+  .guided-editor[data-editor-step="voice"] .editor-layout > aside {
+    order: 1;
+  }
+}

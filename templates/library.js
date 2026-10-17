@@ -1,4 +1,119 @@
 (() => {
+  const release = document.querySelector("#release-review");
+  if (release) {
+    const node = (id) => document.getElementById(id);
+    let current = null;
+    let busy = false;
+    function render(state) {
+      current = state;
+      release.dataset.stage = state.stage;
+      node("release-state").textContent = state.label;
+      node("approve-video").disabled =
+        busy ||
+        state.reviewBlocked ||
+        !node("review-confirmed").checked ||
+        !!state.record?.reviewedAt;
+      node("record-publication").disabled =
+        busy || state.reviewBlocked || !state.record?.reviewedAt;
+      node("reopen-review").hidden = !state.record?.reviewedAt;
+      node("reopen-review").disabled = busy;
+      const publication = state.record?.publication;
+      node("publication-record").hidden = !publication;
+      if (publication) {
+        const link = document.createElement("a");
+        link.textContent = "Open published post ↗";
+        link.href = publication.url;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        node("publication-record").replaceChildren(
+          link,
+          document.createTextNode(
+            ` · Recorded ${new Date(publication.recordedAt).toLocaleDateString()}`,
+          ),
+        );
+        node("publication-url").value = publication.url;
+      }
+      node("release-message").textContent = state.reviewBlocked
+        ? state.issue
+        : state.stage === "published"
+          ? "Publication recorded on this Mac. You can revisit the live post below."
+          : state.stage === "publish"
+            ? "Approved. Download your video, publish it on your channel, then save the post link."
+            : "Video produced. Your final review is the next step.";
+    }
+    async function change(action) {
+      busy = true;
+      if (current) render(current);
+      node("release-message").textContent = "Saving…";
+      try {
+        const response = await fetch("/api/workflow", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            selector: release.dataset.selector,
+            renderKey: release.dataset.renderKey,
+            action,
+            reviewed: node("review-confirmed").checked,
+            url: node("publication-url").value.trim(),
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not save this change.");
+        busy = false;
+        render(data);
+      } catch (error) {
+        busy = false;
+        if (current) render(current);
+        node("release-message").textContent = error.message;
+      }
+    }
+    node("review-confirmed").addEventListener("change", () => {
+      if (current) render(current);
+    });
+    node("approve-video").addEventListener("click", () => change("approve"));
+    node("record-publication").addEventListener("click", () => {
+      if (!node("publication-url").value.trim() || !node("publication-url").reportValidity()) {
+        node("release-message").textContent =
+          "Paste the live post URL before recording publication.";
+        node("publication-url").focus();
+        return;
+      }
+      change("publish");
+    });
+    node("reopen-review").addEventListener("click", () => change("reopen"));
+    node("copy-post").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(node("release-post").value);
+        node("release-message").textContent = "Companion post copied.";
+      } catch {
+        node("release-post").focus();
+        node("release-post").select();
+        node("release-message").textContent = "Select and copy the post text above.";
+      }
+    });
+    fetch("/api/workflow")
+      .then(async (response) => {
+        if (!response.ok)
+          throw new Error(
+            "Review status is unavailable. Open this page from the running local studio to save progress.",
+          );
+        const data = await response.json();
+        const state = data.episodes.find((entry) => entry.selector === release.dataset.selector);
+        if (!state)
+          throw new Error(
+            "This version is no longer in the current studio. Return to the workspace.",
+          );
+        if (state.renderKey !== release.dataset.renderKey)
+          throw new Error(
+            "A newer video is available. Return to the workspace and open its review.",
+          );
+        render(state);
+      })
+      .catch((error) => {
+        node("release-message").textContent = error.message;
+      });
+    return;
+  }
   const choices = [...document.querySelectorAll("[data-style-choice]")];
   const panels = [...document.querySelectorAll("[data-comparison-panel]")];
   function chooseStyle() {
@@ -34,6 +149,13 @@
   const status = document.querySelector("#filter-status");
   const empty = document.querySelector("#no-episodes");
   let format = "all";
+  let stage = "all";
+  const stageButtons = [...document.querySelectorAll("[data-stage-filter]")];
+  const attentionFilter = document.querySelector("#attention-filter");
+  if (typeof window.location.href === "string") {
+    const requested = new URL(window.location.href).searchParams.get("stage");
+    if (stageButtons.some((button) => button.dataset.stageFilter === requested)) stage = requested;
+  }
 
   function update() {
     const terms = input.value.trim().toLowerCase().split(/\s+/u).filter(Boolean);
@@ -41,16 +163,29 @@
     for (const card of cards) {
       const matches =
         (format === "all" || card.dataset.kind === format) &&
+        (stage === "all" || card.dataset.stage === stage) &&
+        (!attentionFilter?.checked || card.dataset.attention === "true") &&
         terms.every((term) => card.dataset.search.includes(term));
       card.hidden = !matches;
       if (matches) visible++;
     }
     for (const button of buttons)
       button.setAttribute("aria-pressed", String(button.dataset.format === format));
+    for (const button of stageButtons)
+      button.setAttribute("aria-pressed", String(button.dataset.stageFilter === stage));
     clear.hidden = !input.value;
     empty.hidden = visible !== 0;
-    status.textContent = `${visible} ${visible === 1 ? "episode" : "episodes"}`;
+    status.textContent = `${visible} ${visible === 1 ? "version" : "versions"}`;
   }
+  for (const button of stageButtons)
+    button.addEventListener("click", () => {
+      stage = button.dataset.stageFilter;
+      const url = new URL(window.location.href);
+      url.searchParams.set("stage", stage);
+      window.history.replaceState(null, "", url);
+      update();
+    });
+  attentionFilter?.addEventListener("change", update);
   for (const button of buttons)
     button.addEventListener("click", () => {
       format = button.dataset.format;
@@ -64,6 +199,13 @@
   });
   document.querySelector("#reset-filters").addEventListener("click", () => {
     format = "all";
+    stage = "all";
+    if (attentionFilter) attentionFilter.checked = false;
+    if (typeof window.location.href === "string") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("stage");
+      window.history.replaceState(null, "", url);
+    }
     input.value = "";
     update();
     input.focus();
@@ -75,6 +217,78 @@
   const title = document.querySelector("#studio-produce-title");
   const msg = document.querySelector("#studio-produce-message");
   const progressFill = document.querySelector("#studio-produce-progress");
+  let lastActiveJob = null;
+  async function refreshWorkflow() {
+    const sync = document.querySelector("#workflow-sync");
+    try {
+      const response = await fetch("/api/workflow");
+      if (!response.ok) throw new Error("Status unavailable");
+      const data = await response.json();
+      for (const card of cards) {
+        const state = data.episodes.find((entry) => entry.selector === card.dataset.selector);
+        if (!state) continue;
+        card.dataset.stage = state.stage;
+        card.dataset.attention = String(state.attention);
+        card.querySelector("[data-work-stage]").textContent = state.label;
+        const next = {
+          editing: "Script saved · continue when ready",
+          producing: "Running on this Mac",
+          review: "Video produced · awaiting your review",
+          publish: "Approved · ready to post",
+          published: "Live post link recorded",
+        };
+        card.querySelector("[data-work-next]").textContent = next[state.stage];
+        const issue = card.querySelector("[data-work-issue]");
+        if (state.issue) {
+          issue.hidden = false;
+          issue.textContent = state.issue;
+        }
+        const action = card.querySelector("[data-work-action]");
+        if (["review", "publish", "published"].includes(state.stage)) {
+          action.textContent =
+            state.stage === "review"
+              ? "Review video"
+              : state.stage === "publish"
+                ? "Finish publishing"
+                : "View publication";
+          action.href = `episodes/${encodeURIComponent(state.selector)}/publish.html`;
+        }
+        if (state.stage === "producing") {
+          action.textContent = "View progress";
+          action.href = "#studio-produce-banner";
+        }
+      }
+      for (const count of document.querySelectorAll("[data-stage-count]"))
+        count.textContent = String(
+          cards.filter((card) => card.dataset.stage === count.dataset.stageCount).length,
+        );
+      const job = data.activeJob;
+      if (job && banner) {
+        banner.hidden = false;
+        title.textContent = `Producing ${job.selector}`;
+        updateProgress(job.stage, job.message);
+        const link = document.querySelector("#studio-job-link");
+        if (link) link.href = `episodes/${encodeURIComponent(job.selector)}/edit.html`;
+      } else if (lastActiveJob) {
+        // A successful render swaps the served library; load its new video links.
+        window.location.reload();
+        return;
+      }
+      lastActiveJob = job?.id ?? null;
+      if (sync) sync.textContent = "Live status · saved on this Mac";
+      update();
+    } catch {
+      if (sync)
+        sync.textContent =
+          "Live status unavailable · showing last known state. Reopen the local studio to sync.";
+    }
+  }
+  if (typeof fetch === "function") {
+    void refreshWorkflow();
+    setInterval(() => {
+      if (!document.hidden) void refreshWorkflow();
+    }, 5000);
+  }
 
   function updateProgress(stage, message) {
     if (msg) msg.textContent = `${stage}: ${message || ""}`;
@@ -96,6 +310,7 @@
       try {
         const payload = JSON.parse(e.data);
         updateProgress(payload.stage, payload.message);
+        if (["READY", "FAILED", "BLOCKED"].includes(payload.stage)) completeProduction(e);
       } catch {}
     });
     sse.addEventListener("progress", (e) => {
@@ -104,7 +319,7 @@
         updateProgress(payload.stage, payload.message);
       } catch {}
     });
-    sse.addEventListener("complete", (e) => {
+    function completeProduction(e) {
       sse.close();
       let payload = {};
       try {
@@ -131,13 +346,15 @@
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-    });
-    sse.addEventListener("error", () => {
-      sse.close();
-      btn.disabled = false;
-      btn.textContent = originalText;
-      if (title) title.textContent = `Production failed for ${selector}`;
-      if (msg) msg.textContent = "An error occurred during production. Check server logs.";
+    }
+    sse.addEventListener("complete", completeProduction);
+    sse.addEventListener("error", (e) => {
+      if (!e.data) {
+        if (msg)
+          msg.textContent = "Connection lost. Production may still be running; reconnecting…";
+        return;
+      }
+      completeProduction(e);
     });
   }
 

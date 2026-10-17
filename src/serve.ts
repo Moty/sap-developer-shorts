@@ -28,6 +28,7 @@ export async function startPreviewServer(
     if (url.pathname.startsWith("/api/")) {
       const handled = await handleApiRequest(request, response, url, {
         ...apiOptions,
+        libraryDirectory: () => root,
         onLibraryUpdated: async (newDirectory) => {
           try {
             root = await realpath(newDirectory);

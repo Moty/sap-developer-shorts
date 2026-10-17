@@ -99,3 +99,92 @@ test("the actual studio script restores default and explicit styles through brow
   listeners.get("hashchange")?.();
   assert.deepEqual(selected(), ["compare-CAP-01--duo"]);
 });
+
+test("production reconnects without claiming failure and handles a completed status replay", async () => {
+  type Event = { data?: string; target?: { closest(): unknown }; preventDefault?(): void };
+  type Listener = (event: Event) => void;
+  const nodes = new Map<
+    string,
+    {
+      value: string;
+      hidden: boolean;
+      textContent: string;
+      disabled: boolean;
+      style: { width: string };
+      focus(): void;
+      addEventListener(): void;
+    }
+  >();
+  for (const id of [
+    "#episode-search",
+    "#clear-search",
+    "#filter-status",
+    "#no-episodes",
+    "#reset-filters",
+    "[data-enhancement-only]",
+    "#studio-produce-banner",
+    "#studio-produce-title",
+    "#studio-produce-message",
+    "#studio-produce-progress",
+    "#workflow-sync",
+  ])
+    nodes.set(id, {
+      value: "",
+      hidden: false,
+      textContent: "",
+      disabled: false,
+      style: { width: "" },
+      focus() {},
+      addEventListener() {},
+    });
+  const listeners = new Map<string, Listener>();
+  const events = new Map<string, Listener>();
+  let closed = false;
+  let reloaded = false;
+  const button = {
+    dataset: { selector: "CAP-01" },
+    disabled: false,
+    textContent: "Produce saved script",
+  };
+  runInNewContext(await readFile(resolve(projectRoot, "templates/library.js"), "utf8"), {
+    document: {
+      hidden: true,
+      querySelector: (selector: string) => nodes.get(selector),
+      querySelectorAll: () => [],
+      addEventListener: (name: string, callback: Listener) => listeners.set(name, callback),
+    },
+    window: {
+      location: {
+        hash: "",
+        reload() {
+          reloaded = true;
+        },
+      },
+      addEventListener() {},
+    },
+    fetch: async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () =>
+        url === "/api/workflow" ? { episodes: [], activeJob: null } : { jobId: "fixture" },
+    }),
+    EventSource: class {
+      addEventListener(name: string, callback: Listener) {
+        events.set(name, callback);
+      }
+      close() {
+        closed = true;
+      }
+    },
+    setTimeout: (callback: () => void) => callback(),
+    setInterval() {},
+  });
+  listeners.get("click")?.({ target: { closest: () => button }, preventDefault() {} });
+  await new Promise<void>((done) => setImmediate(done));
+  events.get("error")?.({});
+  assert.equal(closed, false, "network interruption must permit EventSource reconnection");
+  assert.match(nodes.get("#studio-produce-message")?.textContent ?? "", /may still be running/);
+  events.get("status")?.({ data: JSON.stringify({ stage: "READY", report: { stage: "READY" } }) });
+  assert.equal(closed, true);
+  assert.equal(reloaded, true, "replayed terminal status must expose the finished library");
+});

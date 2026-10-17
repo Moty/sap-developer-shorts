@@ -10,6 +10,31 @@
   const download = byId("download-script");
   const status = byId("download-status");
   let reviewedDraft = "";
+  let savedSnapshot = null;
+  let saving = false;
+  let editorStep = "script";
+  const guided = typeof document.querySelectorAll === "function";
+  function showStep(step, scroll = false) {
+    if (!guided) return;
+    editorStep = step;
+    document.body.dataset.editorStep = step;
+    for (const pane of document.querySelectorAll("[data-editor-pane]"))
+      pane.hidden = pane.dataset.editorPane !== step;
+    for (const button of document.querySelectorAll("[data-editor-step]")) {
+      if (button.dataset.editorStep === step) button.setAttribute("aria-current", "step");
+      else button.removeAttribute("aria-current");
+    }
+    byId("editor-next").textContent =
+      step === "script"
+        ? "Next: Voice & portrait"
+        : step === "voice"
+          ? "Next: Review & produce"
+          : "Back to script";
+    if (scroll)
+      document
+        .querySelector(".editor-steps")
+        .scrollIntoView({ block: "start", behavior: "instant" });
+  }
   const recoveryLimit = 128 * 1024;
   const fieldIds = ["variant-name", "draft-title", "publication-text"];
   for (const [index] of seed.presentation.speakers.entries())
@@ -525,10 +550,20 @@
       `${total} spoken words · ${scenes.at(-1).endSeconds}s planned · not yet recorded`;
     byId("draft-errors").textContent = errors.length
       ? errors.join(" ")
-      : "Ready to download for import and validation.";
+      : "Ready to save a draft or produce a video.";
     byId("produce-command").textContent =
       `npm run shorts -- produce ${draft.baseEpisodeId}@${draft.presentation.variant} --serve`;
     download.disabled = !!errors.length;
+    if (guided) {
+      byId("editor-validation-state").textContent = errors.length
+        ? `${errors.length} ${errors.length === 1 ? "item" : "items"} to fix · see Review & produce`
+        : "Draft checked · timing measured during production";
+      if (!saving)
+        byId("editor-save-state").textContent =
+          savedSnapshot && savedSnapshot.signature === JSON.stringify(draft)
+            ? `Saved on this Mac · ${savedSnapshot.selector}`
+            : "Unsaved changes · Save draft to keep this version";
+    }
     reviewChanges(draft);
     saveRecovery();
     return { draft, errors };
@@ -564,6 +599,79 @@
   const progressText = byId("produce-progress-text");
   const produceResult = byId("produce-result");
 
+  function nextSnapshot() {
+    let result = readDraft();
+    if (
+      savedSnapshot &&
+      savedSnapshot.signature !== JSON.stringify(result.draft) &&
+      savedSnapshot.name === result.draft.presentation.variant
+    ) {
+      let number = 2;
+      let name;
+      do {
+        name = `${savedSnapshot.name.replace(/-\d+$/u, "").slice(0, 27)}-${number++}`;
+      } while (reservedNames.includes(name) || name === savedSnapshot.name);
+      byId("variant-name").value = name;
+      result = readDraft();
+    }
+    return result;
+  }
+  function rememberSnapshot(draft, selector) {
+    if (savedSnapshot && savedSnapshot.name !== draft.presentation.variant)
+      reservedNames.push(savedSnapshot.name);
+    savedSnapshot = {
+      signature: JSON.stringify(draft),
+      name: draft.presentation.variant,
+      selector,
+    };
+    if (guided) byId("editor-save-state").textContent = `Saved on this Mac · ${selector}`;
+  }
+  if (guided) {
+    for (const button of document.querySelectorAll("[data-editor-step]"))
+      button.addEventListener("click", () => showStep(button.dataset.editorStep, true));
+    byId("editor-next").addEventListener("click", () =>
+      showStep(
+        editorStep === "script" ? "voice" : editorStep === "voice" ? "review" : "script",
+        true,
+      ),
+    );
+    byId("save-draft").addEventListener("click", async () => {
+      if (pendingRecovery || saving) return;
+      const { draft, errors } = nextSnapshot();
+      if (errors.length) {
+        showStep("review", true);
+        return;
+      }
+      if (savedSnapshot?.signature === JSON.stringify(draft)) return;
+      saving = true;
+      byId("save-draft").disabled = true;
+      produceBtn.disabled = true;
+      byId("editor-fields").disabled = true;
+      byId("editor-save-state").textContent = "Saving draft and updating the workspace…";
+      try {
+        const response = await fetch("/api/scripts", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ definition: draft }),
+        });
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(data.error || "Draft could not be saved. Your edits are still here.");
+        rememberSnapshot(draft, data.selector);
+        if (!data.libraryUpdated)
+          byId("editor-save-state").textContent =
+            `Draft saved · ${data.selector}. Workspace refresh is pending; produce or rebuild to include it.`;
+      } catch (error) {
+        byId("editor-save-state").textContent = error.message;
+      } finally {
+        saving = false;
+        byId("save-draft").disabled = false;
+        produceBtn.disabled = false;
+        byId("editor-fields").disabled = false;
+      }
+    });
+  }
+
   function setProduceProgress(stage, message) {
     if (progressText) progressText.textContent = `${stage}: ${message || ""}`;
     const stagePercent = {
@@ -580,9 +688,12 @@
 
   if (produceBtn) {
     produceBtn.addEventListener("click", async () => {
-      if (pendingRecovery) return;
-      const { draft, errors } = readDraft();
-      if (errors.length) return;
+      if (pendingRecovery || saving) return;
+      const { draft, errors } = nextSnapshot();
+      if (errors.length) {
+        showStep("review", true);
+        return;
+      }
       const selector = `${draft.baseEpisodeId}@${draft.presentation.variant}`;
       produceBtn.disabled = true;
       download.disabled = true;
@@ -594,7 +705,11 @@
         const response = await fetch("/api/produce", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ definition: draft }),
+          body: JSON.stringify(
+            savedSnapshot?.signature === JSON.stringify(draft)
+              ? { selector: savedSnapshot.selector }
+              : { definition: draft },
+          ),
         });
         if (response.status === 409) {
           const data = await response.json();
@@ -613,11 +728,13 @@
           throw new Error(data.error || `Server returned ${response.status}`);
         }
         const data = await response.json();
+        rememberSnapshot(draft, selector);
         const sse = new EventSource(`/api/productions/${encodeURIComponent(data.jobId)}/stream`);
         sse.addEventListener("status", (e) => {
           try {
             const p = JSON.parse(e.data);
             setProduceProgress(p.stage, p.message);
+            if (["READY", "FAILED", "BLOCKED"].includes(p.stage)) completeProduction(e);
           } catch {}
         });
         sse.addEventListener("progress", (e) => {
@@ -626,7 +743,7 @@
             setProduceProgress(p.stage, p.message);
           } catch {}
         });
-        sse.addEventListener("complete", (e) => {
+        function completeProduction(e) {
           sse.close();
           produceBtn.disabled = false;
           download.disabled = false;
@@ -656,21 +773,26 @@
           setProduceProgress("READY", "Production complete!");
           if (produceResult) {
             produceResult.hidden = false;
-            const strong = element("strong", "", "Production Succeeded!");
+            const strong = element("strong", "", "Video produced · ready for your review");
             const p = element("p");
-            const watchLink = element("a", "watch-now-btn", "Watch MP4 ↗");
-            watchLink.href = `../../episodes/${encodeURIComponent(selector)}/video/review.html`;
+            const watchLink = element("a", "watch-now-btn", "Review & publish ↗");
+            watchLink.href = `../../episodes/${encodeURIComponent(selector)}/publish.html`;
             const studioLink = element("a", "", "View in Studio ↗");
-            studioLink.href = `../../review.html#${encodeURIComponent(`compare-${selector.replace("@", "--")}`)}`;
+            studioLink.href = "../../review.html?stage=review#episodes";
             p.append(watchLink, element("span", "", " "), studioLink);
             produceResult.replaceChildren(strong, p);
           }
-        });
-        sse.addEventListener("error", () => {
-          sse.close();
-          setProduceProgress("FAILED", "Production failed. Check server logs for details.");
-          produceBtn.disabled = false;
-          download.disabled = false;
+        }
+        sse.addEventListener("complete", completeProduction);
+        sse.addEventListener("error", (e) => {
+          if (!e.data) {
+            setProduceProgress(
+              "RECONNECTING",
+              "Production may still be running. Reconnecting; you can also check the workspace.",
+            );
+            return;
+          }
+          completeProduction(e);
         });
       } catch (error) {
         setProduceProgress("FAILED", error.message);
@@ -1367,6 +1489,7 @@
     byId("discard-draft").hidden = true;
     readDraft();
     setupAuditioning();
+    showStep(editorStep);
   }
   byId("resume-draft").addEventListener("click", () => {
     if (!pendingRecovery) return;

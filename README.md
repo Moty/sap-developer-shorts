@@ -33,7 +33,7 @@ npm run shorts -- library
 npm run shorts -- serve LIBRARY_DIRECTORY
 ```
 
-Use the library directory printed by the first command. The studio brings current tutorial and news drafts together with format filters, search, source links, narrated players, and the topic backlog. Each player includes an **All episodes** link. The library prefers validated narrated output over silent storyboards and excludes previews that no longer match the current script or whose saved files have changed.
+Use the library directory printed by the first command. The workspace separates ideas, editing, active production, videos to review, approved videos to publish, and recorded publications. Each version has a visible name and next action; stage, type, search and attention filters work together on desktop and phones. The library prefers validated narrated output over silent storyboards and excludes previews that no longer match the current script or whose saved files have changed. See [the creator journey](docs/CREATOR_STUDIO.md).
 
 This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 
@@ -112,11 +112,12 @@ Rebuild a saved studio to include the notices; earlier archives stay unchanged.
 
 ## Generate and resume narration
 
-Use **Revise script** on a studio card to adapt an existing delivery. The workshop
-handles scene structure and the base binding, shows live writing guidance, and
-downloads a new named script. Import it with `npm run shorts -- script-import PATH`,
-then use the printed production command. Under **Choose the voices**, select a
-narrator or a different voice for each conversation speaker. This changes only
+Use **Continue editing** or **More → Edit a new version** to adapt a delivery.
+The editor guides you through **Script**, **Voice & portrait**, and **Review &
+produce**. **Save draft** keeps a validated version on this Mac without rendering;
+**Produce video** starts the local production job. Download/import remains available
+for portable scripts with `npm run shorts -- script-import PATH`.
+Select a narrator or a different voice for each conversation speaker. This changes only
 the new version; Heart remains the project default and existing recordings are
 kept. Choices reflect checked local voice assets when the studio was built.
 Install another profile explicitly, then rebuild the studio to offer it.
@@ -128,7 +129,7 @@ same draft as the download; invalid drafts still need correction.
 
 The workshop can keep unfinished edits for recovery after a reload in the same
 tab at the same address. Choose **Resume saved draft** or **Start with original**
-before editing again. Download the JSON to keep a portable copy; closing the tab,
+before editing again. Save a draft to keep it on this Mac, or download the JSON for a portable copy; closing the tab,
 changing the address, or browser storage restrictions may lose recovery.
 
 Presentation can vary independently of the episode's subject. The studio includes a **Delivery styles** section with professional, casual, comic, and two-person CAP comparisons, plus `CAP-01@countdown` for a numbered three-step recipe and `CAP-02@quiz` for a predict-the-result challenge. Set tone, story format, and humor in a presentation variant; the conversation uses Heart and Michael with speaker captions. Try `npm run shorts -- produce CAP-02@quiz` or `npm run shorts -- narrate CAP-01@duo` after `npm run shorts -- voice-setup am_michael`. See [presentation styles](docs/PRESENTATION_STYLES.md) for supported formats, authoring, and review. New style scripts must be authored before generation; the format gallery shows each available example's actual readiness.

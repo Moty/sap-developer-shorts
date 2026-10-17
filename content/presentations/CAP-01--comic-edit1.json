@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "CAP-01",
+  "baseInputHash": "fda7e0c68a77805d280994b2eef6a0a2a5726bf2c42f383ee784c72116c41aa7",
+  "title": "My entity needs a service introduction",
+  "presentation": {
+    "variant": "comic-edit1",
+    "tone": "comic",
+    "format": "explainer",
+    "humor": "sap-geek",
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "am_michael",
+        "avatar": {
+          "mode": "photo",
+          "imageId": "moty-profile.png",
+          "animation": "full-face",
+          "mouthAngle": 0.1132,
+          "mouthAspect": 0.2,
+          "motion": {
+            "style": "expressive",
+            "intensity": 0.7
+          },
+          "faceLandmarks": {
+            "leftEye": [0.4695, 0.3133, 0.0344, 0.0141],
+            "rightEye": [0.5847, 0.3252, 0.0314, 0.013],
+            "jawY": 0.528,
+            "faceX": 0.495,
+            "faceY": 0.3718,
+            "faceRx": 0.136,
+            "faceRy": 0.1636
+          },
+          "calibration": {
+            "imageSha256": "2ae9ba37cb15df8d192bbca8a1ee14e19e6f83461426526f757de85934fe6c6a",
+            "modelSha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+            "detector": "mediapipe-0.10.32"
+          },
+          "mouthX": 0.513,
+          "mouthY": 0.441,
+          "mouthScale": 0.647
+        }
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "My entity needs a service.",
+      "overlay": "Where's the API?"
+    },
+    {
+      "id": "context",
+      "narration": "An entity describes data; it doesn't expose an API alone. Even in CAP, introductions matter. Meet the inventory project.",
+      "overlay": "The missing service definition"
+    },
+    {
+      "id": "model",
+      "narration": "Products gets an ID, title, and stock. Three sample rows are already waiting. At least someone came prepared.",
+      "overlay": "1. Define the data"
+    },
+    {
+      "id": "service",
+      "narration": "Add InventoryService with a projection of Products. Now there's an API. The read-only annotation says: you may browse, but no shopping.",
+      "overlay": "2. Expose a service"
+    },
+    {
+      "id": "query",
+      "narration": "Run npm run demo. Open the local Products URL, then filter stock above zero. Our keyboard and dock make the shortlist.",
+      "overlay": "3. Run and query"
+    },
+    {
+      "id": "payoff",
+      "narration": "Real OData version four results, without a cloud setup. Authentication and deployment are still homework. The service isn't doing those for you.",
+      "overlay": "Verified local results"
+    },
+    {
+      "id": "cta",
+      "narration": "Try the project and its tests. Which entity needs a service introduction next?",
+      "overlay": "Try the checked-in demo"
+    }
+  ],
+  "publicationText": "A data model alone does not expose an API in SAP CAP. Add an explicit service projection.\n\nThis local example defines Products, exposes a read-only InventoryService, and queries an in-memory SQLite database seeded from CSV. Its checks exercise OData metadata, seeded results, stock filtering, a missing product, and rejected writes.\n\nThe setup is a development prototype. Authentication and deployment are separate steps.\n\nCode and setup: Code link pending repository publication\nSAP documentation: https://cap.cloud.sap/docs/guides/services/providing-services\n\nWhich entity would you expose first?\n\n#SAP #CAP #OData #SAPDevelopers"
+}

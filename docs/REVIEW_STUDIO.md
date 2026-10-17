@@ -1,10 +1,11 @@
 # Review studio
 
-Use **Revise script** on an episode card to open its script workshop. Edit an
-existing delivery, choose voices for its speakers, download a new named version, then use `script-import` and the
-printed production command. Source/claim/demo inputs and source-review dates stay
-fixed. Revisions remain in the browser until downloaded; existing versions and
-recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
+Start with the [creator journey](CREATOR_STUDIO.md) for the stage-based workspace,
+guided editor, local draft saving and manual publication tracking. Use **Continue
+editing** or **More → Edit a new version** to open the editor. Save a validated
+draft on this Mac or download JSON for `script-import`; produce when ready.
+Source/claim/demo inputs and source-review dates stay fixed. Existing versions
+and recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
 
 Where browser storage is available, unfinished edits can be recovered after
 reloading the same tab at the same address. Choose **Resume saved draft** or
@@ -25,7 +26,12 @@ other edits, source dates, claims, and project default. The panel stays open
 while editing, and restoring a section returns focus to its input. A new version
 name alone is not counted as a wording or voice change.
 
-The local studio brings tutorial and news episode previews into one library. It provides format filters, text search, official source links, measured narration durations, production status, future news ideas, and the remaining tutorial backlog. Episode players keep an **All episodes** link above the existing review page. The studio does not generate media, edit content, approve publication, or call an external service.
+The local studio brings tutorial and news versions into one library, with stage
+and type filters, text search, source links, measured narration durations, live
+production status and an idea backlog. Its local server supports draft saves,
+production, exact-video approval and manually recorded post URLs. It does not
+upload or schedule external posts. Portable static libraries remain readable but
+need the running local server to save changes or show live publication status.
 
 ## Compare presentation styles
 
@@ -51,7 +57,12 @@ npm run shorts -- library
 npm run shorts -- serve LIBRARY_DIRECTORY
 ```
 
-Replace `LIBRARY_DIRECTORY` with the path printed by the build command. The server binds to localhost on port 4173. If an older preview server is already using that port, stop it before serving the library. The library contains local copies of its selected HTML, audio, captions, and timing, so serving it does not depend on the original run folders still being present. Playback retains byte-range support for audio seeking.
+Replace `LIBRARY_DIRECTORY` with the path printed by the build command. The CLI
+serves port 4173 and prints local and LAN addresses, allowing a phone on the same
+network to use the studio. If an older server is using that port, stop it before
+serving the library. The library contains copies of its selected HTML, audio,
+captions and timing; playback does not depend on the original run folders and
+retains byte-range support for seeking.
 
 ## Preview selection
 

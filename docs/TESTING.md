@@ -126,3 +126,24 @@ tests and 5 live CAP checks pass. A new 47.73-second photo variant was rendered
 using verified existing narration; original videos remain available. Astra's
 review confirmed monotonic mapping and visible open/closed pose differences,
 while noting stretched photo texture remains a limitation.
+
+## Creator studio journey, 2026-10-17
+
+The redesigned workspace and guided editor passed `npm run check`: 199 tests,
+five live CAP checks, TypeScript, formatting, and content validation (4 episodes,
+18 variants, 30 tutorial topics and 6 news topics). New coverage checks durable
+review/publication state, exact-render binding, changed MP4/script rejection,
+source expiry, invalid post URLs, cross-origin writes, interrupted production,
+EventSource reconnection and terminal-status replay. Saved studio packaging
+accepts the new publication screen and the pinned local portrait provenance while
+retaining the existing strict inventory checks. The actual 22-version studio ZIP
+was also generated successfully. CLI auto-selection excludes package-download
+directories when choosing the latest working studio.
+
+Browser QA used 1440 × 1000, 390 × 844 and 320 × 740 viewports. It exercised all
+editor steps, combined filters, empty states, two successive draft saves,
+review approval, publication recording, reload persistence and returning to
+review. Publication tests used a separate artifact root and an example.com test
+URL; no real post was created. The two owned temporary draft files were verified
+and removed. Real episode publication state was not changed. Layout and overflow
+checks are viewport testing, not a native Safari or full accessibility audit.

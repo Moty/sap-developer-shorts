@@ -1,9 +1,19 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { readContentEpisode } from "./contracts.js";
+import { hash } from "./digest.js";
+import { buildLibrary } from "./library.js";
 import { type auditionPhrase, installedKokoroVoices } from "./media/voice-audition.js";
 import { kokoroVoices } from "./media/voices.js";
-import { type ProductionReport, produce } from "./production.js";
+import { latestProduction, type ProductionReport, produce } from "./production.js";
 import { savePresentation } from "./script-import.js";
+import {
+  readWorkflowManifest,
+  updateWorkflow,
+  workflowDirectory,
+  workflowSourcesExpired,
+  workflowState,
+} from "./workflow.js";
 
 export interface ProductionJobState {
   id: string;
@@ -21,9 +31,11 @@ export interface ApiOptions {
   onLibraryUpdated?: (newDirectory: string) => void | Promise<void>;
   artifactRoot?: string;
   audition?: typeof auditionPhrase;
+  libraryDirectory?: () => string;
 }
 
 let activeJob: ProductionJobState | null = null;
+let productionStarting = false;
 const recentJobs = new Map<string, ProductionJobState>();
 
 export function getActiveJob() {
@@ -36,6 +48,7 @@ export function getJob(id: string) {
 
 export function resetJobsForTest() {
   activeJob = null;
+  productionStarting = false;
   recentJobs.clear();
 }
 
@@ -71,6 +84,80 @@ export async function handleApiRequest(
 ): Promise<boolean> {
   const path = url.pathname;
   if (!path.startsWith("/api/")) return false;
+  if (request.method === "POST" && ["/api/workflow", "/api/scripts"].includes(path)) {
+    const origin = request.headers.origin;
+    if (
+      (origin && new URL(origin).host !== request.headers.host) ||
+      !request.headers["content-type"]?.startsWith("application/json")
+    ) {
+      sendJson(response, 403, { error: "Save changes from this local studio using JSON." });
+      return true;
+    }
+  }
+
+  if (path === "/api/workflow" && ["GET", "POST"].includes(request.method ?? "")) {
+    try {
+      const directory = options.libraryDirectory?.();
+      if (!directory) throw new Error("Open a saved studio to review its videos.");
+      const root = workflowDirectory(options.artifactRoot);
+      if (request.method === "POST") {
+        sendJson(response, 200, await updateWorkflow(directory, root, await readJsonBody(request)));
+      } else {
+        const manifest = await readWorkflowManifest(directory);
+        const episodes = await Promise.all(
+          manifest.episodes.map(async (entry) => {
+            const state = await workflowState(
+              root,
+              entry,
+              manifest.artifactHashes[`episodes/${entry.selector}/video/short.mp4`],
+            );
+            const report = await latestProduction(entry.selector, options.artifactRoot);
+            const episode = await readContentEpisode(entry.selector);
+            const changed = hash(JSON.stringify(episode)) !== entry.inputHash;
+            const expired = entry.sourceReviewExpired || workflowSourcesExpired(episode);
+            const current = activeJob?.selector === entry.selector ? activeJob : null;
+            const interrupted =
+              report && !["READY", "BLOCKED", "FAILED"].includes(report.stage) && !current;
+            const issue = changed
+              ? "The script changed. Rebuild the studio and produce this version."
+              : expired
+                ? "Sources need rechecking before sharing current news."
+                : interrupted
+                  ? "Production was interrupted. Produce again to resume."
+                  : report?.issue?.message;
+            return {
+              selector: entry.selector,
+              renderKey: entry.video?.renderKey ?? null,
+              ...state,
+              ...(changed ? { stage: "editing", label: "Editing" } : {}),
+              ...(current ? { stage: "producing", label: "Producing" } : {}),
+              reviewBlocked: changed || expired,
+              attention: Boolean(
+                expired ||
+                  issue ||
+                  (entry.preview?.kind === "narrated" && !entry.preview.timingReady),
+              ),
+              issue: issue ?? null,
+            };
+          }),
+        );
+        sendJson(response, 200, {
+          episodes,
+          activeJob: activeJob
+            ? {
+                id: activeJob.id,
+                selector: activeJob.selector,
+                stage: activeJob.stage,
+                message: activeJob.progressMessage,
+              }
+            : null,
+        });
+      }
+    } catch (error) {
+      sendJson(response, 400, { error: (error as Error).message });
+    }
+    return true;
+  }
 
   // GET /api/health
   if (request.method === "GET" && path === "/api/health") {
@@ -249,9 +336,22 @@ export async function handleApiRequest(
     try {
       const body = (await readJsonBody(request)) as { definition?: unknown };
       const saved = await savePresentation(body?.definition ?? body);
+      let libraryUpdated = false;
+      if (options.onLibraryUpdated) {
+        try {
+          const library = await buildLibrary(
+            options.artifactRoot ? { artifactRoot: options.artifactRoot } : {},
+          );
+          await options.onLibraryUpdated(library.directory);
+          libraryUpdated = true;
+        } catch {
+          /* The script is durable even if a media library cannot be rebuilt. */
+        }
+      }
       sendJson(response, 201, {
         selector: saved.selector,
         file: saved.file,
+        libraryUpdated,
       });
     } catch (error) {
       sendJson(response, 400, { error: (error as Error).message });
@@ -261,7 +361,23 @@ export async function handleApiRequest(
 
   // POST /api/produce
   if (request.method === "POST" && path === "/api/produce") {
+    if (productionStarting) {
+      sendJson(response, 409, {
+        error: "A production request is being prepared. Try again shortly.",
+      });
+      return true;
+    }
+    productionStarting = true;
     try {
+      if (activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)) {
+        sendJson(response, 409, {
+          error: "A production job is already in progress",
+          jobId: activeJob.id,
+          selector: activeJob.selector,
+          stage: activeJob.stage,
+        });
+        return true;
+      }
       const body = (await readJsonBody(request)) as {
         selector?: string;
         definition?: unknown;
@@ -376,6 +492,8 @@ export async function handleApiRequest(
         error instanceof Error &&
         (error.cause as NodeJS.ErrnoException | undefined)?.code === "EEXIST";
       sendJson(response, collision ? 409 : 400, { error: (error as Error).message });
+    } finally {
+      productionStarting = false;
     }
     return true;
   }

@@ -189,7 +189,11 @@ try {
       try {
         const entries = await readdir(artifactsDir, { withFileTypes: true });
         const libraries = entries
-          .filter((e) => e.isDirectory() && e.name.startsWith("library-"))
+          .filter(
+            (e) =>
+              e.isDirectory() &&
+              /^library-[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u.test(e.name),
+          )
           .map((e) => resolve(artifactsDir, e.name));
         if (libraries.length) {
           const stats = await Promise.all(libraries.map(async (p) => ({ p, s: await stat(p) })));

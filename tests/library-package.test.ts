@@ -235,6 +235,34 @@ test("narration awaiting timing review remains a saved preview without invented 
   assert.equal(result.manifest.episodeCount, 3);
 });
 
+test("current portrait provenance and optional publication screens remain portable", async (t) => {
+  const f = await fixture(t);
+  const page = "episodes/CAP-01/publish.html";
+  const bytes = Buffer.from("Review and publication fixture");
+  await writeFile(resolve(f.source, page), bytes);
+  await f.save({
+    ...f.manifest,
+    runtimeHashes: {
+      ...f.manifest.runtimeHashes,
+      ...Object.fromEntries(
+        [
+          "src/workflow.ts",
+          "src/publish-review.ts",
+          "scripts/setup-portrait.py",
+          "config/portrait-runtime.json",
+          "config/portrait-requirements.txt",
+          "config/talking-head.json",
+          "config/talking-head-requirements.txt",
+        ].map((name) => [name, hash(name)]),
+      ),
+    },
+    artifactHashes: { ...f.manifest.artifactHashes, [page]: hash(bytes) },
+  });
+  const result = await f.run();
+  const members = unzipSync(await readFile(resolve(result.directory, "studio.zip")));
+  assert.deepEqual(Buffer.from(members[`studio/${page}`] as Uint8Array), bytes);
+});
+
 test("malformed manifests, mismatched readiness, duplicate selectors, and missing inventory fail before publication", async (t) => {
   const f = await fixture(t);
   const cases: unknown[] = [
