@@ -5,14 +5,26 @@ export interface Source {
   retrievedOn: string;
 }
 
+export interface FaceLandmarksConfig {
+  leftEye: [number, number, number, number];
+  rightEye: [number, number, number, number];
+  jawY: number;
+  faceX: number;
+  faceY: number;
+  faceRx: number;
+  faceRy: number;
+}
+
 export interface SpeakerAvatarConfig {
   mode: "illustrated" | "photo";
+  animation?: "mouth-only" | "full-face" | "neural";
   imageId?: string;
   mouthX?: number;
   mouthY?: number;
   mouthScale?: number;
   mouthAngle?: number;
   mouthAspect?: number;
+  faceLandmarks?: FaceLandmarksConfig;
   calibration?: { imageSha256: string; modelSha256: string; detector: "mediapipe-0.10.32" };
   eyeY?: number;
 }

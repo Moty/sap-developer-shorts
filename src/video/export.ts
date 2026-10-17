@@ -329,6 +329,26 @@ export async function renderVideo(
         ...(evidence ? { evidence } : {}),
       };
       const moments = videoTimeline(timing, { animateAvatar: true });
+      const totalVideoFrames = Math.max(moments.length, moments.at(-1)?.endFrame ?? moments.length);
+      const talkingHeadSequences: NonNullable<VideoFrameInput["talkingHeadSequences"]> = {};
+      for (const speaker of episode.presentation?.speakers ?? []) {
+        if (speaker.avatar?.mode === "photo" && speaker.avatar.animation === "neural") {
+          const { prepareTalkingHeadSequence } = await import("../media/talking-head.js");
+          const seq = await prepareTalkingHeadSequence({
+            speakerId: speaker.id,
+            avatar: speaker.avatar,
+            wavBytes: audio,
+            cues: timing.cues,
+            frameCount: totalVideoFrames,
+            fps: videoFps,
+            progress: report,
+          });
+          if (seq) talkingHeadSequences[speaker.id] = seq;
+        }
+      }
+      if (Object.keys(talkingHeadSequences).length > 0) {
+        input.talkingHeadSequences = talkingHeadSequences;
+      }
       report(`Drawing ${moments.length} animated avatar, caption, and scene frames.`);
       const batchSize = 8;
       for (let start = 0; start < moments.length; start += batchSize) {

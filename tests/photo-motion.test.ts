@@ -5,7 +5,12 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { createCanvas } from "@napi-rs/canvas";
 import { drawAvatarBadge, type VisemeShape } from "../src/media/avatar.js";
-import { mouthGeometry, warpPhotoMouth } from "../src/media/photo-texture.js";
+import {
+  defaultFaceLandmarks,
+  mouthGeometry,
+  warpPhotoFace,
+  warpPhotoMouth,
+} from "../src/media/photo-texture.js";
 import { projectRoot } from "../src/paths.js";
 
 function portraitFixture() {
@@ -275,5 +280,164 @@ test("lip movement stays visible after downsampling to the preview and small vid
       centroid("open_a") - centroid("consonant") > (displayWidth / 140) * 2,
       `width=${displayWidth}, open=${centroid("open_a")}, closed=${centroid("consonant")}, rest=${centroid("rest")}`,
     );
+  }
+});
+
+test("full-face 478-landmark warp animates lips, jaw, eye blinks, brow lifts, and 2.5D head nods while anchoring collar borders", () => {
+  const points = Array.from({ length: 478 }, () => ({ x: 0.5, y: 0.5 }));
+  // Mouth landmarks
+  points[61] = { x: 0.38, y: 0.66 };
+  points[291] = { x: 0.62, y: 0.66 };
+  points[0] = { x: 0.5, y: 0.63 };
+  points[17] = { x: 0.5, y: 0.7 };
+  points[13] = { x: 0.5, y: 0.65 };
+  points[14] = { x: 0.5, y: 0.67 };
+  // Eye, forehead, chin, and cheek landmarks
+  points[33] = { x: 0.32, y: 0.42 };
+  points[133] = { x: 0.42, y: 0.42 };
+  points[159] = { x: 0.37, y: 0.4 };
+  points[145] = { x: 0.37, y: 0.44 };
+  points[362] = { x: 0.58, y: 0.42 };
+  points[263] = { x: 0.68, y: 0.42 };
+  points[386] = { x: 0.63, y: 0.4 };
+  points[374] = { x: 0.63, y: 0.44 };
+  points[10] = { x: 0.5, y: 0.22 };
+  points[152] = { x: 0.5, y: 0.84 };
+  points[234] = { x: 0.26, y: 0.54 };
+  points[454] = { x: 0.74, y: 0.54 };
+
+  const geometry = mouthGeometry(points);
+  assert.ok(geometry.faceLandmarks, "mouthGeometry extracts full-face landmarks");
+  assert.ok(geometry.faceLandmarks.leftEye[0] < 0.45);
+  assert.ok(geometry.faceLandmarks.rightEye[0] > 0.55);
+  assert.equal(geometry.faceLandmarks.jawY, 0.84);
+
+  const width = 140;
+  const source = portraitFixture().getContext("2d").getImageData(0, 0, width, width).data;
+  const config = {
+    animation: "full-face" as const,
+    ...geometry,
+  };
+
+  // 1. Rest returns exact original portrait
+  assert.deepEqual(
+    warpPhotoFace(source, width, width, config, {
+      viseme: "rest",
+      jawOpen: 0,
+      isBlinking: false,
+      browLift: 0,
+      headBobY: 0,
+      headTilt: 0,
+    }),
+    source,
+  );
+
+  // 2. Full-face active frame moves mouth, jaw, eyes, and head while keeping outer frame borders fixed
+  const active = warpPhotoFace(source, width, width, config, {
+    viseme: "open_a",
+    jawOpen: 0.9,
+    isBlinking: true,
+    browLift: 2.5,
+    headBobY: 2.2,
+    headTilt: 0.03,
+  });
+
+  let changedMouth = 0;
+  let changedJaw = 0;
+  let changedEyes = 0;
+  let changedOuterBorder = 0;
+
+  for (let y = 0; y < width; y++) {
+    for (let x = 0; x < width; x++) {
+      const p = (y * width + x) * 4;
+      const same =
+        source[p] === active[p] &&
+        source[p + 1] === active[p + 1] &&
+        source[p + 2] === active[p + 2] &&
+        source[p + 3] === active[p + 3];
+      if (same) continue;
+      if (x < 3 || x >= width - 3 || y < 3 || y >= width - 4) {
+        changedOuterBorder++;
+      } else if (Math.abs(y - width * 0.42) <= 12) {
+        changedEyes++;
+      } else if (Math.abs(y - width * 0.66) <= 12 && Math.abs(x - width * 0.5) <= 22) {
+        changedMouth++;
+      } else if (y > width * 0.72 && y < width * 0.86) {
+        changedJaw++;
+      }
+    }
+  }
+
+  assert.equal(changedOuterBorder, 0, "outer collar and frame edges stay anchored");
+  assert.ok(changedMouth > 20, "lips and inner oral cavity animate");
+  assert.ok(changedJaw > 15, "synchronized lower jaw and cheeks animate");
+  assert.ok(changedEyes > 15, "eye blinks and brow lifts animate");
+});
+
+test("prepareTalkingHeadSequence falls back cleanly when unconfigured and synthesizes frames when runtime is ready", async () => {
+  const { prepareTalkingHeadSequence, talkingHeadRuntime } = await import(
+    "../src/media/talking-head.js"
+  );
+  const { encodePcmWav, sampleRate } = await import("../src/media/audio.js");
+  const { saveCustomAvatar } = await import("../src/media/avatar.js");
+  const { rm } = await import("node:fs/promises");
+
+  const portraitCanvas = portraitFixture();
+  const saved = await saveCustomAvatar("test-talking-head", await portraitCanvas.encode("png"));
+  try {
+    const sampleCount = Math.round(sampleRate * 0.4);
+    const pcm = Buffer.alloc(sampleCount * 2);
+    for (let i = 0; i < sampleCount; i++) {
+      pcm.writeInt16LE(Math.round(Math.sin((i / sampleRate) * Math.PI * 2 * 220) * 14000), i * 2);
+    }
+    const wavBytes = encodePcmWav(pcm);
+    const cues = [
+      {
+        sceneId: "hook",
+        text: "Hello SAP",
+        spokenText: "Hello SAP",
+        startSeconds: 0,
+        endSeconds: 0.4,
+      },
+    ];
+    const avatar = {
+      mode: "photo" as const,
+      animation: "neural" as const,
+      imageId: saved.imageId,
+      mouthX: 0.5,
+      mouthY: 0.68,
+      mouthScale: 1,
+      faceLandmarks: defaultFaceLandmarks({ mouthX: 0.5, mouthY: 0.68, mouthScale: 1 }),
+    };
+
+    const messages: string[] = [];
+    const fallbackSeq = await prepareTalkingHeadSequence({
+      speakerId: "mira",
+      avatar,
+      wavBytes,
+      cues,
+      frameCount: 4,
+      runtimeRoot: resolve(projectRoot, ".state/nonexistent-talking-head"),
+      progress: (msg) => messages.push(msg),
+    });
+    assert.equal(fallbackSeq, undefined);
+    assert.match(messages[0] ?? "", /full-face 478-landmark warp/);
+
+    const status = await talkingHeadRuntime();
+    if (status.installed) {
+      const seq = await prepareTalkingHeadSequence({
+        speakerId: "mira",
+        avatar,
+        wavBytes,
+        cues,
+        frameCount: 4,
+        fps: 30,
+      });
+      assert.ok(seq, "synthesizes neural talking-head sequence when local runtime is installed");
+      const frame0 = await seq.getFrame(0);
+      assert.ok(frame0 && frame0.width === 256 && frame0.height === 256);
+    }
+  } finally {
+    await rm(saved.path, { force: true });
   }
 });

@@ -328,6 +328,9 @@
                   "mode": {
                     "enum": ["illustrated", "photo"]
                   },
+                  "animation": {
+                    "enum": ["mouth-only", "full-face", "neural"]
+                  },
                   "imageId": {
                     "type": "string",
                     "pattern": "^[a-z0-9][a-z0-9_-]{0,47}\\.(png|jpg|jpeg|webp)$"
@@ -361,6 +364,66 @@
                     "type": "number",
                     "minimum": 0.2,
                     "maximum": 0.6
+                  },
+                  "faceLandmarks": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "leftEye": {
+                        "type": "array",
+                        "minItems": 4,
+                        "maxItems": 4,
+                        "items": {
+                          "type": "number",
+                          "minimum": 0.005,
+                          "maximum": 0.99
+                        }
+                      },
+                      "rightEye": {
+                        "type": "array",
+                        "minItems": 4,
+                        "maxItems": 4,
+                        "items": {
+                          "type": "number",
+                          "minimum": 0.005,
+                          "maximum": 0.99
+                        }
+                      },
+                      "jawY": {
+                        "type": "number",
+                        "minimum": 0.45,
+                        "maximum": 0.99
+                      },
+                      "faceX": {
+                        "type": "number",
+                        "minimum": 0.15,
+                        "maximum": 0.85
+                      },
+                      "faceY": {
+                        "type": "number",
+                        "minimum": 0.15,
+                        "maximum": 0.85
+                      },
+                      "faceRx": {
+                        "type": "number",
+                        "minimum": 0.08,
+                        "maximum": 0.65
+                      },
+                      "faceRy": {
+                        "type": "number",
+                        "minimum": 0.1,
+                        "maximum": 0.75
+                      }
+                    },
+                    "required": [
+                      "leftEye",
+                      "rightEye",
+                      "jawY",
+                      "faceX",
+                      "faceY",
+                      "faceRx",
+                      "faceRy"
+                    ]
                   },
                   "calibration": {
                     "type": "object",

@@ -338,6 +338,13 @@
     try {
       const value = JSON.parse(byId(`speaker-avatar-geometry-${index}`)?.value || "{}");
       const metadata = {};
+      if (
+        value.animation === "mouth-only" ||
+        value.animation === "full-face" ||
+        value.animation === "neural"
+      ) {
+        metadata.animation = value.animation;
+      }
       if (Number.isFinite(value.mouthAngle) && Math.abs(value.mouthAngle) <= 0.55)
         metadata.mouthAngle = value.mouthAngle;
       if (
@@ -346,6 +353,30 @@
         value.mouthAspect <= 0.6
       )
         metadata.mouthAspect = value.mouthAspect;
+      const fl = value.faceLandmarks;
+      if (
+        fl &&
+        typeof fl === "object" &&
+        Array.isArray(fl.leftEye) &&
+        fl.leftEye.length === 4 &&
+        Array.isArray(fl.rightEye) &&
+        fl.rightEye.length === 4 &&
+        Number.isFinite(fl.jawY) &&
+        Number.isFinite(fl.faceX) &&
+        Number.isFinite(fl.faceY) &&
+        Number.isFinite(fl.faceRx) &&
+        Number.isFinite(fl.faceRy)
+      ) {
+        metadata.faceLandmarks = {
+          leftEye: fl.leftEye.slice(0, 4).map(Number),
+          rightEye: fl.rightEye.slice(0, 4).map(Number),
+          jawY: Number(fl.jawY),
+          faceX: Number(fl.faceX),
+          faceY: Number(fl.faceY),
+          faceRx: Number(fl.faceRx),
+          faceRy: Number(fl.faceRy),
+        };
+      }
       const c = value.calibration;
       if (
         c &&
@@ -842,12 +873,15 @@
           if (!/^[a-f0-9]{64}$/u.test(imageSha256 || ""))
             throw new Error("Photo verification unavailable. Reload the studio.");
           if (!current()) return;
+          const animSelect = byId(`speaker-avatar-animation-${index}`);
           byId(`speaker-avatar-mouth-x-${index}`).value = String(geometry.mouthX);
           byId(`speaker-avatar-mouth-y-${index}`).value = String(geometry.mouthY);
           byId(`speaker-avatar-mouth-scale-${index}`).value = String(geometry.mouthScale);
           byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify({
+            ...(animSelect?.value ? { animation: animSelect.value } : {}),
             mouthAngle: geometry.mouthAngle,
             mouthAspect: geometry.mouthAspect,
+            ...(geometry.faceLandmarks ? { faceLandmarks: geometry.faceLandmarks } : {}),
             calibration: {
               imageSha256,
               modelSha256: faceDetector.modelSha256,
@@ -856,7 +890,7 @@
           });
           detectStatus(
             index,
-            "Mouth located. Check the guide and test the lip motion; fine-tune if needed.",
+            "Face & mouth landmarks located. Check the guide and test the motion; fine-tune if needed.",
           );
           renderSpeakerCanvas(index);
           update();
@@ -871,10 +905,21 @@
       refreshAvatarUi = (index) => {
         invalidate(index);
         detectStatus(index, "");
+        const animEl = byId(`speaker-avatar-animation-${index}`);
+        if (animEl) {
+          const meta = readMouthMetadata(index);
+          animEl.value = meta.animation || "full-face";
+        }
         ensureImageLoaded(byId(`speaker-avatar-image-${index}`).value, index).catch(() => {});
       };
 
-      function renderSpeakerCanvas(index, jawOpen = 0, viseme = "rest", showCrosshair = true) {
+      function renderSpeakerCanvas(
+        index,
+        jawOpen = 0,
+        viseme = "rest",
+        showCrosshair = true,
+        animState = null,
+      ) {
         const canvas = byId(`speaker-avatar-canvas-${index}`);
         if (!canvas || typeof canvas.getContext !== "function") return;
         const ctx = canvas.getContext("2d");
@@ -920,11 +965,34 @@
         const unit = (w / 140) * mouthScale;
 
         const metadata = readMouthMetadata(index);
+        const animMode =
+          metadata.animation || byId(`speaker-avatar-animation-${index}`)?.value || "mouth-only";
         if (jawOpen > 0 && viseme !== "rest") {
           const pixels = ctx.getImageData(0, 0, w, h);
-          pixels.data.set(
-            warpPhotoMouth(pixels.data, w, h, { mouthX, mouthY, mouthScale, ...metadata }, viseme),
-          );
+          if (
+            (animMode === "full-face" || animMode === "neural") &&
+            typeof warpPhotoFace === "function"
+          ) {
+            pixels.data.set(
+              warpPhotoFace(
+                pixels.data,
+                w,
+                h,
+                { mouthX, mouthY, mouthScale, ...metadata },
+                animState || { viseme, jawOpen },
+              ),
+            );
+          } else {
+            pixels.data.set(
+              warpPhotoMouth(
+                pixels.data,
+                w,
+                h,
+                { mouthX, mouthY, mouthScale, ...metadata },
+                viseme,
+              ),
+            );
+          }
           ctx.putImageData(pixels, 0, 0);
         } else if (showCrosshair) {
           ctx.save();
@@ -942,6 +1010,25 @@
             Math.PI * 2,
           );
           ctx.stroke();
+          if ((animMode === "full-face" || animMode === "neural") && metadata.faceLandmarks) {
+            ctx.strokeStyle = "rgba(184, 219, 188, 0.55)";
+            ctx.lineWidth = (1.5 * w) / 140;
+            for (const eye of [metadata.faceLandmarks.leftEye, metadata.faceLandmarks.rightEye]) {
+              if (Array.isArray(eye) && eye.length === 4) {
+                ctx.beginPath();
+                ctx.ellipse(
+                  w * eye[0],
+                  h * eye[1],
+                  Math.max(w * 0.045, w * eye[2]),
+                  Math.max(h * 0.025, h * eye[3] * 1.4),
+                  metadata.mouthAngle ?? 0,
+                  0,
+                  Math.PI * 2,
+                );
+                ctx.stroke();
+              }
+            }
+          }
           ctx.restore();
         }
       }
@@ -1044,6 +1131,20 @@
             update();
           });
         }
+        const animSelect = byId(`speaker-avatar-animation-${index}`);
+        if (animSelect) {
+          animSelect.addEventListener("change", () => {
+            try {
+              const currentGeo = JSON.parse(
+                byId(`speaker-avatar-geometry-${index}`)?.value || "{}",
+              );
+              currentGeo.animation = animSelect.value;
+              byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify(currentGeo);
+            } catch {}
+            renderSpeakerCanvas(index);
+            update();
+          });
+        }
         for (const sliderId of [
           `speaker-avatar-mouth-y-${index}`,
           `speaker-avatar-mouth-x-${index}`,
@@ -1128,14 +1229,70 @@
               return;
             }
             const visemeCycle = [
-              { v: "open_a", j: 0.85 },
-              { v: "consonant", j: 0.25 },
-              { v: "open_o", j: 0.78 },
-              { v: "open_e", j: 0.65 },
-              { v: "smile", j: 0.45 },
-              { v: "open_u", j: 0.72 },
-              { v: "open_a", j: 0.9 },
-              { v: "rest", j: 0 },
+              {
+                viseme: "open_a",
+                jawOpen: 0.88,
+                isBlinking: false,
+                browLift: 2.2,
+                headBobY: 1.4,
+                headTilt: 0.018,
+              },
+              {
+                viseme: "consonant",
+                jawOpen: 0.22,
+                isBlinking: false,
+                browLift: 0.8,
+                headBobY: -0.6,
+                headTilt: 0.01,
+              },
+              {
+                viseme: "open_o",
+                jawOpen: 0.8,
+                isBlinking: true,
+                browLift: 1.8,
+                headBobY: 1.2,
+                headTilt: -0.015,
+              },
+              {
+                viseme: "open_e",
+                jawOpen: 0.65,
+                isBlinking: false,
+                browLift: 2.6,
+                headBobY: -1.1,
+                headTilt: -0.02,
+              },
+              {
+                viseme: "smile",
+                jawOpen: 0.42,
+                isBlinking: false,
+                browLift: 1.2,
+                headBobY: 0.8,
+                headTilt: 0.014,
+              },
+              {
+                viseme: "open_u",
+                jawOpen: 0.72,
+                isBlinking: false,
+                browLift: 1.5,
+                headBobY: -0.9,
+                headTilt: 0.008,
+              },
+              {
+                viseme: "open_a",
+                jawOpen: 0.92,
+                isBlinking: true,
+                browLift: 2.8,
+                headBobY: 1.6,
+                headTilt: -0.018,
+              },
+              {
+                viseme: "rest",
+                jawOpen: 0,
+                isBlinking: false,
+                browLift: 0,
+                headBobY: 0,
+                headTilt: 0,
+              },
             ];
             let step = 0;
             testBtn.disabled = true;
@@ -1147,9 +1304,9 @@
                 return;
               }
               const item = visemeCycle[step % visemeCycle.length];
-              renderSpeakerCanvas(index, item.j, item.v, false);
+              renderSpeakerCanvas(index, item.jawOpen, item.viseme, false, item);
               step += 1;
-            }, 280);
+            }, 260);
           });
         }
       }

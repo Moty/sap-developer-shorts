@@ -1134,4 +1134,31 @@ test("automatic mouth calibration survives download, import and tab recovery", a
   assert.equal(avatar?.mouthAspect, metadata.mouthAspect);
   resumed.restore("Restore starting avatars");
   assert.equal(resumed.get("speaker-avatar-geometry-0").value, "{}");
+
+  // Verify full-face and neural animation modes + faceLandmarks persist through download & validation
+  const fullFaceMeta = {
+    animation: "full-face",
+    mouthAngle: 0.05,
+    mouthAspect: 0.35,
+    faceLandmarks: {
+      leftEye: [0.38, 0.42, 0.055, 0.024],
+      rightEye: [0.62, 0.42, 0.055, 0.024],
+      jawY: 0.84,
+      faceX: 0.5,
+      faceY: 0.54,
+      faceRx: 0.24,
+      faceRy: 0.31,
+    },
+    calibration: metadata.calibration,
+  };
+  resumed.get("speaker-avatar-mode-0").value = "photo";
+  resumed.get("speaker-avatar-image-0").value = "mira-portrait.png";
+  resumed.get("speaker-avatar-geometry-0").value = JSON.stringify(fullFaceMeta);
+  resumed.update();
+  resumed.download();
+  const fullFaceDraft = JSON.parse(resumed.downloads.at(-1)?.parts.join("") ?? "null");
+  const checkedFullFace = await validatePresentationDefinition(fullFaceDraft);
+  const savedAvatar = checkedFullFace.episode.presentation?.speakers[0]?.avatar;
+  assert.equal(savedAvatar?.animation, "full-face");
+  assert.deepEqual(savedAvatar?.faceLandmarks, fullFaceMeta.faceLandmarks);
 });

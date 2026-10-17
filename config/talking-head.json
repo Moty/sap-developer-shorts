@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "engine": "acoustic-neural-portrait",
+  "version": "1.0.0",
+  "device": "mps",
+  "fps": 30,
+  "resolution": 256,
+  "license": "Apache-2.0"
+}

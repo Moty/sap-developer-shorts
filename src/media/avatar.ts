@@ -10,7 +10,7 @@ import {
 import { hash } from "../digest.js";
 import type { SpeakerAvatarConfig } from "../domain.js";
 import { projectRoot } from "../paths.js";
-import { warpPhotoMouth } from "./photo-texture.js";
+import { warpPhotoFace, warpPhotoMouth } from "./photo-texture.js";
 
 export type VisemeShape =
   | "rest"
@@ -28,6 +28,7 @@ export interface AvatarSpeaker {
   role?: string;
   avatar?: SpeakerAvatarConfig;
   photoImage?: Image | Canvas;
+  neuralFrameImage?: Image | Canvas;
 }
 
 export interface AvatarAnimationState {
@@ -413,17 +414,19 @@ function drawPhotoAvatarPortrait(
   anim: AvatarAnimationState,
   isSpeaking: boolean,
   accent: string,
+  neuralFrameImage?: Image | Canvas,
 ): void {
   const diameter = radius * 2;
   // Render at fixed portrait resolution, then scale the same source pixels for
   // preview and export. Each frame starts from the original photograph.
   const surface = createCanvas(256, 256);
   const surfaceCtx = surface.getContext("2d");
-  const cropSide = Math.min(image.width, image.height);
+  const activeSource = neuralFrameImage ?? image;
+  const cropSide = Math.min(activeSource.width, activeSource.height);
   surfaceCtx.drawImage(
-    image,
-    (image.width - cropSide) / 2,
-    (image.height - cropSide) / 2,
+    activeSource,
+    (activeSource.width - cropSide) / 2,
+    (activeSource.height - cropSide) / 2,
     cropSide,
     cropSide,
     0,
@@ -431,11 +434,27 @@ function drawPhotoAvatarPortrait(
     256,
     256,
   );
-  const pixels = surfaceCtx.getImageData(0, 0, 256, 256);
-  pixels.data.set(
-    warpPhotoMouth(pixels.data, 256, 256, config ?? {}, isSpeaking ? anim.viseme : "rest"),
-  );
-  surfaceCtx.putImageData(pixels, 0, 0);
+  if (!neuralFrameImage) {
+    const pixels = surfaceCtx.getImageData(0, 0, 256, 256);
+    const animMode = config?.animation ?? "mouth-only";
+    if (animMode === "full-face" || animMode === "neural") {
+      pixels.data.set(
+        warpPhotoFace(pixels.data, 256, 256, config ?? {}, {
+          viseme: isSpeaking ? anim.viseme : "rest",
+          jawOpen: isSpeaking ? anim.jawOpen : 0,
+          isBlinking: anim.isBlinking,
+          browLift: isSpeaking ? anim.browLift : 0,
+          headBobY: isSpeaking ? anim.headBobY : 0,
+          headTilt: isSpeaking ? anim.headTilt : 0,
+        }),
+      );
+    } else {
+      pixels.data.set(
+        warpPhotoMouth(pixels.data, 256, 256, config ?? {}, isSpeaking ? anim.viseme : "rest"),
+      );
+    }
+    surfaceCtx.putImageData(pixels, 0, 0);
+  }
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -937,6 +956,7 @@ function drawSpeakerPortraitByMode(
       anim,
       isSpeaking,
       accent,
+      speaker.neuralFrameImage,
     );
   } else {
     drawCharacterPortrait(ctx, cx, cy, radius, speaker.id, anim, isSpeaking, accent);

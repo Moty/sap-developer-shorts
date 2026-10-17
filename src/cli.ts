@@ -209,6 +209,9 @@ try {
   } else if (command === "avatar-setup" && !args.length) {
     const { setupFaceLandmarker } = await import("./media/face-assets.js");
     console.log(`Local face model ready: ${await setupFaceLandmarker()}`);
+  } else if (command === "talking-head-setup" && !args.length) {
+    const { setupTalkingHead } = await import("./media/talking-head.js");
+    console.log(await setupTalkingHead());
   } else if (command === "doctor" && !args.length) {
     if (!(await doctor())) process.exitCode = 1;
   } else if (command === "validate" && args.length <= 1) {

@@ -71,6 +71,7 @@ export async function runtimeFiles(): Promise<string[]> {
     "media/avatar",
     "media/face-assets",
     "media/photo-texture",
+    "media/talking-head",
     "media/store",
     "media/worker",
     "media/audio",
@@ -101,8 +102,11 @@ export async function readRuntimeFiles(): Promise<Record<string, Buffer>> {
   for (const file of await runtimeFiles()) result[file] = await readFile(await sourceFile(file));
   for (const file of [
     "src/media/kokoro-runner.py",
+    "src/media/talking-head-runner.py",
     "config/neural-voice.json",
     "config/neural-voice-requirements.txt",
+    "config/talking-head.json",
+    "config/talking-head-requirements.txt",
   ])
     result[file] = await readFile(await sourceFile(file));
   return result;

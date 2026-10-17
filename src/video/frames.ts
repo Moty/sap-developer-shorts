@@ -172,12 +172,15 @@ function panel(
   context.fill();
 }
 
+import type { TalkingHeadSequence } from "../media/talking-head.js";
+
 export interface VideoFrameInput {
   episode: ContentEpisode;
   timing: NarrationTiming;
   layout: VideoLayout;
   code: Record<string, string>;
   evidence?: DemoEvidence;
+  talkingHeadSequences?: Record<string, TalkingHeadSequence>;
 }
 
 export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment): Promise<Buffer> {
@@ -447,6 +450,10 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
           speaker.avatar.calibration?.imageSha256,
         )
       : undefined;
+  const speakerNeuralFrame =
+    speaker?.avatar?.mode === "photo" && speaker.avatar.animation === "neural"
+      ? await input.talkingHeadSequences?.[speakerId]?.getFrame(moment.startFrame)
+      : undefined;
   const coSpeakerPhoto =
     coSpeaker?.avatar?.mode === "photo" && coSpeaker.avatar.imageId
       ? await loadAvatarImage(
@@ -454,6 +461,10 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
           undefined,
           coSpeaker.avatar.calibration?.imageSha256,
         )
+      : undefined;
+  const coSpeakerNeuralFrame =
+    coSpeaker?.avatar?.mode === "photo" && coSpeaker.avatar.animation === "neural"
+      ? await input.talkingHeadSequences?.[coSpeaker.id]?.getFrame(moment.startFrame)
       : undefined;
   drawAvatarBadge(
     ctx,
@@ -464,6 +475,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       accentColor: accent,
       ...(speaker?.avatar ? { avatar: speaker.avatar } : {}),
       ...(speakerPhoto ? { photoImage: speakerPhoto } : {}),
+      ...(speakerNeuralFrame ? { neuralFrameImage: speakerNeuralFrame } : {}),
     },
     animation.viseme,
     isSpeaking,
@@ -477,6 +489,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
               accentColor: accent,
               ...(coSpeaker.avatar ? { avatar: coSpeaker.avatar } : {}),
               ...(coSpeakerPhoto ? { photoImage: coSpeakerPhoto } : {}),
+              ...(coSpeakerNeuralFrame ? { neuralFrameImage: coSpeakerNeuralFrame } : {}),
             },
           }
         : {}),

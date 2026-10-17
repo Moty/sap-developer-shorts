@@ -124,11 +124,397 @@ export function mouthGeometry(points) {
     y > 0.9
   )
     throw new Error("Use a closer, front-facing portrait or adjust the mouth manually.");
+  const mouthX = Number(x.toFixed(3));
+  const mouthY = Number(y.toFixed(3));
+  const mouthScale = Number(Math.max(0.5, Math.min(2, width / (27 / 140))).toFixed(3));
+  const mouthAngle = Number(angle.toFixed(4));
+  const mouthAspect = Number(Math.max(0.2, Math.min(0.6, (height / width) * 0.8)).toFixed(4));
+  const faceLandmarks = extractFaceLandmarks(points, { mouthX, mouthY, mouthScale });
   return {
-    mouthX: Number(x.toFixed(3)),
-    mouthY: Number(y.toFixed(3)),
-    mouthScale: Number(Math.max(0.5, Math.min(2, width / (27 / 140))).toFixed(3)),
-    mouthAngle: Number(angle.toFixed(4)),
-    mouthAspect: Number(Math.max(0.2, Math.min(0.6, (height / width) * 0.8)).toFixed(4)),
+    mouthX,
+    mouthY,
+    mouthScale,
+    mouthAngle,
+    mouthAspect,
+    faceLandmarks,
   };
+}
+
+/**
+ * Derive anatomically proportional full-face landmarks from a portrait config
+ * when explicit 478-landmark measurements are not yet stored.
+ * @param {{mouthX?:number,mouthY?:number,mouthScale?:number,eyeY?:number,faceLandmarks?:{leftEye:[number,number,number,number],rightEye:[number,number,number,number],jawY:number,faceX:number,faceY:number,faceRx:number,faceRy:number}}} [config]
+ * @returns {{leftEye:[number,number,number,number],rightEye:[number,number,number,number],jawY:number,faceX:number,faceY:number,faceRx:number,faceRy:number}}
+ */
+export function defaultFaceLandmarks(config = {}) {
+  if (
+    config.faceLandmarks &&
+    Array.isArray(config.faceLandmarks.leftEye) &&
+    Array.isArray(config.faceLandmarks.rightEye)
+  ) {
+    return config.faceLandmarks;
+  }
+  const mx = config.mouthX ?? 0.5;
+  const my = config.mouthY ?? 0.68;
+  const scale = Math.max(0.5, Math.min(2, config.mouthScale ?? 1));
+  const eyeY = Math.max(0.24, Math.min(0.62, config.eyeY ?? my - 0.24 * scale));
+  const eyeOffsetX = 0.105 * scale;
+  const eyeRx = Math.max(0.032, Math.min(0.11, 0.052 * scale));
+  const eyeRy = Math.max(0.014, Math.min(0.06, 0.022 * scale));
+  const clamp = (val, min, max, digits = 4) =>
+    Number(Math.max(min, Math.min(max, val)).toFixed(digits));
+  return {
+    leftEye: [
+      clamp(mx - eyeOffsetX, 0.12, 0.88),
+      clamp(eyeY, 0.15, 0.72),
+      clamp(eyeRx, 0.015, 0.16),
+      clamp(eyeRy, 0.008, 0.09),
+    ],
+    rightEye: [
+      clamp(mx + eyeOffsetX, 0.12, 0.88),
+      clamp(eyeY, 0.15, 0.72),
+      clamp(eyeRx, 0.015, 0.16),
+      clamp(eyeRy, 0.008, 0.09),
+    ],
+    jawY: clamp(my + 0.15 * scale, 0.5, 0.94),
+    faceX: clamp(mx, 0.2, 0.8),
+    faceY: clamp((eyeY + my) * 0.5, 0.22, 0.78),
+    faceRx: clamp(0.24 * scale, 0.12, 0.46),
+    faceRy: clamp(0.31 * scale, 0.15, 0.48),
+  };
+}
+
+/**
+ * Extract eye, jaw, and face-oval geometry from 478 MediaPipe landmarks,
+ * falling back to proportional defaults if non-mouth test points are synthetic.
+ * @param {{x:number,y:number}[]} points
+ * @param {{mouthX:number,mouthY:number,mouthScale:number}} fallback
+ * @returns {{leftEye:[number,number,number,number],rightEye:[number,number,number,number],jawY:number,faceX:number,faceY:number,faceRx:number,faceRy:number}}
+ */
+function extractFaceLandmarks(points, fallback) {
+  const needed = [33, 133, 159, 145, 362, 263, 386, 374, 152, 10, 234, 454];
+  const hasAll = needed.every(
+    (i) => points[i] && Number.isFinite(points[i].x) && Number.isFinite(points[i].y),
+  );
+  if (!hasAll) return defaultFaceLandmarks(fallback);
+  const leftW = Math.hypot(points[133].x - points[33].x, points[133].y - points[33].y);
+  const rightW = Math.hypot(points[263].x - points[362].x, points[263].y - points[362].y);
+  const faceH = Math.hypot(points[152].x - points[10].x, points[152].y - points[10].y);
+  const faceW = Math.hypot(points[454].x - points[234].x, points[454].y - points[234].y);
+  if (leftW < 0.02 || rightW < 0.02 || faceH < 0.1 || faceW < 0.1) {
+    return defaultFaceLandmarks(fallback);
+  }
+  const clamp = (val, min, max, digits = 4) =>
+    Number(Math.max(min, Math.min(max, val)).toFixed(digits));
+  const leftH = Math.max(
+    leftW * 0.34,
+    Math.hypot(points[145].x - points[159].x, points[145].y - points[159].y),
+  );
+  const rightH = Math.max(
+    rightW * 0.34,
+    Math.hypot(points[374].x - points[386].x, points[374].y - points[386].y),
+  );
+  return {
+    leftEye: [
+      clamp((points[33].x + points[133].x) / 2, 0.08, 0.92),
+      clamp((points[159].y + points[145].y) / 2, 0.12, 0.78),
+      clamp(leftW * 0.62, 0.015, 0.18),
+      clamp(leftH * 0.75, 0.008, 0.1),
+    ],
+    rightEye: [
+      clamp((points[362].x + points[263].x) / 2, 0.08, 0.92),
+      clamp((points[386].y + points[374].y) / 2, 0.12, 0.78),
+      clamp(rightW * 0.62, 0.015, 0.18),
+      clamp(rightH * 0.75, 0.008, 0.1),
+    ],
+    jawY: clamp(points[152].y, 0.48, 0.96),
+    faceX: clamp((points[234].x + points[454].x) / 2, 0.18, 0.82),
+    faceY: clamp((points[10].y + points[152].y) / 2, 0.18, 0.82),
+    faceRx: clamp(faceW * 0.52, 0.1, 0.48),
+    faceRy: clamp(faceH * 0.52, 0.12, 0.5),
+  };
+}
+
+/**
+ * Full-face anatomical portrait deformer driven by MediaPipe facial geometry.
+ * Animates 2.5D head nod/tilt inside the facial oval, automatic upper-eyelid blinks,
+ * eyebrow expression lifts, synchronized lower-jaw/cheek opening, and articulated
+ * lip deformation with feathered inner oral-cavity shading while anchoring the
+ * outer collar and frame borders smoothly to zero displacement.
+ *
+ * @param {Uint8ClampedArray} source
+ * @param {number} width
+ * @param {number} height
+ * @param {{mouthX?:number,mouthY?:number,mouthScale?:number,mouthAngle?:number,mouthAspect?:number,eyeY?:number,faceLandmarks?:{leftEye:[number,number,number,number],rightEye:[number,number,number,number],jawY:number,faceX:number,faceY:number,faceRx:number,faceRy:number}}} config
+ * @param {{viseme?:string,strength?:number,jawOpen?:number,isBlinking?:boolean,browLift?:number,headBobY?:number,headTilt?:number}|string} animInput
+ * @param {number} [fallbackStrength]
+ */
+export function warpPhotoFace(
+  source,
+  width,
+  height,
+  config = {},
+  animInput = {},
+  fallbackStrength = 1,
+) {
+  const anim =
+    typeof animInput === "string"
+      ? {
+          viseme: animInput,
+          strength: fallbackStrength,
+          jawOpen: animInput === "rest" ? 0 : 0.75 * fallbackStrength,
+        }
+      : animInput || {};
+  const viseme = anim.viseme ?? "rest";
+  const jawOpen = Math.max(0, Math.min(1, anim.jawOpen ?? (viseme === "rest" ? 0 : 0.7)));
+  const rawStrength = anim.strength ?? (viseme === "rest" ? 0 : Math.max(0.35, jawOpen));
+  const strength = viseme === "rest" ? 0 : Math.max(0, Math.min(1, rawStrength));
+  const isBlinking = Boolean(anim.isBlinking);
+  const browLift = Math.max(-4, Math.min(6, anim.browLift ?? 0));
+  const headBobY = Math.max(-10, Math.min(10, anim.headBobY ?? 0));
+  const headTilt = Math.max(-0.2, Math.min(0.2, anim.headTilt ?? 0));
+
+  const output = new Uint8ClampedArray(source);
+  const hasMouthMotion = viseme !== "rest" && strength > 0.001;
+  const hasJawMotion = jawOpen > 0.015;
+  const hasHeadMotion = Math.abs(headBobY) > 0.04 || Math.abs(headTilt) > 0.0015;
+  const hasBrowMotion = Math.abs(browLift) > 0.05;
+  if (!hasMouthMotion && !hasJawMotion && !isBlinking && !hasBrowMotion && !hasHeadMotion) {
+    return output;
+  }
+
+  const shapes = {
+    open_a: [0.98, -1.65, 2.75],
+    open_e: [1.06, -0.95, 1.55],
+    open_o: [0.82, -1.35, 2.35],
+    open_u: [0.78, -0.75, 1.4],
+    consonant: [1.0, 1.35, -1.95],
+    smile: [1.09, 0.45, -0.75],
+  };
+  const shape = shapes[viseme] || [1, 0, 0];
+
+  const landmarks = defaultFaceLandmarks(config);
+  const unit = (width / 140) * Math.max(0.5, Math.min(2, config.mouthScale ?? 1));
+  const mx = width * (config.mouthX ?? 0.5);
+  const my = height * (config.mouthY ?? 0.68);
+  const rx = 16.5 * unit;
+  const lipHeight = 16 * (config.mouthAspect ?? 0.375) * unit;
+  const ry = Math.max(8.5 * unit, lipHeight + 4.5 * unit);
+  const angle = config.mouthAngle ?? 0;
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const fxLip = (shape[0] - 1) * strength;
+
+  // Face oval parameters anchored inside portrait bounds so collar/corners stay fixed.
+  const faceX = width * landmarks.faceX;
+  const faceY = height * landmarks.faceY;
+  const maxRx = Math.max(width * 0.14, Math.min(faceX - 3, width - 3 - faceX));
+  const maxRy = Math.max(
+    height * 0.16,
+    Math.min(faceY - 3, height * Math.min(0.95, landmarks.jawY + 0.05) - faceY),
+  );
+  const faceRx = Math.min(maxRx, width * landmarks.faceRx * 1.18);
+  const faceRy = Math.min(maxRy, height * landmarks.faceRy * 1.15);
+
+  // Jaw & lower-cheek zone between mouth and chin tip (tapering to 0 before collar).
+  const jawTopY = my - ry * 0.35;
+  const jawBottomY = Math.min(
+    height - 3,
+    Math.max(my + ry * 1.25, height * Math.min(0.94, landmarks.jawY + 0.03)),
+  );
+  const jawSpanY = Math.max(1, jawBottomY - jawTopY);
+  const jawRx = Math.min(faceRx * 0.92, Math.max(rx * 2.05, width * landmarks.faceRx * 0.76));
+
+  // Eye & brow regions.
+  const eyes = [landmarks.leftEye, landmarks.rightEye].map(([ex, ey, erx, ery]) => ({
+    cx: width * ex,
+    cy: height * ey,
+    rx: Math.max(width * 0.048, width * erx * 1.28),
+    ry: Math.max(height * 0.028, height * ery * 2.05),
+  }));
+
+  const minY = Math.max(1, Math.floor(faceY - faceRy - 2));
+  const maxY = Math.min(height - 2, Math.ceil(Math.max(faceY + faceRy, jawBottomY) + 2));
+  const minX = Math.max(1, Math.floor(faceX - faceRx - 2));
+  const maxX = Math.min(width - 2, Math.ceil(faceX + faceRx + 2));
+
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      let sx = x;
+      let sy = y;
+      let modified = false;
+
+      // 1. 2.5D head nod, tilt & perspective micro-movement within facial oval.
+      const ndx = (x - faceX) / faceRx;
+      const ndy = (y - faceY) / faceRy;
+      const rFace2 = ndx * ndx + ndy * ndy;
+      if (rFace2 < 1 && hasHeadMotion) {
+        const wFace = (1 - rFace2) ** 2;
+        const bobPx = headBobY * (width / 140) * 0.42 * wFace;
+        const tiltRad = headTilt * 0.65 * wFace;
+        const dxF = sx - faceX;
+        const dyF = sy - faceY - bobPx;
+        const ct = Math.cos(tiltRad);
+        const st = Math.sin(tiltRad);
+        const pitchScale = 1 - 0.012 * (headBobY / 6) * (dyF / faceRy) * wFace;
+        sx = faceX + (dxF * ct + dyF * st) * pitchScale;
+        sy = faceY + (-dxF * st + dyF * ct) / pitchScale;
+        modified = true;
+      }
+
+      // 2. Eyebrow expression lift & upper-eyelid blink closure.
+      if (isBlinking || hasBrowMotion) {
+        for (let ei = 0; ei < eyes.length; ei++) {
+          const eye = eyes[ei];
+          if (hasBrowMotion) {
+            const browCy = eye.cy - eye.ry * 1.32;
+            const browRx = eye.rx * 1.22;
+            const browRy = eye.ry * 1.05;
+            const bdx = (sx - eye.cx) / browRx;
+            const bdy = (sy - browCy) / browRy;
+            const rBrow2 = bdx * bdx + bdy * bdy;
+            if (rBrow2 < 1) {
+              const wBrow = (1 - rBrow2) ** 2;
+              sy += browLift * (width / 140) * 0.55 * wBrow;
+              modified = true;
+            }
+          }
+          if (isBlinking) {
+            const edx = sx - eye.cx;
+            const edy = sy - eye.cy;
+            const eu = edx * c + edy * s;
+            const ev = -edx * s + edy * c;
+            const rEye2 = (eu / eye.rx) ** 2 + (ev / eye.ry) ** 2;
+            if (rEye2 < 1) {
+              const hFall = Math.max(0, 1 - (eu / eye.rx) ** 2);
+              const bEye = eye.ry * Math.sqrt(hFall);
+              if (bEye > 0.5) {
+                const lidMeet = bEye * 0.48 * hFall;
+                const upperCrease = -bEye * 0.18;
+                let sev = ev;
+                if (ev < lidMeet) {
+                  const t = (ev + bEye) / Math.max(0.001, lidMeet + bEye);
+                  sev = -bEye + t * (upperCrease + bEye);
+                } else {
+                  const t = (ev - lidMeet) / Math.max(0.001, bEye - lidMeet);
+                  sev = upperCrease + t * (bEye - upperCrease);
+                }
+                sx = eye.cx + eu * c - sev * s;
+                sy = eye.cy + eu * s + sev * c;
+                modified = true;
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Synchronized lower-jaw and cheek displacement (tapering to 0 at jawBottomY).
+      if ((hasJawMotion || hasMouthMotion) && sy > jawTopY && sy < jawBottomY) {
+        const jdx = (sx - mx) / jawRx;
+        if (Math.abs(jdx) < 1) {
+          const jxFall = (1 - jdx * jdx) ** 2;
+          const jyNorm = (sy - jawTopY) / jawSpanY;
+          const jyFall = Math.sin(jyNorm * Math.PI) ** 2;
+          const wJaw = jxFall * jyFall;
+          const openDrop = Math.max(0, shape[2] * 0.45 * strength + jawOpen * 2.4) * unit * wJaw;
+          const cheekStretchX = (shape[0] - 1) * 0.32 * strength * (sx - mx) * wJaw;
+          sy -= openDrop;
+          sx -= cheekStretchX;
+          modified = true;
+        }
+      }
+
+      // 4. Articulated rotated lip warp + inner oral cavity shading.
+      let cavityShade = 0;
+      let teethHighlight = 0;
+      if (hasMouthMotion) {
+        const dx = sx - mx;
+        const dy = sy - my;
+        const u = dx * c + dy * s;
+        const v = -dx * s + dy * c;
+        const r2 = (u / rx) ** 2 + (v / ry) ** 2;
+        if (r2 < 1) {
+          const horizontalFalloff = 1 - (u / rx) ** 2;
+          const boundary = ry * Math.sqrt(horizontalFalloff);
+          const core = Math.min(lipHeight, boundary * 0.55);
+          const epsilon = boundary * 0.01;
+          const upper = Math.max(
+            -boundary + epsilon,
+            Math.min(-core * 0.2, -core + shape[1] * unit * strength * horizontalFalloff),
+          );
+          const lower = Math.min(
+            boundary - epsilon,
+            Math.max(core * 0.2, core + shape[2] * unit * strength * horizontalFalloff),
+          );
+          let sv;
+          if (v < upper) sv = -boundary + ((v + boundary) / (upper + boundary)) * (boundary - core);
+          else if (v < 0) sv = (v / upper) * -core;
+          else if (v < lower) sv = (v / lower) * core;
+          else sv = core + ((v - lower) / (boundary - lower)) * (boundary - core);
+          const su = u / (1 + fxLip * (1 - r2) ** 2);
+          sx = mx + su * c - sv * s;
+          sy = my + su * s + sv * c;
+          modified = true;
+
+          // Feathered inner oral cavity & upper-teeth hint when jaw opens on vowels.
+          if (viseme !== "consonant" && jawOpen > 0.22) {
+            const innerHalfW = rx * 0.56;
+            const innerTop = upper * 0.42;
+            const innerBot = lower * 0.54;
+            if (
+              Math.abs(u) < innerHalfW &&
+              v > innerTop &&
+              v < innerBot &&
+              innerBot > innerTop + 0.5
+            ) {
+              const ux = 1 - (u / innerHalfW) ** 2;
+              const midV = (innerTop + innerBot) * 0.5;
+              const radV = (innerBot - innerTop) * 0.5;
+              const vy = Math.max(0, 1 - ((v - midV) / radV) ** 2);
+              const openWeight = Math.min(1, (jawOpen - 0.22) / 0.55);
+              const aperture = ux * vy ** 1.4 * openWeight;
+              cavityShade = aperture * 0.72;
+              if (jawOpen > 0.32 && v < innerTop + (innerBot - innerTop) * 0.34) {
+                const toothBand =
+                  1 -
+                  Math.abs(
+                    (v - (innerTop + (innerBot - innerTop) * 0.17)) /
+                      ((innerBot - innerTop) * 0.17),
+                  );
+                teethHighlight = Math.max(0, toothBand) * ux * openWeight * 0.28;
+              }
+            }
+          }
+        }
+      }
+
+      if (!modified) continue;
+
+      const px = Math.max(0, Math.min(width - 1.001, sx));
+      const py = Math.max(0, Math.min(height - 1.001, sy));
+      const x0 = Math.floor(px);
+      const y0 = Math.floor(py);
+      const ax = px - x0;
+      const ay = py - y0;
+      const p = (y0 * width + x0) * 4;
+      const q = (y * width + x) * 4;
+      for (let ch = 0; ch < 4; ch++) {
+        let val =
+          source[p + ch] * (1 - ax) * (1 - ay) +
+          source[p + 4 + ch] * ax * (1 - ay) +
+          source[p + width * 4 + ch] * (1 - ax) * ay +
+          source[p + (width + 1) * 4 + ch] * ax * ay;
+        if (ch < 3 && (cavityShade > 0 || teethHighlight > 0)) {
+          const depthFactor = ch === 0 ? 0.66 : ch === 1 ? 0.76 : 0.79;
+          val *= 1 - cavityShade * depthFactor;
+          if (teethHighlight > 0) {
+            const toothTarget = ch === 2 ? 222 : 234;
+            val = val * (1 - teethHighlight) + toothTarget * teethHighlight;
+          }
+        }
+        output[q + ch] = val;
+      }
+    }
+  }
+  return output;
 }
