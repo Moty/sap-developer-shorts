@@ -129,6 +129,12 @@ npm run shorts -- voice-audition af_heart am_michael
 
 ## 4. Produce the revised video
 
+Optional personal narration needs `npm run shorts -- voice-clone-setup`.
+Record/upload and accept a sample in **Voice & portrait → My voice**. Models
+require another 5.42 GiB plus the Python environment and caches. Profiles are
+private to this Mac and are not restored by Git or a studio ZIP. See
+[Qwen setup and enrollment](QWEN_VOICES.md).
+
 For realistic picture-based presenters, first run `npm run shorts -- talking-head-setup`.
 This optional engine downloads about 2.32 GB of models and renders locally using
 Apple Silicon's Metal accelerator. Choose **Realistic local portrait (Ditto)**
@@ -207,8 +213,8 @@ See [studio packages](STUDIO_PACKAGES.md) and [quality review](QUALITY_REVIEW.md
 | Two Macs generate different hashes | Compare runtime/tool versions; use the saved studio ZIP when the exact prior recording is required. |
 
 Keep local `.env` files and credentials out of Git. Local testing does not need
-them. Avatar animation and publishing remain pending; these setup steps do not
-connect or purchase a hosted provider.
+them. Realistic portrait animation uses the optional local runtime described
+above; publishing remains manual. Setup does not purchase a hosted provider.
 
 ## Verification on the original Mac
 

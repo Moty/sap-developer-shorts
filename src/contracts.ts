@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { Ajv } from "ajv";
 import type { FormatsPlugin } from "ajv-formats";
+import { clonedEpisodeSchema } from "./clone-contracts.js";
 import { demos } from "./demos.js";
 import type { ContentEpisode, DemoEvidence, Episode, NewsTopic, Topic } from "./domain.js";
 import { projectRoot } from "./paths.js";
@@ -18,6 +19,7 @@ const topicSchema = JSON.parse(
   await readFile(resolve(projectRoot, "schemas/topics.schema.json"), "utf8"),
 );
 const episodeValidator = ajv.compile<Episode>(episodeSchema);
+const episodeValidatorV2 = ajv.compile<Episode>(clonedEpisodeSchema(episodeSchema));
 const topicValidator = ajv.compile<Topic[]>(topicSchema);
 const evidenceValidator = ajv.compile<DemoEvidence>(
   JSON.parse(await readFile(resolve(projectRoot, "schemas/demo-evidence.schema.json"), "utf8")),
@@ -42,10 +44,9 @@ function unique(ids: string[], label: string, errors: string[]) {
 }
 
 export function validateEpisode(value: unknown): Episode {
-  if (!episodeValidator(value)) {
-    throw new Error(
-      `Episode schema: ${ajv.errorsText(episodeValidator.errors, { separator: "; " })}`,
-    );
+  const validator = (value as Episode)?.schemaVersion === 2 ? episodeValidatorV2 : episodeValidator;
+  if (!validator(value)) {
+    throw new Error(`Episode schema: ${ajv.errorsText(validator.errors, { separator: "; " })}`);
   }
   const errors: string[] = [];
   assertPresentation(value);

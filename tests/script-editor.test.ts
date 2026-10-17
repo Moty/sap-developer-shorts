@@ -1174,3 +1174,25 @@ test("automatic mouth calibration survives download, import and tab recovery", a
   invalidMotion.presentation.speakers[0].avatar.motion.intensity = 1.5;
   await assert.rejects(validatePresentationDefinition(invalidMotion));
 });
+
+test("personal voice references survive recovery before the asynchronous profile catalog loads", async () => {
+  const storage = recoveryStorage();
+  const first = await workshop("CAP-01@casual-v2", ["af_heart"], { storage });
+  const reference = `qwen:12345678-1234-4234-8234-123456789abc:${"a".repeat(64)}`;
+  first.get("speaker-voice-0").value = reference;
+  first.get("draft-title").value = "Keep my personal voice draft";
+  first.update();
+  assert.equal(storage.data.size, 1);
+  const restored = await workshop("CAP-01@casual-v2", ["af_heart"], { storage });
+  assert.equal(restored.get("resume-draft").hidden, false);
+  restored.get("resume-draft").click();
+  assert.equal(restored.get("speaker-voice-0").value, reference);
+  restored.download();
+  const definition = JSON.parse(restored.downloads[0]?.parts.join("") ?? "null");
+  assert.equal(definition.schemaVersion, 2);
+  assert.equal(
+    definition.presentation.speakers[0].voice.profileId,
+    "12345678-1234-4234-8234-123456789abc",
+  );
+  await validatePresentationDefinition(definition);
+});

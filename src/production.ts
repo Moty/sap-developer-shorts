@@ -7,12 +7,15 @@ import { readContentEpisode } from "./contracts.js";
 import { hash } from "./digest.js";
 import { isNewsEpisode } from "./domain.js";
 import { buildLibrary } from "./library.js";
+import { resolveVoicePlan } from "./media/local-voices.js";
 import type { MediaJob } from "./media/model.js";
 import { neuralRuntime } from "./media/neural.js";
 import { readCompletedNarration } from "./media/package.js";
 import { reuseCompletedNarration } from "./media/reuse.js";
 import { mediaNextAction } from "./media/status.js";
 import { MediaStore } from "./media/store.js";
+import { talkingHeadRuntime } from "./media/talking-head.js";
+import { assertCloudVoiceAllowed, hasClonedVoices, voiceLabel } from "./media/voice-reference.js";
 import {
   advanceMediaJob,
   mediaDatabase,
@@ -28,6 +31,7 @@ import { renderVideo } from "./video/export.js";
 const exec = promisify(execFile);
 type Stage = "PREFLIGHT" | "NARRATION" | "RENDER" | "LIBRARY";
 export interface ProductionReport {
+  localOnly?: boolean;
   schemaVersion: 1;
   id: string;
   selector: string;
@@ -73,6 +77,7 @@ function localStages(
   selector: string,
   artifactRoot: string,
   progress: (message: string) => void,
+  execution: "local" | "cloud" = "local",
 ): ProductionStages {
   return {
     async preflight() {
@@ -89,10 +94,21 @@ function localStages(
         }
       }
       const settings = await productionSettings();
-      if (settings.localPreview.engine === "kokoro") {
-        const voices = episode.presentation?.speakers.map((speaker) => speaker.voice) ?? [
-          settings.localPreview.voice,
-        ];
+      if (hasClonedVoices(episode)) {
+        try {
+          await resolveVoicePlan(episode, settings.localPreview.speed);
+        } catch (error) {
+          throw new ProductionBlocked(
+            "VOICE_PROFILE_REQUIRED",
+            (error as Error).message,
+            "Open Voice & portrait, set up Qwen, and audition your selected profile.",
+          );
+        }
+      } else if (settings.localPreview.engine === "kokoro") {
+        const voices = episode.presentation?.speakers.map((speaker) => {
+          if (typeof speaker.voice !== "string") throw new Error("Select the Qwen narrator.");
+          return speaker.voice;
+        }) ?? [settings.localPreview.voice];
         try {
           await neuralRuntime(voices);
         } catch (error) {
@@ -109,6 +125,19 @@ function localStages(
           "Select the local Kokoro engine and run voice-setup; see docs/VOICE_OPTIONS.md.",
         );
       }
+      if (
+        episode.presentation?.speakers.some(
+          (speaker) => speaker.avatar?.mode === "photo" && speaker.avatar.animation === "neural",
+        )
+      ) {
+        const runtime = await talkingHeadRuntime();
+        if (!runtime.installed)
+          throw new ProductionBlocked(
+            "PORTRAIT_SETUP_REQUIRED",
+            "Set up the realistic portrait renderer first.",
+            "npm run shorts -- talking-head-setup",
+          );
+      }
       for (const binary of ["ffmpeg", "ffprobe"]) {
         try {
           await exec(binary, ["-version"], { timeout: 5000 });
@@ -122,7 +151,7 @@ function localStages(
       }
     },
     async narration(checkpoint) {
-      let job = await planMediaEpisode(selector, "local", "success", { artifactRoot });
+      let job = await planMediaEpisode(selector, "local", "success", { artifactRoot, execution });
       await checkpoint(job);
       const store = await MediaStore.open(mediaDatabase);
       try {
@@ -131,7 +160,7 @@ function localStages(
         const provider = providerForJob(store, job);
         for (let step = 0; step < 200; step++) {
           if (job.phase === "SUCCEEDED") break;
-          job = await advanceMediaJob(store, job.id, provider);
+          job = await advanceMediaJob(store, job.id, provider, undefined, { execution });
           await checkpoint(job);
           progress(`${job.phase}${job.progress ? `: ${job.progress}` : ""}`);
           if (
@@ -188,6 +217,7 @@ export async function produce(
     artifactRoot?: string;
     progress?: (message: string) => void;
     stages?: Partial<ProductionStages>;
+    execution?: "local" | "cloud";
   } = {},
 ): Promise<ProductionReport> {
   if (!/^(ABAP|CAP|RAP|BTP|AI|NEWS)-\d{2}(?:@[a-z][a-z0-9-]{0,31})?$/u.test(selector))
@@ -227,7 +257,7 @@ export async function produce(
     await rename(resolve(directory, "production.tmp"), resolve(directory, "production.json"));
   };
   const progress = options.progress ?? (() => {});
-  const stages = { ...localStages(selector, root, progress), ...options.stages };
+  const stages = { ...localStages(selector, root, progress, options.execution), ...options.stages };
   let current: Stage = "PREFLIGHT";
   const enter = async (stage: Stage) => {
     current = stage;
@@ -237,13 +267,15 @@ export async function produce(
   };
   try {
     await enter("PREFLIGHT");
+    if (options.execution === "cloud") assertCloudVoiceAllowed(await readContentEpisode(selector));
     await stages.preflight();
     await enter("NARRATION");
     const narration = await stages.narration(async (job) => {
+      if (hasClonedVoices(job.request.episode)) report.localOnly = true;
       report.mediaJobId = job.id;
       report.inputHash = hash(JSON.stringify(job.request.episode));
-      report.voices = job.request.episode.presentation?.speakers.map(
-        (speaker) => speaker.voice,
+      report.voices = job.request.episode.presentation?.speakers.map((speaker) =>
+        voiceLabel(speaker.voice),
       ) ?? [job.request.settings.localPreview.voice];
       report.presentation = presentationLabel(job.request.episode);
       report.narrationDirectory = job.outputDirectory;
@@ -259,9 +291,9 @@ export async function produce(
       throw new Error("Production requires completed local narration for the chosen episode");
     report.mediaJobId = job.id;
     report.inputHash = hash(JSON.stringify(job.request.episode));
-    report.voices = job.request.episode.presentation?.speakers.map((speaker) => speaker.voice) ?? [
-      job.request.settings.localPreview.voice,
-    ];
+    report.voices = job.request.episode.presentation?.speakers.map((speaker) =>
+      voiceLabel(speaker.voice),
+    ) ?? [job.request.settings.localPreview.voice];
     report.presentation = presentationLabel(job.request.episode);
     report.narrationDirectory = job.outputDirectory;
     report.audioReusedFrom = job.audioReuse?.jobId ?? null;

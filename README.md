@@ -6,6 +6,12 @@ The implementation turns the editorial blueprint into a reproducible pilot packa
 
 Photo presenters support learned, audio-driven face and head animation entirely on Apple Silicon, with calm, conversational and expressive delivery. See [local portrait narration](docs/LOCAL_PORTRAITS.md). A separate [lightweight photo effect](docs/PHOTO_AVATARS.md) remains available for quick previews.
 
+**My voice** can narrate from a recorded sample using local Qwen3-TTS on Apple
+Silicon. It supports individual speakers and mixed conversations while keeping
+Heart as the stock default. Run `npm run shorts -- voice-clone-setup`, then enroll
+and audition a sample in **Voice & portrait**. Personal voices are local-only;
+see [setup, privacy, CLI and quality limits](docs/QWEN_VOICES.md).
+
 ## Start on another Mac (Turnkey Bootstrap)
 
 For Apple Silicon Macs (including Apple M-series laptops and Mac minis), run the automated bootstrap:

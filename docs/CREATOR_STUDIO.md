@@ -1,5 +1,10 @@
 # Creator studio: ideas to publication
 
+Local Apple Silicon studios also offer **Voice & portrait → My voice** for
+recording/uploading a sample, auditioning Qwen narration and assigning an accepted
+profile to each speaker. The default stays Heart. See [personal voice setup and
+privacy](QWEN_VOICES.md). This feature is local-only; hosted studios use stock voices.
+
 The workspace opens on the work list. Every row names the topic and the exact
 version, shows its stage, and offers one primary next action. Search, type,
 stage and **Needs attention** filters work together. Desktop uses compact rows;

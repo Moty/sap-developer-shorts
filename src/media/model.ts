@@ -1,4 +1,5 @@
 import type { ContentEpisode } from "../domain.js";
+import type { VoiceReference } from "./voice-reference.js";
 
 export type MediaPhase =
   | "PLANNED"
@@ -32,17 +33,26 @@ export interface ProductionSettings {
     speed?: number;
   };
 }
-export interface MediaRequest {
-  schemaVersion: 1;
+interface MediaRequestBase {
   episode: ContentEpisode;
   settings: ProductionSettings;
-  provider: "fake" | "local-speech" | "local-kokoro";
   voiceRuntimeHash?: string;
   generatorHash?: string;
   scenario: FakeScenario;
   sourceDirectory: string;
   sourceManifestHash: string;
 }
+export interface ResolvedVoice {
+  speakerId: string;
+  voice: VoiceReference;
+  runtimeHash: string;
+  speed?: number;
+}
+export type MediaRequest = MediaRequestBase &
+  (
+    | { schemaVersion: 1; provider: "fake" | "local-speech" | "local-kokoro"; voicePlan?: never }
+    | { schemaVersion: 2; provider: "local-voices"; voicePlan: ResolvedVoice[] }
+  );
 export interface MediaJob {
   schemaVersion: 1;
   id: string;
@@ -72,7 +82,7 @@ export interface Cue {
   startSeconds: number;
   endSeconds: number;
 }
-export interface NarrationTiming {
+export interface LegacyNarrationTiming {
   schemaVersion: 1;
   mode: "local-preview";
   voice: string;
@@ -85,13 +95,26 @@ export interface NarrationTiming {
   scenes: { id: string; startSeconds: number; endSeconds: number; speechSeconds: number }[];
   cues: Cue[];
 }
+export interface LocalNarrationTiming {
+  schemaVersion: 2;
+  mode: "local-preview";
+  engine: "local-voices";
+  alignment: "local-per-speaker-phrase-boundaries";
+  alignmentRuntimeHash: string;
+  speakers: { id: string; engine: "qwen" | "kokoro"; voiceHash: string }[];
+  durationSeconds: number;
+  sampleRate: number;
+  scenes: LegacyNarrationTiming["scenes"];
+  cues: Cue[];
+}
+export type NarrationTiming = LegacyNarrationTiming | LocalNarrationTiming;
 export interface ProviderOutput {
   kind: "narration" | "simulation";
   billedCents: number;
   directory: string | null;
 }
 export interface MediaProvider {
-  readonly id: "fake" | "local-speech" | "local-kokoro";
+  readonly id: MediaRequest["provider"];
   readonly billing: "free" | "simulated";
   quote(request: MediaRequest): number;
   submit(request: MediaRequest, key: string, signal: AbortSignal): Promise<string>;

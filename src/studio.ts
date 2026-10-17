@@ -1,5 +1,6 @@
 import type { LibraryEntry } from "./library.js";
 import type { NarrationTiming } from "./media/model.js";
+import { voiceLabel } from "./media/voice-reference.js";
 import { kokoroVoices } from "./media/voices.js";
 import { episodeSelector, presentationLabel, toneLabels } from "./presentation.js";
 
@@ -32,12 +33,13 @@ export function recordedNarrator(entry: LibraryEntry): string {
   const timing = JSON.parse(
     entry.preview.files["timing.json"]?.toString("utf8") ?? "null",
   ) as NarrationTiming;
+  if (timing?.schemaVersion === 2) return "Qwen · local cloned voice";
   if (!timing?.voice) throw new Error("Recorded narration is missing its voice metadata");
   if (timing.engine !== "kokoro") return `System voice · ${timing.voice}`;
   const name = (voice: string) => kokoroVoices.find((item) => item.id === voice)?.name ?? voice;
   const speakers = entry.episode.presentation?.speakers;
   if (entry.episode.presentation?.format === "dialogue" && speakers)
-    return `Kokoro · ${speakers.map((speaker, index) => `${speaker.name} (${name(index === 0 ? timing.voice : speaker.voice)})`).join(" + ")}`;
+    return `Kokoro · ${speakers.map((speaker, index) => `${speaker.name} (${name(index === 0 ? timing.voice : voiceLabel(speaker.voice))})`).join(" + ")}`;
   return `Kokoro · ${name(timing.voice)}`;
 }
 

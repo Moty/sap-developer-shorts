@@ -88,6 +88,15 @@ This script checks and installs:
 
 ---
 
+## Personal voice boundary
+
+Qwen **My voice** is available only through the loopback studio on the rendering
+Mac. Profiles, samples, enrollment auditions, cloned definitions and their media
+are not synchronized or rendered for cloud requests. Firebase export checks the
+actual saved library before copying files, including older output whose current
+script now selects a stock voice. Use `npm run shorts -- library --stock-only`
+and export that printed directory. See [Qwen privacy and setup](QWEN_VOICES.md).
+
 ## 3. Quick Start: Clone & Run on a New Mac (e.g. Apple M5 Laptop)
 
 ### Step 1: Clone Repository

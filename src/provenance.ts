@@ -90,6 +90,14 @@ export async function runtimeFiles(): Promise<string[]> {
     "media/fingerprint",
     "media/reuse",
     "media/reused-audio",
+    "clone-contracts",
+    "media/local-voices",
+    "media/qwen",
+    "media/voice-reference",
+    "media/voice-profiles",
+    "media/model-lock",
+    "media/voice-profile-api",
+    "media/cloud-voice-safety",
   ];
   return names.map((name) =>
     relative(
@@ -109,6 +117,10 @@ export async function readRuntimeFiles(): Promise<Record<string, Buffer>> {
   for (const file of await runtimeFiles()) result[file] = await readFile(await sourceFile(file));
   for (const file of [
     "src/media/kokoro-runner.py",
+    "src/media/qwen-runner.py",
+    "config/qwen-voice.json",
+    "config/qwen-voice-requirements.txt",
+    "schemas/narration-timing-v2.schema.json",
     "src/media/talking-head-runner.py",
     "src/media/portrait-runner.py",
     "scripts/setup-portrait.py",

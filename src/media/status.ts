@@ -4,6 +4,7 @@ import type { ContentEpisode } from "../domain.js";
 import { episodeSelector, presentationLabel } from "../presentation.js";
 import type { MediaJob, ProductionSettings } from "./model.js";
 import { MediaStore } from "./store.js";
+import { hasClonedVoices, voiceKey, voiceLabel } from "./voice-reference.js";
 import { mediaDatabase, productionSettings } from "./worker.js";
 
 export function narrationSettingsMatch(
@@ -11,11 +12,19 @@ export function narrationSettingsMatch(
   episode: ContentEpisode,
   settings: ProductionSettings,
 ): boolean {
-  const provider = settings.localPreview.engine === "kokoro" ? "local-kokoro" : "local-speech";
+  const provider = hasClonedVoices(episode)
+    ? "local-voices"
+    : settings.localPreview.engine === "kokoro"
+      ? "local-kokoro"
+      : "local-speech";
   const voice = episode.presentation?.speakers[0]?.voice ?? settings.localPreview.voice;
   return (
     job.request.provider === provider &&
-    job.request.settings.localPreview.voice === voice &&
+    (provider === "local-voices"
+      ? job.request.schemaVersion === 2 &&
+        JSON.stringify(job.request.voicePlan.map((item) => voiceKey(item.voice))) ===
+          JSON.stringify(episode.presentation?.speakers.map((item) => voiceKey(item.voice)))
+      : job.request.settings.localPreview.voice === voice) &&
     (provider === "local-kokoro"
       ? job.request.settings.localPreview.speed === settings.localPreview.speed
       : job.request.settings.localPreview.wordsPerMinute === settings.localPreview.wordsPerMinute)
@@ -61,9 +70,9 @@ export async function listMediaJobs(selector?: string, database = mediaDatabase)
       selector: key,
       phase: job.phase,
       provider: job.request.provider,
-      voices: job.request.episode.presentation?.speakers.map((speaker) => speaker.voice) ?? [
-        job.request.settings.localPreview.voice,
-      ],
+      voices: job.request.episode.presentation?.speakers.map((speaker) =>
+        voiceLabel(speaker.voice),
+      ) ?? [job.request.settings.localPreview.voice],
       style: presentationLabel(job.request.episode),
       updatedAt: job.updatedAt,
       scriptMatches,

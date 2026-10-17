@@ -6,14 +6,32 @@ import type { ContentEpisode } from "../domain.js";
 import { inside, sourceFile } from "../paths.js";
 import { readRuntimeFiles } from "../provenance.js";
 import { buildVtt, pronounce, readPcmWav, sampleRate, splitNarration } from "./audio.js";
+import { timingSpeakers } from "./local-voices.js";
 import type { MediaJob, NarrationTiming } from "./model.js";
 import { readReusedAudio } from "./reused-audio.js";
+import { voiceLabel } from "./voice-reference.js";
 import { kokoroVoice } from "./voices.js";
 
 const ajv = new Ajv({ allErrors: true, strict: true });
 const timingValidator = ajv.compile<NarrationTiming>(
   JSON.parse(await readFile(await sourceFile("schemas/narration-timing.schema.json"), "utf8")),
 );
+
+const timingValidatorV2 = ajv.compile<NarrationTiming>(
+  JSON.parse(await readFile(await sourceFile("schemas/narration-timing-v2.schema.json"), "utf8")),
+);
+
+function assertVoiceTiming(job: MediaJob, timing: NarrationTiming) {
+  if (job.request.schemaVersion === 2) {
+    if (
+      timing.schemaVersion !== 2 ||
+      JSON.stringify(timing.speakers) !== JSON.stringify(timingSpeakers(job.request.voicePlan)) ||
+      !job.request.voicePlan.some((speaker) => speaker.runtimeHash === timing.alignmentRuntimeHash)
+    )
+      throw new Error("Cloned narration metadata differs from its voice plan.");
+  } else if (timing.schemaVersion !== 1)
+    throw new Error("Legacy narration cannot use cloned voice timing.");
+}
 
 export async function readCompletedNarration(job: MediaJob) {
   if (job.phase !== "SUCCEEDED" || !job.outputDirectory)
@@ -44,6 +62,7 @@ export async function readCompletedNarration(job: MediaJob) {
     job.request.episode,
     readPcmWav(files["narration.wav"] as Buffer).length / 2,
   );
+  assertVoiceTiming(job, timing);
   if ((files["captions.vtt"] as Buffer).toString("utf8") !== buildVtt(timing.cues))
     throw new Error("Narration captions differ from the timing");
   return { receipt, files, timing, directory };
@@ -54,8 +73,9 @@ export function validateTiming(
   episode: ContentEpisode,
   frames: number,
 ): NarrationTiming {
-  if (!timingValidator(value))
-    throw new Error(`Narration timing: ${ajv.errorsText(timingValidator.errors)}`);
+  const validator =
+    (value as NarrationTiming)?.schemaVersion === 2 ? timingValidatorV2 : timingValidator;
+  if (!validator(value)) throw new Error(`Narration timing: ${ajv.errorsText(validator.errors)}`);
   if (Math.abs(value.durationSeconds * sampleRate - frames) > 1)
     throw new Error("Narration timing does not match the audio samples");
   let end = 0;
@@ -128,6 +148,7 @@ export async function packageNarration(job: MediaJob): Promise<string> {
     reused?.files["timing.json"]?.toString("utf8") ??
     (await readFile(resolve(providerDirectory, "timing.json"), "utf8"));
   const timing = validateTiming(JSON.parse(timingText), job.request.episode, frames);
+  assertVoiceTiming(job, timing);
   const neural = job.request.provider === "local-kokoro";
   if (
     neural &&
@@ -149,7 +170,7 @@ export async function packageNarration(job: MediaJob): Promise<string> {
     captions: timing.alignment ?? "measured-phrase-boundaries",
     narrator: {
       engine: timing.engine ?? "system",
-      voice: timing.voice,
+      voice: timing.schemaVersion === 1 ? timing.voice : "My voice (Qwen)",
       ...(job.request.episode.presentation
         ? { speakers: job.request.episode.presentation.speakers }
         : {}),
@@ -186,11 +207,15 @@ export async function packageNarration(job: MediaJob): Promise<string> {
       "Measure narration and captions, recheck the source pages, and review the final news script before using a permitted avatar provider.",
       "Local narration and captions are measured. Recheck the source pages and review the final script before using a permitted avatar provider within the pilot budget.",
     );
-  if (neural) {
+  if (neural && timing.schemaVersion === 1) {
     const voice = {
       name:
         job.request.episode.presentation?.speakers
-          .map((speaker) => kokoroVoice(speaker.voice).name)
+          .map((speaker) =>
+            typeof speaker.voice === "string"
+              ? kokoroVoice(speaker.voice).name
+              : voiceLabel(speaker.voice),
+          )
           .join(" + ") ?? kokoroVoice(timing.voice).name,
     };
     html = html
@@ -204,6 +229,13 @@ export async function packageNarration(job: MediaJob): Promise<string> {
       )
       .replace("LOCAL VOICE PREVIEW · MEASURED TIMING", "LOCAL NEURAL VOICE · MEASURED AUDIO");
   }
+  if (timing.schemaVersion === 2)
+    html = html
+      .replaceAll("Local system voice preview.", "Local cloned voice (Qwen).")
+      .replaceAll(
+        "Captions follow measured phrase boundaries.",
+        "Qwen captions use forced alignment; stock turns use model timing estimates.",
+      );
   const assessment =
     quality.durationInRange && quality.hookWithinThreeSeconds
       ? "Timing checks passed"

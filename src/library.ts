@@ -16,6 +16,7 @@ import { buildVtt, readPcmWav } from "./media/audio.js";
 import { validateTiming } from "./media/package.js";
 import { verifiedKokoroVoices } from "./media/voice-assets.js";
 import { collectVoiceSamples, type VoiceSample } from "./media/voice-audition.js";
+import { hasClonedVoices } from "./media/voice-reference.js";
 import { loadVerifiedRun, productionSettings } from "./media/worker.js";
 import { inside, projectRoot, sourceFile } from "./paths.js";
 import { episodeSelector, episodeSourceFiles } from "./presentation.js";
@@ -256,7 +257,12 @@ export async function collectLibrary(
 }
 
 export async function buildLibrary(
-  options: { artifactRoot?: string; now?: Date; selectedMediaJobs?: Record<string, string> } = {},
+  options: {
+    artifactRoot?: string;
+    now?: Date;
+    selectedMediaJobs?: Record<string, string>;
+    stockOnly?: boolean;
+  } = {},
 ) {
   const now = options.now ?? new Date();
   const artifactRoot = resolve(
@@ -264,7 +270,9 @@ export async function buildLibrary(
     options.artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
   );
   const content = await validateContent();
-  const episodes = [...content.episodes, ...content.variants];
+  const episodes = [...content.episodes, ...content.variants].filter(
+    (episode) => !options.stockOnly || !hasClonedVoices(episode),
+  );
   const library = await collectLibrary(episodes, artifactRoot, now, options.selectedMediaJobs);
   for (const [selector, id] of Object.entries(options.selectedMediaJobs ?? {}))
     if (
@@ -288,6 +296,7 @@ export async function buildLibrary(
     "templates/library.js",
     "templates/script-editor.css",
     "templates/script-editor.js",
+    "templates/voice-profiles.js",
     "config/production.json",
     "content/topics/backlog.json",
     "content/news/backlog.json",
@@ -331,6 +340,7 @@ export async function buildLibrary(
   const manifest = {
     schemaVersion: 1,
     kind: "review-library",
+    ...(episodes.some(hasClonedVoices) ? { localOnly: true } : {}),
     builtAt: now.toISOString(),
     sourceHashes,
     runtimeHashes,
@@ -352,6 +362,7 @@ export async function buildLibrary(
     episodes: library.entries.map(({ episode, preview, sourceReviewExpired, video }) => ({
       id: episode.id,
       selector: episodeSelector(episode),
+      ...(hasClonedVoices(episode) ? { localOnly: true } : {}),
       ...(video
         ? { video: { renderKey: video.renderKey, durationSeconds: video.durationSeconds } }
         : {}),

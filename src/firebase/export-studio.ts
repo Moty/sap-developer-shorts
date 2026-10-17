@@ -4,6 +4,7 @@ import { readContentEpisode } from "../contracts.js";
 import { hash } from "../digest.js";
 import { buildLibrary } from "../library.js";
 import { listCustomAvatars, resolveAvatarPath } from "../media/avatar.js";
+import { assertCloudLibrarySafe } from "../media/cloud-voice-safety.js";
 import { faceAsset } from "../media/face-assets.js";
 import { talkingHeadRuntime } from "../media/talking-head.js";
 import { installedKokoroVoices } from "../media/voice-audition.js";
@@ -152,6 +153,7 @@ export async function exportStudioForFirebase(
   const outputDirectory = resolve(projectRoot, options.outputDirectory ?? "dist/studio");
   const firebaseConfig = options.firebaseConfig ?? (await loadFirebaseConfig());
 
+  await assertCloudLibrarySafe(sourceLibraryDirectory);
   await rm(outputDirectory, { recursive: true, force: true });
   await mkdir(outputDirectory, { recursive: true });
   await cp(sourceLibraryDirectory, outputDirectory, { recursive: true });

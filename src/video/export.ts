@@ -12,6 +12,7 @@ import { isNewsEpisode } from "../domain.js";
 import { validateLayout } from "../layout.js";
 import { collectLibrary } from "../library.js";
 import { readPcmWav } from "../media/audio.js";
+import type { NarrationTiming } from "../media/model.js";
 import { validateTiming } from "../media/package.js";
 import { loadVerifiedRun } from "../media/worker.js";
 import { inside, projectRoot, sourceFile } from "../paths.js";
@@ -117,8 +118,21 @@ export function loudnessResult(stderr: string) {
   return values as Record<string, string>;
 }
 
-function videoPage(episode: ContentEpisode, seconds: number): string {
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src 'self'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'"><title>${esc(episode.title)} · MP4 review</title><style>*{box-sizing:border-box}body{margin:0;background:#f7f7f2;color:#203c36;font:16px/1.6 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:30px 24px}h1{line-height:1.15;letter-spacing:-.04em}video{display:block;max-width:100%;height:75vh;min-height:360px;margin:24px auto;border-radius:20px;background:#102a32}.tag{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#597365}.links{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit;text-underline-offset:4px}.note{color:#60776e;font-size:14px}details{margin-top:24px}p{max-width:780px}pre{white-space:pre-wrap;font:inherit}@media(max-width:480px){main{padding:20px 14px}video{height:auto;width:100%;min-height:0}}</style></head><body><main><!--LIBRARY_BACK--><span class="tag">SAP Shorts · MP4 export · ${seconds.toFixed(1)} seconds</span><h1>${esc(episode.title)}</h1><p>Vertical video with Kokoro narration, visible captions, and ${isNewsEpisode(episode) ? "dated SAP announcement cards" : "verified demo visuals"}.</p><video controls playsinline preload="metadata" poster="poster.png" aria-label="${esc(episode.title)} video"><source src="short.mp4" type="video/mp4"></video><div class="links"><a href="short.mp4" download>Download MP4</a><a href="captions.vtt" download>Caption file</a><a href="publication-draft.txt">Companion post draft</a></div><p class="note">AI-generated narration${episode.presentation?.format === "dialogue" ? " and two animated hosts (Mira & Max)" : " and animated presenter avatar"}. Caption boundaries and syllable visemes use model timing estimates.</p><details><summary>Read the transcript</summary>${episode.scenes.map((scene) => `<p><strong>${esc(scene.overlay)}</strong><br>${scene.dialogue ? scene.dialogue.map((turn) => `${esc(episode.presentation?.speakers.find((speaker) => speaker.id === turn.speakerId)?.name ?? "")}: ${esc(turn.text)}`).join("<br>") : esc(scene.narration)}</p>`).join("")}</details><details><summary>Official sources</summary>${episode.sources.map((source) => `<p><a href="${esc(source.url)}">${esc(source.title)}</a></p>`).join("")}</details></main></body></html>`;
+function videoPage(episode: ContentEpisode, timing: NarrationTiming): string {
+  const seconds = timing.durationSeconds;
+  const narrator =
+    timing.schemaVersion === 2
+      ? timing.speakers.some((speaker) => speaker.engine === "kokoro")
+        ? "Qwen and Kokoro"
+        : "Qwen"
+      : timing.engine === "kokoro"
+        ? "Kokoro"
+        : "local";
+  const captionNote =
+    timing.schemaVersion === 2
+      ? "Qwen caption timings use local forced alignment. Stock turns use model timing estimates. Review pronunciation, timing and animation before sharing."
+      : "Caption boundaries and syllable visemes use model timing estimates.";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src 'self'; img-src 'self'; style-src 'unsafe-inline'; base-uri 'none'"><title>${esc(episode.title)} · MP4 review</title><style>*{box-sizing:border-box}body{margin:0;background:#f7f7f2;color:#203c36;font:16px/1.6 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:30px 24px}h1{line-height:1.15;letter-spacing:-.04em}video{display:block;max-width:100%;height:75vh;min-height:360px;margin:24px auto;border-radius:20px;background:#102a32}.tag{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#597365}.links{display:flex;flex-wrap:wrap;gap:18px}a{color:inherit;text-underline-offset:4px}.note{color:#60776e;font-size:14px}details{margin-top:24px}p{max-width:780px}pre{white-space:pre-wrap;font:inherit}@media(max-width:480px){main{padding:20px 14px}video{height:auto;width:100%;min-height:0}}</style></head><body><main><!--LIBRARY_BACK--><span class="tag">SAP Shorts · MP4 export · ${seconds.toFixed(1)} seconds</span><h1>${esc(episode.title)}</h1><p>Vertical video with ${narrator} narration, visible captions, and ${isNewsEpisode(episode) ? "dated SAP announcement cards" : "verified demo visuals"}.</p><video controls playsinline preload="metadata" poster="poster.png" aria-label="${esc(episode.title)} video"><source src="short.mp4" type="video/mp4"></video><div class="links"><a href="short.mp4" download>Download MP4</a><a href="captions.vtt" download>Caption file</a><a href="publication-draft.txt">Companion post draft</a></div><p class="note">AI-generated narration${episode.presentation?.format === "dialogue" ? " and two animated hosts (Mira & Max)" : " and animated presenter avatar"}. ${captionNote}</p><details><summary>Read the transcript</summary>${episode.scenes.map((scene) => `<p><strong>${esc(scene.overlay)}</strong><br>${scene.dialogue ? scene.dialogue.map((turn) => `${esc(episode.presentation?.speakers.find((speaker) => speaker.id === turn.speakerId)?.name ?? "")}: ${esc(turn.text)}`).join("<br>") : esc(scene.narration)}</p>`).join("")}</details><details><summary>Official sources</summary>${episode.sources.map((source) => `<p><a href="${esc(source.url)}">${esc(source.title)}</a></p>`).join("")}</details></main></body></html>`;
 }
 
 export async function renderVideo(
@@ -499,10 +513,7 @@ export async function renderVideo(
       );
       await writeFile(resolve(directory, "timing.json"), timingText);
       await writeFile(resolve(directory, "captions.vtt"), preview.files["captions.vtt"] as Buffer);
-      await writeFile(
-        resolve(directory, "review.html"),
-        videoPage(episode, timing.durationSeconds),
-      );
+      await writeFile(resolve(directory, "review.html"), videoPage(episode, timing));
       const publicationText = sourceCodeCommit
         ? episode.publication.text.replace(
             "Code link pending repository publication",

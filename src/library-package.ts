@@ -88,18 +88,24 @@ function hashes(value: unknown, allowed: (name: string) => boolean): Record<stri
 }
 
 function validateManifest(value: unknown) {
-  const manifest = shape(value, [
-    "schemaVersion",
-    "kind",
-    "builtAt",
-    "sourceHashes",
-    "runtimeHashes",
-    "artifactHashes",
-    "excludedRuns",
-    "episodePackages",
-    "voiceSamples",
-    "episodes",
-  ]);
+  const manifest = shape(
+    value,
+    [
+      "schemaVersion",
+      "kind",
+      "builtAt",
+      "sourceHashes",
+      "runtimeHashes",
+      "artifactHashes",
+      "excludedRuns",
+      "episodePackages",
+      "voiceSamples",
+      "episodes",
+    ],
+    ["localOnly"],
+  );
+  if (Object.hasOwn(manifest, "localOnly"))
+    check(manifest.localOnly === true, "invalid local-only marker");
   check(
     manifest.schemaVersion === 1 && manifest.kind === "review-library",
     "unsupported library manifest",
@@ -111,14 +117,18 @@ function validateManifest(value: unknown) {
   );
   const allowed = new Set(["review.html"]);
   const expectedSources = new Set(sourceInputs);
+  if (Object.hasOwn(object(manifest.sourceHashes), "templates/voice-profiles.js"))
+    expectedSources.add("templates/voice-profiles.js");
   const episodes = new Map<string, { version: number; renderKey?: string }>();
   let videoCount = 0;
   for (const value of list(manifest.episodes)) {
     const episode = shape(
       value,
       ["id", "selector", "version", "inputHash", "sourceReviewExpired", "preview"],
-      ["video"],
+      ["video", "localOnly"],
     );
+    if (Object.hasOwn(episode, "localOnly"))
+      check(episode.localOnly === true, "invalid local-only marker");
     const id = string(episode.id, idPattern, "episode ID");
     const selector = string(episode.selector, selectorPattern, "episode selector");
     check(
@@ -273,6 +283,9 @@ function validateManifest(value: unknown) {
     (name) =>
       /^(?:src|dist\/src)\/(?:[a-z][a-z0-9-]*\/)*[a-z][a-z0-9-]*\.(?:ts|js|py)$/u.test(name) ||
       [
+        "config/qwen-voice.json",
+        "config/qwen-voice-requirements.txt",
+        "schemas/narration-timing-v2.schema.json",
         "config/neural-voice.json",
         "config/neural-voice-requirements.txt",
         "scripts/setup-portrait.py",

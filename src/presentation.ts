@@ -1,5 +1,5 @@
 import type { ContentEpisode } from "./domain.js";
-import { supportsKokoroVoice } from "./media/voices.js";
+import { assertVoiceReference, isClonedVoice, voiceIdentity } from "./media/voice-reference.js";
 
 export const presentationFormats = [
   {
@@ -75,13 +75,21 @@ export function assertPresentation(episode: ContentEpisode): void {
   )
     throw new Error(`This presentation needs ${count} unique speaker IDs`);
   for (const speaker of value.speakers) {
-    if (!supportsKokoroVoice(speaker.voice))
-      throw new Error(`Unsupported speaker voice: ${speaker.voice}`);
+    assertVoiceReference(speaker.voice);
+    if (isClonedVoice(speaker.voice) && episode.schemaVersion !== 2)
+      throw new Error("Cloned voice definitions require schemaVersion 2.");
     if (speaker.avatar?.mode === "photo" && !speaker.avatar.imageId)
       throw new Error(`Photo avatar mode requires an imageId for speaker ${speaker.id}`);
   }
-  if (count === 2 && new Set(value.speakers.map((speaker) => speaker.voice)).size !== 2)
-    throw new Error("Two-person dialogue needs two distinct Kokoro voices");
+  if (
+    count === 2 &&
+    new Set(value.speakers.map((speaker) => voiceIdentity(speaker.voice))).size !== 2
+  )
+    throw new Error(
+      value.speakers.some((speaker) => isClonedVoice(speaker.voice))
+        ? "Two-person dialogue needs two distinct voices"
+        : "Two-person dialogue needs two distinct Kokoro voices",
+    );
   const used = new Set<string>();
   for (const scene of episode.scenes) {
     if (count === 1 && scene.dialogue)

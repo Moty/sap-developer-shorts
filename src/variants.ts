@@ -8,7 +8,7 @@ import { projectRoot, sourceFile } from "./paths.js";
 import { variantFile } from "./presentation.js";
 
 export type PresentationDefinition = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   baseEpisodeId: string;
   baseInputHash: string;
   title: string;
@@ -60,7 +60,7 @@ export async function validatePresentationDefinition(value: unknown, expectedSel
           "pronunciation",
         ].includes(key),
     ) ||
-    definition.schemaVersion !== 1 ||
+    ![1, 2].includes(definition.schemaVersion) ||
     typeof definition.baseEpisodeId !== "string" ||
     !/^(ABAP|CAP|RAP|BTP|AI|NEWS)-\d{2}$/u.test(definition.baseEpisodeId) ||
     typeof definition.baseInputHash !== "string" ||
@@ -76,6 +76,11 @@ export async function validatePresentationDefinition(value: unknown, expectedSel
   if (expectedSelector !== undefined && expectedSelector !== selector)
     throw new Error("Presentation variant metadata does not match its selector");
   const base = await readContentEpisode(definition.baseEpisodeId);
+  if (
+    definition.schemaVersion === 1 &&
+    definition.presentation.speakers.some((speaker) => typeof speaker.voice !== "string")
+  )
+    throw new Error("Cloned voice definitions require schemaVersion 2.");
   const episode = applyPresentationVariant(base, definition);
   return { definition: structuredClone(definition), episode, selector, file };
 }
@@ -101,6 +106,8 @@ export function applyPresentationVariant(
   const episode = structuredClone(base);
   episode.title = value.title;
   episode.presentation = value.presentation;
+  if (value.presentation.speakers.some((speaker) => typeof speaker.voice !== "string"))
+    episode.schemaVersion = 2;
   for (const [index, override] of value.scenes.entries()) {
     const scene = episode.scenes[index];
     if (

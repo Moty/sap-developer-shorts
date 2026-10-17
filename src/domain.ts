@@ -1,3 +1,4 @@
+import type { VoiceReference } from "./media/voice-reference.js";
 export interface Source {
   id: string;
   title: string;
@@ -39,7 +40,7 @@ export interface Presentation {
   tone: "professional" | "casual" | "comic";
   format: "explainer" | "dialogue" | "myth-fact" | "countdown" | "story" | "quiz";
   humor: "none" | "light" | "sap-geek";
-  speakers: { id: string; name: string; voice: string; avatar?: SpeakerAvatarConfig }[];
+  speakers: { id: string; name: string; voice: VoiceReference; avatar?: SpeakerAvatarConfig }[];
 }
 
 export interface Scene {
@@ -60,7 +61,7 @@ export interface Scene {
 }
 
 export interface Episode {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   id: string;
   version: number;
   title: string;

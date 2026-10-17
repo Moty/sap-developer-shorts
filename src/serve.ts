@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -23,11 +24,15 @@ export async function startPreviewServer(
   apiOptions: Omit<ApiOptions, "onLibraryUpdated"> = {},
 ) {
   let root = await realpath(directory);
+  const privateVoiceToken = ["127.0.0.1", "localhost", "::1"].includes(host)
+    ? randomUUID()
+    : undefined;
   async function respond(request: IncomingMessage, response: ServerResponse) {
     const url = new URL(request.url ?? "/", "http://localhost");
     if (url.pathname.startsWith("/api/")) {
       const handled = await handleApiRequest(request, response, url, {
         ...apiOptions,
+        ...(privateVoiceToken ? { privateVoiceToken } : {}),
         libraryDirectory: () => root,
         onLibraryUpdated: async (newDirectory) => {
           try {

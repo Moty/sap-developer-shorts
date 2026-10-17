@@ -3,7 +3,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { readContentEpisode } from "./contracts.js";
 import { hash } from "./digest.js";
 import { buildLibrary } from "./library.js";
+import { pronounce } from "./media/audio.js";
+import { synthesizeClonedSpeech } from "./media/qwen.js";
 import { type auditionPhrase, installedKokoroVoices } from "./media/voice-audition.js";
+import { assertPrivateVoiceRequest, handleVoiceProfileApi } from "./media/voice-profile-api.js";
+import { hasClonedVoices, isClonedVoice } from "./media/voice-reference.js";
 import { kokoroVoices } from "./media/voices.js";
 import { latestProduction, type ProductionReport, produce } from "./production.js";
 import { savePresentation } from "./script-import.js";
@@ -28,6 +32,7 @@ export interface ProductionJobState {
 }
 
 export interface ApiOptions {
+  privateVoiceToken?: string;
   onLibraryUpdated?: (newDirectory: string) => void | Promise<void>;
   artifactRoot?: string;
   audition?: typeof auditionPhrase;
@@ -84,6 +89,17 @@ export async function handleApiRequest(
 ): Promise<boolean> {
   const path = url.pathname;
   if (!path.startsWith("/api/")) return false;
+  if (
+    await handleVoiceProfileApi(request, response, url, {
+      ...(options.privateVoiceToken ? { token: options.privateVoiceToken } : {}),
+      busy:
+        productionStarting ||
+        (!!activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)),
+      readBody: readJsonBody,
+      send: sendJson,
+    })
+  )
+    return true;
   if (request.method === "POST" && ["/api/workflow", "/api/scripts"].includes(path)) {
     const origin = request.headers.origin;
     if (
@@ -299,10 +315,16 @@ export async function handleApiRequest(
 
   // POST /api/audition
   if (request.method === "POST" && path === "/api/audition") {
+    if (activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)) {
+      sendJson(response, 409, {
+        error: "Wait for the current production to finish before auditioning another voice.",
+      });
+      return true;
+    }
     try {
       const body = (await readJsonBody(request)) as {
         text?: string;
-        voice?: string;
+        voice?: unknown;
         speed?: number;
         pronunciation?: Record<string, string>;
       };
@@ -310,6 +332,22 @@ export async function handleApiRequest(
         sendJson(response, 400, { error: "Text is required for audition" });
         return true;
       }
+      if (isClonedVoice(body.voice)) {
+        assertPrivateVoiceRequest(request, options.privateVoiceToken);
+        const spokenText = pronounce(body.text.trim(), body.pronunciation ?? {});
+        const result = await synthesizeClonedSpeech(body.voice, spokenText);
+        response.writeHead(200, {
+          "content-type": "audio/wav",
+          "content-length": result.audio.length,
+          "x-spoken-text": encodeURIComponent(spokenText),
+          "x-duration-seconds": (result.alignment.frames / 22050).toFixed(2),
+          "cache-control": "no-store",
+        });
+        response.end(result.audio);
+        return true;
+      }
+      if (body.voice !== undefined && typeof body.voice !== "string")
+        throw new Error("Invalid voice selection.");
       const audition =
         options.audition ?? (await import("./media/voice-audition.js")).auditionPhrase;
       const result = await audition(body.text.trim(), {
@@ -335,7 +373,12 @@ export async function handleApiRequest(
   if (request.method === "POST" && path === "/api/scripts") {
     try {
       const body = (await readJsonBody(request)) as { definition?: unknown };
-      const saved = await savePresentation(body?.definition ?? body);
+      const definition = (body?.definition ?? body) as {
+        presentation?: { speakers?: { voice?: unknown }[] };
+      };
+      if (definition.presentation?.speakers?.some((speaker) => isClonedVoice(speaker.voice)))
+        assertPrivateVoiceRequest(request, options.privateVoiceToken);
+      const saved = await savePresentation(definition);
       let libraryUpdated = false;
       if (options.onLibraryUpdated) {
         try {
@@ -384,6 +427,11 @@ export async function handleApiRequest(
       };
       let selector = body?.selector;
       if (body?.definition) {
+        const definition = body.definition as {
+          presentation?: { speakers?: { voice?: unknown }[] };
+        };
+        if (definition.presentation?.speakers?.some((speaker) => isClonedVoice(speaker.voice)))
+          assertPrivateVoiceRequest(request, options.privateVoiceToken);
         const saved = await savePresentation(body.definition);
         selector = saved.selector;
       }
@@ -411,6 +459,8 @@ export async function handleApiRequest(
         return true;
       }
 
+      if (hasClonedVoices(await readContentEpisode(selector)))
+        assertPrivateVoiceRequest(request, options.privateVoiceToken);
       const jobId = randomUUID();
       const job: ProductionJobState = {
         id: jobId,

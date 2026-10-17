@@ -1,6 +1,20 @@
 (() => {
   const { seed, scenes, reservedNames, availableVoices, recoveryId, pronunciation, faceDetector } =
     JSON.parse(document.getElementById("editor-data").textContent);
+  const voiceKey = (voice) =>
+    typeof voice === "string" ? voice : `qwen:${voice.profileId}:${voice.revision}`;
+  const voiceFromKey = (value) => {
+    const parts = value.split(":");
+    return parts.length === 3 && parts[0] === "qwen"
+      ? { engine: "qwen", profileId: parts[1], revision: parts[2] }
+      : value;
+  };
+  const validPersonalVoiceKey = (value) =>
+    /^qwen:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}:[a-f0-9]{64}$/u.test(
+      value,
+    );
+  const voiceAvailable = (value) =>
+    availableVoices.includes(value) || globalThis.shortsVoiceProfiles?.isAvailable(value);
   let activePronunciation = { ...(pronunciation || seed.pronunciation || {}) };
   const startingPronunciation = structuredClone(activePronunciation);
   let renderGlossaryUi = null;
@@ -85,7 +99,13 @@
       return false;
     return seed.presentation.speakers.every((speaker, index) => {
       const voice = fields[`speaker-voice-${index}`];
-      return voice === speaker.voice || availableVoices.includes(voice);
+      return (
+        voice === voiceKey(speaker.voice) ||
+        voiceAvailable(voice) ||
+        /^qwen:[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}:[a-f0-9]{64}$/u.test(
+          voice,
+        )
+      );
     });
   }
   function clearSavedDraft() {
@@ -224,20 +244,21 @@
       "draft-title",
     );
     const voiceLabel = (index, voice) =>
-      Array.from(byId(`speaker-voice-${index}`).options).find((option) => option.value === voice)
-        ?.textContent ?? voice;
+      Array.from(byId(`speaker-voice-${index}`).options).find(
+        (option) => option.value === voiceKey(voice),
+      )?.textContent ?? (typeof voice === "string" ? voice : "My voice (Qwen)");
     section(
       "Voices",
       draft.presentation.speakers.map((speaker, index) => ({
         label: `${speaker.name} voice`,
         before: voiceLabel(index, seed.presentation.speakers[index].voice),
         after: voiceLabel(index, speaker.voice),
-        changed: seed.presentation.speakers[index].voice !== speaker.voice,
+        changed: voiceKey(seed.presentation.speakers[index].voice) !== voiceKey(speaker.voice),
       })),
       "Restore starting voices",
       () => {
         for (const [index, speaker] of seed.presentation.speakers.entries())
-          byId(`speaker-voice-${index}`).value = speaker.voice;
+          byId(`speaker-voice-${index}`).value = voiceKey(speaker.voice);
       },
       "speaker-voice-0",
     );
@@ -451,14 +472,16 @@
     draft.publicationText = byId("publication-text").value.trim();
     const errors = [];
     for (const [index, speaker] of draft.presentation.speakers.entries()) {
-      const original = seed.presentation.speakers[index].voice;
+      const original = voiceKey(seed.presentation.speakers[index].voice);
       const selected = byId(`speaker-voice-${index}`).value;
-      if (selected !== original && !availableVoices.includes(selected))
+      if (selected !== original && !voiceAvailable(selected) && !validPersonalVoiceKey(selected))
         errors.push(`Choose an available voice for ${speaker.name}.`);
-      speaker.voice = selected;
-      byId(`speaker-voice-${index}-help`).textContent = availableVoices.includes(selected)
-        ? "Local voice assets checked when this studio was built. Production checks them again."
-        : `Original voice retained. Before production, run npm run shorts -- voice-setup ${original}, then rebuild the studio.`;
+      speaker.voice = voiceFromKey(selected);
+      byId(`speaker-voice-${index}-help`).textContent = selected.startsWith("qwen:")
+        ? "Personal voice profile on this Mac. Production checks its accepted revision."
+        : availableVoices.includes(selected)
+          ? "Local voice assets checked when this studio was built. Production checks them again."
+          : `Original voice retained. Before production, run npm run shorts -- voice-setup ${original}, then rebuild the studio.`;
       const avatarMode = byId(`speaker-avatar-mode-${index}`).value;
       const photoPanel = byId(`speaker-avatar-photo-panel-${index}`);
       photoPanel.hidden = avatarMode !== "photo";
@@ -490,10 +513,18 @@
     }
     if (
       draft.presentation.speakers.length > 1 &&
-      new Set(draft.presentation.speakers.map((speaker) => speaker.voice)).size !==
-        draft.presentation.speakers.length
+      new Set(
+        draft.presentation.speakers.map((speaker) =>
+          typeof speaker.voice === "string" ? speaker.voice : speaker.voice.profileId,
+        ),
+      ).size !== draft.presentation.speakers.length
     )
       errors.push("Choose a different voice for each person in the conversation.");
+    draft.schemaVersion = draft.presentation.speakers.some(
+      (speaker) => typeof speaker.voice !== "string",
+    )
+      ? 2
+      : seed.schemaVersion;
     if (!/^[a-z][a-z0-9-]{0,31}$/u.test(draft.presentation.variant))
       errors.push("Choose a version name using lowercase letters, numbers, and hyphens.");
     if (reservedNames.includes(draft.presentation.variant))
@@ -826,7 +857,7 @@
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             text: text.trim(),
-            voice,
+            voice: voiceFromKey(voice),
             speed: 0.96,
             pronunciation: activePronunciation,
           }),
@@ -1506,6 +1537,19 @@
       ) {
         const option = element("option", "", value);
         option.value = value;
+        select.append(option);
+      }
+    }
+    for (const [index] of seed.presentation.speakers.entries()) {
+      const value = pendingRecovery[`speaker-voice-${index}`];
+      const select = byId(`speaker-voice-${index}`);
+      if (
+        value.startsWith("qwen:") &&
+        !Array.from(select.options).some((option) => option.value === value)
+      ) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = "My voice · restored revision (checked at production)";
         select.append(option);
       }
     }

@@ -4,6 +4,11 @@ The selected style is a **warm, conversational female narrator**. The default lo
 
 ## Local setup
 
+To use a recording of your voice instead of a stock profile, see
+[Qwen personal voices](QWEN_VOICES.md). That optional Apple Silicon runtime has
+separate setup, local enrollment and audition acceptance, and supports mixing
+with Kokoro in conversations. The stock setup and defaults below are unchanged.
+
 For a new Mac, follow [the complete setup guide](NEW_MAC_SETUP.md) first; it
 includes Homebrew, the Node PATH setting, FFmpeg, and clean-checkout verification.
 

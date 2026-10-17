@@ -10,6 +10,7 @@ import { inside, projectRoot, sourceFile } from "../paths.js";
 import { acquireVideoGate } from "../video/cache.js";
 import { resolveAvatarPath } from "./avatar.js";
 import type { Cue } from "./model.js";
+import { withModelLock } from "./model-lock.js";
 
 export const talkingHeadRoot = resolve(projectRoot, ".state/portrait-runtime");
 
@@ -233,12 +234,14 @@ export async function prepareTalkingHeadSequence(options: {
           2,
         )}\n`,
       );
-      await runLogged(
-        resolve(runtimeRoot, "venv/bin/python"),
-        [runnerPath, "render", runtimeRoot, requestPath, directory],
-        resolve(directory, "render.log"),
-        options.progress,
-        Math.max(3_600_000, options.frameCount * 2000 + 300_000),
+      await withModelLock(() =>
+        runLogged(
+          resolve(runtimeRoot, "venv/bin/python"),
+          [runnerPath, "render", runtimeRoot, requestPath, directory],
+          resolve(directory, "render.log"),
+          options.progress,
+          Math.max(3_600_000, options.frameCount * 2000 + 300_000),
+        ),
       );
       manifest = await readPortraitManifest(directory, requestHash, options.frameCount, fps);
     }

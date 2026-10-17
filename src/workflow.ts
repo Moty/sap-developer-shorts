@@ -25,6 +25,7 @@ export function workflowSourcesExpired(episode: ContentEpisode, now = new Date()
   return today < episode.news.asOf || today > through;
 }
 export interface WorkflowRecord {
+  localOnly?: boolean;
   selector: string;
   renderKey: string;
   inputHash: string;
@@ -33,6 +34,7 @@ export interface WorkflowRecord {
   publication: { url: string; recordedAt: string } | null;
 }
 export interface WorkflowEpisode {
+  localOnly?: boolean;
   selector: string;
   inputHash: string;
   sourceReviewExpired: boolean;
@@ -130,6 +132,7 @@ async function writeWorkflow(directory: string, root: string, value: unknown) {
     videoHash,
     reviewedAt: null,
     publication: null,
+    ...(entry.localOnly ? { localOnly: true } : {}),
   };
   if (body.action === "approve") {
     if (body.reviewed !== true)

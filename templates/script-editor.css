@@ -1063,3 +1063,43 @@ footer {
     order: 1;
   }
 }
+.my-voice-panel {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f1f6f2;
+  border: 1px solid #c8d8ce;
+  border-radius: 0.75rem;
+}
+.my-voice-panel summary {
+  font-weight: 700;
+  cursor: pointer;
+}
+.my-voice-panel audio {
+  width: 100%;
+  margin: 0.6rem 0;
+}
+.my-voice-panel input:not([type="checkbox"]),
+.my-voice-panel select,
+.my-voice-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.my-voice-panel label {
+  display: block;
+  margin-top: 0.7rem;
+}
+.my-voice-actions,
+.my-voice-trim {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0.8rem 0;
+}
+.my-voice-trim > label {
+  flex: 1 1 8rem;
+}
+.my-voice-consent input {
+  width: auto;
+  margin-right: 0.4rem;
+}

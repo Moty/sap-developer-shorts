@@ -3,6 +3,7 @@ import { readContentEpisode, validateContent, words } from "./contracts.js";
 import { doctor } from "./doctor.js";
 import type { FakeScenario } from "./media/model.js";
 import { MediaStore } from "./media/store.js";
+import { voiceLabel } from "./media/voice-reference.js";
 import {
   advanceMediaJob,
   mediaDatabase,
@@ -17,7 +18,51 @@ import { startPreviewServer } from "./serve.js";
 const [command = "help", ...args] = process.argv.slice(2);
 
 try {
-  if (
+  if (command === "voice-clone-setup" && !args.length) {
+    console.log(await (await import("./media/qwen.js")).setupQwenVoice());
+  } else if (command === "voice-clone-status" && !args.length) {
+    console.log(JSON.stringify(await (await import("./media/qwen.js")).qwenStatus(), null, 2));
+  } else if (command === "voice-profile-list" && !args.length) {
+    console.log(
+      JSON.stringify(
+        await (await import("./media/voice-profiles.js")).listVoiceProfiles(),
+        null,
+        2,
+      ),
+    );
+  } else if (command === "voice-profile-add" && args.length === 2 && args[0] && args[1]) {
+    const { readFile } = await import("node:fs/promises");
+    const { createVoiceProfile } = await import("./media/voice-profiles.js");
+    console.log(
+      JSON.stringify(
+        await createVoiceProfile(
+          await readFile(resolve(args[0])),
+          JSON.parse(await readFile(resolve(args[1]), "utf8")),
+        ),
+        null,
+        2,
+      ),
+    );
+  } else if (
+    ["voice-profile-audition", "voice-profile-accept", "voice-profile-delete"].includes(command) &&
+    args.length === 1
+  ) {
+    const { listVoiceProfiles, deleteVoiceProfile, profileDirectory } = await import(
+      "./media/voice-profiles.js"
+    );
+    const { auditionClonedVoice, acceptClonedVoice } = await import("./media/qwen.js");
+    const voice = (await listVoiceProfiles()).find(
+      (profile) => profile.voice.profileId === args[0],
+    )?.voice;
+    if (!voice) throw new Error("Choose a profile ID from voice-profile-list.");
+    if (command === "voice-profile-delete") await deleteVoiceProfile(voice);
+    else if (command === "voice-profile-accept") await acceptClonedVoice(voice);
+    else {
+      await auditionClonedVoice(voice);
+      console.log(`Listen: ${resolve(await profileDirectory(voice), "audition.wav")}`);
+    }
+    console.log("Voice profile action completed locally.");
+  } else if (
     command === "produce" &&
     args.length >= 1 &&
     args.length <= 2 &&
@@ -118,7 +163,7 @@ try {
       );
       for (const speaker of assignment.speakers)
         console.log(
-          `  ${speaker.name}: ${speaker.voice}${installed.includes(speaker.voice) ? " · installed" : " · setup needed"}`,
+          `  ${speaker.name}: ${voiceLabel(speaker.voice)}${typeof speaker.voice === "string" && installed.includes(speaker.voice) ? " · installed" : " · setup needed"}`,
         );
       console.log(`Change assignments in ${assignment.configurationFile}.\n`);
     }
@@ -175,9 +220,12 @@ try {
     console.log(
       "Saved studio packaged without regeneration. News source-review dates remain unchanged; recheck official sources before sharing current news.",
     );
-  } else if (command === "library" && !args.length) {
+  } else if (
+    command === "library" &&
+    (args.length === 0 || (args.length === 1 && args[0] === "--stock-only"))
+  ) {
     const { buildLibrary } = await import("./library.js");
-    const result = await buildLibrary();
+    const result = await buildLibrary({ stockOnly: args.includes("--stock-only") });
     console.log(`Library: ${resolve(result.directory, "review.html")}`);
     console.log(`Serve: npm run shorts -- serve ${result.directory}`);
   } else if (command === "serve" && args.length <= 1) {
@@ -218,7 +266,7 @@ try {
         }
       }
     }
-    const host = process.env.HOST ?? "0.0.0.0";
+    const host = process.env.HOST ?? "127.0.0.1";
     const { server } = await startPreviewServer(directory, 4173, host);
     const address = server.address();
     const port = typeof address === "object" && address ? address.port : 4173;
@@ -409,7 +457,7 @@ try {
     console.log("Sync complete.");
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  mac-setup [--skip-heavy-models] One-command setup on any Mac (prereqs, models, studio)\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  firebase-export [OUTPUT_DIR]   Export studio to dist/studio with Cloud CSP & bridge\n  firebase-worker                Run local Mac render worker daemon for Firebase UI\n  firebase-sync                  Bi-directionally sync local drafts, avatars & workflow\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  talking-head-setup             Install and verify local portrait models\n  portrait-status                Check the local portrait renderer\n  portrait-render IMAGE AUDIO [STYLE] Render picture + audio locally\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nPortrait generation runs locally. Publishing is not implemented.",
+      "SAP Developer Shorts\n\n  voice-clone-setup              Install local Qwen cloning and alignment\n  voice-clone-status             Check local Qwen runtime\n  voice-profile-list             List private voice profiles\n  voice-profile-add AUDIO JSON   Enroll audio with transcript and consent\n  voice-profile-audition ID      Generate an enrollment audition\n  voice-profile-accept ID        Accept the audition after listening\n  voice-profile-delete ID        Delete a private voice profile\n  doctor                         Check local prerequisites\n  mac-setup [--skip-heavy-models] One-command setup on any Mac (prereqs, models, studio)\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  firebase-export [OUTPUT_DIR]   Export studio to dist/studio with Cloud CSP & bridge\n  firebase-worker                Run local Mac render worker daemon for Firebase UI\n  firebase-sync                  Bi-directionally sync local drafts, avatars & workflow\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  talking-head-setup             Install and verify local portrait models\n  portrait-status                Check the local portrait renderer\n  portrait-render IMAGE AUDIO [STYLE] Render picture + audio locally\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nPortrait generation runs locally. Publishing is not implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

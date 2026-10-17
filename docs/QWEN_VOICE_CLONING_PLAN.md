@@ -2,7 +2,11 @@
 
 Date: 2026-10-17. Repository baseline: `cf85635` on `main`.
 
-Status: implementation plan; the Qwen runtime and product feature have not been installed or implemented by this planning task. Model speed, speaker similarity, and pronunciation on this Mac remain to be measured.
+Status: local implementation delivered on October 17, 2026, with pinned runtime,
+private profiles, studio enrollment, per-speaker production and cloud exclusion.
+See [the usage guide](QWEN_VOICES.md) and delivery evidence below. Synthetic
+integration fixtures verify mechanics; personal speaker similarity and listening
+approval remain open until the intended speaker enrolls and reviews a recording.
 
 ## 1. Outcome and initial scope
 
@@ -150,7 +154,10 @@ Opt-in Mac integration covers the actual pinned models, offline generation, inte
 | Export boundaries | `src/firebase/worker.ts`, `client-bridge.ts`, `export-studio.ts`, `src/library-package.ts`, `src/episode-package.ts`, library/review snapshots. No private-cloud rules expansion in the first release. |
 | Regression/docs | Existing voice, media, API, editor, production, provenance, package, Firebase and video tests; `docs/VOICE_OPTIONS.md`, `docs/NEW_MAC_SETUP.md`, `docs/CREATOR_STUDIO.md`, `docs/FIREBASE_HYBRID_STUDIO.md`. |
 
-Proposed CLI surface (not commands available today): `voice-clone-setup`, `voice-clone-status`, `voice-profile-add`, `voice-profile-list`, `voice-profile-audition`, and `voice-profile-delete`. Production continues through the existing `produce SELECTOR` command after selecting a profile. Keep setup and individual profile enrollment separate.
+Implemented CLI surface: `voice-clone-setup`, `voice-clone-status`,
+`voice-profile-add`, `voice-profile-list`, `voice-profile-audition`,
+`voice-profile-accept` and `voice-profile-delete`. Production continues through
+`produce SELECTOR` after selecting a profile. Setup and enrollment remain separate.
 
 ## 9. Input needed for the first personal audition
 
@@ -162,4 +169,62 @@ The runtime and automated integration work can proceed using controlled fixtures
 
 The independent Astra reviewer examined the repository and this plan. Its required changes are incorporated: validate original legacy request hashes before in-memory normalization; resample explicitly for the aligner's own input rate while retaining final-audio timing; check resolved selectors and actual output provenance for cloud requests; and classify exported libraries before copying any files, including workflow/report snapshots and historical cloned outputs.
 
-This was an architecture and source review, not a model benchmark or an implementation test. No implementation milestone above is complete merely because the plan has been reviewed.
+The initial review covered architecture. A subsequent independent Astra code
+review found eight implementation issues around frozen cloud inputs, process
+locking, portable package compatibility, recovered selections, generator identity,
+partial scene recovery, stale auditions and microphone cleanup. All eight were
+fixed; the follow-up source review found no remaining actionable blocker in that
+scope. It did not substitute for the integration and browser checks below.
+
+## 11. Implementation and delivery evidence (October 17)
+
+The local feature implements M0–M5's technical scope. Personal listening approval
+remains outstanding. Optional ASR assistance, private profile transfer, non-Mac
+runtimes, remote cloning and unsupported emotion controls remain deferred.
+
+- **Runtime:** isolated Python 3.12.13, MLX Audio 0.5.9 / MLX 0.32.4, pinned
+  1.7B Base bf16 and 0.6B 8-bit aligner. All required files were downloaded and
+  checksum-verified on Apple Silicon. Network-blocked inference succeeded.
+  A cold audition took 23.8 seconds and peaked at 9.0 GiB; a warm single-pass
+  111-word script took 23.0 seconds and peaked at 11.4 GiB. These are one-Mac
+  measurements, not minimum hardware guarantees.
+- **Solo:** the real seven-scene CAP production completed `READY`, using Qwen
+  narration and the existing realistic Ditto photo renderer. Measured duration
+  was 51.540 seconds, hook 2.4 seconds, 1080 × 1920 H.264 at 30 fps, AAC stereo
+  48 kHz. Complete decoding and audio checks passed: −16.22 LUFS integrated,
+  −4.44 dB true peak. After the final lifecycle fixes, narration was regenerated
+  with the new generator identity and the identical audio reused its verified
+  portrait frames.
+- **Dialogue:** actual Qwen + Michael narration completed `SUCCEEDED` at
+  54.990 seconds; two independent Qwen profile references completed at
+  45.460 seconds. Both packages verified seven scenes, twenty cues, ordered
+  speaker attribution and output digests. Both Qwen profiles used controlled
+  synthetic reference audio; this does not assess distinct human resemblance.
+- **Studio:** browser QA exercised upload, exact transcript, consent, enrollment,
+  audition playback, acceptance, speaker assignment, save without rendering,
+  and same-tab recovery after reload. A 390-pixel iframe exercised the actual
+  responsive editor layout and showed usable wrapping controls. Permission/setup
+  failures and stale audition responses are covered by the browser-JavaScript
+  harness; a live microphone permission grant was not automated.
+- **Boundaries:** a real local-only library packaged into a verified ZIP with no
+  profile storage or enrollment records. Cloud classification rejected that
+  library; a separately rebuilt stock-only library passed classification and
+  local Firebase export. Nothing was deployed, uploaded to Firebase or published.
+- **Reliability:** model-free regressions cover v1 compatibility, v2 tutorial/news
+  contracts, canonical speaker identity, frozen cloud input, changed/corrupt scene
+  recovery, pronunciation mapping, invalid word timing, private local sessions,
+  profile revisions/deletion, killed process lock recovery, recovered voice
+  selections, stale auditions and microphone cleanup. Setup/audition mutations
+  hold the shared lock through publication; audition audio is atomically renamed.
+- **Repository checks:** a separate source-only verification copy passed
+  `npm ci`, `npm run check` (219 tests, lint, type checking, five live CAP
+  assertions and content validation), `npm run build` and the pilot under
+  Node 22.13.0. This copy contains the changed tracked files and new feature files,
+  excluding personal untracked drafts, portraits and model state. An existing
+  untracked portrait draft has formatting differences; it was preserved rather
+  than reformatted as part of this change.
+
+Private integration receipts, models, samples, generated scripts and media remain
+under ignored local state/artifacts or unstaged test variants. No human recording
+was supplied, and no personal voice quality score is claimed. The intended speaker
+should enroll a clean reference and review the audition and full video next.

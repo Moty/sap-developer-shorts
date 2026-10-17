@@ -7,6 +7,7 @@ import { escapeHtml as esc } from "../review.js";
 import { pronounce, readPcmWav, sampleRate } from "./audio.js";
 import { currentNarrationGeneratorHash } from "./fingerprint.js";
 import type { ProductionSettings } from "./model.js";
+import { withModelLock } from "./model-lock.js";
 import {
   kokoroOperationTimeoutMs,
   type NeuralSpeechRequest,
@@ -115,7 +116,7 @@ export function voiceSampleCard(sample: VoiceSample, selected: string, prefix = 
   return `<article class="voice-card"><div class="voice-heading"><h3>${esc(voice.name)}</h3>${voice.id === selected ? '<span class="voice-selected">Default narrator</span>' : ""}</div><p>${esc(voice.accent)} · ${esc(voice.gender)}</p><audio controls preload="metadata" aria-label="${esc(voice.name)} voice sample" src="${prefix}${sample.key}/sample.wav"></audio><p class="voice-meta">${sample.durationSeconds.toFixed(1)}s · Speed ${sample.identity.speed.toFixed(2)} · <code>${esc(voice.id)}</code></p><details class="production-command"><summary>Use this voice</summary><p>Set the default for episodes without their own speaker assignments:</p><code tabindex="0">npm run shorts -- voice-select ${esc(voice.id)}</code><p>Then create a new recording:</p><code tabindex="0">npm run shorts -- produce CAP-01 --serve</code></details></article>`;
 }
 
-export async function createVoiceAudition(
+async function createVoiceAuditionInternal(
   voiceId: string,
   settings: ProductionSettings,
   options: {
@@ -284,7 +285,7 @@ export async function buildAuditionPage(
   }
 }
 
-export async function auditionPhrase(
+async function auditionPhraseInternal(
   text: string,
   options: {
     voice?: string;
@@ -324,4 +325,14 @@ export async function auditionPhrase(
   } finally {
     await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+export function createVoiceAudition(...args: Parameters<typeof createVoiceAuditionInternal>) {
+  return args[2]?.synthesize
+    ? createVoiceAuditionInternal(...args)
+    : withModelLock(() => createVoiceAuditionInternal(...args));
+}
+
+export function auditionPhrase(...args: Parameters<typeof auditionPhraseInternal>) {
+  return withModelLock(() => auditionPhraseInternal(...args));
 }

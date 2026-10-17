@@ -17,6 +17,7 @@ export function narrationIdentity(request: MediaRequest): string | null {
       provider: request.provider,
       generatorHash: request.generatorHash,
       voiceRuntimeHash: request.voiceRuntimeHash,
+      ...(request.schemaVersion === 2 ? { voicePlan: request.voicePlan } : {}),
       voice: request.settings.localPreview.voice,
       speed: neural
         ? request.settings.localPreview.speed

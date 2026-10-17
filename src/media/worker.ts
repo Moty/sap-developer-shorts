@@ -8,6 +8,7 @@ import { assertNewsEvidence, validateNewsEpisode } from "../news/contracts.js";
 import { inside, projectRoot, sourceFile } from "../paths.js";
 import { assertEvidence, type Manifest, prepareContentEpisode } from "../pipeline.js";
 import { currentNarrationGeneratorHash } from "./fingerprint.js";
+import { LocalVoicesProvider, localVoicesGeneratorHash, resolveVoicePlan } from "./local-voices.js";
 import type {
   FakeScenario,
   MediaJob,
@@ -16,10 +17,13 @@ import type {
   MediaRequest,
   ProductionSettings,
 } from "./model.js";
+import { withModelLock } from "./model-lock.js";
 import { kokoroOperationTimeoutMs, neuralRuntime } from "./neural.js";
 import { packageNarration, readCompletedNarration } from "./package.js";
 import { FakeProvider, LocalSpeechProvider } from "./providers.js";
+import { qwenOperationTimeoutMs } from "./qwen.js";
 import { MediaStore } from "./store.js";
+import { assertCloudVoiceAllowed, hasClonedVoices } from "./voice-reference.js";
 import { supportsKokoroVoice } from "./voices.js";
 
 export const mediaRoot = resolve(projectRoot, ".state/media");
@@ -103,33 +107,56 @@ export async function createMediaJob(
   provider: MediaProvider,
   settings: ProductionSettings,
   scenario: FakeScenario = "success",
+  options: { execution?: "local" | "cloud" } = {},
 ): Promise<MediaJob> {
   const source = await loadVerifiedRun(directory);
+  if (options.execution === "cloud") assertCloudVoiceAllowed(source.episode);
   if (provider.id === "local-speech" && source.episode.presentation?.format === "dialogue")
     throw new Error("Two-person dialogue requires the Kokoro narrator");
   settings = structuredClone(settings);
   const speakers = source.episode.presentation?.speakers;
-  if (provider.id === "local-kokoro" && speakers?.[0])
+  if (hasClonedVoices(source.episode) && provider.id !== "local-voices")
+    throw new Error("Select the local cloned-voice provider for this version.");
+  if (provider.id === "local-kokoro" && speakers?.[0] && typeof speakers[0].voice === "string")
     settings.localPreview.voice = speakers[0].voice;
   const runtime =
     provider.id === "local-kokoro"
       ? await neuralRuntime(
-          speakers?.map((speaker) => speaker.voice) ?? [settings.localPreview.voice],
+          speakers?.map((speaker) => {
+            if (typeof speaker.voice !== "string")
+              throw new Error("Use the cloned-voice provider.");
+            return speaker.voice;
+          }) ?? [settings.localPreview.voice],
         )
       : undefined;
   if (runtime && runtime.voice !== settings.localPreview.voice)
     throw new Error("Configured narrator differs from the installed voice; run voice-setup");
-  const request: MediaRequest = {
-    schemaVersion: 1 as const,
+  const voicePlan =
+    provider.id === "local-voices"
+      ? await resolveVoicePlan(source.episode, settings.localPreview.speed)
+      : undefined;
+  const common = {
     episode: source.episode,
     settings: structuredClone(settings),
-    provider: provider.id,
     scenario,
     sourceDirectory: resolve(directory),
     sourceManifestHash: source.manifestHash,
-    generatorHash: await currentNarrationGeneratorHash(provider.id),
+    generatorHash:
+      provider.id === "local-voices"
+        ? await localVoicesGeneratorHash()
+        : await currentNarrationGeneratorHash(provider.id),
     ...(runtime ? { voiceRuntimeHash: runtime.hash } : {}),
   };
+  const request: MediaRequest =
+    provider.id === "local-voices"
+      ? {
+          schemaVersion: 2,
+          ...common,
+          provider: "local-voices",
+          voicePlan: voicePlan ?? [],
+          voiceRuntimeHash: hash(JSON.stringify(voicePlan)),
+        }
+      : { schemaVersion: 1, ...common, provider: provider.id };
   const requestKey = hash(
     JSON.stringify({
       episode: request.episode,
@@ -221,7 +248,11 @@ export function mediaOperationTimeoutMs(
 ) {
   return (
     override ??
-    (provider === "local-kokoro" && operation === "poll" ? kokoroOperationTimeoutMs : 25_000)
+    (operation === "poll" && provider === "local-voices"
+      ? qwenOperationTimeoutMs * 2 + 5000
+      : provider === "local-kokoro" && operation === "poll"
+        ? kokoroOperationTimeoutMs
+        : 25_000)
   );
 }
 
@@ -230,10 +261,12 @@ export async function advanceMediaJob(
   id: string,
   provider: MediaProvider,
   timeoutMs?: number,
+  options: { execution?: "local" | "cloud" } = {},
 ): Promise<MediaJob> {
   const owner = store.acquire(id);
   try {
     const job = store.get(id);
+    if (options.execution === "cloud") assertCloudVoiceAllowed(job.request.episode);
     if (job.request.provider !== provider.id)
       throw new Error("Media provider does not match the saved request");
     if (["SUCCEEDED", "SIMULATED", "FAILED"].includes(job.phase)) return job;
@@ -247,7 +280,10 @@ export async function advanceMediaJob(
     try {
       if (
         job.request.generatorHash &&
-        job.request.generatorHash !== (await currentNarrationGeneratorHash(provider.id))
+        job.request.generatorHash !==
+          (provider.id === "local-voices"
+            ? await localVoicesGeneratorHash()
+            : await currentNarrationGeneratorHash(provider.id))
       )
         throw new Error(
           "Narration generator changed; start a new narration job for the current renderer",
@@ -323,7 +359,7 @@ export async function advanceMediaJob(
         (signal) =>
           provider.poll(job.providerJobId as string, structuredClone(job.request), signal),
         mediaOperationTimeoutMs(provider.id, "poll", timeoutMs),
-        provider.id === "local-kokoro",
+        provider.id === "local-kokoro" || provider.id === "local-voices",
       );
       if (status.state === "failed") move("FAILED", status.message);
       else if (status.state === "processing") {
@@ -344,14 +380,34 @@ export async function advanceMediaJob(
   }
 }
 
+function createProvider(
+  store: MediaStore,
+  id: MediaProvider["id"],
+  root = mediaRoot,
+): MediaProvider {
+  if (id === "fake") return new FakeProvider(store);
+  if (id === "local-voices")
+    return new LocalVoicesProvider(store, resolve(root, "provider-output"));
+  if (id !== "local-kokoro" && id !== "local-speech")
+    throw new Error("Unsupported narration provider.");
+  const provider = new LocalSpeechProvider(
+    store,
+    resolve(root, "provider-output"),
+    id === "local-kokoro" ? "kokoro" : "system",
+  );
+  if (id === "local-speech") return provider;
+  return {
+    id: provider.id,
+    billing: provider.billing,
+    quote: () => provider.quote(),
+    submit: (request, key) => provider.submit(request, key),
+    lookup: (key) => provider.lookup(key),
+    poll: (...args) => withModelLock(() => provider.poll(...args)),
+  };
+}
+
 export function providerForJob(store: MediaStore, job: MediaJob, root = mediaRoot): MediaProvider {
-  return job.request.provider === "fake"
-    ? new FakeProvider(store)
-    : new LocalSpeechProvider(
-        store,
-        resolve(root, "provider-output"),
-        job.request.provider === "local-kokoro" ? "kokoro" : "system",
-      );
+  return createProvider(store, job.request.provider, root);
 }
 
 export async function rebuildMediaPackage(store: MediaStore, id: string): Promise<MediaJob> {
@@ -376,34 +432,31 @@ export async function rebuildMediaPackage(store: MediaStore, id: string): Promis
 
 export async function planMediaEpisode(
   episodeId: string,
-  providerId: "fake" | "local-speech" | "local-kokoro" | "local",
+  providerId: MediaProvider["id"] | "local",
   scenario: FakeScenario = "success",
-  options: { artifactRoot?: string } = {},
+  options: { artifactRoot?: string; execution?: "local" | "cloud" } = {},
 ) {
   const { readContentEpisode, validateContent } = await import("../contracts.js");
   await validateContent();
   const settings = await productionSettings();
+  const episode = await readContentEpisode(episodeId);
+  if (options.execution === "cloud") assertCloudVoiceAllowed(episode);
   const selected =
     providerId === "local"
-      ? settings.localPreview.engine === "kokoro"
-        ? "local-kokoro"
-        : "local-speech"
+      ? hasClonedVoices(episode)
+        ? "local-voices"
+        : settings.localPreview.engine === "kokoro"
+          ? "local-kokoro"
+          : "local-speech"
       : providerId;
-  const source = await prepareContentEpisode(await readContentEpisode(episodeId), {
+  const source = await prepareContentEpisode(episode, {
     preview: true,
     ...options,
   });
   const store = await MediaStore.open(mediaDatabase);
   try {
-    const provider =
-      selected === "fake"
-        ? new FakeProvider(store)
-        : new LocalSpeechProvider(
-            store,
-            resolve(mediaRoot, "provider-output"),
-            selected === "local-kokoro" ? "kokoro" : "system",
-          );
-    return await createMediaJob(store, source.directory, provider, settings, scenario);
+    const provider = createProvider(store, selected);
+    return await createMediaJob(store, source.directory, provider, settings, scenario, options);
   } finally {
     store.close();
   }

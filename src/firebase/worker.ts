@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import { validateContent } from "../contracts.js";
+import { readContentEpisode, validateContent } from "../contracts.js";
 import { hash } from "../digest.js";
 import { buildLibrary } from "../library.js";
 import { listCustomAvatars, resolveAvatarPath, saveCustomAvatar } from "../media/avatar.js";
+import { assertCloudTimingSafe, containsPrivateVoice } from "../media/cloud-voice-safety.js";
 import { talkingHeadRuntime } from "../media/talking-head.js";
 import { auditionPhrase, installedKokoroVoices } from "../media/voice-audition.js";
+import { assertCloudVoiceAllowed } from "../media/voice-reference.js";
 import { inside, projectRoot } from "../paths.js";
 import { type ProductionReport, produce } from "../production.js";
 import { validatePresentationDefinition } from "../variants.js";
@@ -32,6 +34,7 @@ export interface WorkerOptions {
   readonly rootDir?: string;
   readonly pollIntervalMs?: number;
   readonly produceImpl?: typeof produce;
+  readonly readEpisodeImpl?: typeof readContentEpisode;
   readonly auditionImpl?: typeof auditionPhrase;
   readonly onLibraryUpdated?: (libraryDirectory: string) => void | Promise<void>;
   readonly logger?: (message: string) => void;
@@ -51,6 +54,7 @@ export async function upsertLocalPresentation(
   rootDir = projectRoot,
 ): Promise<{ selector: string; file: string; changed: boolean }> {
   const validated = await validatePresentationDefinition(definition);
+  assertCloudVoiceAllowed(validated.episode);
   const presentationDir = resolve(rootDir, "content/presentations");
   await mkdir(presentationDir, { recursive: true });
   const targetFile = inside(presentationDir, resolve(presentationDir, basename(validated.file)));
@@ -194,6 +198,7 @@ export async function syncVariantsWithCloud(
         baseEpisodeId?: string;
         presentation?: { variant?: string };
       };
+      if (containsPrivateVoice(raw)) continue;
       const baseId = raw.baseEpisodeId;
       const variantId = raw.presentation?.variant;
       if (!baseId || !variantId) continue;
@@ -246,6 +251,12 @@ export async function syncWorkflowWithCloud(
 
   // Pull cloud workflow updates into local .studio-workflow/
   for (const [selector, data] of cloudBySelector.entries()) {
+    if (containsPrivateVoice(data)) continue;
+    try {
+      assertCloudVoiceAllowed(await readContentEpisode(selector));
+    } catch {
+      continue;
+    }
     const renderKey = typeof data.renderKey === "string" ? data.renderKey : "";
     const inputHash = typeof data.inputHash === "string" ? data.inputHash : "";
     const videoHash = typeof data.videoHash === "string" ? data.videoHash : "";
@@ -287,7 +298,12 @@ export async function syncWorkflowWithCloud(
 
   // Push local workflow records missing in cloud
   for (const [selector, rec] of localRecords.entries()) {
-    if (cloudBySelector.has(selector)) continue;
+    if (cloudBySelector.has(selector) || containsPrivateVoice(rec)) continue;
+    try {
+      assertCloudVoiceAllowed(await readContentEpisode(selector));
+    } catch {
+      continue;
+    }
     const stage = rec.publication ? "published" : rec.reviewedAt ? "publish" : "review";
     const labels: Record<string, string> = {
       review: "To review",
@@ -323,6 +339,8 @@ export async function processPendingAuditions(
     const text = typeof item.data.text === "string" ? item.data.text.trim() : "";
     if (!text) continue;
     try {
+      if (containsPrivateVoice(item.data) || typeof item.data.voice !== "string")
+        throw new Error("Cloud auditions support stock voices only.");
       const voice = typeof item.data.voice === "string" ? item.data.voice : undefined;
       const speed = typeof item.data.speed === "number" ? item.data.speed : undefined;
       const pronunciation =
@@ -378,6 +396,7 @@ export async function processNextPendingProductionJob(
     options.artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
   );
   const produceImpl = options.produceImpl ?? produce;
+  const readEpisode = options.readEpisodeImpl ?? readContentEpisode;
   const log = options.logger ?? console.log;
 
   const jobs = await store.listDocuments("productions").catch(() => []);
@@ -423,6 +442,9 @@ export async function processNextPendingProductionJob(
       `Claimed by ${identity.hostname} (${identity.arch}); syncing draft & avatars...`,
     );
 
+    if (containsPrivateVoice(jobData.definition))
+      throw new Error("This voice version is local-only. Open the studio on its Mac.");
+    if (!jobData.definition) assertCloudVoiceAllowed(await readEpisode(selector));
     // 1. Sync any uploaded avatars first so speaker portrait files exist on disk
     await syncAvatarsWithCloud(store, rootDir);
 
@@ -433,9 +455,11 @@ export async function processNextPendingProductionJob(
       await syncVariantsWithCloud(store, rootDir);
     }
 
+    assertCloudVoiceAllowed(await readEpisode(selector));
     // 3. Run local production pipeline (Kokoro-82M + Ditto MPS + FFmpeg)
     const report = await produceImpl(selector, {
       artifactRoot,
+      execution: "cloud",
       progress(message) {
         const isStageToken = [
           "PREFLIGHT",
@@ -455,6 +479,10 @@ export async function processNextPendingProductionJob(
     });
 
     // 4. Upload rendered media assets to Firebase Cloud Storage when READY
+    if (containsPrivateVoice(report))
+      throw new Error("Cloned narration cannot be uploaded by the cloud worker.");
+    if (report.videoDirectory) await assertCloudTimingSafe(report.videoDirectory);
+    else if (report.narrationDirectory) await assertCloudTimingSafe(report.narrationDirectory);
     const assets: Record<string, string> = {};
     if (report.stage === "READY" && report.videoDirectory) {
       for (const [key, filename, contentType] of [

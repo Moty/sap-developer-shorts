@@ -131,6 +131,10 @@ test("Mac worker claims PENDING production job, streams progress, uploads MP4, a
       "WEBVTT\n\n00:00.000 --> 00:02.000\nHello\n",
     );
 
+    await writeFile(
+      resolve(fakeVideoDir, "timing.json"),
+      JSON.stringify({ schemaVersion: 1, engine: "kokoro" }),
+    );
     const now = new Date().toISOString();
     await store.setDocument("productions", "job-123", {
       schemaVersion: 1,
