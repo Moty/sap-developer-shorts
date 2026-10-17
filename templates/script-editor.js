@@ -755,55 +755,78 @@
           byId(`speaker-avatar-mouth-scale-${index}`)?.value || "1",
         );
 
-        const bobY = jawOpen > 0 ? Math.sin(Date.now() * 0.015) * 2.5 : 0;
-        ctx.save();
-        ctx.translate(0, bobY);
-        ctx.drawImage(img, 0, 0, w, h);
+        const cropSide = Math.min(img.width, img.height);
+        ctx.drawImage(
+          img,
+          (img.width - cropSide) / 2,
+          (img.height - cropSide) / 2,
+          cropSide,
+          cropSide,
+          0,
+          0,
+          w,
+          h,
+        );
 
         const mx = w * mouthX;
         const my = h * mouthY;
-        const jawDrop = jawOpen * 10 * mouthScale;
+        const unit = (w / 140) * mouthScale;
 
-        if (jawOpen > 0.04 && viseme !== "rest") {
-          const jawRx = w * 0.23 * mouthScale;
-          const jawRy = h * 0.25 * mouthScale;
+        if (jawOpen > 0 && viseme !== "rest") {
+          // Same calibrated mouth boundary as the video renderer. The photo,
+          // including its chin, neck and clothing, is never shifted or warped.
           ctx.save();
+          ctx.translate(mx, my);
+          ctx.scale(unit, unit * 0.5);
           ctx.beginPath();
-          ctx.ellipse(mx, my + jawRy * 0.42 + jawDrop * 0.5, jawRx, jawRy, 0, 0, Math.PI * 2);
+          ctx.ellipse(0, 1, 16, 12, 0, 0, Math.PI * 2);
           ctx.clip();
-          ctx.drawImage(img, 0, jawDrop, w, h);
+          if (viseme === "smile") {
+            ctx.strokeStyle = "rgba(145, 58, 68, 0.75)";
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(-11, -1);
+            ctx.quadraticCurveTo(0, 6.5, 11, -1);
+            ctx.stroke();
+          } else {
+            const shapes = {
+              open_a: [12.5, 9.5, 2],
+              open_e: [13.5, 6.2, 1],
+              open_o: [8.5, 8.5, 2],
+              open_u: [6, 6.2, 1.5],
+              consonant: [10.5, 3, 0.5],
+            };
+            const [mw, mh, offsetY] = shapes[viseme] || shapes.consonant;
+            ctx.beginPath();
+            ctx.ellipse(0, offsetY, mw, mh, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#3b1519";
+            ctx.fill();
+            ctx.save();
+            ctx.clip();
+            if (viseme !== "consonant" && viseme !== "open_u") {
+              ctx.fillStyle = "#f7faf7";
+              ctx.fillRect(-mw * 0.9, offsetY - mh, mw * 1.8, mh * 0.55);
+              ctx.fillStyle = "#d96b6b";
+              ctx.beginPath();
+              ctx.ellipse(0, offsetY + mh * 0.85, mw * 0.7, mh * 0.6, 0, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+            ctx.strokeStyle = "rgba(145, 58, 68, 0.75)";
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.ellipse(0, offsetY, mw, mh, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
           ctx.restore();
-
-          const mw =
-            (viseme === "open_o" || viseme === "open_u" ? 13 : 19) * mouthScale;
-          const mh =
-            Math.max(3, jawOpen * (viseme === "open_a" ? 11 : 8)) * mouthScale;
-          ctx.save();
-          ctx.beginPath();
-          ctx.ellipse(mx, my + jawDrop * 0.44, mw, mh, 0, 0, Math.PI * 2);
-          ctx.fillStyle = "#3a1218";
-          ctx.fill();
-          ctx.clip();
-          ctx.fillStyle = "#f4f6f9";
-          ctx.fillRect(mx - mw * 0.8, my - mh, mw * 1.6, mh * 0.72);
-          ctx.fillStyle = "#c95866";
-          ctx.beginPath();
-          ctx.ellipse(mx, my + mh * 0.85, mw * 0.65, mh * 0.6, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-
-          ctx.strokeStyle = "rgba(145, 58, 68, 0.75)";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.ellipse(mx, my + jawDrop * 0.44, mw, mh, 0, 0, Math.PI * 2);
-          ctx.stroke();
         } else if (showCrosshair) {
           ctx.save();
           ctx.strokeStyle = "rgba(87, 199, 163, 0.9)";
           ctx.lineWidth = 1.5;
           ctx.setLineDash([4, 3]);
           ctx.beginPath();
-          ctx.ellipse(mx, my, 18 * mouthScale, 7 * mouthScale, 0, 0, Math.PI * 2);
+          ctx.ellipse(mx, my + unit * 0.5, 16 * unit, 6 * unit, 0, 0, Math.PI * 2);
           ctx.stroke();
           ctx.beginPath();
           ctx.moveTo(mx - 24 * mouthScale, my);
@@ -813,7 +836,6 @@
           ctx.stroke();
           ctx.restore();
         }
-        ctx.restore();
       }
 
       function ensureImageLoaded(imageId, index) {
@@ -835,8 +857,7 @@
       }
 
       function populateSelect(selectEl, avatars) {
-        const current =
-          selectEl.value || selectEl.getAttribute("data-initial-value") || "";
+        const current = selectEl.value || selectEl.getAttribute("data-initial-value") || "";
         const defaultOpt = element("option", "", "— Select or upload an image —");
         defaultOpt.value = "";
         const opts = [defaultOpt];

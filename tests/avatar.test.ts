@@ -104,12 +104,9 @@ test("drawAvatarBadge renders solo and duo co-speaker badges without errors", ()
 
 test("saveCustomAvatar normalizes uploaded portraits and drawAvatarBadge animates photo mode lip-sync", async (t) => {
   const { rm } = await import("node:fs/promises");
-  const {
-    listCustomAvatars,
-    loadAvatarImage,
-    resolveAvatarPath,
-    saveCustomAvatar,
-  } = await import("../src/media/avatar.js");
+  const { listCustomAvatars, loadAvatarImage, resolveAvatarPath, saveCustomAvatar } = await import(
+    "../src/media/avatar.js"
+  );
 
   // Create a synthetic 300x400 portrait canvas to upload
   const srcCanvas = createCanvas(300, 400);
@@ -195,4 +192,3 @@ test("saveCustomAvatar normalizes uploaded portraits and drawAvatarBadge animate
   const outPng = canvas.toBuffer("image/png");
   assert.ok(outPng.length > 1000);
 });
-

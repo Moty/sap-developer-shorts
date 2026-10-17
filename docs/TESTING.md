@@ -43,6 +43,13 @@ and captions readable on a phone. A successful decode does not establish natural
 delivery or accurate lip synchronization; use a listening review as described in
 [Quality review](QUALITY_REVIEW.md).
 
+For a custom photo, center the calibration guide on the lips and size it around
+the mouth. Test several shapes and check that the neck, collar, eyes, and
+background remain stationary. Photo mode keeps the portrait fixed and clips
+speech animation to that guide; illustrated characters retain their head motion.
+`tests/photo-motion.test.ts` compares pixels outside the mouth in both the actual
+workshop canvas code and the video renderer, at multiple sizes and mouth scales.
+
 ## October 16, 2026 verification
 
 Testing the upstream `70edb52` version first reproduced four formatting failures.

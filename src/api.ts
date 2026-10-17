@@ -156,7 +156,12 @@ export async function handleApiRequest(
         name?: string;
         dataUrl?: string;
       };
-      if (!body.name || typeof body.name !== "string" || !body.dataUrl || typeof body.dataUrl !== "string") {
+      if (
+        !body.name ||
+        typeof body.name !== "string" ||
+        !body.dataUrl ||
+        typeof body.dataUrl !== "string"
+      ) {
         sendJson(response, 400, { error: "Avatar name and base64 image dataUrl are required" });
         return true;
       }

@@ -181,5 +181,3 @@ test("Studio API rejects a duplicate edited script before starting a different p
   assert.equal(getActiveJob(), null);
   assert.deepEqual(await readFile(source), before);
 });
-
-

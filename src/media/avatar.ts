@@ -42,10 +42,7 @@ export interface AvatarAnimationState {
 
 export const avatarImagePattern = /^[a-z0-9][a-z0-9_-]{0,47}\.(png|jpg|jpeg|webp)$/u;
 
-export async function resolveAvatarPath(
-  imageId: string,
-  rootDir = projectRoot,
-): Promise<string> {
+export async function resolveAvatarPath(imageId: string, rootDir = projectRoot): Promise<string> {
   if (!avatarImagePattern.test(imageId)) {
     throw new Error(`Invalid avatar image filename: ${imageId}`);
   }
@@ -74,10 +71,7 @@ export async function listCustomAvatars(rootDir = projectRoot): Promise<string[]
     const entries = await readdir(avatarDir, { withFileTypes: true });
     return entries
       .filter(
-        (entry) =>
-          entry.isFile() &&
-          !entry.isSymbolicLink() &&
-          avatarImagePattern.test(entry.name),
+        (entry) => entry.isFile() && !entry.isSymbolicLink() && avatarImagePattern.test(entry.name),
       )
       .map((entry) => entry.name)
       .sort();
@@ -148,10 +142,7 @@ export async function saveCustomAvatar(
 
 const loadedAvatarCache = new Map<string, { sha256: string; image: Image }>();
 
-export async function loadAvatarImage(
-  imageId: string,
-  rootDir = projectRoot,
-): Promise<Image> {
+export async function loadAvatarImage(imageId: string, rootDir = projectRoot): Promise<Image> {
   const filePath = await resolveAvatarPath(imageId, rootDir);
   const bytes = await readFile(filePath);
   const sha = hash(bytes);
@@ -402,8 +393,8 @@ function paletteForSpeaker(speakerId: string): CharacterPalette {
 }
 
 /**
- * Renders a 2.5D animated photo portrait with lower-jaw split, pixel-adapted lip-sync
- * mouth cavity, organic head motion, and eye blinking.
+ * Keeps the uploaded portrait stationary and confines speech animation to the
+ * calibrated mouth. Whole-photo transforms and jaw patches can move clothing.
  */
 function drawPhotoAvatarPortrait(
   ctx: SKRSContext2D,
@@ -416,131 +407,36 @@ function drawPhotoAvatarPortrait(
   isSpeaking: boolean,
   accent: string,
 ): void {
-  const mouthX = Math.max(0.25, Math.min(0.75, config?.mouthX ?? 0.5));
-  const mouthY = Math.max(0.45, Math.min(0.85, config?.mouthY ?? 0.68));
-  const mouthScale = Math.max(0.5, Math.min(2.0, config?.mouthScale ?? 1.0));
-  const eyeY = Math.max(0.25, Math.min(0.65, config?.eyeY ?? 0.42));
-
-  // Sample pixel colors around mouth and eyes from a 128x128 offscreen copy
-  const sampleSize = 128;
-  const sampleCanvas = createCanvas(sampleSize, sampleSize);
-  const sCtx = sampleCanvas.getContext("2d");
-  const srcW = image.width || sampleSize;
-  const srcH = image.height || sampleSize;
-  const cropSide = Math.min(srcW, srcH);
-  const sx = (srcW - cropSide) / 2;
-  const sy = (srcH - cropSide) / 2;
-  sCtx.drawImage(image, sx, sy, cropSide, cropSide, 0, 0, sampleSize, sampleSize);
-
-  const mouthPxX = Math.floor(mouthX * (sampleSize - 1));
-  const mouthPxY = Math.floor(mouthY * (sampleSize - 1));
-  const lipPixel = sCtx.getImageData(mouthPxX, mouthPxY, 1, 1).data;
-  const lipR = Math.max(95, Math.min(210, Math.round((lipPixel[0] ?? 160) * 0.85)));
-  const lipG = Math.max(55, Math.min(130, Math.round((lipPixel[1] ?? 90) * 0.62)));
-  const lipB = Math.max(55, Math.min(130, Math.round((lipPixel[2] ?? 90) * 0.62)));
-  const sampledLipColor = `rgb(${lipR}, ${lipG}, ${lipB})`;
-
-  const eyePxY = Math.floor(Math.max(0, eyeY - 0.04) * (sampleSize - 1));
-  const skinPixel = sCtx.getImageData(Math.floor(0.5 * sampleSize), eyePxY, 1, 1).data;
-  const sampledSkinColor = `rgb(${skinPixel[0] ?? 225}, ${skinPixel[1] ?? 185}, ${skinPixel[2] ?? 160})`;
-
+  const mouthX = Math.max(0.2, Math.min(0.8, config?.mouthX ?? 0.5));
+  const mouthY = Math.max(0.4, Math.min(0.9, config?.mouthY ?? 0.68));
+  const mouthScale = Math.max(0.5, Math.min(2, config?.mouthScale ?? 1));
   const diameter = radius * 2;
-  const scale = radius / 112;
+  const cropSide = Math.min(image.width, image.height);
+  const sx = (image.width - cropSide) / 2;
+  const sy = (image.height - cropSide) / 2;
 
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.closePath();
   ctx.clip();
-
-  // Dark studio fallback background
-  ctx.fillStyle = "#0d232c";
-  ctx.fillRect(cx - radius, cy - radius, diameter, diameter);
-
   ctx.translate(cx, cy);
-  ctx.translate(0, anim.headBobY * scale);
-  ctx.rotate(anim.headTilt);
+  // Match the editor's square crop and calibration coordinates exactly.
+  ctx.drawImage(image, sx, sy, cropSide, cropSide, -radius, -radius, diameter, diameter);
 
-  // Zoom slightly (1.06x) so head bobbing/tilting never exposes canvas edges
-  const drawSize = diameter * 1.06;
-  const halfSize = drawSize / 2;
-  ctx.drawImage(
-    image,
-    sx,
-    sy,
-    cropSide,
-    cropSide,
-    -halfSize,
-    -halfSize,
-    drawSize,
-    drawSize,
-  );
-
-  const localMouthX = (mouthX - 0.5) * drawSize;
-  const localMouthY = (mouthY - 0.5) * drawSize;
-  const jawDrop = anim.jawOpen * 7.2 * scale * mouthScale;
-
-  // 2.5D Lower-Jaw Split & Vertical Shift when speaking
-  if (anim.jawOpen > 0.04) {
-    const jawRx = radius * 0.36 * mouthScale;
-    const jawRy = radius * 0.24;
-    const jawCenterY = localMouthY + jawRy * 0.65;
-
-    // Soft cast shadow beneath the dropped chin
+  if (isSpeaking && anim.viseme !== "rest") {
+    const mx = (mouthX - 0.5) * diameter;
+    const my = (mouthY - 0.5) * diameter;
+    const unit = (diameter / 140) * mouthScale;
     ctx.save();
-    ctx.fillStyle = "rgba(18, 10, 8, 0.24)";
+    ctx.translate(mx, my);
+    // Photos need a smaller vertical opening than illustrated characters.
+    ctx.scale(unit, unit * 0.5);
+    // A hard boundary prevents any future mouth drawing from reaching the jaw,
+    // neck, or collar. Leave the original photograph untouched outside it.
     ctx.beginPath();
-    ctx.ellipse(localMouthX, jawCenterY + jawDrop + 2 * scale, jawRx * 0.92, jawRy * 0.85, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // Clipped lower jaw shifted downward by jawDrop
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(localMouthX, jawCenterY + jawDrop * 0.5, jawRx, jawRy, 0, 0, Math.PI * 2);
-    ctx.closePath();
+    ctx.ellipse(0, 1, 16, 12, 0, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(
-      image,
-      sx,
-      sy,
-      cropSide,
-      cropSide,
-      -halfSize,
-      -halfSize + jawDrop,
-      drawSize,
-      drawSize,
-    );
-    ctx.restore();
-  }
-
-  // Render active syllable viseme cavity at calibrated mouth anchor
-  if (anim.viseme !== "rest") {
-    ctx.save();
-    ctx.translate(localMouthX, localMouthY + jawDrop * 0.22);
-    ctx.scale(scale * mouthScale, scale * mouthScale);
-    drawMouthViseme(ctx, 0, 0, anim.viseme, sampledLipColor);
-    ctx.restore();
-  }
-
-  // Organic Eye Blink overlay at calibrated eyeY
-  if (anim.isBlinking) {
-    const localEyeY = (eyeY - 0.5) * drawSize;
-    const eyeSpread = radius * 0.22;
-    ctx.save();
-    for (const side of [-1, 1] as const) {
-      const ex = localMouthX + side * eyeSpread;
-      ctx.fillStyle = sampledSkinColor;
-      ctx.beginPath();
-      ctx.ellipse(ex, localEyeY, 11 * scale, 6.5 * scale, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(28, 22, 20, 0.78)";
-      ctx.lineWidth = 2.2 * scale;
-      ctx.beginPath();
-      ctx.moveTo(ex - 10 * scale, localEyeY);
-      ctx.quadraticCurveTo(ex, localEyeY + 4.5 * scale, ex + 10 * scale, localEyeY);
-      ctx.stroke();
-    }
+    drawMouthViseme(ctx, 0, 0, anim.viseme, "rgba(145, 58, 68, 0.75)");
     ctx.restore();
   }
 

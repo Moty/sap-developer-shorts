@@ -1081,4 +1081,3 @@ test("workshop configures custom photo avatar with mouth calibration and validat
   assert.equal(ui.get("speaker-avatar-photo-panel-0").hidden, true);
   assert.equal(ui.changes().length, 0);
 });
-
