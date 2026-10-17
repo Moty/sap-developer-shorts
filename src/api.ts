@@ -96,6 +96,13 @@ export async function handleApiRequest(
   }
 
   // GET /api/voices
+  if (request.method === "GET" && path === "/api/portrait-status") {
+    const { talkingHeadRuntime } = await import("./media/talking-head.js");
+    sendJson(response, 200, await talkingHeadRuntime());
+    return true;
+  }
+
+  // GET /api/voices
   if (request.method === "GET" && path === "/api/voices") {
     try {
       const installed = await installedKokoroVoices();

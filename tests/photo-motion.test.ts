@@ -374,10 +374,8 @@ test("full-face 478-landmark warp animates lips, jaw, eye blinks, brow lifts, an
   assert.ok(changedEyes > 15, "eye blinks and brow lifts animate");
 });
 
-test("prepareTalkingHeadSequence falls back cleanly when unconfigured and synthesizes frames when runtime is ready", async () => {
-  const { prepareTalkingHeadSequence, talkingHeadRuntime } = await import(
-    "../src/media/talking-head.js"
-  );
+test("realistic portrait requests fail explicitly when the local model is unavailable", async () => {
+  const { prepareTalkingHeadSequence } = await import("../src/media/talking-head.js");
   const { encodePcmWav, sampleRate } = await import("../src/media/audio.js");
   const { saveCustomAvatar } = await import("../src/media/avatar.js");
   const { rm } = await import("node:fs/promises");
@@ -410,33 +408,17 @@ test("prepareTalkingHeadSequence falls back cleanly when unconfigured and synthe
       faceLandmarks: defaultFaceLandmarks({ mouthX: 0.5, mouthY: 0.68, mouthScale: 1 }),
     };
 
-    const messages: string[] = [];
-    const fallbackSeq = await prepareTalkingHeadSequence({
-      speakerId: "mira",
-      avatar,
-      wavBytes,
-      cues,
-      frameCount: 4,
-      runtimeRoot: resolve(projectRoot, ".state/nonexistent-talking-head"),
-      progress: (msg) => messages.push(msg),
-    });
-    assert.equal(fallbackSeq, undefined);
-    assert.match(messages[0] ?? "", /full-face 478-landmark warp/);
-
-    const status = await talkingHeadRuntime();
-    if (status.installed) {
-      const seq = await prepareTalkingHeadSequence({
+    await assert.rejects(
+      prepareTalkingHeadSequence({
         speakerId: "mira",
         avatar,
         wavBytes,
         cues,
         frameCount: 4,
-        fps: 30,
-      });
-      assert.ok(seq, "synthesizes neural talking-head sequence when local runtime is installed");
-      const frame0 = await seq.getFrame(0);
-      assert.ok(frame0 && frame0.width === 256 && frame0.height === 256);
-    }
+        runtimeRoot: resolve(projectRoot, ".state/nonexistent-talking-head"),
+      }),
+      /needs local model setup/,
+    );
   } finally {
     await rm(saved.path, { force: true });
   }

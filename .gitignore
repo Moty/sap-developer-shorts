@@ -27,6 +27,8 @@ credentials/
 artifacts/
 .state/
 coverage/
+__pycache__/
+*.py[cod]
 *.sqlite
 *.sqlite-*
 *.db

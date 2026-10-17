@@ -104,8 +104,27 @@
         updateProgress(payload.stage, payload.message);
       } catch {}
     });
-    sse.addEventListener("complete", () => {
+    sse.addEventListener("complete", (e) => {
       sse.close();
+      let payload = {};
+      try {
+        payload = JSON.parse(e.data || "{}");
+      } catch {}
+      const report = payload.report || {};
+      const stage = payload.stage || report.stage || "READY";
+      if (stage !== "READY") {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        const issueMsg =
+          report.issue?.message || payload.error || "Production stopped before MP4 export.";
+        const timingDetail =
+          Number.isFinite(report.durationSeconds) && Number.isFinite(report.hookSeconds)
+            ? ` (Measured: ${report.durationSeconds.toFixed(1)}s total, ${report.hookSeconds.toFixed(2)}s opening hook)`
+            : "";
+        if (title) title.textContent = `${selector} · ${stage}`;
+        if (msg) msg.textContent = `${issueMsg}${timingDetail}`;
+        return;
+      }
       if (title) title.textContent = `${selector} is READY!`;
       if (msg) msg.textContent = "Production completed successfully. Reloading studio...";
       if (progressFill) progressFill.style.width = "100%";

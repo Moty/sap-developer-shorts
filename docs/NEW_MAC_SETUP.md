@@ -112,6 +112,11 @@ npm run shorts -- voice-audition af_heart am_michael
 
 ## 4. Produce the revised video
 
+For realistic picture-based presenters, first run `npm run shorts -- talking-head-setup`.
+This optional engine downloads about 2.32 GB of models and renders locally using
+Apple Silicon's Metal accelerator. Choose **Realistic local portrait (Ditto)**
+and a delivery style in the workshop. See [local portrait setup and limits](LOCAL_PORTRAITS.md).
+
 ```sh
 npm run shorts -- produce CAP-01@casual-v2 --serve
 ```

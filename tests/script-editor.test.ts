@@ -227,12 +227,19 @@ async function workshop(
     node(`speaker-avatar-mode-${index}`, speaker.avatar?.mode ?? "illustrated");
     node(`speaker-avatar-photo-panel-${index}`);
     node(`speaker-avatar-image-${index}`, speaker.avatar?.imageId ?? "");
+    node(`speaker-avatar-motion-style-${index}`, speaker.avatar?.motion?.style ?? "conversational");
+    node(
+      `speaker-avatar-motion-intensity-${index}`,
+      String(speaker.avatar?.motion?.intensity ?? 0.7),
+    );
     node(
       `speaker-avatar-geometry-${index}`,
       JSON.stringify({
         mouthAngle: speaker.avatar?.mouthAngle,
         mouthAspect: speaker.avatar?.mouthAspect,
         calibration: speaker.avatar?.calibration,
+        animation: speaker.avatar?.animation,
+        motion: speaker.avatar?.motion,
       }),
     );
     node(`speaker-avatar-mouth-y-${index}`, String(speaker.avatar?.mouthY ?? 0.68));
@@ -1138,6 +1145,7 @@ test("automatic mouth calibration survives download, import and tab recovery", a
   // Verify full-face and neural animation modes + faceLandmarks persist through download & validation
   const fullFaceMeta = {
     animation: "full-face",
+    motion: { style: "calm", intensity: 0.4, seed: 17 },
     mouthAngle: 0.05,
     mouthAspect: 0.35,
     faceLandmarks: {
@@ -1160,5 +1168,9 @@ test("automatic mouth calibration survives download, import and tab recovery", a
   const checkedFullFace = await validatePresentationDefinition(fullFaceDraft);
   const savedAvatar = checkedFullFace.episode.presentation?.speakers[0]?.avatar;
   assert.equal(savedAvatar?.animation, "full-face");
+  assert.deepEqual(savedAvatar?.motion, fullFaceMeta.motion);
   assert.deepEqual(savedAvatar?.faceLandmarks, fullFaceMeta.faceLandmarks);
+  const invalidMotion = structuredClone(fullFaceDraft);
+  invalidMotion.presentation.speakers[0].avatar.motion.intensity = 1.5;
+  await assert.rejects(validatePresentationDefinition(invalidMotion));
 });

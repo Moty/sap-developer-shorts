@@ -43,12 +43,18 @@ and captions readable on a phone. A successful decode does not establish natural
 delivery or accurate lip synchronization; use a listening review as described in
 [Quality review](QUALITY_REVIEW.md).
 
-For a custom photo, center the calibration guide on the lips and size it around
+For the lightweight mouth-only photo effect, center the calibration guide on the lips and size it around
 the mouth. Test several shapes and check that the neck, collar, eyes, and
-background remain stationary. Photo mode keeps the portrait fixed and clips
+background remain stationary. Mouth-only mode keeps the portrait fixed and clips
 speech animation to that guide; illustrated characters retain their head motion.
 `tests/photo-motion.test.ts` compares pixels outside the mouth in both the actual
 workshop canvas code and the video renderer, at multiple sizes and mouth scales.
+
+The [learned local portrait path](LOCAL_PORTRAITS.md) has separate integration
+checks. Its automated regressions cover continuous preview motion, full 30 fps
+sampling through pauses, motion-setting persistence, missing-model failures,
+changed engine files and damaged frame caches. A real model render is explicitly
+run outside the model-free suite; inspect its output with the narration playing.
 
 ## October 16, 2026 verification
 

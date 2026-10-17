@@ -2,9 +2,9 @@
 
 A local preparation workflow for SAP shorts: hands-on developer tutorials and dated SAP news briefings, with a shared vertical preview, narration, captions, and companion post workflow.
 
-The implementation turns the editorial blueprint into a reproducible pilot package: a script, vertical storyboard, live demo evidence, companion post copy, and local Kokoro narration. It now exports verified vertical MP4s with visible captions and speaker labels. **Stock avatar animation, any final provider voice, and publishing remain pending.** No provider credentials are needed for the local workflow.
+The implementation turns the editorial blueprint into a reproducible pilot package: a script, vertical storyboard, live demo evidence, companion post copy, and local Kokoro narration. It now exports verified vertical MP4s with visible captions, speaker labels, and local animated presenters. Publishing remains a reviewed manual step. No provider credentials are needed for the local workflow.
 
-Photo presenters now support local automatic mouth alignment and restrained motion of the original lip pixels. See [photo setup and limitations](docs/PHOTO_AVATARS.md).
+Photo presenters support learned, audio-driven face and head animation entirely on Apple Silicon, with calm, conversational and expressive delivery. See [local portrait narration](docs/LOCAL_PORTRAITS.md). A separate [lightweight photo effect](docs/PHOTO_AVATARS.md) remains available for quick previews.
 
 ## Start on another Mac
 
@@ -189,7 +189,7 @@ npm run shorts -- render NEWS-01
 npm run shorts -- library
 ```
 
-Serve the new library directory to use its **Watch MP4** links. The export is a 1080 × 1920 H.264/AAC MP4 with visible captions, source-backed visuals, and normalized narration. It reuses the saved audio, checks complete decoding and timing, and records hashes and quality measurements. Stock avatar animation and publication remain pending. See [video export and recovery](docs/VIDEO_EXPORT.md).
+Serve the new library directory to use its **Watch MP4** links. The export is a 1080 × 1920 H.264/AAC MP4 with visible captions, source-backed visuals, normalized narration, and the selected local presenter animation. It reuses the saved audio, checks complete decoding and timing, and records hashes and quality measurements. Publication remains a reviewed manual step. See [video export and recovery](docs/VIDEO_EXPORT.md).
 
 ## Work with the demo
 
@@ -232,6 +232,7 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 - [Voice options](docs/VOICE_OPTIONS.md): warm local narration, setup, timing limitations, and the ElevenLabs option.
 - [Presentation styles](docs/PRESENTATION_STYLES.md): professional, casual, comic, dialogue, humor settings, and reusable delivery variants.
 - [Video export](docs/VIDEO_EXPORT.md): vertical MP4 composition, quality checks, downloads, and saved render recovery.
+- [Local portrait narration](docs/LOCAL_PORTRAITS.md): picture-plus-audio rendering on Apple Silicon, conversational motion controls, setup, and quality limits.
 - [Studio handoff](docs/STUDIO_PACKAGES.md): one verified ZIP containing the saved studio, videos, workshops, voice samples, and episode packages.
 - [News workflow](docs/NEWS_WORKFLOW.md): source review, availability, freshness, and adding future SAP news episodes.
 - [Independent Astra review](docs/ASTRA_REVIEW.md): three reproduced gaps, their fixes, and the verification outcome.

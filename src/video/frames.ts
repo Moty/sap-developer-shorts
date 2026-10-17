@@ -172,6 +172,7 @@ function panel(
   context.fill();
 }
 
+import { createMotionTrack, sampleMotionTrack } from "../media/portrait-motion.js";
 import type { TalkingHeadSequence } from "../media/talking-head.js";
 
 export interface VideoFrameInput {
@@ -181,6 +182,27 @@ export interface VideoFrameInput {
   code: Record<string, string>;
   evidence?: DemoEvidence;
   talkingHeadSequences?: Record<string, TalkingHeadSequence>;
+}
+
+const motionTracks = new WeakMap<
+  VideoFrameInput,
+  Map<string, ReturnType<typeof createMotionTrack>>
+>();
+function portraitMotion(input: VideoFrameInput, speakerId: string, time: number) {
+  let tracks = motionTracks.get(input);
+  if (!tracks) {
+    tracks = new Map();
+    motionTracks.set(input, tracks);
+  }
+  let track = tracks.get(speakerId);
+  if (!track) {
+    const settings = input.episode.presentation?.speakers.find(
+      (speaker) => speaker.id === speakerId,
+    )?.avatar?.motion;
+    track = createMotionTrack(input.timing.cues, input.timing.durationSeconds, speakerId, settings);
+    tracks.set(speakerId, track);
+  }
+  return sampleMotionTrack(track, time);
 }
 
 export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment): Promise<Buffer> {
@@ -441,7 +463,10 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   const badge = layout.presenter;
   const speakerId = speaker?.id ?? "narrator";
   const isSpeaking = Boolean(cue && (!cue.speakerId || cue.speakerId === speaker?.id));
-  const animation = resolveCueAnimation(cue, timeSeconds, isSpeaking, speakerId);
+  const animation = {
+    ...resolveCueAnimation(cue, timeSeconds, isSpeaking, speakerId),
+    ...portraitMotion(input, speakerId, timeSeconds),
+  };
   const speakerPhoto =
     speaker?.avatar?.mode === "photo" && speaker.avatar.imageId
       ? await loadAvatarImage(

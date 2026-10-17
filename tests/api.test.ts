@@ -31,6 +31,10 @@ test("Studio API health and voices endpoints", async (t) => {
   const healthData = (await healthRes.json()) as { status: string };
   assert.equal(healthData.status, "ok");
 
+  const portraitRes = await fetch(`${base}/api/portrait-status`);
+  assert.equal(portraitRes.status, 200);
+  assert.equal(typeof ((await portraitRes.json()) as { installed: boolean }).installed, "boolean");
+
   // Status endpoint
   const statusRes = await fetch(`${base}/api/status`);
   assert.equal(statusRes.status, 200);

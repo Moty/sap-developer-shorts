@@ -1,4 +1,8 @@
-"""Optional local neural talking-head portrait synthesizer driven by acoustic formants and 478-landmark geometry."""
+"""Legacy procedural photograph warp retained for historical artifacts.
+
+This is not a learned portrait synthesizer. Current realistic rendering uses
+portrait-runner.py and the pinned Ditto models instead.
+"""
 
 import hashlib
 import importlib.metadata
@@ -122,7 +126,16 @@ def extract_acoustic_features(samples, sr, frame_count, fps):
     if frame_count >= 3:
         rms_list = np.convolve(rms_list, kernel, mode="same")
         spread_list = np.convolve(spread_list, kernel, mode="same")
-    return rms_list, np.clip(spread_list, -1.0, 1.0)
+    # Wider prosody envelope (~0.3s window) for smooth conversational head nods & tilts
+    prosody_win = max(3, min(frame_count, int(round(fps * 0.3))))
+    prosody_kernel = np.hanning(prosody_win + 2)[1:-1].astype(np.float32)
+    prosody_kernel /= float(np.sum(prosody_kernel)) or 1.0
+    prosody_env = (
+        np.convolve(rms_list, prosody_kernel, mode="same")
+        if frame_count >= prosody_win
+        else rms_list.copy()
+    )
+    return rms_list, np.clip(spread_list, -1.0, 1.0), np.clip(prosody_env, 0.0, 1.0)
 
 
 def render(root, request_path, output_dir):
@@ -152,7 +165,9 @@ def render(root, request_path, output_dir):
     src = np.asarray(img, dtype=np.float32)
 
     samples, sr = sf.read(req["wavPath"], dtype="float32")
-    rms_env, spread_env = extract_acoustic_features(samples, sr, frame_count, fps)
+    rms_env, spread_env, prosody_env = extract_acoustic_features(
+        samples, sr, frame_count, fps
+    )
 
     fl = default_landmarks(avatar)
     unit = (size / 140.0) * max(0.5, min(2.0, float(avatar.get("mouthScale", 1.0))))
@@ -167,24 +182,38 @@ def render(root, request_path, output_dir):
 
     face_x = size * float(fl["faceX"])
     face_y = size * float(fl["faceY"])
-    face_rx = min(max(size * 0.14, min(face_x - 3, size - 3 - face_x)), size * float(fl["faceRx"]) * 1.18)
-    face_ry = min(
-        max(size * 0.16, min(face_y - 3, size * min(0.95, float(fl["jawY"]) + 0.05) - face_y)),
-        size * float(fl["faceRy"]) * 1.15,
-    )
+    head_cy = max(size * 0.24, face_y - size * 0.03)
+    max_rx = max(size * 0.14, min(face_x - 4.0, size - 4.0 - face_x))
+    max_ry = max(size * 0.16, min(head_cy - 4.0, size - 5.0 - head_cy))
+    face_rx = min(max_rx, max(size * 0.36, size * float(fl["faceRx"]) * 2.15))
+    face_ry = min(max_ry, max(size * 0.38, size * float(fl["faceRy"]) * 2.05))
     jaw_top = my - ry * 0.35
-    jaw_bot = min(size - 3.0, max(my + ry * 1.25, size * min(0.94, float(fl["jawY"]) + 0.03)))
+    jaw_bot = min(size - 4.0, max(my + ry * 1.25, size * min(0.94, float(fl["jawY"]) + 0.03)))
     jaw_span = max(1.0, jaw_bot - jaw_top)
-    jaw_rx = min(face_rx * 0.92, max(rx * 2.05, size * float(fl["faceRx"]) * 0.76))
+    jaw_rx = min(face_rx * 0.92, max(rx * 2.05, size * float(fl["faceRx"]) * 0.82))
+    pivot_y = min(size - 6.0, jaw_bot)
 
     yy, xx = np.meshgrid(
         np.arange(size, dtype=np.float32),
         np.arange(size, dtype=np.float32),
         indexing="ij",
     )
-    r_face2 = ((xx - face_x) / face_rx) ** 2 + ((yy - face_y) / face_ry) ** 2
-    in_face = r_face2 < 1.0
-    w_face = np.where(in_face, (1.0 - np.minimum(1.0, r_face2)) ** 2, 0.0)
+    r_face = np.hypot((xx - face_x) / face_rx, (yy - head_cy) / face_ry)
+    radial_w = np.where(
+        r_face <= 0.54,
+        1.0,
+        np.where(
+            r_face < 1.0,
+            (1.0 - ((r_face - 0.54) / 0.46) ** 2) ** 2,
+            0.0,
+        ),
+    )
+    neck_taper = np.where(
+        yy <= pivot_y,
+        1.0,
+        (1.0 - np.clip((yy - pivot_y) / max(6.0, head_cy + face_ry - pivot_y), 0.0, 1.0)) ** 2,
+    )
+    w_face = (radial_w * neck_taper).astype(np.float32)
 
     speaker_offset = 0.4 if speaker_id == "mira" else 1.9 if speaker_id == "max" else 1.1
 
@@ -201,22 +230,45 @@ def render(root, request_path, output_dir):
         is_blinking = 3.18 <= blink_cycle <= 3.36
         jaw_open = float(rms_env[idx]) if active_cue else 0.0
         spread = float(spread_env[idx]) if active_cue else 0.0
-        head_bob = math.sin(t * 8.2) * 1.65 * (0.35 + jaw_open * 0.65) if active_cue else 0.0
-        head_tilt = math.sin(t * 4.1 + speaker_offset) * 0.022 if active_cue else 0.0
+        speech_drive = float(prosody_env[idx]) if active_cue else 0.0
+        is_question = ("?" in active_cue.get("text", "")) if active_cue else False
+
+        tilt_wave = (
+            math.sin(t * 1.9 + speaker_offset) * 0.65
+            + math.sin(t * 3.3 + speaker_offset * 1.7) * 0.35
+        )
+        if active_cue:
+            head_bob = (
+                math.sin(t * 2.8 + speaker_offset * 0.5) * 1.45
+                + math.sin(t * 7.4) * 2.25 * (0.42 + speech_drive * 0.58)
+            )
+            head_tilt = tilt_wave * (
+                0.058 + speech_drive * 0.028 + (0.016 if is_question else 0.0)
+            )
+            head_sway = (
+                math.sin(t * 1.45 + speaker_offset * 0.8) * 2.4
+                + math.sin(t * 4.3 + speaker_offset) * 1.15 * (0.4 + speech_drive * 0.6)
+            )
+        else:
+            head_bob = math.sin(t * 1.65 + speaker_offset) * 0.8
+            head_tilt = math.sin(t * 1.25 + speaker_offset) * 0.026
+            head_sway = math.sin(t * 1.05 + speaker_offset) * 0.95
         brow_lift = (1.6 + jaw_open * 1.8) if active_cue else 0.0
 
         sx = xx.copy()
         sy = yy.copy()
 
-        if active_cue:
-            bob_px = head_bob * (size / 140.0) * 0.42 * w_face
-            tilt_rad = head_tilt * 0.65 * w_face
-            dx_f = sx - face_x
-            dy_f = sy - face_y - bob_px
-            ct = np.cos(tilt_rad)
-            st = np.sin(tilt_rad)
-            sx = face_x + dx_f * ct + dy_f * st
-            sy = face_y - dx_f * st + dy_f * ct
+        bob_px = head_bob * (size / 140.0) * 0.88 * w_face
+        sway_px = head_sway * (size / 140.0) * 0.85 * w_face
+        tilt_rad = head_tilt * 1.05 * w_face
+        dx_f = sx - face_x - sway_px
+        dy_f = sy - pivot_y - bob_px
+        ct = np.cos(tilt_rad)
+        st = np.sin(tilt_rad)
+        pitch_scale = 1.0 - 0.018 * (head_bob / 5.0) * ((sy - face_y) / face_ry) * w_face
+        yaw_scale = 1.0 + 0.022 * (head_sway / 4.0) * (dx_f / face_rx) * w_face
+        sx = face_x + (dx_f * ct + dy_f * st) * pitch_scale * yaw_scale
+        sy = pivot_y + (-dx_f * st + dy_f * ct) / pitch_scale
 
         for eye_spec in (fl["leftEye"], fl["rightEye"]):
             ex = size * float(eye_spec[0])

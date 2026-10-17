@@ -184,6 +184,15 @@ export async function renderVideo(
     renderSources[name] = hash(bytes);
   for (const name of [...videoFontFiles, "package-lock.json"])
     renderSources[name] = hash(await readFile(await sourceFile(name)));
+  if (episode.presentation?.speakers.some((speaker) => speaker.avatar?.animation === "neural")) {
+    const { talkingHeadRuntime } = await import("../media/talking-head.js");
+    const runtime = await talkingHeadRuntime();
+    if (!runtime.installed || !runtime.hash)
+      throw new Error(
+        "Realistic portraits require npm run shorts -- talking-head-setup before rendering.",
+      );
+    renderSources[".state/portrait-runtime/runtime.json"] = runtime.hash;
+  }
   for (const speaker of episode.presentation?.speakers ?? []) {
     if (speaker.avatar?.mode === "photo" && speaker.avatar.imageId) {
       const { resolveAvatarPath } = await import("../media/avatar.js");

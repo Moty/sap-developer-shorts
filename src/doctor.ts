@@ -41,6 +41,13 @@ export async function doctor(): Promise<boolean> {
       console.log(`OPTIONAL ${binary}: missing; needed for the later video rendering stage`);
     }
   }
-  console.log("Presenter and publishing: not connected in this milestone.");
+  const { talkingHeadRuntime } = await import("./media/talking-head.js");
+  const portrait = await talkingHeadRuntime();
+  console.log(
+    portrait.installed
+      ? `OPTIONAL Portrait: local Ditto models ready (${portrait.accelerator}); output quality still needs review.`
+      : "OPTIONAL Portrait: run npm run shorts -- talking-head-setup for realistic photo narration.",
+  );
+  console.log("Publishing: not connected.");
   return healthy;
 }

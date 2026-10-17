@@ -29,6 +29,8 @@ rewritten by the visual wrapping.
 
 Scene and caption transitions follow the recorded audio timeline at 30 frames/second. Quantization adds at most one video frame to a transition; the caption boundaries themselves remain Kokoro model estimates. Names label dialogue speakers visually and in the caption file; they are not spoken as narration. Speaker badges do not imply that stock-avatar animation has been rendered.
 
+Animated presenters are now composited on every output frame, including pauses. Photo presenters selecting `animation: "neural"` use the [local learned portrait renderer](LOCAL_PORTRAITS.md), with calm, conversational or expressive delivery. Its runtime receipt and model/runner fingerprints participate in cache identity. Model failure stops the export rather than switching to lightweight photo animation.
+
 The MP4 uses H.264, `yuv420p`, AAC at 48 kHz stereo, and a fast-start container. Two-pass loudness processing targets -16 LUFS with headroom. Export checks require finite audio measurements, integrated loudness within 1.5 LU of the target, and true peak below -0.5 dBTP. These are this project's review thresholds, not a claim of platform certification.
 
 FFprobe checks dimensions, frame rate, codecs, audio presence, frame count, and stream/container durations against the source audio. FFmpeg must also decode the full video without an error. The final audio is measured again before the export becomes ready.

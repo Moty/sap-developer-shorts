@@ -71,6 +71,8 @@ export async function runtimeFiles(): Promise<string[]> {
     "media/avatar",
     "media/face-assets",
     "media/photo-texture",
+    "media/portrait-motion",
+    "media/portrait",
     "media/talking-head",
     "media/store",
     "media/worker",
@@ -91,7 +93,10 @@ export async function runtimeFiles(): Promise<string[]> {
     relative(
       projectRoot,
       fileURLToPath(
-        new URL(`./${name}${name === "media/photo-texture" ? ".js" : extension}`, import.meta.url),
+        new URL(
+          `./${name}${["media/photo-texture", "media/portrait-motion"].includes(name) ? ".js" : extension}`,
+          import.meta.url,
+        ),
       ),
     ).replaceAll("\\", "/"),
   );
@@ -103,6 +108,10 @@ export async function readRuntimeFiles(): Promise<Record<string, Buffer>> {
   for (const file of [
     "src/media/kokoro-runner.py",
     "src/media/talking-head-runner.py",
+    "src/media/portrait-runner.py",
+    "scripts/setup-portrait.py",
+    "config/portrait-runtime.json",
+    "config/portrait-requirements.txt",
     "config/neural-voice.json",
     "config/neural-voice-requirements.txt",
     "config/talking-head.json",

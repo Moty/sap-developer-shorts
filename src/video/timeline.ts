@@ -17,13 +17,9 @@ export function videoTimeline(
   const frame = (seconds: number) => Math.min(total, Math.max(0, Math.ceil(seconds * videoFps)));
   const avatarSteps: number[] = [];
   if (options?.animateAvatar) {
-    const stepFrames = 5; // 6 Hz syllable & viseme cadence at 30 fps
-    for (const cue of timing.cues) {
-      const start = frame(cue.startSeconds);
-      const end = frame(cue.endSeconds);
-      for (let f = start + stepFrames; f < end; f += stepFrames) {
-        avatarSteps.push(f);
-      }
+    // Moving portraits need every output frame, including blinks during pauses.
+    for (let f = 1; f < total; f++) {
+      avatarSteps.push(f);
     }
   }
   const boundaries = [

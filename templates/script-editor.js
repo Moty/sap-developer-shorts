@@ -15,9 +15,16 @@
   for (const [index] of seed.presentation.speakers.entries())
     fieldIds.push(
       `speaker-voice-${index}`,
-      ...["mode", "image", "mouth-x", "mouth-y", "mouth-scale", "geometry"].map(
-        (name) => `speaker-avatar-${name}-${index}`,
-      ),
+      ...[
+        "mode",
+        "image",
+        "mouth-x",
+        "mouth-y",
+        "mouth-scale",
+        "geometry",
+        "motion-style",
+        "motion-intensity",
+      ].map((name) => `speaker-avatar-${name}-${index}`),
     );
   for (const [index, scene] of seed.scenes.entries()) {
     fieldIds.push(`overlay-${index}`);
@@ -211,7 +218,7 @@
     );
     const formatAvatar = (avatar) =>
       avatar?.mode === "photo"
-        ? `Photo (${avatar.imageId || "none"} · mouth ${Math.round((avatar.mouthX ?? 0.5) * 100)}%, ${Math.round((avatar.mouthY ?? 0.68) * 100)}%, scale ${Math.round((avatar.mouthScale ?? 1) * 100)}%)`
+        ? `Photo (${avatar.imageId || "none"} · ${avatar.animation === "neural" ? "realistic local" : avatar.animation === "mouth-only" ? "mouth only" : "lightweight"} · ${avatar.motion?.style ?? "conversational"}, ${Math.round((avatar.motion?.intensity ?? 0.7) * 100)}% motion · mouth ${Math.round((avatar.mouthX ?? 0.5) * 100)}%, ${Math.round((avatar.mouthY ?? 0.68) * 100)}%, scale ${Math.round((avatar.mouthScale ?? 1) * 100)}%)`
         : "3D Illustrated Character";
     section(
       "Avatars",
@@ -232,6 +239,11 @@
         for (const [index, speaker] of seed.presentation.speakers.entries()) {
           byId(`speaker-avatar-mode-${index}`).value = speaker.avatar?.mode ?? "illustrated";
           byId(`speaker-avatar-image-${index}`).value = speaker.avatar?.imageId ?? "";
+          byId(`speaker-avatar-motion-style-${index}`).value =
+            speaker.avatar?.motion?.style ?? "conversational";
+          byId(`speaker-avatar-motion-intensity-${index}`).value = String(
+            speaker.avatar?.motion?.intensity ?? 0.7,
+          );
           byId(`speaker-avatar-mouth-y-${index}`).value = String(speaker.avatar?.mouthY ?? 0.68);
           byId(`speaker-avatar-mouth-x-${index}`).value = String(speaker.avatar?.mouthX ?? 0.5);
           byId(`speaker-avatar-mouth-scale-${index}`).value = String(
@@ -353,6 +365,18 @@
         value.mouthAspect <= 0.6
       )
         metadata.mouthAspect = value.mouthAspect;
+      const motion = value.motion;
+      if (
+        motion &&
+        ["calm", "conversational", "expressive"].includes(motion.style) &&
+        Number.isFinite(motion.intensity) &&
+        motion.intensity >= 0 &&
+        motion.intensity <= 1
+      ) {
+        metadata.motion = { style: motion.style, intensity: motion.intensity };
+        if (Number.isInteger(motion.seed) && motion.seed >= 0 && motion.seed <= 4294967295)
+          metadata.motion.seed = motion.seed;
+      }
       const fl = value.faceLandmarks;
       if (
         fl &&
@@ -602,11 +626,34 @@
             setProduceProgress(p.stage, p.message);
           } catch {}
         });
-        sse.addEventListener("complete", () => {
+        sse.addEventListener("complete", (e) => {
           sse.close();
-          setProduceProgress("READY", "Production complete!");
           produceBtn.disabled = false;
           download.disabled = false;
+          let payload = {};
+          try {
+            payload = JSON.parse(e.data || "{}");
+          } catch {}
+          const report = payload.report || {};
+          const stage = payload.stage || report.stage || "READY";
+          if (stage !== "READY") {
+            const issueMsg =
+              report.issue?.message || payload.error || "Production stopped before MP4 export.";
+            const timingDetail =
+              Number.isFinite(report.durationSeconds) && Number.isFinite(report.hookSeconds)
+                ? ` (Measured: ${report.durationSeconds.toFixed(1)}s total, ${report.hookSeconds.toFixed(2)}s opening hook)`
+                : "";
+            const nextAction = report.issue?.nextAction ? ` ${report.issue.nextAction}` : "";
+            setProduceProgress(stage, `${issueMsg}${timingDetail}${nextAction}`);
+            if (produceResult) {
+              produceResult.hidden = false;
+              const strong = element("strong", "", `Production ${stage}`);
+              const p = element("p", "", `${issueMsg}${timingDetail}${nextAction}`);
+              produceResult.replaceChildren(strong, p);
+            }
+            return;
+          }
+          setProduceProgress("READY", "Production complete!");
           if (produceResult) {
             produceResult.hidden = false;
             const strong = element("strong", "", "Production Succeeded!");
@@ -879,6 +926,7 @@
           byId(`speaker-avatar-mouth-scale-${index}`).value = String(geometry.mouthScale);
           byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify({
             ...(animSelect?.value ? { animation: animSelect.value } : {}),
+            ...(readMouthMetadata(index).motion ? { motion: readMouthMetadata(index).motion } : {}),
             mouthAngle: geometry.mouthAngle,
             mouthAspect: geometry.mouthAspect,
             ...(geometry.faceLandmarks ? { faceLandmarks: geometry.faceLandmarks } : {}),
@@ -909,6 +957,13 @@
         if (animEl) {
           const meta = readMouthMetadata(index);
           animEl.value = meta.animation || "full-face";
+          if (byId(`speaker-avatar-motion-style-${index}`))
+            byId(`speaker-avatar-motion-style-${index}`).value =
+              meta.motion?.style || "conversational";
+          if (byId(`speaker-avatar-motion-intensity-${index}`))
+            byId(`speaker-avatar-motion-intensity-${index}`).value = String(
+              meta.motion?.intensity ?? 0.7,
+            );
         }
         ensureImageLoaded(byId(`speaker-avatar-image-${index}`).value, index).catch(() => {});
       };
@@ -967,7 +1022,7 @@
         const metadata = readMouthMetadata(index);
         const animMode =
           metadata.animation || byId(`speaker-avatar-animation-${index}`)?.value || "mouth-only";
-        if (jawOpen > 0 && viseme !== "rest") {
+        if ((jawOpen > 0 && viseme !== "rest") || animState) {
           const pixels = ctx.getImageData(0, 0, w, h);
           if (
             (animMode === "full-face" || animMode === "neural") &&
@@ -1106,6 +1161,26 @@
         selectEl.value = current;
       }
 
+      fetch("/api/portrait-status")
+        .then((response) => (response.ok ? response.json() : null))
+        .then((runtime) => {
+          for (const [index] of seed.presentation.speakers.entries()) {
+            const label = byId(`speaker-avatar-runtime-${index}`);
+            if (label)
+              label.textContent = runtime?.installed
+                ? "Realistic local rendering is ready. Generating a portrait takes longer than the silent preview."
+                : "Realistic rendering needs setup: npm run shorts -- talking-head-setup";
+          }
+        })
+        .catch(() => {
+          for (const [index] of seed.presentation.speakers.entries()) {
+            const label = byId(`speaker-avatar-runtime-${index}`);
+            if (label)
+              label.textContent =
+                "Open through the local studio server to check the portrait renderer.";
+          }
+        });
+
       fetch("/api/avatars")
         .then((res) => (res.ok ? res.json() : { avatars: [] }))
         .then((data) => {
@@ -1126,8 +1201,24 @@
         const selectEl = byId(`speaker-avatar-image-${index}`);
         if (selectEl) {
           selectEl.addEventListener("change", () => {
-            byId(`speaker-avatar-geometry-${index}`).value = "{}";
+            byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify({
+              animation: byId(`speaker-avatar-animation-${index}`)?.value,
+              motion: readMouthMetadata(index).motion,
+            });
             detectMouth(index);
+            update();
+          });
+        }
+        for (const suffix of ["motion-style", "motion-intensity"]) {
+          const control = byId(`speaker-avatar-${suffix}-${index}`);
+          control?.addEventListener("input", () => {
+            const metadata = readMouthMetadata(index);
+            metadata.motion = {
+              ...(metadata.motion || {}),
+              style: byId(`speaker-avatar-motion-style-${index}`).value,
+              intensity: Number(byId(`speaker-avatar-motion-intensity-${index}`).value),
+            };
+            byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify(metadata);
             update();
           });
         }
@@ -1198,7 +1289,10 @@
                   }
                   selectEl.value = avatarId;
                   loadedImages.delete(avatarId);
-                  byId(`speaker-avatar-geometry-${index}`).value = "{}";
+                  byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify({
+                    animation: byId(`speaker-avatar-animation-${index}`)?.value,
+                    motion: readMouthMetadata(index).motion,
+                  });
                   detectMouth(index);
                   update();
                 }
@@ -1228,85 +1322,36 @@
               );
               return;
             }
-            const visemeCycle = [
-              {
-                viseme: "open_a",
-                jawOpen: 0.88,
-                isBlinking: false,
-                browLift: 2.2,
-                headBobY: 1.4,
-                headTilt: 0.018,
-              },
-              {
-                viseme: "consonant",
-                jawOpen: 0.22,
-                isBlinking: false,
-                browLift: 0.8,
-                headBobY: -0.6,
-                headTilt: 0.01,
-              },
-              {
-                viseme: "open_o",
-                jawOpen: 0.8,
-                isBlinking: true,
-                browLift: 1.8,
-                headBobY: 1.2,
-                headTilt: -0.015,
-              },
-              {
-                viseme: "open_e",
-                jawOpen: 0.65,
-                isBlinking: false,
-                browLift: 2.6,
-                headBobY: -1.1,
-                headTilt: -0.02,
-              },
-              {
-                viseme: "smile",
-                jawOpen: 0.42,
-                isBlinking: false,
-                browLift: 1.2,
-                headBobY: 0.8,
-                headTilt: 0.014,
-              },
-              {
-                viseme: "open_u",
-                jawOpen: 0.72,
-                isBlinking: false,
-                browLift: 1.5,
-                headBobY: -0.9,
-                headTilt: 0.008,
-              },
-              {
-                viseme: "open_a",
-                jawOpen: 0.92,
-                isBlinking: true,
-                browLift: 2.8,
-                headBobY: 1.6,
-                headTilt: -0.018,
-              },
-              {
-                viseme: "rest",
-                jawOpen: 0,
-                isBlinking: false,
-                browLift: 0,
-                headBobY: 0,
-                headTilt: 0,
-              },
-            ];
+            const duration = 8;
+            const track = createMotionTrack(
+              [
+                { text: "How does this work?", startSeconds: 0.4, endSeconds: 2.6 },
+                { text: "Here is the useful part.", startSeconds: 3.4, endSeconds: 6.3 },
+              ],
+              duration,
+              `speaker-${index}`,
+              readMouthMetadata(index).motion,
+            );
+            const shapes = ["open_a", "consonant", "open_o", "open_e", "open_u"];
             let step = 0;
             testBtn.disabled = true;
             const timer = setInterval(() => {
-              if (step >= visemeCycle.length * 2) {
+              const time = step++ / 30;
+              if (time >= duration) {
                 clearInterval(timer);
                 testBtn.disabled = false;
                 renderSpeakerCanvas(index, 0, "rest", true);
                 return;
               }
-              const item = visemeCycle[step % visemeCycle.length];
-              renderSpeakerCanvas(index, item.jawOpen, item.viseme, false, item);
-              step += 1;
-            }, 260);
+              const speaking = (time >= 0.4 && time < 2.6) || (time >= 3.4 && time < 6.3);
+              const viseme = speaking ? shapes[Math.floor(time * 6) % shapes.length] : "rest";
+              const jawOpen = speaking ? 0.5 : 0;
+              renderSpeakerCanvas(index, jawOpen, viseme, false, {
+                ...sampleMotionTrack(track, time),
+                jawOpen,
+                viseme,
+              });
+            }, 1000 / 30);
           });
         }
       }

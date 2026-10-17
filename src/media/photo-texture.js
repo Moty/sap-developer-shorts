@@ -246,7 +246,7 @@ function extractFaceLandmarks(points, fallback) {
  * @param {number} width
  * @param {number} height
  * @param {{mouthX?:number,mouthY?:number,mouthScale?:number,mouthAngle?:number,mouthAspect?:number,eyeY?:number,faceLandmarks?:{leftEye:[number,number,number,number],rightEye:[number,number,number,number],jawY:number,faceX:number,faceY:number,faceRx:number,faceRy:number}}} config
- * @param {{viseme?:string,strength?:number,jawOpen?:number,isBlinking?:boolean,browLift?:number,headBobY?:number,headTilt?:number}|string} animInput
+ * @param {{viseme?:string,strength?:number,jawOpen?:number,isBlinking?:boolean,blink?:number,browLift?:number,headBobY?:number,headTilt?:number,headSwayX?:number}|string} animInput
  * @param {number} [fallbackStrength]
  */
 export function warpPhotoFace(
@@ -269,15 +269,18 @@ export function warpPhotoFace(
   const jawOpen = Math.max(0, Math.min(1, anim.jawOpen ?? (viseme === "rest" ? 0 : 0.7)));
   const rawStrength = anim.strength ?? (viseme === "rest" ? 0 : Math.max(0.35, jawOpen));
   const strength = viseme === "rest" ? 0 : Math.max(0, Math.min(1, rawStrength));
-  const isBlinking = Boolean(anim.isBlinking);
+  const blink = Math.max(0, Math.min(1, anim.blink ?? (anim.isBlinking ? 1 : 0)));
+  const isBlinking = blink > 0;
   const browLift = Math.max(-4, Math.min(6, anim.browLift ?? 0));
-  const headBobY = Math.max(-10, Math.min(10, anim.headBobY ?? 0));
-  const headTilt = Math.max(-0.2, Math.min(0.2, anim.headTilt ?? 0));
+  const headBobY = Math.max(-12, Math.min(12, anim.headBobY ?? 0));
+  const headTilt = Math.max(-0.25, Math.min(0.25, anim.headTilt ?? 0));
+  const headSwayX = Math.max(-10, Math.min(10, anim.headSwayX ?? 0));
 
   const output = new Uint8ClampedArray(source);
   const hasMouthMotion = viseme !== "rest" && strength > 0.001;
   const hasJawMotion = jawOpen > 0.015;
-  const hasHeadMotion = Math.abs(headBobY) > 0.04 || Math.abs(headTilt) > 0.0015;
+  const hasHeadMotion =
+    Math.abs(headBobY) > 0.04 || Math.abs(headTilt) > 0.0015 || Math.abs(headSwayX) > 0.04;
   const hasBrowMotion = Math.abs(browLift) > 0.05;
   if (!hasMouthMotion && !hasJawMotion && !isBlinking && !hasBrowMotion && !hasHeadMotion) {
     return output;
@@ -305,25 +308,25 @@ export function warpPhotoFace(
   const s = Math.sin(angle);
   const fxLip = (shape[0] - 1) * strength;
 
-  // Face oval parameters anchored inside portrait bounds so collar/corners stay fixed.
+  // Whole-head volume anchored inside portrait bounds so cranium, hair, ears,
+  // and glasses move cohesively while collar and outer borders stay fixed.
   const faceX = width * landmarks.faceX;
   const faceY = height * landmarks.faceY;
-  const maxRx = Math.max(width * 0.14, Math.min(faceX - 3, width - 3 - faceX));
-  const maxRy = Math.max(
-    height * 0.16,
-    Math.min(faceY - 3, height * Math.min(0.95, landmarks.jawY + 0.05) - faceY),
-  );
-  const faceRx = Math.min(maxRx, width * landmarks.faceRx * 1.18);
-  const faceRy = Math.min(maxRy, height * landmarks.faceRy * 1.15);
+  const headCy = Math.max(height * 0.24, faceY - height * 0.03);
+  const maxRx = Math.max(width * 0.14, Math.min(faceX - 4, width - 4 - faceX));
+  const maxRy = Math.max(height * 0.16, Math.min(headCy - 4, height - 5 - headCy));
+  const faceRx = Math.min(maxRx, Math.max(width * 0.35, width * landmarks.faceRx * 2.15));
+  const faceRy = Math.min(maxRy, Math.max(height * 0.37, height * landmarks.faceRy * 2.05));
 
   // Jaw & lower-cheek zone between mouth and chin tip (tapering to 0 before collar).
   const jawTopY = my - ry * 0.35;
   const jawBottomY = Math.min(
-    height - 3,
+    height - 4,
     Math.max(my + ry * 1.25, height * Math.min(0.94, landmarks.jawY + 0.03)),
   );
   const jawSpanY = Math.max(1, jawBottomY - jawTopY);
-  const jawRx = Math.min(faceRx * 0.92, Math.max(rx * 2.05, width * landmarks.faceRx * 0.76));
+  const jawRx = Math.min(faceRx * 0.92, Math.max(rx * 2.05, width * landmarks.faceRx * 0.82));
+  const pivotY = Math.min(height - 6, jawBottomY);
 
   // Eye & brow regions.
   const eyes = [landmarks.leftEye, landmarks.rightEye].map(([ex, ey, erx, ery]) => ({
@@ -333,10 +336,10 @@ export function warpPhotoFace(
     ry: Math.max(height * 0.028, height * ery * 2.05),
   }));
 
-  const minY = Math.max(1, Math.floor(faceY - faceRy - 2));
-  const maxY = Math.min(height - 2, Math.ceil(Math.max(faceY + faceRy, jawBottomY) + 2));
-  const minX = Math.max(1, Math.floor(faceX - faceRx - 2));
-  const maxX = Math.min(width - 2, Math.ceil(faceX + faceRx + 2));
+  const minY = Math.max(3, Math.floor(headCy - faceRy - 1));
+  const maxY = Math.min(height - 5, Math.ceil(Math.max(headCy + faceRy, jawBottomY) + 1));
+  const minX = Math.max(3, Math.floor(faceX - faceRx - 1));
+  const maxX = Math.min(width - 4, Math.ceil(faceX + faceRx + 1));
 
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
@@ -344,22 +347,31 @@ export function warpPhotoFace(
       let sy = y;
       let modified = false;
 
-      // 1. 2.5D head nod, tilt & perspective micro-movement within facial oval.
+      // 1. Cohesive 2.5D head tilt (roll), nod (pitch), and turn (yaw) around neck pivot.
       const ndx = (x - faceX) / faceRx;
-      const ndy = (y - faceY) / faceRy;
-      const rFace2 = ndx * ndx + ndy * ndy;
-      if (rFace2 < 1 && hasHeadMotion) {
-        const wFace = (1 - rFace2) ** 2;
-        const bobPx = headBobY * (width / 140) * 0.42 * wFace;
-        const tiltRad = headTilt * 0.65 * wFace;
-        const dxF = sx - faceX;
-        const dyF = sy - faceY - bobPx;
-        const ct = Math.cos(tiltRad);
-        const st = Math.sin(tiltRad);
-        const pitchScale = 1 - 0.012 * (headBobY / 6) * (dyF / faceRy) * wFace;
-        sx = faceX + (dxF * ct + dyF * st) * pitchScale;
-        sy = faceY + (-dxF * st + dyF * ct) / pitchScale;
-        modified = true;
+      const ndy = (y - headCy) / faceRy;
+      const rFace = Math.hypot(ndx, ndy);
+      if (rFace < 1 && hasHeadMotion) {
+        const radialWeight = rFace <= 0.54 ? 1 : (1 - ((rFace - 0.54) / 0.46) ** 2) ** 2;
+        const neckTaper =
+          y <= pivotY
+            ? 1
+            : (1 - Math.min(1, (y - pivotY) / Math.max(6, headCy + faceRy - pivotY))) ** 2;
+        const wFace = radialWeight * neckTaper;
+        if (wFace > 0.001) {
+          const bobPx = headBobY * (width / 140) * 0.88 * wFace;
+          const swayPx = headSwayX * (width / 140) * 0.85 * wFace;
+          const tiltRad = headTilt * 1.05 * wFace;
+          const dxF = sx - faceX - swayPx;
+          const dyF = sy - pivotY - bobPx;
+          const ct = Math.cos(tiltRad);
+          const st = Math.sin(tiltRad);
+          const pitchScale = 1 - 0.018 * (headBobY / 5) * ((sy - faceY) / faceRy) * wFace;
+          const yawScale = 1 + 0.022 * (headSwayX / 4) * (dxF / faceRx) * wFace;
+          sx = faceX + (dxF * ct + dyF * st) * pitchScale * yawScale;
+          sy = pivotY + (-dxF * st + dyF * ct) / pitchScale;
+          modified = true;
+        }
       }
 
       // 2. Eyebrow expression lift & upper-eyelid blink closure.
@@ -399,8 +411,9 @@ export function warpPhotoFace(
                   const t = (ev - lidMeet) / Math.max(0.001, bEye - lidMeet);
                   sev = upperCrease + t * (bEye - upperCrease);
                 }
-                sx = eye.cx + eu * c - sev * s;
-                sy = eye.cy + eu * s + sev * c;
+                const blended = ev + (sev - ev) * blink;
+                sx = eye.cx + eu * c - blended * s;
+                sy = eye.cy + eu * s + blended * c;
                 modified = true;
               }
             }

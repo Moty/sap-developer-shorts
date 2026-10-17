@@ -442,6 +442,26 @@
                       }
                     },
                     "required": ["imageSha256", "modelSha256", "detector"]
+                  },
+                  "motion": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["style", "intensity"],
+                    "properties": {
+                      "style": {
+                        "enum": ["calm", "conversational", "expressive"]
+                      },
+                      "intensity": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "seed": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4294967295
+                      }
+                    }
                   }
                 },
                 "required": ["mode"]

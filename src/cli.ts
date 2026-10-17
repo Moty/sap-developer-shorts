@@ -203,15 +203,48 @@ try {
         directory = built.directory;
       }
     }
-    const { url } = await startPreviewServer(directory);
-    console.log(`Local:   ${url}`);
-    console.log("Serving this artifact on this computer. Stop with Ctrl+C.");
+    const { networkInterfaces } = await import("node:os");
+    const nets = networkInterfaces();
+    let lanIp = "127.0.0.1";
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        if (net.family === "IPv4" && !net.internal) {
+          lanIp = net.address;
+          break;
+        }
+      }
+    }
+    const host = process.env.HOST ?? "0.0.0.0";
+    const { server } = await startPreviewServer(directory, 4173, host);
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : 4173;
+    console.log(`Local:   http://localhost:${port}/review.html`);
+    console.log(`Network: http://${lanIp}:${port}/review.html`);
+    console.log("Serving this artifact on this computer and your local network. Stop with Ctrl+C.");
   } else if (command === "avatar-setup" && !args.length) {
     const { setupFaceLandmarker } = await import("./media/face-assets.js");
     console.log(`Local face model ready: ${await setupFaceLandmarker()}`);
   } else if (command === "talking-head-setup" && !args.length) {
     const { setupTalkingHead } = await import("./media/talking-head.js");
-    console.log(await setupTalkingHead());
+    console.log(await setupTalkingHead(console.log));
+  } else if (command === "portrait-status" && !args.length) {
+    const { talkingHeadRuntime } = await import("./media/talking-head.js");
+    console.log(JSON.stringify(await talkingHeadRuntime(), null, 2));
+  } else if (
+    command === "portrait-render" &&
+    args.length >= 2 &&
+    args.length <= 3 &&
+    args[0] &&
+    args[1]
+  ) {
+    const { renderPortraitNarration } = await import("./media/portrait.js");
+    const style = args[2] ?? "conversational";
+    if (style !== "calm" && style !== "conversational" && style !== "expressive")
+      throw new Error("Portrait style must be calm, conversational, or expressive");
+    console.log(
+      (await renderPortraitNarration(args[0], args[1], { style, intensity: 0.7 }, console.log))
+        .videoPath,
+    );
   } else if (command === "doctor" && !args.length) {
     if (!(await doctor())) process.exitCode = 1;
   } else if (command === "validate" && args.length <= 1) {
@@ -319,7 +352,7 @@ try {
     }
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nNo live avatar generation or publishing is implemented.",
+      "SAP Developer Shorts\n\n  doctor                         Check local prerequisites\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  talking-head-setup             Install and verify local portrait models\n  portrait-status                Check the local portrait renderer\n  portrait-render IMAGE AUDIO [STYLE] Render picture + audio locally\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nPortrait generation runs locally. Publishing is not implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");

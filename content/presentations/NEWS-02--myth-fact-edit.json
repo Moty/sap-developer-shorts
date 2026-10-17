@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "baseEpisodeId": "NEWS-02",
+  "baseInputHash": "ec02b31595f11cfab261a0a9f3af28fc4f161e7c7d679f336ff88564e7d23f07",
+  "title": "Joule Work: announcement versus access",
+  "presentation": {
+    "variant": "myth-fact-edit",
+    "tone": "professional",
+    "format": "myth-fact",
+    "humor": "none",
+    "speakers": [
+      {
+        "id": "narrator",
+        "name": "Narrator",
+        "voice": "am_michael",
+        "avatar": {
+          "mode": "photo",
+          "imageId": "moty-profile.png",
+          "animation": "neural",
+          "mouthAngle": 0.1132,
+          "mouthAspect": 0.2,
+          "faceLandmarks": {
+            "leftEye": [0.4695, 0.3133, 0.0344, 0.0141],
+            "rightEye": [0.5847, 0.3252, 0.0314, 0.013],
+            "jawY": 0.528,
+            "faceX": 0.495,
+            "faceY": 0.3718,
+            "faceRx": 0.136,
+            "faceRy": 0.1636
+          },
+          "calibration": {
+            "imageSha256": "2ae9ba37cb15df8d192bbca8a1ee14e19e6f83461426526f757de85934fe6c6a",
+            "modelSha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+            "detector": "mediapipe-0.10.32"
+          },
+          "mouthX": 0.513,
+          "mouthY": 0.441,
+          "mouthScale": 0.647
+        }
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "id": "hook",
+      "narration": "Joule Work access? Check first.",
+      "overlay": "Joule Work for everyone? Check first."
+    },
+    {
+      "id": "context",
+      "narration": "Sources checked October fifteenth. Myth: announcement means everyone has access. Fact: SAP describes rollout beginning, with selected customers already using it.",
+      "overlay": "Myth: announcement means access"
+    },
+    {
+      "id": "interface",
+      "narration": "Joule Work uses natural language for tasks across SAP and third-party data. That's the announced interface.",
+      "overlay": "Fact: rollout is beginning"
+    },
+    {
+      "id": "grounding",
+      "narration": "SAP says Knowledge Graph supplies business context for Joule. This short does not test a customer environment.",
+      "overlay": "SAP describes the business context"
+    },
+    {
+      "id": "activation",
+      "narration": "The guide describes managed activation through SAP for Me. That route does not establish your organization's entitlement.",
+      "overlay": "Activation route is not entitlement"
+    },
+    {
+      "id": "takeaway",
+      "narration": "My takeaway: separate the announcement from your organization's availability and activation requirements.",
+      "overlay": "Confirm your organization's access"
+    },
+    {
+      "id": "cta",
+      "narration": "Read the dated sources and confirm your organization's access. Which workflow would you explore?",
+      "overlay": "Read the sources. Confirm access."
+    }
+  ],
+  "publicationText": "Joule Work: distinguish the announcement from your organization's access.\n\nMyth: a product announcement means everyone already has access. Fact: SAP describes Joule Work's customer rollout beginning, with selected customers already using it. This does not establish your organization's entitlement.\n\nAn editorial source review checked October 15, 2026. SAP describes natural-language work across SAP and third-party data, business context from Knowledge Graph, and managed activation through SAP for Me. The guide's portfolio-wide October availability statement does not establish individual access.\n\nNo customer environment was tested for this short. Confirm your organization's availability and activation requirements before planning adoption, and recheck the dated official sources.\n\nOfficial guide: https://www.sap.com/topics/events/connect/innovation-news-guide-2026\nPress release: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nWhich workflow would you explore?\n\n#SAP #SAPConnect #Joule #BusinessAI"
+}

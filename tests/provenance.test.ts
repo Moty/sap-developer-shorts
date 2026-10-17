@@ -32,6 +32,7 @@ test("compiled previews identify executed JavaScript and reject extra discovered
   t.after(() => rm(directory, { recursive: true, force: true }));
   for (const name of [
     "src",
+    "scripts",
     "schemas",
     "config",
     "templates",

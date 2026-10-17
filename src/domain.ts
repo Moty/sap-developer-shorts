@@ -27,6 +27,11 @@ export interface SpeakerAvatarConfig {
   faceLandmarks?: FaceLandmarksConfig;
   calibration?: { imageSha256: string; modelSha256: string; detector: "mediapipe-0.10.32" };
   eyeY?: number;
+  motion?: {
+    style: "calm" | "conversational" | "expressive";
+    intensity: number;
+    seed?: number;
+  };
 }
 
 export interface Presentation {

@@ -1,5 +1,9 @@
 # Local photo presenters
 
+This guide describes the lightweight photo effect. For learned face/head motion
+driven by narration, choose **Realistic local portrait (Ditto)** and follow
+[local portrait narration](LOCAL_PORTRAITS.md).
+
 The workshop can locate the mouth automatically and animate the photograph's
 own lip pixels. It uses Google's **MediaPipe Face Landmarker** for alignment and
 a shared pixel-deformation renderer for preview and video export. This is a

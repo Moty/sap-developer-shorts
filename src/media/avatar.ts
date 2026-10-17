@@ -35,8 +35,10 @@ export interface AvatarAnimationState {
   viseme: VisemeShape;
   jawOpen: number;
   isBlinking: boolean;
+  blink?: number;
   headBobY: number;
   headTilt: number;
+  headSwayX?: number;
   browLift: number;
   voiceEnergy: number;
   activeWordIndex: number;
@@ -229,8 +231,9 @@ export function resolveCueAnimation(
       viseme: "rest",
       jawOpen: 0,
       isBlinking,
-      headBobY: 0,
-      headTilt: 0,
+      headBobY: Math.sin(timeSeconds * 1.65 + speakerOffset) * 0.75,
+      headTilt: Math.sin(timeSeconds * 1.25 + speakerOffset) * 0.024,
+      headSwayX: Math.sin(timeSeconds * 1.05 + speakerOffset) * 0.9,
       browLift: 0,
       voiceEnergy: 0,
       activeWordIndex: -1,
@@ -303,8 +306,16 @@ export function resolveCueAnimation(
   const isExclaim = cue.text.includes("!") || cue.text.includes("≠");
   const browLift = (isQuestion ? 2.8 : isExclaim ? 2.0 : 0.6) + (jawOpen > 0.7 ? 1.4 : 0);
 
-  const headBobY = Math.sin(elapsed * 8.5) * 1.6 * (0.4 + jawOpen * 0.6);
-  const headTilt = Math.sin(elapsed * 4.2 + (speakerId === "max" ? 1.2 : 0)) * 0.02;
+  const headBobY =
+    Math.sin(timeSeconds * 2.8 + speakerOffset * 0.5) * 1.35 +
+    Math.sin(elapsed * 7.6) * 2.15 * (0.45 + jawOpen * 0.55);
+  const headTilt =
+    (Math.sin(timeSeconds * 1.9 + speakerOffset) * 0.65 +
+      Math.sin(timeSeconds * 3.3 + speakerOffset * 1.7) * 0.35) *
+    (0.055 + jawOpen * 0.025 + (isQuestion ? 0.015 : 0));
+  const headSwayX =
+    Math.sin(timeSeconds * 1.45 + speakerOffset * 0.8) * 2.3 +
+    Math.sin(elapsed * 4.4) * 1.1 * (0.4 + jawOpen * 0.6);
   const voiceEnergy = Math.min(1, 0.35 + jawOpen * 0.55 + Math.abs(Math.sin(elapsed * 11)) * 0.1);
 
   return {
@@ -313,6 +324,7 @@ export function resolveCueAnimation(
     isBlinking,
     headBobY,
     headTilt,
+    headSwayX,
     browLift,
     voiceEnergy,
     activeWordIndex,
@@ -443,9 +455,11 @@ function drawPhotoAvatarPortrait(
           viseme: isSpeaking ? anim.viseme : "rest",
           jawOpen: isSpeaking ? anim.jawOpen : 0,
           isBlinking: anim.isBlinking,
+          blink: anim.blink ?? (anim.isBlinking ? 1 : 0),
           browLift: isSpeaking ? anim.browLift : 0,
-          headBobY: isSpeaking ? anim.headBobY : 0,
-          headTilt: isSpeaking ? anim.headTilt : 0,
+          headBobY: anim.headBobY,
+          headTilt: anim.headTilt,
+          headSwayX: anim.headSwayX ?? 0,
         }),
       );
     } else {

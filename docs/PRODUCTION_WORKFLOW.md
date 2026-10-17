@@ -20,7 +20,8 @@ npm run shorts -- voice-setup am_michael
 
 The default remains Heart. Presentation variants can explicitly assign their
 own voices; the conversation assigns Heart and Michael. This command does not
-download a voice automatically, purchase media, animate an avatar, or publish.
+download a voice automatically, purchase media, or publish. A photo presenter
+configured with realistic rendering uses the installed [local portrait engine](LOCAL_PORTRAITS.md).
 
 ## What completion means
 

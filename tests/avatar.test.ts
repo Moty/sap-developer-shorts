@@ -42,7 +42,7 @@ test("resolveCueAnimation varies visemes across syllables and raises brows on qu
   assert.equal(idle.jawOpen, 0);
 });
 
-test("videoTimeline animateAvatar option subdivides speech cues into syllable steps", () => {
+test("videoTimeline supplies every portrait frame, including silent gaps", () => {
   const timing: NarrationTiming = {
     schemaVersion: 1,
     mode: "local-preview",
@@ -63,7 +63,9 @@ test("videoTimeline animateAvatar option subdivides speech cues into syllable st
   };
   const baseMoments = videoTimeline(timing);
   const animatedMoments = videoTimeline(timing, { animateAvatar: true });
-  assert.ok(animatedMoments.length > baseMoments.length + 5);
+  assert.equal(animatedMoments.length, 60);
+  assert.ok(animatedMoments.some((moment) => moment.cueIndex === null));
+  assert.ok(animatedMoments.every((moment) => moment.endFrame - moment.startFrame === 1));
   assert.equal(animatedMoments[0]?.startFrame, 0);
   assert.equal(animatedMoments.at(-1)?.endFrame, baseMoments.at(-1)?.endFrame);
 });
