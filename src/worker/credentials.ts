@@ -14,7 +14,13 @@ async function keychain(action: string, workerId: string, credential?: string) {
   const operation = exec(
     "/usr/bin/swift",
     [resolve(repositoryRoot, "scripts/private/keychain.swift"), action, workerId],
-    { timeout: 30_000 },
+    {
+      timeout: 30_000,
+      env: {
+        ...process.env,
+        DEVELOPER_DIR: process.env.DEVELOPER_DIR ?? "/Library/Developer/CommandLineTools",
+      },
+    },
   );
   operation.child.stdin?.end(credential ?? "");
   return operation;
