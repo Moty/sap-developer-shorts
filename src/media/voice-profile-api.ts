@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { withModelLock } from "./model-lock.js";
 import { acceptClonedVoice, auditionClonedVoice, qwenStatus } from "./qwen.js";
@@ -11,6 +12,7 @@ import {
   readVoiceProfile,
 } from "./voice-profiles.js";
 import { isClonedVoice } from "./voice-reference.js";
+import { prepareVoiceSample } from "./voice-sample-input.js";
 
 interface PrivateApiOptions {
   token?: string;
@@ -109,15 +111,30 @@ export async function handleVoiceProfileApi(
       )
         throw new Error("Choose a valid audio recording up to 30 MiB.");
       const bytes = Buffer.from(body.audio, "base64");
-      const result = await withModelLock(() =>
-        createVoiceProfile(bytes, {
-          name: body.name as string,
-          transcript: body.transcript as string,
-          consent: body.consent === true,
-          ...(body.startSeconds !== undefined ? { startSeconds: body.startSeconds as number } : {}),
-          ...(body.endSeconds !== undefined ? { endSeconds: body.endSeconds as number } : {}),
-        }),
-      );
+      const result = await withModelLock(async () => {
+        const work = await mkdtemp(resolve(tmpdir(), "shorts-voice-input-"));
+        try {
+          const sample = await prepareVoiceSample(
+            bytes,
+            {
+              ...(body.startSeconds !== undefined
+                ? { startSeconds: body.startSeconds as number }
+                : {}),
+              ...(body.endSeconds !== undefined ? { endSeconds: body.endSeconds as number } : {}),
+            },
+            work,
+          );
+          return await createVoiceProfile(sample.bytes, {
+            name: body.name as string,
+            transcript: body.transcript as string,
+            consent: body.consent === true,
+            startSeconds: sample.startSeconds,
+            endSeconds: sample.endSeconds,
+          });
+        } finally {
+          await rm(work, { recursive: true, force: true });
+        }
+      });
       options.send(response, 200, result);
       return true;
     }

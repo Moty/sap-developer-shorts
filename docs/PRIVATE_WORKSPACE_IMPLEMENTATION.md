@@ -155,3 +155,34 @@ preview as the only copy of irreplaceable recordings. Real setup on each Mac use
   `3a0d8462-035a-40c6-9273-b9a1c94b29d0`; its temporary device was automatically
   revoked and archived afterward. Only the live preview Mac remains in the normal
   engine list. Browser QA fixtures were retired in the separate test workspace.
+
+
+## Guided voice reference readings — October 17, 2026
+
+Added five shared, original reading passages to the private studio and offline
+workshop: conversational, professional, SAP/developer, news and casual story.
+Each has delivery guidance and an explicit transcript-fill action. Browsing
+preserves custom transcripts. Recording locks conflicting controls, and private
+recordings show elapsed time. Existing samples, voice approvals, photos and stock
+Heart defaults are preserved; this does not change the inference runtime digest.
+
+Reference import now decodes bounded audio before measuring duration, supporting
+browser WebM with no duration header. Whole readings are retained up to 30 seconds;
+longer whole readings are rejected instead of being silently cut at 15 seconds.
+Explicit excerpt selection remains available in the offline workshop/API.
+
+Validation passed on Node 22.13.0: `npm run check` from a source-only staged
+checkout (250 tests, no skips; lint/typecheck, 5 live CAP checks, content
+validation), plus both TypeScript and private-studio builds. The original
+untracked personal photos and presentation JSONs were excluded and preserved.
+
+Regression coverage verifies an 18-second reading is stored intact with its
+transcript; streamed WebM without a duration header imports; overlong complete
+readings reject; explicit excerpts from longer audio remain correct; browsing
+passages preserves custom words; and failed/repeated microphone setup restores
+controls and releases the stream. A compiled private API smoke against the local
+Firebase emulators retained a complete 18-second synthetic reference and removed
+its disposable voice fixture afterward. Browser QA checked all five choices,
+transcript preservation and explicit replacement in the rebuilt local studio.
+No real microphone recording, personal sample upload, paid generation or cloud
+deployment was performed for this change.

@@ -1103,3 +1103,18 @@ footer {
   width: auto;
   margin-right: 0.4rem;
 }
+
+.reading-card {
+  padding: 18px;
+  margin: 18px 0;
+  border: 1px solid #d8e0d6;
+  border-radius: 10px;
+  background: #f6f8f2;
+}
+.reading-card h3 {
+  margin-top: 0;
+}
+.reading-text {
+  font-size: 19px;
+  line-height: 1.65;
+}

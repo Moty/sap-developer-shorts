@@ -136,6 +136,44 @@ a follow-up; the worker currently runs in the terminal.
    produce. The job continues when the browser closes.
 6. Return from any signed-in device to watch/download the completed result.
 
+### Guided reference recordings
+
+In **My voices**, choose a passage under **Choose something to read**:
+
+- **Warm conversation** (recommended): a friendly explanation and a question.
+- **Professional explanation**: calm, clear presentation delivery.
+- **SAP & developer walkthrough**: technical language with spaced **S A P** and **A P I** letters.
+- **News & announcements**: a concise update with questions and emphasis.
+- **Casual story**: everyday words and a light, expressive ending.
+
+Click **Use this text as transcript**, then **Record sample**, read the displayed
+passage, and stop when finished. The recorder stops automatically at 29 seconds,
+leaving room for encoder padding within the 30-second reference limit. Listen
+back before saving. If you change a word or skip a sentence, edit the transcript
+to match exactly or record again. Browsing another passage does not replace your
+transcript; clicking the transcript button does. The passage, transcript, upload,
+and save controls are locked while the microphone is recording.
+
+Aim for 10–20 seconds at your natural pace, in the delivery style you want for the
+narration. A quiet room, a steady microphone distance, and one speaker help. There
+is no need to read every option or exaggerate your accent. These original passages
+provide convenient variety, not a guarantee of optimal phonetic coverage or a
+replacement for auditioning the generated voice. Qwen conditions cloning on the
+reference audio **and its matching text**; see the
+[official voice-cloning documentation](https://github.com/QwenLM/Qwen3-TTS#voice-clone).
+
+The private studio preserves complete 3–30-second samples, including readings
+longer than 15 seconds. It rejects overlong uploads instead of silently shortening
+them. Browser WebM recordings are decoded to determine their actual duration even
+when their container has no duration header. No transcription service is used.
+
+The offline script workshop offers the same five passages under **My voice**.
+New microphone recordings use their complete audio unless you edit the excerpt
+controls. Uploaded recordings still have explicit excerpt controls (up to two
+minutes of source audio); the transcript must match only the selected excerpt.
+Rebuild saved local workshop pages to pick up the new reading choices. Existing
+saved voice samples and accepted auditions do not need to be recreated.
+
 Heart remains the stock default. Local-only profiles are not silently uploaded
 or selected. Enroll an explicit workspace copy if you want cross-device access.
 Approval is bound to the sample revision and portable runtime identity. Another

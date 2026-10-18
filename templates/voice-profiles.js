@@ -100,19 +100,51 @@
     document.dispatchEvent?.(new Event("shorts:voices-ready"));
     return state.selection;
   }
-  function loadBlob(blob) {
+  const passages = JSON.parse(byId("editor-data").textContent).voiceReadingScripts;
+  const passageChoice = byId("my-voice-reading-choice");
+  const selectedPassage = () =>
+    passages.find((passage) => passage.id === passageChoice.value) ?? passages[0];
+  function showPassage() {
+    const passage = selectedPassage();
+    byId("my-voice-reading-text").textContent = passage.text;
+    byId("my-voice-reading-guidance").textContent = passage.guidance;
+  }
+  passageChoice.addEventListener("change", showPassage);
+  showPassage();
+  function lockRecording(locked) {
+    for (const id of [
+      "my-voice-file",
+      "my-voice-reading-choice",
+      "my-voice-reading-script",
+      "my-voice-transcript",
+      "my-voice-start",
+      "my-voice-end",
+      "my-voice-save",
+    ])
+      byId(id).disabled = locked;
+  }
+  function loadBlob(blob, recordedDuration) {
     if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
     state.blob = blob;
+    state.fullRecording = recordedDuration !== undefined;
     state.blobUrl = URL.createObjectURL(blob);
     const player = byId("my-voice-upload-preview");
     player.src = state.blobUrl;
     player.hidden = false;
+    byId("my-voice-start").value = "0";
+    const setEnd = (duration) => {
+      byId("my-voice-end").value = (duration <= 30 ? duration : 15).toFixed(2);
+    };
+    if (recordedDuration) setEnd(recordedDuration);
     player.onloadedmetadata = () => {
-      if (Number.isFinite(player.duration))
-        byId("my-voice-end").value = Math.min(15, player.duration).toFixed(2);
+      if (Number.isFinite(player.duration)) setEnd(player.duration);
     };
     message("Preview the recording, select the excerpt, and enter exactly what is spoken in it.");
   }
+  for (const id of ["my-voice-start", "my-voice-end"])
+    byId(id).addEventListener("input", () => {
+      state.fullRecording = false;
+    });
   byId("my-voice-file").addEventListener("change", () => {
     const file = byId("my-voice-file").files[0];
     if (file) loadBlob(file);
@@ -126,8 +158,10 @@
     };
   });
   byId("my-voice-reading-script").addEventListener("click", () => {
-    byId("my-voice-transcript").value =
-      "Let's make SAP a little simpler. I'll show you one useful idea, walk through an example, and check the result together. Ready? Let's give it a try.";
+    byId("my-voice-transcript").value = selectedPassage().text;
+    message(
+      "Transcript filled. Read these exact words, or edit it to match the selected excerpt before saving.",
+    );
   });
   byId("my-voice-record").addEventListener("click", async () => {
     const button = byId("my-voice-record");
@@ -138,6 +172,7 @@
       return;
     }
     state.recordingPending = true;
+    lockRecording(true);
     button.disabled = true;
     let stream = null;
     let context = null;
@@ -147,6 +182,7 @@
       if (state.stream === stream) state.stream = null;
       button.textContent = "Record sample";
       button.disabled = false;
+      lockRecording(false);
     };
     try {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined")
@@ -176,7 +212,10 @@
       recorder.onstop = () => {
         clearTimeout(state.recordingTimer);
         try {
-          loadBlob(new Blob(chunks, { type: recorder.mimeType }));
+          loadBlob(
+            new Blob(chunks, { type: recorder.mimeType }),
+            Math.min(29.9, (Date.now() - state.recordingStarted) / 1000),
+          );
         } finally {
           cleanup();
         }
@@ -186,12 +225,15 @@
         message("Recording failed. Upload a recording instead.");
       };
       recorder.start();
+      state.recordingStarted = Date.now();
       state.recordingTimer = setTimeout(() => {
         if (recorder.state === "recording") recorder.stop();
-      }, 120000);
+      }, 29000);
       button.textContent = "Stop recording";
       button.disabled = false;
-      message("Recording. Speak naturally, then press Stop. Recording stops after two minutes.");
+      message(
+        "Recording. Read the passage naturally, then press Stop. Auto-stop at 29 seconds; uploads can be longer with a selected excerpt.",
+      );
     } catch (error) {
       cleanup();
       message(`${error.message} You can upload a recording instead.`);
@@ -203,6 +245,8 @@
     const button = byId("my-voice-save");
     button.disabled = true;
     try {
+      if (state.recordingPending || state.recording?.state === "recording")
+        throw new Error("Stop recording before saving.");
       if (!state.blob) throw new Error("Record or upload an audio sample first.");
       if (state.blob.size > 30 * 1024 * 1024) throw new Error("Choose a recording up to 30 MiB.");
       const audio = await new Promise((resolve, reject) => {
@@ -217,8 +261,12 @@
         name: byId("my-voice-name").value,
         transcript: byId("my-voice-transcript").value,
         consent: byId("my-voice-consent").checked,
-        startSeconds: Number(byId("my-voice-start").value),
-        endSeconds: Number(byId("my-voice-end").value),
+        ...(state.fullRecording
+          ? {}
+          : {
+              startSeconds: Number(byId("my-voice-start").value),
+              endSeconds: Number(byId("my-voice-end").value),
+            }),
       });
       await refresh(key(result.voice));
       byId("my-voice-transcript").value = "";

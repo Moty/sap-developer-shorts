@@ -13,6 +13,7 @@ import {
   signOut,
 } from "@firebase/auth";
 import { kokoroVoices } from "../../media/voices.js";
+import { voiceReadingScripts } from "../../voice-reading-scripts.js";
 
 // biome-ignore lint/suspicious/noExplicitAny: Browser DTOs are validated by the private API; the editor preserves source-backed template fields.
 type Data = Record<string, any>;
@@ -1006,8 +1007,58 @@ element<HTMLFormElement>("pair-form").onsubmit = (event) => {
     await refresh();
   });
 };
+const readingChoice = element<HTMLSelectElement>("voice-reading-choice");
+for (const passage of voiceReadingScripts) {
+  const option = node("option", passage.label) as HTMLOptionElement;
+  option.value = passage.id;
+  readingChoice.append(option);
+}
+function selectedPassage() {
+  return (
+    voiceReadingScripts.find((passage) => passage.id === readingChoice.value) ??
+    voiceReadingScripts[0]
+  );
+}
+function showPassage() {
+  const passage = selectedPassage();
+  element("voice-reading-text").textContent = passage.text;
+  element("voice-reading-guidance").textContent = passage.guidance;
+}
+readingChoice.onchange = showPassage;
+element("voice-reading-use").onclick = () => {
+  field("voice-transcript").value = selectedPassage().text;
+  notice(
+    "Transcript filled. Read these exact words, or edit it to match your recording before saving.",
+  );
+};
+showPassage();
+let recorder: MediaRecorder | null = null;
+let recordingPending = false;
+let recordingStopping = false;
+function lockRecording(locked: boolean) {
+  for (const id of [
+    "voice-reading-choice",
+    "voice-reading-use",
+    "voice-transcript",
+    "voice-file",
+    "upload-voice",
+  ])
+    (element(id) as HTMLInputElement).disabled = locked;
+}
+field("voice-file").onchange = () => {
+  const sample = field("voice-file").files?.[0];
+  if (!sample) return;
+  recorded = null;
+  const preview = element<HTMLAudioElement>("record-preview");
+  preview.src = blobUrl(sample);
+  preview.hidden = false;
+  element("record-state").textContent =
+    "Uploaded recording selected. Check that its transcript matches.";
+};
 element("upload-voice").onclick = () =>
   run(async () => {
+    if (recordingPending || recordingStopping || recorder?.state === "recording")
+      throw new Error("Stop recording before saving a voice sample.");
     const sample = recorded ?? field("voice-file").files?.[0];
     if (!sample) throw new Error("Record or choose a sample first.");
     const metadata = {
@@ -1030,38 +1081,93 @@ element("upload-voice").onclick = () =>
     notice("Voice sample saved in this workspace. Generate an audition to approve how it sounds.");
     await refresh();
   });
-let recorder: MediaRecorder | null = null;
 element("record").onclick = () =>
   run(async () => {
+    if (recordingPending || recordingStopping) return;
     if (recorder?.state === "recording") {
+      recordingStopping = true;
       recorder.stop();
       return;
     }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const chunks: Blob[] = [];
-    recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = (event) => chunks.push(event.data);
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined")
+      throw new Error(
+        "Microphone recording is unavailable here. Upload an audio recording instead.",
+      );
+    recordingPending = true;
+    lockRecording(true);
     const recordingGeneration = generation;
-    const activeRecorder = recorder;
-    recorder.onstop = () => {
-      stream.getTracks().forEach((track) => {
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (recordingGeneration !== generation) {
+        stream.getTracks().forEach((track) => {
+          track.stop();
+        });
+        return;
+      }
+      const chunks: Blob[] = [];
+      const activeRecorder = new MediaRecorder(stream);
+      recorder = activeRecorder;
+      let failed = false;
+      let timer: ReturnType<typeof setTimeout>;
+      let elapsed: ReturnType<typeof setInterval>;
+      const cleanup = () => {
+        clearTimeout(timer);
+        clearInterval(elapsed);
+        recordingStopping = false;
+        stream?.getTracks().forEach((track) => {
+          track.stop();
+        });
+        lockRecording(false);
+      };
+      activeRecorder.ondataavailable = (event) => {
+        if (event.data.size) chunks.push(event.data);
+      };
+      activeRecorder.onerror = () => {
+        failed = true;
+        cleanup();
+        if (recordingGeneration === generation) {
+          element("record").textContent = "Record sample";
+          element("record-state").textContent =
+            "Recording failed. Try again or upload a recording.";
+        }
+      };
+      activeRecorder.onstop = () => {
+        cleanup();
+        if (failed || recordingGeneration !== generation) return;
+        recorded = new Blob(chunks, { type: activeRecorder.mimeType || "audio/webm" });
+        field("voice-file").value = "";
+        const preview = element<HTMLAudioElement>("record-preview");
+        preview.src = blobUrl(recorded);
+        preview.hidden = false;
+        element("record").textContent = "Record again";
+        element("record-state").textContent =
+          "Sample ready. Listen and check the transcript before saving.";
+      };
+      activeRecorder.start();
+      const started = Date.now();
+      const updateTime = () => {
+        element("record-state").textContent =
+          `Recording · ${Math.floor((Date.now() - started) / 1000)}s · stop when finished (auto-stop at 29s)`;
+      };
+      updateTime();
+      elapsed = setInterval(updateTime, 1000);
+      // Leave room for encoder padding within the 30s reference limit.
+      timer = setTimeout(() => {
+        if (activeRecorder.state === "recording") {
+          recordingStopping = true;
+          activeRecorder.stop();
+        }
+      }, 29_000);
+      element("record").textContent = "Stop recording";
+    } catch (error) {
+      stream?.getTracks().forEach((track) => {
         track.stop();
       });
-      if (recordingGeneration !== generation) return;
-      recorded = new Blob(chunks, { type: recorder?.mimeType ?? "audio/webm" });
-      stream.getTracks().forEach((track) => {
-        track.stop();
-      });
-      const preview = element<HTMLAudioElement>("record-preview");
-      preview.src = blobUrl(recorded);
-      preview.hidden = false;
-      element("record").textContent = "Record again";
-      element("record-state").textContent = "Sample ready to save";
-    };
-    recorder.start();
-    element("record").textContent = "Stop recording";
-    element("record-state").textContent = "Recording · stop after 10–15 seconds";
-    setTimeout(() => {
-      if (activeRecorder.state === "recording") activeRecorder.stop();
-    }, 30_000);
+      lockRecording(false);
+      throw error;
+    } finally {
+      recordingPending = false;
+      if (recorder?.state !== "recording") lockRecording(false);
+    }
   });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
+import { voiceReadingScripts } from "../src/voice-reading-scripts.js";
 
 const script = await readFile(new URL("../templates/voice-profiles.js", import.meta.url), "utf8");
 const a = {
@@ -67,6 +68,8 @@ async function ui(
     if (id === "my-voice-saved" || id === "speaker-voice-0") element.tagName = "SELECT";
     return element;
   };
+  get("editor-data").textContent = JSON.stringify({ voiceReadingScripts });
+  get("my-voice-reading-choice").value = voiceReadingScripts[0].id;
   let finish: ((value: unknown) => void) | undefined;
   let finishRefresh: ((value: unknown) => void) | undefined;
   let accepting = false;
@@ -258,6 +261,8 @@ test("microphone setup failure releases its stream and repeated permission click
   const pending = runtime.get("my-voice-record").click();
   await runtime.get("my-voice-record").click();
   assert.equal(calls, 1);
+  assert.equal(runtime.get("my-voice-reading-choice").disabled, true);
+  assert.equal(runtime.get("my-voice-save").disabled, true);
   assert.ok(allow);
   allow({
     getTracks: () => [
@@ -271,5 +276,21 @@ test("microphone setup failure releases its stream and repeated permission click
   await pending;
   assert.equal(stopped, 1);
   assert.equal(runtime.get("my-voice-record").disabled, false);
+  assert.equal(runtime.get("my-voice-reading-choice").disabled, false);
+  assert.equal(runtime.get("my-voice-save").disabled, false);
   assert.match(runtime.get("my-voice-status").textContent, /upload a recording/);
+});
+
+test("reading choices preserve a custom transcript until the user explicitly selects its text", async () => {
+  const runtime = await ui();
+  const transcript = runtime.get("my-voice-transcript");
+  transcript.value = "These are the words in my existing recording.";
+  for (const passage of voiceReadingScripts) {
+    runtime.get("my-voice-reading-choice").value = passage.id;
+    runtime.get("my-voice-reading-choice").change();
+    assert.equal(runtime.get("my-voice-reading-text").textContent, passage.text);
+    assert.equal(transcript.value, "These are the words in my existing recording.");
+  }
+  await runtime.get("my-voice-reading-script").click();
+  assert.equal(transcript.value, voiceReadingScripts.at(-1)?.text);
 });

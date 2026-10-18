@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { saveCustomAvatar } from "../media/avatar.js";
 import { createVoiceProfile, readVoiceProfile } from "../media/voice-profiles.js";
+import { prepareVoiceSample } from "../media/voice-sample-input.js";
 import type { VerifyUser } from "./auth.js";
 import type { PrivateConfig } from "./config.js";
 import {
@@ -391,8 +392,18 @@ export function createPrivateServer(
                   "CONSENT_REQUIRED",
                   "Confirm permission to store and process this voice.",
                 );
-              const created = await createVoiceProfile(
+              const sample = await prepareVoiceSample(
                 bytes,
+                {
+                  ...(typeof input.startSeconds === "number"
+                    ? { startSeconds: input.startSeconds }
+                    : {}),
+                  ...(typeof input.endSeconds === "number" ? { endSeconds: input.endSeconds } : {}),
+                },
+                work,
+              );
+              const created = await createVoiceProfile(
+                sample.bytes,
                 {
                   name: text(input.name, "voice name", 64),
                   transcript: text(
@@ -403,10 +414,8 @@ export function createPrivateServer(
                     2000,
                   ),
                   consent: true,
-                  ...(typeof input.startSeconds === "number"
-                    ? { startSeconds: input.startSeconds }
-                    : {}),
-                  ...(typeof input.endSeconds === "number" ? { endSeconds: input.endSeconds } : {}),
+                  startSeconds: sample.startSeconds,
+                  endSeconds: sample.endSeconds,
                 },
                 work,
               );
