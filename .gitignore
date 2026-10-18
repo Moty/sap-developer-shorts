@@ -23,6 +23,8 @@ scratch/
 credentials/
 *.pem
 *.key
+config/private/*.json
+!config/private/*.example.json
 
 # Generated episodes and persistent worker state
 artifacts/

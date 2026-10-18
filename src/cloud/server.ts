@@ -52,9 +52,10 @@ const server = createPrivateServer(
   config,
   resolve(projectRoot, "dist/private-studio"),
 );
+const isLoopback = ["127.0.0.1", "localhost"].includes(new URL(config.origin).hostname);
 server.listen(
   Number(process.env.PORT ?? config.port),
-  config.emulator ? "127.0.0.1" : "0.0.0.0",
+  isLoopback || config.emulator ? "127.0.0.1" : "0.0.0.0",
   () => console.log(`Private studio: ${config.origin}`),
 );
 const shutdown = () => server.close(() => process.exit(0));
