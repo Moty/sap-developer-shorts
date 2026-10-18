@@ -134,7 +134,19 @@ export async function createVoiceProfile(
     await writeFile(source, bytes, { mode: 0o600 });
     const probe = await exec(
       "ffprobe",
-      ["-v", "error", "-show_entries", "format=duration", "-of", "json", source],
+      [
+        "-v",
+        "error",
+        "-protocol_whitelist",
+        "file,pipe",
+        "-format_whitelist",
+        "wav,mp3,ogg,flac,mov,matroska,webm,aac,aiff,asf",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "json",
+        source,
+      ],
       { timeout: 10000 },
     );
     const duration = Number(JSON.parse(probe.stdout).format?.duration);
@@ -158,6 +170,10 @@ export async function createVoiceProfile(
         "-nostdin",
         "-v",
         "error",
+        "-protocol_whitelist",
+        "file,pipe",
+        "-format_whitelist",
+        "wav,mp3,ogg,flac,mov,matroska,webm,aac,aiff,asf",
         "-i",
         source,
         "-ss",

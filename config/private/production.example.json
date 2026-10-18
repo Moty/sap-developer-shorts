@@ -1,0 +1,11 @@
+{
+  "projectId": "REPLACE_WITH_PRIVATE_PROJECT",
+  "storageBucket": "REPLACE_WITH_PRIVATE_BUCKET",
+  "apiKey": "REPLACE_WITH_PUBLIC_FIREBASE_WEB_API_KEY",
+  "authDomain": "REPLACE_WITH_PRIVATE_AUTH_DOMAIN",
+  "appId": "REPLACE_WITH_FIREBASE_WEB_APP_ID",
+  "origin": "https://REPLACE_WITH_PRIVATE_STUDIO_HOST",
+  "port": 8080,
+  "pilotEmails": [],
+  "emulator": false
+}

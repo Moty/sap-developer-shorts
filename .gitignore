@@ -40,3 +40,7 @@ __pycache__/
 *.mp3
 *.srt
 *.vtt
+
+# Generated container inventories and approved public template copies
+config/worker-files.json
+config/private-templates/

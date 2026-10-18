@@ -32,11 +32,15 @@ In addition to running locally, the studio runs as a cloud-hosted web applicatio
 * **Local Mac Render Worker**: Run `npm run firebase:worker` on your Mac. It claims production jobs from Cloud Firestore, renders speech (Kokoro) and talking-head video (Ditto MPS) locally with zero cloud API costs, and uploads results to Cloud Storage.
 * See [Hybrid Firebase Studio & Mac Worker](docs/FIREBASE_HYBRID_STUDIO.md) for full architecture and commands.
 
-The proposed next step is documented in the [accounts, private workspaces, and
-registered rendering engines plan](docs/FIREBASE_AUTH_CLOUD_RENDERING_PLAN.md).
-It covers email/password login, private Firebase storage, registered Mac mini and
-MacBook Pro workers, optional cloud GPUs, and future team access. This is a plan;
-the current hybrid studio remains a shared deployment with local rendering.
+A separate [private workspace studio](docs/PRIVATE_WORKSPACES.md) now adds
+email/password login, tenant-scoped Firebase storage, personal voice enrollment,
+and registered Mac mini/MacBook Pro rendering engines. Run `npm run private:build`
+and follow the guide for the isolated local Firebase emulators. The Mac worker
+path has real local render evidence; the optional CUDA cloud adapter remains
+behind a disabled budget gate pending a real GPU/container staging test.
+The earlier hybrid studio above remains a shared deployment. See the
+[architecture plan](docs/FIREBASE_AUTH_CLOUD_RENDERING_PLAN.md) and
+[implementation evidence](docs/PRIVATE_WORKSPACE_IMPLEMENTATION.md) for scope.
 
 ## Browse the review studio
 
@@ -249,6 +253,7 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 
 - [New Mac setup](docs/NEW_MAC_SETUP.md): prerequisites, clean-checkout checks, local narration/video setup, and exact-recording transfer.
 - [Hybrid Firebase Studio & Mac Render Worker](docs/FIREBASE_HYBRID_STUDIO.md): Firebase Hosting UI, Firestore job queues, Apple Silicon local rendering, and single-command bootstrap.
+- [Private workspaces and Mac fleet](docs/PRIVATE_WORKSPACES.md): login, isolated storage, device pairing, production, setup, deployment gates, and recovery.
 - [Accounts and registered rendering engines plan](docs/FIREBASE_AUTH_CLOUD_RENDERING_PLAN.md): email/password accounts, private workspace storage, Mac mini/MacBook Pro registration and scheduling, optional cloud GPUs, tenant isolation, implementation milestones, and acceptance tests.
 - [Quality review](docs/QUALITY_REVIEW.md): revised casual narration, pronunciation corrections, and an audiovisual review prompt.
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): original assessment and full roadmap.

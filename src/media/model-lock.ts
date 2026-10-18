@@ -2,10 +2,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { lstat, mkdir, realpath } from "node:fs/promises";
 import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { projectRoot } from "../paths.js";
+import { modelStateRoot } from "../paths.js";
 
 const held = new AsyncLocalStorage<boolean>();
-const directory = resolve(projectRoot, ".state/local-model");
+const directory = resolve(modelStateRoot, "local-model");
 // The OS releases the SQLite transaction on process exit. There is no stale
 // PID-file read/unlink window in which competing workers can both enter.
 export async function withModelLock<T>(

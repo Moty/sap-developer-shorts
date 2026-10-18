@@ -1,0 +1,9 @@
+# Qwen ASR pins a different Transformers version from Qwen TTS.
+qwen-asr==0.0.6
+transformers==4.57.6
+torch==2.10.0
+torchaudio==2.10.0
+numpy==2.3.5
+scipy==1.17.0
+soundfile==0.13.1
+huggingface-hub==0.36.2

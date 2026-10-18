@@ -6,13 +6,13 @@ import { extname, resolve } from "node:path";
 import { type Image, loadImage } from "@napi-rs/canvas";
 import { hash } from "../digest.js";
 import type { SpeakerAvatarConfig } from "../domain.js";
-import { inside, projectRoot, sourceFile } from "../paths.js";
+import { inside, modelStateRoot, projectRoot, sourceFile } from "../paths.js";
 import { acquireVideoGate } from "../video/cache.js";
 import { resolveAvatarPath } from "./avatar.js";
 import type { Cue } from "./model.js";
 import { withModelLock } from "./model-lock.js";
 
-export const talkingHeadRoot = resolve(projectRoot, ".state/portrait-runtime");
+export const talkingHeadRoot = resolve(modelStateRoot, "portrait-runtime");
 
 async function runLogged(
   binary: string,

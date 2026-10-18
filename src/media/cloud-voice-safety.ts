@@ -9,6 +9,7 @@ export function containsPrivateVoice(value: unknown): boolean {
   const record = value as Record<string, unknown>;
   return (
     record.localOnly === true ||
+    record.kind === "workspace-voice" ||
     record.engine === "qwen" ||
     record.engine === "local-voices" ||
     record.provider === "local-voices" ||

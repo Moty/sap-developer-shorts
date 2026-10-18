@@ -1,6 +1,6 @@
 # Accounts, private workspaces, and registered rendering engines
 
-Status: detailed implementation plan; no feature implementation or deployment in this change.
+Status: architecture plan with an implemented local/emulator pilot; see [current behavior and setup](PRIVATE_WORKSPACES.md) and [verification evidence](PRIVATE_WORKSPACE_IMPLEMENTATION.md). Deployment and real cloud GPU benchmarking remain gated.
 
 Prepared October 17, 2026 (America/Los_Angeles), against `main` at `3ef1036`.
 Official service documentation was checked during planning. Recheck pricing,
@@ -819,9 +819,9 @@ do not promise that they eliminate every charge during failures or billing delay
 
 ## 14. Implementation milestones and file map
 
-Each milestone ends with focused tests, documentation, a small reviewable commit,
-and the existing relevant checks. No feature implementation is included with this
-plan. Suggested new paths are design targets, not files that already exist.
+The table below preserves the original planning milestones and suggested file
+map. Actual implemented files, verification, deviations and remaining deployment
+gates are recorded in [the implementation evidence](PRIVATE_WORKSPACE_IMPLEMENTATION.md).
 
 | Milestone | Work and likely files | Completion evidence |
 | --- | --- | --- |
@@ -952,6 +952,4 @@ Handoff instructions for the implementation model:
    emulator tested, Mac fleet tested, cloud benchmarked, and deployed. Never
    describe the optional cloud engine as working until a real cloud job passes.
 
-The plan is ready for implementation after the requested model switch. No cloud
-resources, auth providers, workers, billing settings, or personal-data transfers
-were created or changed while preparing it.
+This document records the original implementation handoff. Current scope and evidence are maintained in the linked implementation log; planning itself changed no cloud resources or personal data.

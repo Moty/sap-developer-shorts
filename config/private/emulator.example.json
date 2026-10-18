@@ -1,0 +1,14 @@
+{
+  "projectId": "demo-sap-shorts-private",
+  "storageBucket": "demo-sap-shorts-private.appspot.com",
+  "apiKey": "demo-key",
+  "authDomain": "demo-sap-shorts-private.firebaseapp.com",
+  "appId": "demo-private-studio",
+  "origin": "http://127.0.0.1:5890",
+  "port": 5890,
+  "pilotEmails": ["creator@example.test", "second@example.test"],
+  "emulator": true,
+  "authEmulator": "127.0.0.1:9099",
+  "firestoreEmulator": "127.0.0.1:8080",
+  "storageEmulator": "127.0.0.1:9199"
+}

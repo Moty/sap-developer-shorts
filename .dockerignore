@@ -1,0 +1,15 @@
+.git
+node_modules
+.state
+artifacts
+dist
+.env
+.env.*
+credentials
+*.log
+assets/avatars
+content/presentations
+config/private
+**/*.mp4
+**/*.wav
+**/*.mp3

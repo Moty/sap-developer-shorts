@@ -1,0 +1,48 @@
+FROM node:22.13.0-bookworm-slim AS build
+WORKDIR /app
+COPY package*.json tsconfig.json ./
+COPY demos/cap/inventory/package.json demos/cap/inventory/package.json
+RUN npm ci --include=dev
+COPY src src
+COPY scripts scripts
+COPY schemas schemas
+COPY config config
+COPY templates templates
+COPY content content
+COPY assets assets
+COPY demos demos
+RUN mkdir -p content/presentations assets/avatars && cp config/private-templates/*.json content/presentations/
+RUN test -f config/worker-files.json && npm run build
+
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04 AS models
+RUN apt-get update && apt-get install -y --no-install-recommends python3.12 python3.12-venv python3.12-dev build-essential libgomp1 && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build /app/config config
+COPY --from=build /app/src src
+RUN python3.12 -m venv .state/qwen-voice/venv && .state/qwen-voice/venv/bin/pip install --no-cache-dir --require-hashes -r config/qwen-cuda.lock
+RUN python3.12 -m venv .state/qwen-voice/aligner-venv && .state/qwen-voice/aligner-venv/bin/pip install --no-cache-dir --require-hashes -r config/qwen-cuda-align.lock
+RUN .state/qwen-voice/venv/bin/python src/worker/qwen-cuda.py setup .state/qwen-voice config/qwen-cuda.json
+
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+COPY --from=build /usr/local/bin/node /usr/local/bin/node
+COPY --from=build /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && apt-get update && apt-get install -y --no-install-recommends python3.12 python3.12-venv ffmpeg sox libsndfile1 libgomp1 && rm -rf /var/lib/apt/lists/*
+RUN useradd --uid 10001 --create-home renderer
+WORKDIR /app
+COPY package*.json ./
+COPY demos/cap/inventory/package.json demos/cap/inventory/package.json
+RUN npm ci --omit=dev && npm cache clean --force && chown renderer:renderer /app
+COPY --from=build --chown=renderer:renderer /app/dist/src dist/src
+COPY --from=build --chown=renderer:renderer /app/src src
+COPY --from=build --chown=renderer:renderer /app/scripts scripts
+COPY --from=build --chown=renderer:renderer /app/schemas schemas
+COPY --from=build --chown=renderer:renderer /app/config config
+COPY --from=build --chown=renderer:renderer /app/templates templates
+COPY --from=build --chown=renderer:renderer /app/content content
+COPY --from=build --chown=renderer:renderer /app/assets assets
+COPY --from=build --chown=renderer:renderer /app/demos demos
+COPY --from=models --chown=renderer:renderer /app/.state/qwen-voice .state/qwen-voice
+RUN chown -R renderer:renderer /app/.state && chmod 700 /app/.state
+ENV NODE_ENV=production SHORTS_QWEN_BACKEND=cuda
+USER renderer
+CMD ["node", "dist/src/worker/cloud-entry.js"]

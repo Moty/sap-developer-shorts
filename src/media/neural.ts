@@ -3,7 +3,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { hash } from "../digest.js";
-import { projectRoot, sourceFile } from "../paths.js";
+import { modelStateRoot, projectRoot, sourceFile } from "../paths.js";
 import {
   buildVtt,
   encodePcmWav,
@@ -16,7 +16,7 @@ import type { Cue, MediaRequest, NarrationTiming } from "./model.js";
 import { kokoroVoice } from "./voices.js";
 
 const exec = promisify(execFile);
-export const neuralRoot = resolve(projectRoot, ".state/neural-voice");
+export const neuralRoot = resolve(modelStateRoot, "neural-voice");
 const python = resolve(neuralRoot, "venv/bin/python");
 export const kokoroSceneTimeoutMs = 60_000;
 export const kokoroOperationTimeoutMs = kokoroSceneTimeoutMs + 5_000;

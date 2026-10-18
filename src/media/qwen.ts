@@ -1,10 +1,10 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { hash } from "../digest.js";
-import { inside, projectRoot, sourceFile } from "../paths.js";
+import { inside, modelStateRoot, sourceFile } from "../paths.js";
 import { readPcmWav } from "./audio.js";
 import { withModelLock } from "./model-lock.js";
 import { runNeuralProcess } from "./neural.js";
@@ -12,7 +12,7 @@ import { atomicJson, profileDirectory, readVoiceProfile } from "./voice-profiles
 import type { ClonedVoice } from "./voice-reference.js";
 
 const exec = promisify(execFile);
-export const qwenRoot = resolve(projectRoot, ".state/qwen-voice");
+export const qwenRoot = resolve(modelStateRoot, "qwen-voice");
 const python = resolve(qwenRoot, "venv/bin/python");
 export const qwenOperationTimeoutMs = 300_000;
 export interface AlignedWord {
@@ -80,10 +80,12 @@ export function setupQwenVoice() {
   });
 }
 export async function qwenRuntime(root = qwenRoot) {
-  if (process.platform !== "darwin" || process.arch !== "arm64")
+  const cuda = process.env.SHORTS_QWEN_BACKEND === "cuda";
+  if (!cuda && (process.platform !== "darwin" || process.arch !== "arm64"))
     throw new Error("Qwen voice cloning currently requires an Apple Silicon Mac.");
   let bytes: Buffer;
   try {
+    await access(resolve(root, "venv/bin/python"));
     bytes = await readFile(resolve(root, "runtime.json"));
   } catch {
     throw new Error("Set up local voice cloning first: npm run shorts -- voice-clone-setup");
@@ -91,8 +93,11 @@ export async function qwenRuntime(root = qwenRoot) {
   const runtime = JSON.parse(bytes.toString());
   if (
     runtime.schemaVersion !== 1 ||
-    runtime.engine !== "qwen-mlx" ||
-    runtime.configHash !== hash(await readFile(await sourceFile("config/qwen-voice.json"))) ||
+    runtime.engine !== (cuda ? "qwen-cuda" : "qwen-mlx") ||
+    runtime.configHash !==
+      hash(
+        await readFile(await sourceFile(cuda ? "config/qwen-cuda.json" : "config/qwen-voice.json")),
+      ) ||
     !Array.isArray(runtime.files) ||
     runtime.files.length < 10
   )
@@ -106,7 +111,7 @@ export async function qwenRuntime(root = qwenRoot) {
     )
       throw new Error("Qwen model files changed. Run voice-clone-setup to verify them.");
   }
-  return { hash: hash(bytes), engine: "qwen-mlx" as const };
+  return { hash: hash(bytes), engine: cuda ? ("qwen-cuda" as const) : ("qwen-mlx" as const) };
 }
 export async function qwenStatus() {
   try {
@@ -149,7 +154,11 @@ export async function synthesizeClonedSpeech(
       await runNeuralProcess(
         python,
         [
-          await sourceFile("src/media/qwen-runner.py"),
+          await sourceFile(
+            process.env.SHORTS_QWEN_BACKEND === "cuda"
+              ? "src/worker/qwen-cuda.py"
+              : "src/media/qwen-runner.py",
+          ),
           "render",
           qwenRoot,
           input,
