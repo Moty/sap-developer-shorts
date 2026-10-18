@@ -19,9 +19,9 @@ const publicConfig = await (await fetch(`${fixture.origin}/v1/config`)).json();
 if (publicConfig.projectId !== "demo-sap-shorts-private")
   throw new Error("Smoke tests cannot target a live Firebase project.");
 const base = fixture.origin;
-async function request(path: string, body: unknown, token = fixture.owner) {
+async function request(path: string, body: unknown, token = fixture.owner, method = "POST") {
   const response = await fetch(`${base}${path}`, {
-    method: "POST",
+    method,
     headers: {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
@@ -45,26 +45,36 @@ const device = await request(`/v1/worker-pairings/${pairing.pairingId}/redeem`, 
   pollingSecret: pairing.pollingSecret,
 });
 const client = new WorkerClient(base, device.credential);
-const capabilities = await detectCapabilities();
-console.log("Installed engines:", capabilities.map((item) => item.engine).join(", "));
-await client.request("/v1/worker/heartbeat", { capabilities, busy: false });
-const job = await request(`/v1/workspaces/${fixture.tenantId}/jobs`, {
-  episodeId: fixture.episodeId,
-  revision: fixture.revision,
-  target: { mode: "device", workerId: device.workerId },
-});
-const assignment = await client.request("/v1/worker/claim", {});
-assert.ok(assignment);
-assert.equal((assignment.job as Job).id, job.id);
-await executeAssignment(
-  client,
-  assignment as unknown as { job: Job; lease: string },
-  capabilities,
-  new AbortController().signal,
-);
-await writeFile(
-  resolve(".state/private-tests/render.json"),
-  JSON.stringify({ jobId: job.id, workerId: device.workerId, capabilities }, null, 2),
-  { mode: 0o600 },
-);
-console.log(`PASS: real isolated worker completed ${job.id} through Firebase emulators.`);
+try {
+  const capabilities = await detectCapabilities();
+  console.log("Installed engines:", capabilities.map((item) => item.engine).join(", "));
+  await client.request("/v1/worker/heartbeat", { capabilities, busy: false });
+  const job = await request(`/v1/workspaces/${fixture.tenantId}/jobs`, {
+    episodeId: fixture.episodeId,
+    revision: fixture.revision,
+    target: { mode: "device", workerId: device.workerId },
+  });
+  const assignment = await client.request("/v1/worker/claim", {});
+  assert.ok(assignment);
+  assert.equal((assignment.job as Job).id, job.id);
+  await executeAssignment(
+    client,
+    assignment as unknown as { job: Job; lease: string },
+    capabilities,
+    new AbortController().signal,
+  );
+  await writeFile(
+    resolve(".state/private-tests/render.json"),
+    JSON.stringify({ jobId: job.id, workerId: device.workerId, capabilities }, null, 2),
+    { mode: 0o600 },
+  );
+  console.log(`PASS: real isolated worker completed ${job.id} through Firebase emulators.`);
+} finally {
+  await client.request("/v1/worker/unregister", {});
+  await request(
+    `/v1/workspaces/${fixture.tenantId}/workers/${device.workerId}`,
+    { archived: true },
+    fixture.owner,
+    "PATCH",
+  );
+}

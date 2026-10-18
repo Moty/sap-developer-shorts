@@ -292,6 +292,14 @@ export function createPrivateServer(
           media(response, result.asset, result.bytes);
           return;
         }
+        if (collection === "assets" && key && request.method === "PATCH") {
+          send(response, await service.updatePortrait(context, key, await json(request)));
+          return;
+        }
+        if (collection === "voices" && key && request.method === "PATCH") {
+          send(response, await service.updateVoicePortraits(context, key, await json(request)));
+          return;
+        }
         if (collection === "episodes" && request.method === "POST") {
           send(response, await service.saveEpisode(context, await json(request), key));
           return;

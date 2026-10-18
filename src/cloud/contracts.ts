@@ -53,6 +53,7 @@ export const nowIso = (now: number) => new Date(now).toISOString();
 export const terminal = (state: string) => ["SUCCEEDED", "FAILED", "CANCELLED"].includes(state);
 export type Capability = { engine: string; digest: string; voices?: string[] };
 export interface Worker extends RecordData {
+  archivedAt?: number;
   id: string;
   tenantId: string;
   name: string;

@@ -130,3 +130,28 @@ This is test data in local emulators, not live cloud persistence. Export emulato
 data explicitly if it needs to survive restarting the emulators. Do not use this
 preview as the only copy of irreplaceable recordings. Real setup on each Mac uses
 `worker:register` and `worker:start` as described in the runbook.
+
+## Presenter library and test-registration cleanup (October 17)
+
+- Archived the 11 inactive integration registrations in the local demo; kept their
+  history and the live preview worker. Archived four blank rules-test images so
+  they do not appear as presenter photos.
+- Added named, reusable private photos with archive/restore, multiple photo links
+  and a default for each saved personal voice, and per-episode selection/overrides.
+  Photo preference changes preserve audio revisions and audition approvals.
+- Render smoke tests now retire their devices in `finally`; rules checks archive
+  their blank image. Model-free tests cover authorization, archive safety, retained
+  history/media, link concurrency, valid defaults and cross-workspace rejection.
+- `private:test:library` exercises real emulator upload, naming, multiple links,
+  default selection, conflict/privacy checks, archive/restore and a saved episode.
+  It uses synthetic fixtures in the separate second test workspace and cleans up
+  by default. `SHORTS_TEST_KEEP_LIBRARY=1` retains explicit browser-QA fixtures.
+- Final validation passed: **245 tests**, lint/typecheck, both builds, real emulator
+  rules/integration tests and the photo-library API suite (including its cleanup).
+  Browser checks verified default-photo changes preserve saved episode choices,
+  the default shortcut preserves the selected animation, episode overrides save,
+  and archive/restore retains photo links.
+- A real compiled-worker stock episode completed as
+  `3a0d8462-035a-40c6-9273-b9a1c94b29d0`; its temporary device was automatically
+  revoked and archived afterward. Only the live preview Mac remains in the normal
+  engine list. Browser QA fixtures were retired in the separate test workspace.

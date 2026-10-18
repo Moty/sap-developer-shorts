@@ -5,6 +5,7 @@ import {
   ApiError,
   digest,
   matches,
+  type RecordData,
   type Worker,
   workerAvailability,
 } from "../src/cloud/contracts.js";
@@ -549,4 +550,170 @@ test("voice deletion erases reference transcripts from revisions and queued snap
     0,
   );
   assert.equal((await f.db.list(`tenants/${f.context.tenantId}/assets`)).length, 0);
+});
+
+test("retired engines can be archived without losing job history or restoring credentials", async () => {
+  const f = await fixture(),
+    device = await f.register(),
+    draft = await f.draft();
+  await f.service.submit(
+    f.context,
+    {
+      episodeId: draft.id,
+      revision: draft.revision,
+      target: { mode: "device", workerId: device.actor.workerId },
+    },
+    "archive-history",
+  );
+  await assert.rejects(
+    f.service.updateWorker(f.context, device.actor.workerId, { archived: true }),
+    fails("DEVICE_IN_USE"),
+  );
+  const assignment = await f.service.claim(device.actor);
+  assert.ok(assignment);
+  await f.service.updateWorker(f.context, device.actor.workerId, { status: "revoked" });
+  await assert.rejects(
+    f.service.updateWorker(f.context, device.actor.workerId, { archived: true }),
+    fails("DEVICE_IN_USE"),
+  );
+  f.advance(120_001);
+  await f.service.reconcile(f.context);
+  const archived = await f.service.updateWorker(f.context, device.actor.workerId, {
+    archived: true,
+  });
+  assert.ok(archived.archivedAt);
+  assert.equal(archived.status, "revoked");
+  assert.equal(
+    ((await f.service.list(f.context, "jobs"))[0] as RecordData)?.workerId,
+    device.actor.workerId,
+  );
+  assert.equal((await f.service.list(f.context, "workers"))[0]?.id, device.actor.workerId);
+  await assert.rejects(f.service.workerAuth(String(device.credential)), fails("DEVICE_REVOKED"));
+  await assert.rejects(
+    f.service.updateWorker(f.second, device.actor.workerId, { archived: true }),
+    fails("NOT_FOUND"),
+  );
+});
+
+test("portrait names and recoverable archives preserve media and existing script choices", async () => {
+  const f = await fixture();
+  const asset = await f.service.saveAsset(
+    f.context,
+    "portrait",
+    Buffer.from("synthetic-image"),
+    "image/png",
+  );
+  const renamed = await f.service.updatePortrait(f.context, asset.id, {
+    name: "Presenter · formal",
+  });
+  assert.equal(renamed.name, "Presenter · formal");
+  assert.equal(renamed.sha256, asset.sha256);
+  await assert.rejects(
+    f.service.updatePortrait(f.second, asset.id, { name: "Wrong account" }),
+    fails("NOT_FOUND"),
+  );
+  const draft = await f.draft();
+  const episode = structuredClone(draft.episode);
+  const speaker = workspaceSpeakers(episode)[0];
+  assert.ok(speaker);
+  speaker.avatar = { mode: "photo", imageId: `${asset.id}.png`, animation: "mouth-only" };
+  const saved = await f.service.saveEpisode(
+    f.context,
+    { episode, expectedRevision: draft.revision },
+    draft.id,
+  );
+  await f.service.updatePortrait(f.context, asset.id, { archived: true });
+  assert.equal(
+    (await f.service.readAsset(f.context, asset.id)).bytes.toString(),
+    "synthetic-image",
+  );
+  const current = (await f.service.list(f.context, "episodes"))[0];
+  assert.deepEqual((current as RecordData)?.episode, saved.episode);
+  const restored = await f.service.updatePortrait(f.context, asset.id, { archived: false });
+  assert.equal(restored.archivedAt, null);
+  await assert.rejects(
+    f.service.updatePortrait({ ...f.context, role: "viewer" }, asset.id, { archived: true }),
+    fails("FORBIDDEN"),
+  );
+});
+
+test("a voice links multiple workspace photos with a default without invalidating its audio approval", async () => {
+  const f = await fixture();
+  const first = await f.service.saveAsset(
+    f.context,
+    "portrait",
+    Buffer.from("formal"),
+    "image/png",
+  );
+  const second = await f.service.saveAsset(
+    f.context,
+    "portrait",
+    Buffer.from("casual"),
+    "image/png",
+  );
+  const other = await f.service.saveAsset(f.second, "portrait", Buffer.from("other"), "image/png");
+  const profile = await f.service.saveVoice(
+    f.context,
+    { consent: true, allowMac: true, trustedMacPool: true },
+    Buffer.from("reference"),
+    { id: "photo-voice", revision: hash, name: "Test speaker", sampleHash: digest("reference") },
+  );
+  const path = `tenants/${f.context.tenantId}/voiceProfiles/${profile.id}`;
+  await f.db.transaction(async (tx) => {
+    tx.set(`${path}/approvals/qwen-mlx`, { id: "qwen-mlx", accepted: true, runtimeDigest: hash });
+  });
+  const input = {
+    portraitIds: [first.id, second.id],
+    defaultPortraitId: second.id,
+    expectedPortraitRevision: null,
+  };
+  const linked = await f.service.updateVoicePortraits(f.context, String(profile.id), input);
+  assert.deepEqual(linked.portraitIds, [first.id, second.id]);
+  assert.equal(linked.defaultPortraitId, second.id);
+  assert.equal(linked.revision, hash);
+  assert.equal((await f.db.get(`${path}/approvals/qwen-mlx`))?.accepted, true);
+  await assert.rejects(
+    f.service.updateVoicePortraits(f.context, String(profile.id), input),
+    fails("REVISION_CONFLICT"),
+  );
+  await assert.rejects(
+    f.service.updateVoicePortraits(f.context, String(profile.id), {
+      ...input,
+      portraitIds: [first.id],
+      defaultPortraitId: second.id,
+      expectedPortraitRevision: linked.portraitRevision,
+    }),
+    fails("INVALID_PORTRAIT"),
+  );
+  await assert.rejects(
+    f.service.updateVoicePortraits(f.context, String(profile.id), {
+      ...input,
+      portraitIds: [other.id],
+      defaultPortraitId: null,
+      expectedPortraitRevision: linked.portraitRevision,
+    }),
+    fails("INVALID_PORTRAIT"),
+  );
+  await assert.rejects(
+    f.service.updateVoicePortraits(f.second, String(profile.id), input),
+    fails("NOT_FOUND"),
+  );
+  await f.service.updatePortrait(f.context, second.id, { archived: true });
+  await assert.rejects(
+    f.service.updateVoicePortraits(f.context, String(profile.id), {
+      ...input,
+      expectedPortraitRevision: linked.portraitRevision,
+    }),
+    fails("INVALID_PORTRAIT"),
+  );
+  await f.service.updatePortrait(f.context, second.id, { archived: false });
+  const kept = await f.db.get(path);
+  assert.deepEqual(kept?.portraitIds, [first.id, second.id]);
+  const cleared = await f.service.updateVoicePortraits(f.context, String(profile.id), {
+    portraitIds: [],
+    defaultPortraitId: null,
+    expectedPortraitRevision: linked.portraitRevision,
+  });
+  assert.deepEqual(cleared.portraitIds, []);
+  assert.equal(cleared.defaultPortraitId, null);
 });

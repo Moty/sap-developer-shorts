@@ -41,7 +41,8 @@
     "private:dispatch": "tsx scripts/private/dispatch.ts",
     "private:test:integration": "tsx scripts/private/integration.ts && tsx scripts/private/rules-test.ts",
     "private:test:render": "tsx scripts/private/render-smoke.ts",
-    "private:test:voice": "tsx scripts/private/voice-smoke.ts"
+    "private:test:voice": "tsx scripts/private/voice-smoke.ts",
+    "private:test:library": "tsx scripts/private/library-smoke.ts"
   },
   "dependencies": {
     "@firebase/app": "0.14.3",

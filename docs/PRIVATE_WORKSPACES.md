@@ -46,6 +46,7 @@ creates/verifies disposable accounts and checks API isolation:
 
 ```sh
 npm run private:test:integration
+npm run private:test:library
 ```
 
 That command's synthetic creator account uses the emulator-only password in
@@ -152,6 +153,30 @@ Private media is fetched through the authenticated API into temporary browser
 blobs, including playback/seeking and downloads. There are no permanent public
 Firebase download tokens. Signing out clears private UI/media state. This pilot
 uses a bounded proxy rather than issuing signed playback URLs.
+
+## Manage presenter photos and retired engines
+
+**My photos** is the reusable private portrait library. Upload and name a portrait,
+rename it, or archive/restore it. Photos uploaded from the episode editor also
+appear here. Archiving hides a photo from new selections while preserving the
+file, voice links, existing scripts and produced videos. Restoring brings it back.
+
+Under **My voices**, expand **Photos for this voice**. Link up to 20 library photos
+to a personal voice and select its default. Save the links. This changes presentation
+preferences only; the voice sample revision and accepted audio audition remain valid.
+Concurrent link edits receive a revision conflict instead of silently overwriting.
+
+In an episode, each presenter can choose a saved photo, upload another, or use
+**Use voice's default photo**. Linked photos appear first in the selector. Defaults
+are an explicit shortcut: changing a voice's photos does not alter saved episodes.
+Stock narrators can also use any saved photo through the episode selector.
+
+After revoking an engine and allowing its active attempt to stop, use **Archive
+engine**. Retired registrations are kept under the collapsed **Archived engines**
+section so previous productions retain their device names. They are excluded from
+render destinations and trusted-device choices. Re-register a Mac to reconnect it.
+Render/voice smoke tests unregister and archive their temporary workers in `finally`
+blocks, including failures. Blank rules-test images are archived automatically.
 
 ## Explicit private Firebase deployment
 
@@ -297,6 +322,7 @@ npm run build
 npm run private:build
 # With the isolated emulators + API running:
 npm run private:test:integration
+npm run private:test:library
 # Explicit real-model integration tests; synthetic references only:
 npm run private:test:render
 npm run private:test:voice

@@ -398,6 +398,17 @@ export class WorkspaceService {
       const path = child(context, "workers", workerId);
       const worker = await tx.get<Worker>(path);
       if (!worker) fail(404, "NOT_FOUND", "Rendering device unavailable.");
+      if (input.archived === true) {
+        if (worker.status !== "revoked" || worker.activeJobId)
+          fail(
+            409,
+            "DEVICE_IN_USE",
+            "Revoke the device and let its current attempt stop before archiving it.",
+          );
+        const archived = { ...worker, archivedAt: this.now() };
+        tx.set(path, archived);
+        return this.workerView(archived);
+      }
       if (worker.status === "revoked")
         fail(409, "DEVICE_REVOKED", "Register the device again to restore access.");
       const status =
@@ -481,6 +492,71 @@ export class WorkspaceService {
     const bytes = await this.blobs.get(asset.path);
     if (digest(bytes) !== asset.sha256) fail(409, "ASSET_CHANGED", "Media integrity check failed.");
     return { asset, bytes };
+  }
+  async updatePortrait(context: Context, assetId: string, input: RecordData) {
+    permit(context);
+    return this.db.transaction(async (tx) => {
+      const path = child(context, "assets", assetId);
+      const asset = await tx.get<Asset>(path);
+      if (
+        asset?.kind !== "portrait" ||
+        (asset.ownerId !== context.uid && !["owner", "admin"].includes(context.role))
+      )
+        fail(404, "NOT_FOUND", "Portrait unavailable.");
+      const updated = {
+        ...asset,
+        name:
+          input.name === undefined
+            ? (asset.name ?? "Portrait")
+            : text(input.name, "portrait name", 64),
+        archivedAt:
+          input.archived === true
+            ? this.now()
+            : input.archived === false
+              ? null
+              : (asset.archivedAt ?? null),
+        updatedAt: this.now(),
+      };
+      tx.set(path, updated);
+      return this.safeRecord(updated);
+    });
+  }
+  async updateVoicePortraits(context: Context, profileId: string, input: RecordData) {
+    permit(context);
+    if (!Array.isArray(input.portraitIds) || input.portraitIds.length > 20)
+      fail(400, "INVALID_INPUT", "Choose up to 20 portraits for this voice.");
+    const portraitIds = [...new Set(input.portraitIds.map(identifier))];
+    const defaultPortraitId =
+      input.defaultPortraitId === null ? null : identifier(input.defaultPortraitId);
+    if (defaultPortraitId && !portraitIds.includes(defaultPortraitId))
+      fail(400, "INVALID_PORTRAIT", "The default photo must be linked to this voice.");
+    return this.db.transaction(async (tx) => {
+      const path = child(context, "voiceProfiles", profileId);
+      const profile = await tx.get(path);
+      if (profile?.status !== "active" || profile.ownerId !== context.uid)
+        fail(404, "NOT_FOUND", "Voice unavailable.");
+      if ((profile.portraitRevision ?? null) !== (input.expectedPortraitRevision ?? null))
+        fail(
+          409,
+          "REVISION_CONFLICT",
+          "These photo links changed in another window. Refresh and try again.",
+        );
+      const portraits = await Promise.all(
+        portraitIds.map((key) => tx.get<Asset>(child(context, "assets", key))),
+      );
+      if (portraits.some((asset) => asset?.kind !== "portrait" || asset.archivedAt))
+        fail(404, "INVALID_PORTRAIT", "Choose active photos from this workspace.");
+      const updated = {
+        ...profile,
+        portraitIds,
+        defaultPortraitId,
+        portraitRevision: digest(JSON.stringify({ portraitIds, defaultPortraitId })),
+        updatedAt: this.now(),
+      };
+      // Presentation preferences do not change the audio revision or invalidate auditions.
+      tx.set(path, updated);
+      return this.safeRecord(updated);
+    });
   }
   async saveVoice(context: Context, input: RecordData, sample: Buffer, profile: RecordData) {
     permit(context);

@@ -11,6 +11,15 @@ const saved = await fetch(`${session.origin}/v1/workspaces/${session.tenantId}/a
 });
 assert.equal(saved.status, 201, await saved.clone().text());
 const asset = await saved.json();
+const archived = await fetch(
+  `${session.origin}/v1/workspaces/${session.tenantId}/assets/${asset.id}`,
+  {
+    method: "PATCH",
+    headers: { authorization: `Bearer ${session.owner}`, "content-type": "application/json" },
+    body: JSON.stringify({ name: "Rules check · synthetic blank", archived: true }),
+  },
+);
+assert.equal(archived.status, 200, await archived.clone().text());
 const storagePath = encodeURIComponent(`tenants/${session.tenantId}/assets/${asset.id}/data`);
 for (const token of [null, session.owner, session.other]) {
   const headers: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};

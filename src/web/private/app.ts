@@ -40,6 +40,7 @@ if (config.authEmulatorUrl)
 let tenantId = "",
   episodes: Data[] = [],
   voices: Data[] = [],
+  photos: Data[] = [],
   workers: Data[] = [],
   templates: Data[] = [],
   current: Data | null = null;
@@ -47,8 +48,10 @@ let polling: ReturnType<typeof setInterval> | null = null;
 let refreshActive = false,
   generation = 0,
   jobsSignature = "",
+  presenterSignature = "",
   recorded: Blob | null = null;
 const urls = new Set<string>();
+const photoUrls = new Map<string, Promise<string>>();
 function blobUrl(bytes: Blob) {
   const url = URL.createObjectURL(bytes);
   urls.add(url);
@@ -146,7 +149,7 @@ async function upload(path: string, bytes: Blob, headers: Record<string, string>
   return result;
 }
 function showTab(tab: string) {
-  for (const name of ["episodes", "voices", "engines"])
+  for (const name of ["episodes", "voices", "photos", "engines"])
     element(`${name}-panel`).hidden = tab !== name;
   document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((button) => {
     button.classList.toggle("selected", button.dataset.tab === tab);
@@ -226,6 +229,7 @@ onAuthStateChanged(auth, () => {
   generation++;
   notice("");
   voices = [];
+  photos = [];
   workers = [];
   episodes = [];
   document.querySelectorAll<HTMLMediaElement>("audio,video").forEach((player) => {
@@ -239,6 +243,8 @@ onAuthStateChanged(auth, () => {
     "voice-name",
     "voice-transcript",
     "voice-file",
+    "photo-name",
+    "photo-file",
     "episode-title",
     "publication",
   ])
@@ -251,13 +257,25 @@ onAuthStateChanged(auth, () => {
   tenantId = "";
   current = null;
   jobsSignature = "";
+  presenterSignature = "";
+  photoUrls.clear();
   if (polling) {
     clearInterval(polling);
     polling = null;
   }
   for (const url of urls) URL.revokeObjectURL(url);
   urls.clear();
-  for (const name of ["episode-list", "jobs", "voice-list", "worker-list", "scenes", "speakers"])
+  for (const name of [
+    "episode-list",
+    "jobs",
+    "voice-list",
+    "photo-list",
+    "archived-photo-list",
+    "worker-list",
+    "archived-worker-list",
+    "scenes",
+    "speakers",
+  ])
     element(name).replaceChildren();
   field("password").value = "";
   void run(enter);
@@ -275,18 +293,26 @@ async function refresh() {
   refreshActive = true;
   const version = generation;
   try {
-    const [saved, profiles, devices, jobs] = await Promise.all([
+    const [saved, profiles, devices, jobs, assets] = await Promise.all([
       api(workspace("episodes")),
       api(workspace("voices")),
       api(workspace("workers")),
       api(workspace("jobs")),
+      api(workspace("assets")),
     ]);
     if (version !== generation || !auth.currentUser) return;
     episodes = saved;
     voices = profiles;
     workers = devices;
+    photos = assets.filter((asset: Data) => asset.kind === "portrait");
     renderEpisodes();
-    renderVoices();
+    const presenters = JSON.stringify({ voices, photos });
+    if (presenters !== presenterSignature) {
+      presenterSignature = presenters;
+      renderPhotos();
+      renderVoices();
+      if (current) renderSpeakers();
+    }
     renderWorkers();
     const signature = JSON.stringify(jobs);
     if (signature !== jobsSignature) {
@@ -311,6 +337,155 @@ function renderEpisodes() {
     );
     list.append(item);
   }
+}
+const photoName = (photo: Data) => photo.name ?? `Portrait ${String(photo.id).slice(0, 8)}`;
+const activePhotos = () => photos.filter((photo) => !photo.archivedAt);
+function photoPreview(photo: Data) {
+  const image = document.createElement("img");
+  image.className = "portrait";
+  image.alt = photoName(photo);
+  if (!photoUrls.has(photo.id)) photoUrls.set(photo.id, media(photo.id));
+  void run(async () => {
+    image.src = (await photoUrls.get(photo.id)) as string;
+  });
+  return image;
+}
+async function uploadPortrait(file: File, name: string) {
+  const photo = await upload("assets", file);
+  await api(
+    workspace(`assets/${photo.id}`),
+    { name: name.trim() || file.name.replace(/\.[^.]+$/u, "").slice(0, 64) || "Portrait" },
+    "PATCH",
+  );
+  return photo;
+}
+function renderPhotos() {
+  const list = element("photo-list"),
+    archived = element("archived-photo-list");
+  list.replaceChildren();
+  archived.replaceChildren();
+  if (!activePhotos().length)
+    list.append(node("p", "Upload a presenter photo to start your library.", "muted"));
+  for (const photo of photos) {
+    const card = node("article", undefined, "photo-card");
+    card.append(photoPreview(photo), node("h3", photoName(photo)));
+    const linked = voices.filter(
+      (voice) => voice.status === "active" && voice.portraitIds?.includes(photo.id),
+    );
+    card.append(
+      node(
+        "p",
+        linked.length
+          ? `Linked to ${linked.map((voice) => voice.name).join(", ")}`
+          : "Link this photo under My voices.",
+        "muted",
+      ),
+    );
+    card.append(
+      action(
+        "Rename",
+        async () => {
+          const name = prompt("Photo name", photoName(photo));
+          if (name) {
+            await api(workspace(`assets/${photo.id}`), { name }, "PATCH");
+            await refresh();
+          }
+        },
+        "text",
+      ),
+    );
+    card.append(
+      action(
+        photo.archivedAt ? "Restore photo" : "Archive photo",
+        async () => {
+          await api(workspace(`assets/${photo.id}`), { archived: !photo.archivedAt }, "PATCH");
+          await refresh();
+        },
+        "text",
+      ),
+    );
+    (photo.archivedAt ? archived : list).append(card);
+  }
+  const count = photos.filter((photo) => photo.archivedAt).length;
+  element("archived-photos").hidden = count === 0;
+  element("archived-photo-count").textContent = `Archived photos (${count})`;
+}
+element("upload-photo").onclick = () =>
+  run(async () => {
+    const file = field("photo-file").files?.[0];
+    if (!file) throw new Error("Choose a portrait first.");
+    await uploadPortrait(file, field("photo-name").value);
+    field("photo-file").value = "";
+    field("photo-name").value = "";
+    notice("Photo saved. Link it to a voice under My voices, or select it in an episode.");
+    await refresh();
+  });
+function voicePhotoLinks(voice: Data) {
+  const details = node("details");
+  const linked = activePhotos().filter((photo) => voice.portraitIds?.includes(photo.id));
+  details.append(node("summary", `Photos for this voice (${linked.length})`));
+  if (!activePhotos().length) {
+    details.append(
+      node("p", "Add photos to your library first.", "muted"),
+      action("Open My photos", () => showTab("photos")),
+    );
+    return details;
+  }
+  const previews = node("div", undefined, "linked-photos");
+  for (const photo of linked) previews.append(photoPreview(photo));
+  details.append(previews);
+  const label = node("label", "Linked photos"),
+    selection = document.createElement("select");
+  selection.multiple = true;
+  selection.setAttribute("aria-label", `${voice.name} linked photos`);
+  for (const photo of activePhotos())
+    selection.add(
+      new Option(
+        photoName(photo),
+        photo.id,
+        false,
+        linked.some((item) => item.id === photo.id),
+      ),
+    );
+  label.append(selection);
+  details.append(label);
+  const defaultLabel = node("label", "Default photo"),
+    defaultChoice = document.createElement("select");
+  defaultChoice.setAttribute("aria-label", `${voice.name} default photo`);
+  const choices = (previous = defaultChoice.value) => {
+    defaultChoice.replaceChildren(new Option("Choose per episode", ""));
+    for (const option of selection.selectedOptions)
+      defaultChoice.add(new Option(option.text, option.value));
+    if ([...defaultChoice.options].some((option) => option.value === previous))
+      defaultChoice.value = previous;
+  };
+  choices(voice.defaultPortraitId ?? "");
+  selection.onchange = () => choices();
+  defaultLabel.append(defaultChoice);
+  details.append(defaultLabel);
+  details.append(
+    node(
+      "p",
+      "Select one or more photos. The default is available as a shortcut in the episode editor; each episode keeps its own choice.",
+      "muted",
+    ),
+  );
+  details.append(
+    action("Save photo links", async () => {
+      await api(
+        workspace(`voices/${voice.id}`),
+        {
+          portraitIds: [...selection.selectedOptions].map((option) => option.value),
+          defaultPortraitId: defaultChoice.value || null,
+          expectedPortraitRevision: voice.portraitRevision ?? null,
+        },
+        "PATCH",
+      );
+      notice("Voice photo links saved. Existing episode choices are preserved.");
+      await refresh();
+    }),
+  );
+  return details;
 }
 function selectControl(
   label: string,
@@ -405,9 +580,29 @@ function renderSpeakers() {
             ? { kind: "workspace-voice", tenantId, profileId, revision }
             : value;
           dirty();
+          renderSpeakers();
         },
       ),
     );
+    const profile =
+      typeof speaker.voice === "string"
+        ? null
+        : voices.find((voice) => voice.id === speaker.voice.profileId);
+    const defaultPhoto = activePhotos().find((photo) => photo.id === profile?.defaultPortraitId);
+    if (defaultPhoto)
+      card.append(
+        action("Use voice's default photo", () => {
+          speaker.avatar = {
+            ...speaker.avatar,
+            mode: "photo",
+            imageId: `${defaultPhoto.id}.png`,
+            animation: speaker.avatar?.animation ?? "neural",
+            motion: speaker.avatar?.motion ?? { style: "conversational", intensity: 0.7 },
+          };
+          dirty();
+          renderSpeakers();
+        }),
+      );
     card.append(
       selectControl(
         `${speaker.name} avatar style`,
@@ -429,6 +624,32 @@ function renderSpeakers() {
       ),
     );
     if (speaker.avatar?.mode === "photo") {
+      const ordered = activePhotos().sort(
+        (a, b) =>
+          Number(profile?.portraitIds?.includes(b.id) ?? false) -
+          Number(profile?.portraitIds?.includes(a.id) ?? false),
+      );
+      const selectedPhoto = speaker.avatar.imageId?.replace(/\.png$/u, "") ?? "";
+      const options: [string, string][] = [["", "Choose a saved photo"]];
+      for (const photo of ordered)
+        options.push([
+          photo.id,
+          `${photoName(photo)}${profile?.portraitIds?.includes(photo.id) ? " · linked to voice" : ""}`,
+        ]);
+      const archivedPhoto = photos.find((photo) => photo.id === selectedPhoto && photo.archivedAt);
+      if (archivedPhoto)
+        options.push([
+          archivedPhoto.id,
+          `${photoName(archivedPhoto)} · archived, selected for this episode`,
+        ]);
+      card.append(
+        selectControl(`${speaker.name} saved photo`, options, selectedPhoto, (value) => {
+          if (!value) delete speaker.avatar.imageId;
+          else speaker.avatar.imageId = `${value}.png`;
+          dirty();
+          renderSpeakers();
+        }),
+      );
       const label = node("label", "Upload portrait (PNG, JPEG or WebP, up to 4 MB)"),
         uploadInput = document.createElement("input");
       uploadInput.type = "file";
@@ -437,11 +658,11 @@ function renderSpeakers() {
         run(async () => {
           const file = uploadInput.files?.[0];
           if (!file) return;
-          const asset = await upload("assets", file);
+          const asset = await uploadPortrait(file, "");
           speaker.avatar.imageId = asset.imageId;
           dirty();
           notice("Portrait saved in your private workspace.");
-          renderSpeakers();
+          await refresh();
         });
       label.append(uploadInput);
       card.append(label);
@@ -532,6 +753,7 @@ function renderVoices() {
       list.append(item);
       continue;
     }
+    item.append(voicePhotoLinks(voice));
     item.append(
       action("Generate audition", async () => {
         await api(
@@ -570,8 +792,10 @@ function renderVoices() {
   }
 }
 function renderWorkers() {
-  const list = element("worker-list");
+  const list = element("worker-list"),
+    archived = element("archived-worker-list");
   list.replaceChildren();
+  archived.replaceChildren();
   const destination = element<HTMLSelectElement>("destination"),
     previous = destination.value;
   destination.replaceChildren(new Option("Next available compatible Mac", "mac-pool"));
@@ -599,7 +823,7 @@ function renderWorkers() {
     );
     if (worker.activeJobId)
       card.append(node("p", `Current job ${worker.activeJobId.slice(0, 8)}`, "muted"));
-    if (worker.status !== "revoked") {
+    if (worker.status !== "revoked" && !worker.archivedAt) {
       card.append(
         action(worker.status === "active" ? "Pause new jobs" : "Resume", async () => {
           await api(
@@ -635,10 +859,26 @@ function renderWorkers() {
       const option = new Option(worker.name, worker.id);
       option.selected = selected.has(worker.id);
       trusted.add(option);
+    } else if (!worker.archivedAt) {
+      card.append(
+        action(
+          "Archive engine",
+          async () => {
+            await api(workspace(`workers/${worker.id}`), { archived: true }, "PATCH");
+            await refresh();
+          },
+          "text",
+        ),
+      );
     }
-    list.append(card);
+    (worker.archivedAt ? archived : list).append(card);
   }
-  if (!workers.length)
+  const archivedCount = workers.filter(
+    (worker) => worker.providerId === "mac" && worker.archivedAt,
+  ).length;
+  element("archived-workers").hidden = archivedCount === 0;
+  element("archived-worker-count").textContent = `Archived engines (${archivedCount})`;
+  if (!workers.some((worker) => worker.providerId === "mac" && !worker.archivedAt))
     list.append(node("p", "No Macs registered. Add your Mac mini or laptop below.", "muted"));
   if (config.cloudEnabled)
     destination.add(new Option("Google Cloud GPU · approved paid compute", "cloud"));
