@@ -125,11 +125,13 @@ a follow-up; the worker currently runs in the terminal.
 ## Save a voice and produce from another device
 
 1. Sign in and create a script from a source-backed starting template.
-2. In **My voices**, record or upload a sample, enter the exact transcript, and
-   confirm storage/processing consent. Choose specific trusted Macs or explicitly
-   trust the registered Mac pool. Cloud processing is a separate permission.
-3. Select a rendering destination and generate an audition. Find it in
-   **Generation history**, listen through it, and accept that runtime's voice.
+2. In **My voices**, select **Add a voice**. Record or upload in step 1, then
+   choose **Next: Review & save**. In step 2, name the voice, check its exact
+   transcript, and confirm consent and trusted Macs. Save the sample.
+3. Select a rendering destination in the top toolbar and generate an audition.
+   Stay in **My voices**: the selected voice shows its queued/running state and
+   playback when ready. Listen through the audition, then choose **Accept this
+   voice**. The status changes to **Ready to produce** for that destination.
 4. Open the script. Each presenter has independent voice and photo controls.
    Choose the saved voice, upload a portrait if wanted, and save the script.
 5. Choose **Next available compatible Mac**, or pin a particular device, and
@@ -138,7 +140,8 @@ a follow-up; the worker currently runs in the terminal.
 
 ### Guided reference recordings
 
-In **My voices**, choose a passage under **Choose something to read**:
+In **My voices → Add a voice → 1 · Record**, choose a passage under
+**Read one short passage**:
 
 - **Warm conversation** (recommended): a friendly explanation and a question.
 - **Professional explanation**: calm, clear presentation delivery.
@@ -181,7 +184,24 @@ Mac with the same compatible runtime can use it; a different runtime or CUDA
 engine needs another audition. A synthetic stock-reference fixture is not your
 personal voice, and the selected identity appears in script controls/history.
 
-Generation history is ordered by submission time, newest first. It shows work
+The episode editor has separate **Script**, **Voice & portrait**, and **Review &
+produce** views. Scene sections expand individually. Saving remains available
+without approving a voice; production provides a direct **Review voice audition**
+action for any personal voice that still needs approval. Stock voices do not need
+this enrollment step.
+
+If you see “Listen to and accept an audition for qwen-mlx first” in an older
+build, your recording can still be saved correctly. Open **My voices**, select
+that voice, choose **Listen to audition**, listen to the end, and select **Accept
+this voice**. A completed audition has not been accepted merely because its
+status is SUCCEEDED. You do not need to record the sample again. Approval is
+specific to the sample and engine runtime, so a changed runtime needs another
+audition. The app checks current approval records, not just old accepted-job
+labels. Deleted voices are hidden from the normal selector; their history stays
+available.
+
+Generation history is ordered by submission time, newest first. Completed entries
+are collapsed; expand one to watch/download or inspect details. It shows work
 stage, engine/device, measured generation time, media duration, queue wait, and
 time until ready. Changing a script does not change an already produced video.
 Retries use the frozen revision and selected engine; changed scripts require a

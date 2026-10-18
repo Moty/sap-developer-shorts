@@ -356,7 +356,33 @@ test("workspace voice audition acceptance binds runtime, owner, sample and job r
       runtimeDigest: digest("older-runtime"),
     });
   });
+  const completed = (await f.service.list(f.context, "jobs")).find((job) => job.id === audition.id);
+  assert.equal(completed?.voiceProfileId, profileId);
+  assert.equal(completed?.voiceRevision, hash);
   const approval = await f.service.acceptAudition(f.context, String(audition.id));
+  const listed = (await f.service.list(f.context, "voiceProfiles")).find(
+    (voice) => voice.id === profileId,
+  );
+  assert.ok(listed);
+  assert.ok(
+    (listed.acceptedAuditions as RecordData[]).some(
+      (item) => item.auditionJobId === audition.id && item.runtimeDigest === hash,
+    ),
+  );
+  assert.deepEqual(await f.service.list(f.second, "voiceProfiles"), []);
+  await f.db.transaction(async (tx) => {
+    tx.set(`tenants/${f.context.tenantId}/voiceProfiles/${profileId}/approvals/stale-sample`, {
+      id: "stale-sample",
+      engine: "qwen-mlx",
+      revision: "stale-sample",
+      accepted: true,
+      runtimeDigest: hash,
+    });
+  });
+  const currentApprovals = (await f.service.list(f.context, "voiceProfiles")).find(
+    (voice) => voice.id === profileId,
+  )?.acceptedAuditions as RecordData[];
+  assert.ok(currentApprovals.every((item) => item.revision === hash));
   assert.equal(approval.runtimeDigest, hash);
   assert.equal(approval.revision, hash);
   const submitted = await f.service.submit(

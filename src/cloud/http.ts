@@ -99,6 +99,7 @@ export function createPrivateServer(
             authDomain: config.authDomain,
             appId: config.appId,
             cloudEnabled: Boolean(config.cloud),
+            cloudRuntimeDigest: config.cloud?.runtimeDigest ?? null,
             ...(config.emulator ? { authEmulatorUrl: `http://${config.authEmulator}` } : {}),
           });
           return;

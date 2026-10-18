@@ -186,3 +186,42 @@ its disposable voice fixture afterward. Browser QA checked all five choices,
 transcript preservation and explicit replacement in the rebuilt local studio.
 No real microphone recording, personal sample upload, paid generation or cloud
 deployment was performed for this change.
+
+
+## Compact setup and explicit audition readiness — October 17, 2026
+
+- Saved voices use one selector and one detail panel. Reference/settings and
+  portrait links are collapsible; deleted profiles are omitted from normal choices.
+- Enrollment is split into record/upload and review/save, with recording text and
+  microphone controls side by side on desktop, shared playback across steps, and
+  a visible action bar. Explicit consent remains required; no new processing
+  destination is granted automatically.
+- Auditions generate, play and accept in the selected voice panel. Pending,
+  completed, failed and accepted states no longer require a trip to history.
+  Full playback enables the acceptance action; the application does not accept
+  a real voice on the user's behalf. Unrelated polling does not replace the player.
+- Voice list DTOs expose current accepted audition summaries; job DTOs identify
+  their frozen voice profile/revision. Readiness checks current sample, trusted
+  destination, engine and runtime. Historical accepted-job stamps alone cannot
+  make a voice ready. The server retains the authoritative approval checks.
+- Episode editing has script, presenter and production views, expandable scenes,
+  and a direct audition action beside an unready personal voice. Completed history
+  entries are collapsed. Rendering destination stays in the top toolbar.
+
+Validation passed on Node 22.13.0: `npm run check` in a source-only staged
+checkout (254 tests, no failures or skips, lint/typecheck, 5 live CAP checks and
+content validation), followed by both builds. New tests cover current revision,
+trusted destination, runtime/engine compatibility, stale accepted stamps,
+profile/revision job matching, and visibility of a new audition after an older
+one was approved. Service tests cover the private approval DTO and tenant isolation.
+
+Browser QA on the rebuilt local studio verified pending versus approved voice
+states, no deleted voices in the selector, first-step empty-recording validation,
+recording text and actions within the 1280×720 viewport, separate editor views,
+expandable scenes, preserved selected photo, a disabled production button with a
+direct link to the correct Moty audition, and compact completed history entries.
+The recorder was not exercised with a real microphone in this change.
+
+The user's Moty recording and completed, unaccepted audition were located and
+preserved. No personal audition was accepted, no paid job or deployment started,
+and the original untracked personal images and drafts were left out of the commit.

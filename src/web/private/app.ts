@@ -12,8 +12,10 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "@firebase/auth";
+import type { Target } from "../../cloud/contracts.js";
 import { kokoroVoices } from "../../media/voices.js";
 import { voiceReadingScripts } from "../../voice-reading-scripts.js";
+import { voiceAudition, voiceReadiness } from "./voice-status.js";
 
 // biome-ignore lint/suspicious/noExplicitAny: Browser DTOs are validated by the private API; the editor preserves source-backed template fields.
 type Data = Record<string, any>;
@@ -51,6 +53,10 @@ let refreshActive = false,
   jobsSignature = "",
   presenterSignature = "",
   recorded: Blob | null = null;
+let historyJobs: Data[] = [],
+  selectedVoiceId = "",
+  voiceViewSignature = "";
+const listenedAuditions = new Set<string>();
 const urls = new Set<string>();
 const photoUrls = new Map<string, Promise<string>>();
 function blobUrl(bytes: Blob) {
@@ -115,7 +121,8 @@ async function api(
   });
   const data = await response.json();
   if (version !== generation) throw new Error("The session changed. Open your workspace again.");
-  if (!response.ok) throw new Error(data.error ?? "Request failed.");
+  if (!response.ok)
+    throw Object.assign(new Error(data.error ?? "Request failed."), { code: data.code });
   return data;
 }
 const workspace = (path: string) => `/v1/workspaces/${tenantId}/${path}`;
@@ -150,6 +157,7 @@ async function upload(path: string, bytes: Blob, headers: Record<string, string>
   return result;
 }
 function showTab(tab: string) {
+  element("workspace").dataset.section = tab;
   for (const name of ["episodes", "voices", "photos", "engines"])
     element(`${name}-panel`).hidden = tab !== name;
   document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((button) => {
@@ -228,6 +236,14 @@ async function enter() {
 }
 onAuthStateChanged(auth, () => {
   generation++;
+  historyJobs = [];
+  selectedVoiceId = "";
+  voiceViewSignature = "";
+  listenedAuditions.clear();
+  element("voice-library").hidden = false;
+  element("voice-form").hidden = true;
+  element("editor").hidden = true;
+  element("episodes-overview").hidden = false;
   notice("");
   voices = [];
   photos = [];
@@ -281,7 +297,7 @@ onAuthStateChanged(auth, () => {
   field("password").value = "";
   void run(enter);
 });
-function target() {
+function target(): Target {
   const value = field("destination").value;
   return value === "mac-pool"
     ? { mode: "mac-pool" }
@@ -303,6 +319,7 @@ async function refresh() {
     ]);
     if (version !== generation || !auth.currentUser) return;
     episodes = saved;
+    historyJobs = jobs;
     voices = profiles;
     workers = devices;
     photos = assets.filter((asset: Data) => asset.kind === "portrait");
@@ -311,10 +328,11 @@ async function refresh() {
     if (presenters !== presenterSignature) {
       presenterSignature = presenters;
       renderPhotos();
-      renderVoices();
       if (current) renderSpeakers();
     }
     renderWorkers();
+    renderVoices();
+    renderProductionVoiceCheck();
     const signature = JSON.stringify(jobs);
     if (signature !== jobsSignature) {
       jobsSignature = signature;
@@ -503,16 +521,30 @@ function selectControl(
   wrapper.append(select);
   return wrapper;
 }
+function editorPane(pane: string) {
+  for (const name of ["script", "voice", "review"])
+    element(`episode-${name}-pane`).hidden = name !== pane;
+  document.querySelectorAll<HTMLButtonElement>("[data-episode-pane]").forEach((button) => {
+    button.classList.toggle("selected", button.dataset.episodePane === pane);
+    button.setAttribute("aria-current", button.dataset.episodePane === pane ? "step" : "false");
+  });
+}
+document.querySelectorAll<HTMLButtonElement>("[data-episode-pane]").forEach((button) => {
+  button.onclick = () => editorPane(button.dataset.episodePane ?? "script");
+});
 function openEditor(record: Data) {
   current = structuredClone(record);
   element("editor").hidden = false;
+  element("episodes-overview").hidden = true;
+  editorPane("script");
   field("episode-title").value = current?.episode.title;
   field("publication").value = current?.episode.publication.text;
   const scenes = element("scenes");
   scenes.replaceChildren();
-  for (const scene of current?.episode.scenes ?? []) {
-    const card = node("div", undefined, "scene");
-    card.append(node("h3", scene.visual.label));
+  for (const [index, scene] of (current?.episode.scenes ?? []).entries()) {
+    const card = node("details", undefined, "scene") as HTMLDetailsElement;
+    card.open = index === 0;
+    card.append(node("summary", scene.visual.label));
     const label = node("label", "On-screen heading"),
       overlay = document.createElement("input");
     overlay.value = scene.overlay;
@@ -589,6 +621,11 @@ function renderSpeakers() {
       typeof speaker.voice === "string"
         ? null
         : voices.find((voice) => voice.id === speaker.voice.profileId);
+    if (profile) {
+      const state = readiness(profile);
+      card.append(node("p", state.message, state.ready ? "badge ready" : "badge attention"));
+      if (!state.ready) card.append(action("Review voice audition", () => openVoice(profile.id)));
+    }
     const defaultPhoto = activePhotos().find((photo) => photo.id === profile?.defaultPortraitId);
     if (defaultPhoto)
       card.append(
@@ -693,12 +730,14 @@ function renderSpeakers() {
     }
     list.append(card);
   }
+  renderProductionVoiceCheck();
 }
 element("episode-title").oninput = dirty;
 element("publication").oninput = dirty;
 element("close-editor").onclick = () => {
   current = null;
   element("editor").hidden = true;
+  element("episodes-overview").hidden = false;
 };
 element("new-script").onclick = () =>
   run(async () => {
@@ -736,62 +775,277 @@ element("produce").onclick = () =>
     notice("Production queued. Find it in Generation history.");
     await refresh();
   });
+function readiness(voice: Data) {
+  return voiceReadiness(
+    voice as Parameters<typeof voiceReadiness>[0],
+    target(),
+    workers as Parameters<typeof voiceReadiness>[2],
+    config.cloudRuntimeDigest ?? undefined,
+  );
+}
+function auditionFor(voice: Data) {
+  return voiceAudition(
+    voice as Parameters<typeof voiceAudition>[0],
+    historyJobs as (Data & Parameters<typeof voiceAudition>[1][number])[],
+    target(),
+    workers as Parameters<typeof voiceAudition>[3],
+    config.cloudRuntimeDigest ?? undefined,
+  );
+}
+function openVoice(id: string) {
+  selectedVoiceId = id;
+  showTab("voices");
+  element("voice-library").hidden = false;
+  element("voice-form").hidden = true;
+  renderVoices();
+  element("voice-library").scrollIntoView({ block: "start", behavior: "smooth" });
+}
+function renderProductionVoiceCheck() {
+  const list = element("production-voice-check");
+  list.replaceChildren();
+  let blocked = false;
+  for (const speaker of current?.episode.presentation.speakers ?? []) {
+    if (typeof speaker.voice === "string") continue;
+    const voice = voices.find((item) => item.id === speaker.voice.profileId);
+    const state = voice && voice.revision === speaker.voice.revision ? readiness(voice) : null;
+    if (state?.ready) continue;
+    blocked = true;
+    const row = node("div", undefined, "voice-warning");
+    row.append(
+      node(
+        "span",
+        `${speaker.name} · ${voice?.name ?? "Personal voice"}: ${state?.message ?? "Voice version unavailable"}.`,
+      ),
+    );
+    if (voice) row.append(action("Review voice audition", () => openVoice(voice.id)));
+    list.append(row);
+  }
+  element<HTMLButtonElement>("produce").disabled = blocked;
+}
+async function queueAudition(voice: Data) {
+  await api(
+    workspace("jobs"),
+    { kind: "audition", profileId: voice.id, target: target() },
+    "POST",
+    { "idempotency-key": crypto.randomUUID() },
+  );
+  notice("Audition queued. Stay here; playback and approval will appear when it finishes.");
+  await refresh();
+}
+function auditionPlayer(job: Data, label: string, onListened?: () => void) {
+  const wrapper = node("div", undefined, "audition-player");
+  const play = action(label, async () => {
+    const assets = await api(workspace("assets"));
+    const asset = assets.find(
+      (asset: Data) => job.outputIds.includes(asset.id) && asset.kind === "audition",
+    );
+    if (!asset) throw new Error("This audition is unavailable. Generate a new one.");
+    let player = wrapper.querySelector("audio");
+    if (!player) {
+      player = document.createElement("audio");
+      player.controls = true;
+      player.setAttribute("aria-label", label);
+      player.onended = () => {
+        listenedAuditions.add(job.id);
+        onListened?.();
+      };
+      player.src = await media(asset.id);
+      wrapper.append(player);
+    }
+    await player.play();
+  });
+  wrapper.append(play);
+  return wrapper;
+}
 function renderVoices() {
+  const active = voices.filter((voice) => voice.status === "active");
+  if (!active.some((voice) => voice.id === selectedVoiceId)) selectedVoiceId = active[0]?.id ?? "";
+  const voice = active.find((voice) => voice.id === selectedVoiceId);
+  const state = voice ? readiness(voice) : null;
+  const audition = voice ? auditionFor(voice) : null;
+  const signature = JSON.stringify({
+    active: active.map(({ id, name }) => ({ id, name })),
+    voice,
+    state,
+    audition,
+    photos: photos.map(({ id, name, archivedAt }) => ({ id, name, archivedAt })),
+  });
+  if (signature === voiceViewSignature) return;
+  voiceViewSignature = signature;
+  const select = element<HTMLSelectElement>("saved-voice");
+  select.replaceChildren();
+  for (const voice of active) select.add(new Option(voice.name, voice.id));
+  if (!active.length) select.add(new Option("No personal voices saved yet", ""));
+  select.value = selectedVoiceId;
+  select.disabled = !active.length;
   const list = element("voice-list");
   list.replaceChildren();
-  if (!voices.length) list.append(node("p", "Your saved samples will appear here.", "muted"));
-  for (const voice of voices) {
-    const item = node("article", undefined, "item");
-    item.append(
-      node("h3", voice.name),
+  if (!voice || !state) {
+    list.append(
       node(
         "p",
-        `${Number(voice.profile?.durationSeconds ?? 0).toFixed(1)}s reference · ${voice.status}`,
+        "Add a short recording to create your personal narrator. Stock voices are ready in the episode editor.",
         "muted",
       ),
     );
-    if (voice.status !== "active") {
-      list.append(item);
-      continue;
-    }
-    item.append(voicePhotoLinks(voice));
-    item.append(
-      action("Generate audition", async () => {
-        await api(
-          workspace("jobs"),
-          { kind: "audition", profileId: voice.id, target: target() },
-          "POST",
-          { "idempotency-key": crypto.randomUUID() },
-        );
-        notice("Audition queued. Listen in Generation history, then accept it.");
-        await refresh();
-        showTab("episodes");
+    return;
+  }
+  const summary = node("div", undefined, "voice-summary");
+  const recording = node("section");
+  const badge = node("span", state.message, state.ready ? "badge ready" : "badge attention");
+  recording.append(
+    badge,
+    node(
+      "p",
+      `${Number(voice.profile?.durationSeconds ?? 0).toFixed(1)}s reference · ${voice.name}`,
+      "muted",
+    ),
+  );
+  if (audition?.state === "SUCCEEDED") {
+    let accept: HTMLButtonElement | null = null;
+    const approved = state.approval?.auditionJobId === audition.id;
+    recording.append(
+      auditionPlayer(audition, approved ? "Play approved audition" : "Listen to audition", () => {
+        if (accept) accept.disabled = false;
       }),
-      action("Listen to reference", async () => {
-        const audio = document.createElement("audio");
-        audio.controls = true;
-        audio.src = await media(voice.sampleAssetId);
-        item.append(audio);
-        await audio.play();
-      }),
-      action(
-        "Delete voice",
+    );
+    if (!approved) {
+      recording.append(
+        node("p", "Listen to the full audition, then approve it if it sounds like you.", "muted"),
+      );
+      accept = action(
+        "Accept this voice",
         async () => {
-          if (
-            !confirm(
-              "Delete this voice reference and its auditions? Existing videos remain available.",
-            )
-          )
-            return;
-          await api(workspace(`voices/${voice.id}`), {}, "DELETE");
+          await api(workspace(`jobs/${audition.id}/accept`), {});
+          notice(`${voice.name} is ready. Return to your script to produce.`);
+          await refresh();
+        },
+        "",
+      );
+      accept.disabled = !listenedAuditions.has(audition.id);
+      recording.append(accept);
+    } else
+      recording.append(
+        node("p", "Audition approved for the selected rendering destination.", "muted"),
+      );
+  } else if (audition && !["FAILED", "CANCELLED"].includes(audition.state)) {
+    recording.append(
+      node(
+        "p",
+        `${audition.state === "QUEUED" ? "Waiting for a compatible engine" : "Generating your audition"} · this panel updates automatically.`,
+        "muted",
+      ),
+    );
+    recording.append(
+      action(
+        "Cancel audition",
+        async () => {
+          await api(workspace(`jobs/${audition.id}/cancel`), {});
           await refresh();
         },
         "text",
       ),
     );
-    list.append(item);
+  } else {
+    recording.append(
+      node(
+        "p",
+        audition?.issue ??
+          "Generate a short audition to hear this voice before using it in a video.",
+        "muted",
+      ),
+    );
+    recording.append(
+      action(audition ? "Try audition again" : "Generate audition", () => queueAudition(voice), ""),
+    );
   }
+  const options = node("section");
+  if (state.ready && current)
+    options.append(
+      action(
+        "Return to script",
+        () => {
+          showTab("episodes");
+          element("editor").scrollIntoView({ block: "start", behavior: "smooth" });
+        },
+        "",
+      ),
+    );
+  options.append(voicePhotoLinks(voice));
+  const settings = node("details"),
+    settingsTitle = node("summary", "Reference & voice settings");
+  settings.append(settingsTitle);
+  settings.append(
+    action("Listen to reference", async () => {
+      let audio = settings.querySelector("audio");
+      if (!audio) {
+        audio = document.createElement("audio");
+        audio.controls = true;
+        audio.src = await media(voice.sampleAssetId);
+        settings.append(audio);
+      }
+      await audio.play();
+    }),
+  );
+  settings.append(action("Generate a new audition", () => queueAudition(voice)));
+  settings.append(
+    action(
+      "Delete voice",
+      async () => {
+        if (
+          !confirm(
+            "Delete this voice reference and its auditions? Existing videos remain available.",
+          )
+        )
+          return;
+        await api(workspace(`voices/${voice.id}`), {}, "DELETE");
+        await refresh();
+      },
+      "text",
+    ),
+  );
+  options.append(settings);
+  summary.append(recording, options);
+  list.append(summary);
 }
+element<HTMLSelectElement>("saved-voice").onchange = () => {
+  selectedVoiceId = field("saved-voice").value;
+  renderVoices();
+};
+element("destination").onchange = () => {
+  renderVoices();
+  renderProductionVoiceCheck();
+};
+function voiceFormStep(review: boolean) {
+  if (recordingPending || recordingStopping || recorder?.state === "recording") return;
+  if (review && !recorded && !field("voice-file").files?.length) {
+    element("voice-form-status").textContent = "Record or upload your sample first.";
+    return;
+  }
+  element("voice-form-status").textContent = review
+    ? "Listen back and check the transcript before saving."
+    : "Record one passage. You can review before saving.";
+  element(review ? "voice-review-audio" : "voice-record-audio").append(element("record-preview"));
+  element("voice-record-pane").hidden = review;
+  element("voice-review-pane").hidden = !review;
+  element("voice-next").hidden = review;
+  element("voice-back").hidden = !review;
+  element("upload-voice").hidden = !review;
+  element("voice-step-record").setAttribute("aria-current", review ? "false" : "step");
+  element("voice-step-review").setAttribute("aria-current", review ? "step" : "false");
+}
+element("add-voice").onclick = () => {
+  element("voice-library").hidden = true;
+  element("voice-form").hidden = false;
+  voiceFormStep(false);
+};
+element("close-voice-form").onclick = () => {
+  element("voice-library").hidden = false;
+  element("voice-form").hidden = true;
+};
+element("voice-next").onclick = element("voice-step-review").onclick = () => voiceFormStep(true);
+element("voice-back").onclick = element("voice-step-record").onclick = () => voiceFormStep(false);
+element("cloud-consent").hidden = !config.cloudEnabled;
 function renderWorkers() {
   const list = element("worker-list"),
     archived = element("archived-worker-list");
@@ -892,7 +1146,17 @@ async function renderJobs(jobs: Data[]) {
   if (!jobs.length)
     list.append(node("p", "Your auditions and video productions will appear here.", "muted"));
   for (const job of jobs) {
-    const item = node("article", undefined, "item");
+    const item = node("details", undefined, "item history-job") as HTMLDetailsElement;
+    item.open = !["SUCCEEDED", "FAILED", "CANCELLED"].includes(job.state);
+    const heading = node("summary");
+    heading.append(
+      node(
+        "span",
+        job.title ?? (job.kind === "audition" ? "Voice audition" : "Episode production"),
+      ),
+      node("span", job.state, "badge"),
+    );
+    item.append(heading);
     item.append(
       node("h3", job.title ?? (job.kind === "audition" ? "Voice audition" : "Episode production")),
       node("span", `${job.state} · ${job.stage}`, "badge"),
@@ -941,7 +1205,7 @@ async function renderJobs(jobs: Data[]) {
           );
           await refresh();
         });
-        acceptButton.disabled = true;
+        acceptButton.disabled = !listenedAuditions.has(job.id);
       }
       if (job.voiceAcceptedAt) item.append(node("p", "Accepted for this voice runtime", "muted"));
       item.append(
@@ -963,6 +1227,7 @@ async function renderJobs(jobs: Data[]) {
           const player = document.createElement(job.kind === "audition" ? "audio" : "video");
           player.controls = true;
           player.addEventListener("ended", () => {
+            listenedAuditions.add(job.id);
             if (acceptButton) acceptButton.disabled = false;
           });
           player.src = await media(asset.id);
@@ -1027,9 +1292,8 @@ function showPassage() {
 readingChoice.onchange = showPassage;
 element("voice-reading-use").onclick = () => {
   field("voice-transcript").value = selectedPassage().text;
-  notice(
-    "Transcript filled. Read these exact words, or edit it to match your recording before saving.",
-  );
+  element("voice-form-status").textContent =
+    "Transcript filled. Read these words, or edit the transcript to match your recording.";
 };
 showPassage();
 let recorder: MediaRecorder | null = null;
@@ -1042,6 +1306,11 @@ function lockRecording(locked: boolean) {
     "voice-transcript",
     "voice-file",
     "upload-voice",
+    "close-voice-form",
+    "voice-next",
+    "voice-back",
+    "voice-step-record",
+    "voice-step-review",
   ])
     (element(id) as HTMLInputElement).disabled = locked;
 }
@@ -1075,11 +1344,20 @@ element("upload-voice").onclick = () =>
     const encoded = btoa(
       String.fromCharCode(...new TextEncoder().encode(JSON.stringify(metadata))),
     );
-    await upload("voices", sample, { "x-voice-metadata": encoded });
+    const saved = await upload("voices", sample, { "x-voice-metadata": encoded });
+    selectedVoiceId = saved.id;
     recorded = null;
     field("voice-file").value = "";
-    notice("Voice sample saved in this workspace. Generate an audition to approve how it sounds.");
+    field("voice-name").value = "";
+    field("voice-transcript").value = "";
+    field("consent").checked = false;
+    const preview = element<HTMLAudioElement>("record-preview");
+    preview.pause();
+    preview.removeAttribute("src");
+    preview.hidden = true;
+    notice("Sample saved. Generate an audition here, then listen and accept it.");
     await refresh();
+    openVoice(saved.id);
   });
 element("record").onclick = () =>
   run(async () => {

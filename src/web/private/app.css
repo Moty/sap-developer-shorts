@@ -251,7 +251,8 @@ footer {
   font-size: 12px;
 }
 [hidden] {
-  display: none;
+  /* biome-ignore lint/complexity/noImportantStyles: Hidden auth and wizard panels must override component display rules. */
+  display: none !important;
 }
 @media (max-width: 800px) {
   .grid {
@@ -342,4 +343,280 @@ summary {
 .reading-text {
   font-size: 19px;
   line-height: 1.65;
+}
+
+/* Keep common voice actions together instead of stacking the whole library. */
+header {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+main {
+  padding-top: 20px;
+}
+#workspace > .heading h1 {
+  font-size: 30px;
+  margin-bottom: 12px;
+}
+#workspace > .heading .eyebrow {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 10px 0;
+  margin-bottom: 16px;
+  background: #f6f6ee;
+  border-bottom: 1px solid var(--border);
+}
+.studio-toolbar nav {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex-shrink: 0;
+}
+.studio-toolbar :where(nav) button {
+  padding: 10px 12px;
+}
+.destination {
+  background: transparent;
+}
+.destination label {
+  margin: 0;
+  font-size: 12px;
+}
+.destination select {
+  margin-top: 2px;
+  padding: 7px 10px;
+  max-width: 330px;
+  font-size: 13px;
+}
+.destination .muted {
+  display: none;
+}
+.voice-library,
+.voice-form,
+#editor {
+  scroll-margin-top: 110px;
+}
+.voice-library > .heading h2,
+.voice-form > .heading h2 {
+  margin: 0;
+}
+.voice-library > :where(.heading) p {
+  margin: 6px 0 0;
+}
+.voice-library > label {
+  margin-bottom: 4px;
+}
+.voice-library > select {
+  max-width: 600px;
+}
+.voice-summary,
+.record-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 28px;
+  margin-top: 20px;
+}
+.voice-summary > section {
+  min-width: 0;
+}
+.voice-summary > section > details {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.voice-summary .muted {
+  margin: 10px 0;
+}
+.voice-summary .badge {
+  font-weight: 600;
+}
+.ready {
+  color: #21513c;
+  background: #dceedd;
+}
+.attention {
+  color: #76551b;
+  background: #faf0cd;
+}
+.voice-warning {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: #faf0cd;
+}
+.voice-warning button {
+  padding: 8px 12px;
+}
+.voice-steps {
+  border: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  margin: 18px 0 0;
+}
+.voice-steps button {
+  font-size: 14px;
+  padding: 9px 14px;
+  background: #edf1eb;
+  color: var(--green);
+}
+.voice-steps [aria-current="step"] {
+  background: var(--green);
+  color: #fff;
+}
+.voice-form label {
+  margin: 10px 0;
+}
+.voice-form .record-layout {
+  margin-top: 16px;
+}
+.voice-form .reading-card {
+  margin: 0;
+  padding: 16px;
+}
+.voice-form .reading-text {
+  font-size: 20px;
+  line-height: 1.55;
+  margin: 14px 0 8px;
+}
+.voice-form :where(.reading-card) h3 {
+  margin-bottom: 8px;
+}
+.voice-form .reading-card label {
+  margin: 6px 0;
+}
+.record-controls > p {
+  margin-top: 0;
+}
+.record-controls .actions {
+  margin: 18px 0;
+}
+.record-controls #record-state {
+  flex-basis: 100%;
+  font-size: 13px;
+}
+.voice-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.voice-form select[multiple] {
+  min-height: 74px;
+  max-height: 100px;
+}
+.voice-form #voice-form-status {
+  margin: 12px 0;
+}
+.voice-form h3 {
+  margin-top: 0;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+@media (max-width: 950px) {
+  .studio-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .studio-toolbar nav {
+    flex-shrink: 1;
+    width: 100%;
+  }
+  .destination {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .destination select {
+    margin: 0;
+    max-width: none;
+    flex: 1;
+  }
+}
+@media (max-width: 650px) {
+  #workspace > .heading h1 {
+    font-size: 25px;
+  }
+  .voice-summary,
+  .record-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .voice-library > .heading,
+  .voice-form > .heading {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .voice-form .reading-text {
+    font-size: 18px;
+  }
+  .voice-form-actions {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding: 12px 0;
+  }
+}
+
+#workspace[data-section="voices"] > .heading {
+  display: none;
+}
+.voice-form-actions {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 2;
+  padding: 12px 0;
+}
+.voice-form .reading-card .muted {
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.editor-save-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.scene {
+  padding: 12px 0;
+}
+.scene > summary {
+  padding: 8px 0;
+}
+.history-job > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.history-job > summary > span:first-child {
+  flex: 1;
+}
+.history-job > summary::before {
+  content: "▸";
+}
+.history-job[open] > summary::before {
+  content: "▾";
+}
+.history-job h3 {
+  display: none;
 }

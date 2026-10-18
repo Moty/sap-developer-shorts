@@ -117,9 +117,9 @@ export class WorkspaceService {
   async list(
     context: Context,
     collection: "episodes" | "jobs" | "assets" | "workers" | "voiceProfiles",
-  ) {
+  ): Promise<RecordData[]> {
     const records = await this.db.list(child(context, collection));
-    return records
+    const visible = records
       .filter(
         (item) =>
           (collection !== "voiceProfiles" || item.ownerId === context.uid) &&
@@ -127,14 +127,30 @@ export class WorkspaceService {
             !["sample", "audition"].includes(String(item.kind)) ||
             item.ownerId === context.uid),
       )
-      .sort((a, b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0))
-      .map((item) =>
-        collection === "workers"
-          ? this.workerView(item as Worker)
-          : collection === "jobs"
-            ? this.jobView(item as Job)
-            : this.safeRecord(item),
-      );
+      .sort((a, b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0));
+    return Promise.all(
+      visible.map(async (item) => {
+        if (collection === "workers") return this.workerView(item as Worker);
+        if (collection === "jobs") return this.jobView(item as Job);
+        const safe = this.safeRecord(item);
+        if (collection !== "voiceProfiles") return safe;
+        const approvals = await this.db.list(
+          `${child(context, "voiceProfiles", String(item.id))}/approvals`,
+        );
+        return {
+          ...safe,
+          acceptedAuditions: approvals
+            .filter((approval) => approval.accepted === true && approval.revision === item.revision)
+            .map(({ engine, runtimeDigest, revision, auditionJobId, acceptedAt }) => ({
+              engine,
+              runtimeDigest,
+              revision,
+              auditionJobId,
+              acceptedAt,
+            })),
+        };
+      }),
+    );
   }
   private safeRecord(item: RecordData) {
     const { path, leaseHash, credentialHash, transcript, ...safe } = item;
@@ -153,6 +169,12 @@ export class WorkspaceService {
     const profiles = job.snapshot.voices as { profile: RecordData; speakerId: string }[];
     return {
       ...safe,
+      ...(job.kind === "audition" && profiles[0]
+        ? {
+            voiceProfileId: profiles[0].profile.id,
+            voiceRevision: profiles[0].profile.revision,
+          }
+        : {}),
       title:
         job.kind === "audition"
           ? `Audition: ${profiles[0]?.profile.name ?? "My voice"}`
@@ -654,7 +676,7 @@ export class WorkspaceService {
         fail(
           409,
           "VOICE_APPROVAL_REQUIRED",
-          `Listen to and accept an audition for ${engine} first.`,
+          `Open My voices and listen to the audition for "${profile.name}", then accept it before producing.`,
         );
       voices.push({
         profile,
@@ -718,7 +740,7 @@ export class WorkspaceService {
         fail(
           409,
           "VOICE_APPROVAL_REQUIRED",
-          "Generate and accept an audition on a compatible rendering engine for each selected voice.",
+          "Open My voices to generate and accept an audition on the selected rendering engine for each personal voice.",
         );
     }
     // Re-auditions deliberately use the installed runtime, never an earlier approval.
