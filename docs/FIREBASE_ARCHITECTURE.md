@@ -1,5 +1,11 @@
 # Firebase Cloud Architecture for SAP Developer Shorts
 
+This document describes the earlier shared hybrid architecture. For the proposed
+private account-based platform, use the [accounts and registered rendering engines
+plan](FIREBASE_AUTH_CLOUD_RENDERING_PLAN.md). Its access model replaces the public
+reads and shared collections below; those rules are not suitable for private
+multiuser voice samples. The new architecture is planned, not implemented.
+
 This document outlines the architecture and deployment strategy for transitioning the SAP Developer Shorts Studio from local disk storage and CLI commands to a cloud-connected web application powered by Google Firebase.
 
 ---

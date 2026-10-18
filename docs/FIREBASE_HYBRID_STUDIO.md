@@ -1,5 +1,10 @@
 # Hybrid Firebase Studio & Local Mac Render Worker
 
+For planned email/password login, private Firebase storage, and a registered fleet
+of Mac mini, MacBook Pro, and cloud GPU workers, see the [accounts and rendering
+engines plan](FIREBASE_AUTH_CLOUD_RENDERING_PLAN.md). This guide describes the
+existing shared hybrid mode; it does not provide private multiuser isolation.
+
 The SAP Developer Shorts platform supports dual-mode operation:
 1. **Local & Offline Mode**: Run the creator studio and video rendering entirely on your local Mac using Node.js, Kokoro neural TTS, and Ditto Apple Silicon MPS acceleration.
 2. **Hybrid Cloud Mode**: Host the Creator Studio UI on Google Firebase Hosting (accessible on desktop, iPad, or mobile), with heavy neural speech and video rendering running on your local Mac mini or Apple Silicon laptop via Cloud Firestore and Cloud Storage.
