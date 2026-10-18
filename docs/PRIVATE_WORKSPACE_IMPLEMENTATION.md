@@ -225,3 +225,29 @@ The recorder was not exercised with a real microphone in this change.
 The user's Moty recording and completed, unaccepted audition were located and
 preserved. No personal audition was accepted, no paid job or deployment started,
 and the original untracked personal images and drafts were left out of the commit.
+
+
+## Narration timing recovery — October 17, 2026
+
+Investigated four Joule Work attempts whose totals were 51.0–56.6 seconds while
+all reported a 3.4-second opening. The saved opening remained "Joule Work for
+everyone? Check first." The total was within range; the current 3-second opening
+rule blocked video rendering. That rule measures the recorded scene clip, not
+its separately inserted transition pause. Retry keeps the saved text and voice;
+it is not an automatic rewrite or timing adjustment.
+
+Added backwards-compatible classification of the existing worker diagnostic in
+job DTOs, with frozen script ID/revision links. Timing attempts display **Needs
+script edit**, separate total/opening results, and an edit action rather than a
+retry. The action opens the saved first spoken line, preserves its text, and
+warns if the current draft differs from the failed revision. Existing timing
+limits, sample approvals, other retry paths and historical records are preserved.
+
+Focused checks passed (28 tests including production timing gates). Browser QA
+against the rebuilt local API identified the existing failures and verified the
+latest job opens its exact draft and first spoken line without editing it.
+Full validation passed on Node 22.13.0 in a source-only staged checkout:
+`npm run check` (257 tests, no failures/skips, lint/typecheck, 5 live CAP checks
+and content validation), followed by both builds. Original untracked personal
+photos and presentation drafts were preserved and excluded. No extra personal
+render or paid compute was started, and no user script text was changed.

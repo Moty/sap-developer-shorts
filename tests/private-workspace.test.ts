@@ -743,3 +743,35 @@ test("a voice links multiple workspace photos with a default without invalidatin
   assert.deepEqual(cleared.portraitIds, []);
   assert.equal(cleared.defaultPortraitId, null);
 });
+
+test("timing failures link to the frozen script revision without changing its narration", async () => {
+  const f = await fixture(),
+    device = await f.register(),
+    draft = await f.draft();
+  const job = await f.service.submit(
+    f.context,
+    { episodeId: draft.id, revision: draft.revision, target: { mode: "mac-pool" } },
+    "timing-failure",
+  );
+  const claim = await f.service.claim(device.actor);
+  assert.ok(claim);
+  const failed = await f.service.finishFailure(
+    device.actor,
+    String(job.id),
+    claim.lease,
+    "Narration measured 51.0s; opening 3.4s. Aim for 45–60s total and at most 3s for the opening. Revise the spoken script, save, and produce again.",
+  );
+  assert.equal(failed.state, "FAILED");
+  assert.equal(failed.episodeId, draft.id);
+  assert.equal(failed.episodeRevision, draft.revision);
+  assert.deepEqual(failed.timingReview, {
+    durationSeconds: 51,
+    hookSeconds: 3.4,
+    hookTooLong: true,
+    totalWithinRange: true,
+  });
+  const current = (await f.service.list(f.context, "episodes")).find(
+    (item) => item.id === draft.id,
+  );
+  assert.deepEqual(current?.episode, draft.episode);
+});

@@ -24,6 +24,7 @@ import {
 } from "./contracts.js";
 import type { Database, DatabaseReader } from "./database.js";
 import { validateWorkspaceEpisode, workspaceSpeakers } from "./episodes.js";
+import { narrationTimingReview } from "./timing-review.js";
 import { verifyOutputs } from "./verify-output.js";
 
 const leaseMs = 120_000;
@@ -169,6 +170,13 @@ export class WorkspaceService {
     const profiles = job.snapshot.voices as { profile: RecordData; speakerId: string }[];
     return {
       ...safe,
+      ...(job.kind === "episode"
+        ? {
+            episodeId: job.snapshot.episodeId,
+            episodeRevision: job.snapshot.revision,
+            timingReview: job.state === "FAILED" ? narrationTimingReview(job.issue) : null,
+          }
+        : {}),
       ...(job.kind === "audition" && profiles[0]
         ? {
             voiceProfileId: profiles[0].profile.id,

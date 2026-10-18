@@ -207,6 +207,25 @@ time until ready. Changing a script does not change an already produced video.
 Retries use the frozen revision and selected engine; changed scripts require a
 new production. Identical active submissions are deduplicated.
 
+### Narration timing review
+
+A completed voice recording can still pause production at the narration check.
+The current episode limits are **45–60 seconds total** and an opening clip of
+**at most 3 seconds**. A 51-second recording with a 3.4-second opening misses only
+the opening limit. This is a script-timing check; it does not mean the voice
+sample or its approval failed. The added scene-transition pause is not included
+in the opening's `speechSeconds` measurement; model-generated pauses within the
+recorded clip are included.
+
+History labels these attempts **Needs script edit**, shows opening and total
+measurements separately, and offers **Edit opening** or **Edit narration** instead
+of a retry button. The action opens the current saved draft and adds guidance next
+to the spoken first line without rewriting it. If the draft has changed since
+the failed attempt, the note identifies that distinction. Revise the narration,
+save, and produce its new revision. Plain retry resubmits the earlier saved
+revision and does not shorten the words. Normal retries remain available for
+engine failures and cancellations.
+
 Private media is fetched through the authenticated API into temporary browser
 blobs, including playback/seeking and downloads. There are no permanent public
 Firebase download tokens. Signing out clears private UI/media state. This pilot
