@@ -1369,6 +1369,11 @@ element("voice-reading-use").onclick = () => {
     "Transcript filled. Read these words, or edit the transcript to match your recording.";
 };
 showPassage();
+if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+  element("record-state").textContent = !window.isSecureContext
+    ? "Microphone is blocked by iOS Safari over HTTP. Use 'Or upload audio' below."
+    : "Microphone recording is unavailable in this browser.";
+}
 let recorder: MediaRecorder | null = null;
 let recordingPending = false;
 let recordingStopping = false;
@@ -1440,10 +1445,12 @@ element("record").onclick = () =>
       recorder.stop();
       return;
     }
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined")
-      throw new Error(
-        "Microphone recording is unavailable here. Upload an audio recording instead.",
-      );
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      const msg = !window.isSecureContext
+        ? "Microphone access is blocked by mobile browsers over unencrypted HTTP. Use 'Or upload audio' below (e.g. from Voice Memos) or open the studio on your Mac at http://localhost:5890."
+        : "Microphone recording is unavailable here. Upload an audio recording instead.";
+      throw new Error(msg);
+    }
     recordingPending = true;
     lockRecording(true);
     const recordingGeneration = generation;
