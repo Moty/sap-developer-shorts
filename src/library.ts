@@ -16,6 +16,7 @@ import { buildVtt, readPcmWav } from "./media/audio.js";
 import { validateTiming } from "./media/package.js";
 import { verifiedKokoroVoices } from "./media/voice-assets.js";
 import { collectVoiceSamples, type VoiceSample } from "./media/voice-audition.js";
+import { episodeVoiceDescription } from "./media/voice-display.js";
 import { hasClonedVoices } from "./media/voice-reference.js";
 import { loadVerifiedRun, productionSettings } from "./media/worker.js";
 import { inside, projectRoot, sourceFile } from "./paths.js";
@@ -45,6 +46,7 @@ export interface LibraryEntry {
     receipt?: PackageVideoReceipt;
   };
   download?: EpisodeDownload;
+  recordedVoiceLabel?: string;
 }
 
 export interface LibraryContent {
@@ -287,6 +289,8 @@ export async function buildLibrary(
   const availableVoices =
     settings.localPreview.engine === "kokoro" ? await verifiedKokoroVoices() : [];
   for (const entry of library.entries) {
+    if (entry.preview?.kind === "narrated" && hasClonedVoices(entry.episode))
+      entry.recordedVoiceLabel = await episodeVoiceDescription(entry.episode);
     const download = buildEpisodePackage(entry, now);
     if (download) entry.download = download;
   }

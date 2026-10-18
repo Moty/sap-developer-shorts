@@ -33,7 +33,7 @@ export function recordedNarrator(entry: LibraryEntry): string {
   const timing = JSON.parse(
     entry.preview.files["timing.json"]?.toString("utf8") ?? "null",
   ) as NarrationTiming;
-  if (timing?.schemaVersion === 2) return "Qwen · local cloned voice";
+  if (timing?.schemaVersion === 2) return entry.recordedVoiceLabel ?? "Qwen · local cloned voice";
   if (!timing?.voice) throw new Error("Recorded narration is missing its voice metadata");
   if (timing.engine !== "kokoro") return `System voice · ${timing.voice}`;
   const name = (voice: string) => kokoroVoices.find((item) => item.id === voice)?.name ?? voice;

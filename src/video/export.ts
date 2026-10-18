@@ -14,6 +14,7 @@ import { collectLibrary } from "../library.js";
 import { readPcmWav } from "../media/audio.js";
 import type { NarrationTiming } from "../media/model.js";
 import { validateTiming } from "../media/package.js";
+import { episodeVoiceDescription } from "../media/voice-display.js";
 import { loadVerifiedRun } from "../media/worker.js";
 import { inside, projectRoot, sourceFile } from "../paths.js";
 import { readRuntimeFiles } from "../provenance.js";
@@ -118,13 +119,11 @@ export function loudnessResult(stderr: string) {
   return values as Record<string, string>;
 }
 
-function videoPage(episode: ContentEpisode, timing: NarrationTiming): string {
+async function videoPage(episode: ContentEpisode, timing: NarrationTiming): Promise<string> {
   const seconds = timing.durationSeconds;
   const narrator =
     timing.schemaVersion === 2
-      ? timing.speakers.some((speaker) => speaker.engine === "kokoro")
-        ? "Qwen and Kokoro"
-        : "Qwen"
+      ? esc(await episodeVoiceDescription(episode))
       : timing.engine === "kokoro"
         ? "Kokoro"
         : "local";
@@ -513,7 +512,7 @@ export async function renderVideo(
       );
       await writeFile(resolve(directory, "timing.json"), timingText);
       await writeFile(resolve(directory, "captions.vtt"), preview.files["captions.vtt"] as Buffer);
-      await writeFile(resolve(directory, "review.html"), videoPage(episode, timing));
+      await writeFile(resolve(directory, "review.html"), await videoPage(episode, timing));
       const publicationText = sourceCodeCommit
         ? episode.publication.text.replace(
             "Code link pending repository publication",

@@ -50,9 +50,13 @@ guidance. Setup diagnostics are in `.state/qwen-voice/setup.log`.
 6. Select the saved profile, choose **Generate audition**, and compare the
    reference and generated audio. **I listened · use this voice** accepts the
    current audition and assigns it to the chosen speaker. Acceptance records
-   your listening decision, not an automated quality score.
-7. Save the draft, then **Produce video**. Previously accepted profiles also
-   appear in each speaker's voice menu. Dialogue requires distinct identities;
+   your listening decision, not an automated quality score. Saved auditions
+   return when you reopen the editor. For an already accepted audition, choose
+   **Use this saved voice** or select its name in the speaker's voice menu.
+7. Check the named voices in **Review & produce**, save the draft, then
+   **Produce video**. Saving a sample alone does not change the speaker's
+   selected voice. Previously accepted profiles also appear in each speaker's
+   voice menu. Dialogue requires distinct identities;
    two revisions or names of the same profile do not establish two speakers.
 
 Saving a draft does not generate speech. Narration uses complete scenes or turns,
@@ -148,6 +152,13 @@ Forced alignment follows supplied text and cannot prove each word was actually
 pronounced correctly. Personal resemblance, naturalness and acronym pronunciation
 need the intended speaker's listening feedback; the synthetic fixture does not
 sign off those qualities.
+
+If a video still sounds like the stock narrator, check the selected profile name
+before producing a new version. A synthetic test profile reproduces its test
+reference; it does not use a different saved recording automatically. The
+workspace, production report and video review page identify the personal profile
+used for that narration. Changing a voice in the editor does not replace audio
+in an already produced video.
 
 Upstream references and licenses: [Qwen3-TTS (Apache-2.0)](https://github.com/QwenLM/Qwen3-TTS),
 [MLX Audio (MIT)](https://github.com/Blaizzy/mlx-audio),

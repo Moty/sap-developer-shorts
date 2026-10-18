@@ -582,6 +582,17 @@
     byId("draft-errors").textContent = errors.length
       ? errors.join(" ")
       : "Ready to save a draft or produce a video.";
+    const voiceSummary = byId("production-voice-summary");
+    if (voiceSummary)
+      voiceSummary.textContent = `Voices for this video: ${draft.presentation.speakers
+        .map((speaker, index) => {
+          const select = byId(`speaker-voice-${index}`);
+          const option = Array.from(select.options ?? []).find(
+            (item) => item.value === select.value,
+          );
+          return `${speaker.name} — ${option?.textContent || select.value}`;
+        })
+        .join("; ")}. Saving a voice sample does not change this selection.`;
     byId("produce-command").textContent =
       `npm run shorts -- produce ${draft.baseEpisodeId}@${draft.presentation.variant} --serve`;
     download.disabled = !!errors.length;
@@ -606,6 +617,7 @@
   };
   byId("editor-fields").addEventListener("input", update);
   byId("editor-fields").addEventListener("change", update);
+  document.addEventListener?.("shorts:voices-ready", update);
   download.addEventListener("click", () => {
     if (pendingRecovery) return;
     const { draft, errors } = readDraft();

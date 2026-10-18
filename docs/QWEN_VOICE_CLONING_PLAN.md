@@ -228,3 +228,37 @@ Private integration receipts, models, samples, generated scripts and media remai
 under ignored local state/artifacts or unstaged test variants. No human recording
 was supplied, and no personal voice quality score is claimed. The intended speaker
 should enroll a clean reference and review the audition and full video next.
+
+## Follow-up: selecting the intended personal voice
+
+A user review exposed a selection problem: an earlier video correctly rendered
+its assigned synthetic test profile, while a separately saved human recording
+had not been auditioned, accepted or assigned. Saving a recording alone does not
+replace a speaker's voice. The user subsequently listened to and approved an
+audition from their own saved recording.
+
+- The editor restores verified auditions on reopening and allows accepted voices
+  to be selected again without regenerating the audition. A review summary shows
+  the selected profile name before production. Workspace and video labels also
+  name the profile used in recorded narration.
+- Asynchronous acceptance stays bound to its original profile and speaker.
+  Later choices cannot be overwritten by a delayed response. Regenerating an
+  audition clears its accepted label and retains the new audition when switching
+  between profiles. An independent Astra recheck found no remaining blocker in
+  these fixes.
+- A source-only verification copy passed `npm run check` with **224 tests**, lint,
+  type checking, five live CAP checks and content validation, plus
+  `npm run build`, under Node 22.13.0. Browser verification confirmed the named
+  personal profile, restored reference/audition players and production summary.
+- The approved human profile produced verified seven-scene narration. The first
+  script measured 68.58 seconds and remained blocked by the timing gate. A
+  separate shorter version retained the code and claims and measured **45.300
+  seconds**, with a **2.24-second** hook. Its frozen request uses the approved
+  profile revision; verified audio differs from the earlier synthetic test.
+  Private drafts, reference recordings, transcripts and portraits remain local.
+- The shorter production completed **READY** with the existing realistic local
+  portrait renderer: 1080 × 1920 H.264, 30 fps, stereo AAC at 48 kHz. Full decoding
+  and audio checks passed at **−16.14 LUFS** integrated and **−4.37 dB** true peak.
+  Video artifact digests verified, and browser playback loaded all media with no
+  error at 45.300 seconds. The user approved the audition; the complete video
+  remains available for their assessment of resemblance and naturalness.

@@ -60,9 +60,17 @@ export async function handleVoiceProfileApi(
     }
     assertPrivateVoiceRequest(request, options.token);
     if (url.pathname === "/api/local-voices" && request.method === "GET") {
+      const [runtime, profiles] = await Promise.all([qwenStatus(), listVoiceProfiles()]);
       options.send(response, 200, {
-        runtime: await qwenStatus(),
-        profiles: await listVoiceProfiles(),
+        runtime,
+        profiles: profiles.map((profile) => {
+          const auditionReady = !!(
+            runtime.ready &&
+            "hash" in runtime &&
+            profile.audition?.runtimeHash === runtime.hash
+          );
+          return { ...profile, auditionReady, accepted: profile.accepted && auditionReady };
+        }),
       });
       return true;
     }

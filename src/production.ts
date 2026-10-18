@@ -15,6 +15,7 @@ import { reuseCompletedNarration } from "./media/reuse.js";
 import { mediaNextAction } from "./media/status.js";
 import { MediaStore } from "./media/store.js";
 import { talkingHeadRuntime } from "./media/talking-head.js";
+import { voiceDisplayName } from "./media/voice-display.js";
 import { assertCloudVoiceAllowed, hasClonedVoices, voiceLabel } from "./media/voice-reference.js";
 import {
   advanceMediaJob,
@@ -274,9 +275,15 @@ export async function produce(
       if (hasClonedVoices(job.request.episode)) report.localOnly = true;
       report.mediaJobId = job.id;
       report.inputHash = hash(JSON.stringify(job.request.episode));
-      report.voices = job.request.episode.presentation?.speakers.map((speaker) =>
-        voiceLabel(speaker.voice),
-      ) ?? [job.request.settings.localPreview.voice];
+      report.voices = job.request.episode.presentation
+        ? await Promise.all(
+            job.request.episode.presentation.speakers.map((speaker) =>
+              typeof speaker.voice === "string"
+                ? voiceLabel(speaker.voice)
+                : voiceDisplayName(speaker.voice),
+            ),
+          )
+        : [job.request.settings.localPreview.voice];
       report.presentation = presentationLabel(job.request.episode);
       report.narrationDirectory = job.outputDirectory;
       report.audioReusedFrom = job.audioReuse?.jobId ?? null;
@@ -291,9 +298,15 @@ export async function produce(
       throw new Error("Production requires completed local narration for the chosen episode");
     report.mediaJobId = job.id;
     report.inputHash = hash(JSON.stringify(job.request.episode));
-    report.voices = job.request.episode.presentation?.speakers.map((speaker) =>
-      voiceLabel(speaker.voice),
-    ) ?? [job.request.settings.localPreview.voice];
+    report.voices = job.request.episode.presentation
+      ? await Promise.all(
+          job.request.episode.presentation.speakers.map((speaker) =>
+            typeof speaker.voice === "string"
+              ? voiceLabel(speaker.voice)
+              : voiceDisplayName(speaker.voice),
+          ),
+        )
+      : [job.request.settings.localPreview.voice];
     report.presentation = presentationLabel(job.request.episode);
     report.narrationDirectory = job.outputDirectory;
     report.audioReusedFrom = job.audioReuse?.jobId ?? null;

@@ -199,6 +199,7 @@ async function workshop(
     "produce-progress-text",
     "produce-result",
     "draft-count",
+    "production-voice-summary",
     "draft-errors",
     "produce-command",
     "review-changes",

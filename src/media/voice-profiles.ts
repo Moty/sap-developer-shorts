@@ -236,12 +236,27 @@ export async function listVoiceProfiles(root = profileRoot) {
       const voice = JSON.parse(
         await readFile(resolve(base, entry.name, "head.json"), "utf8"),
       ) as ClonedVoice;
-      const { profile, acceptance } = await readVoiceProfile(voice, { accepted: false, root });
+      const { profile, acceptance, directory } = await readVoiceProfile(voice, {
+        accepted: false,
+        root,
+      });
+      let audition: { runtimeHash: string; sha256: string } | undefined;
+      try {
+        const receipt = JSON.parse(await readFile(resolve(directory, "audition.json"), "utf8"));
+        if (
+          /^[a-f0-9]{64}$/u.test(receipt.runtimeHash) &&
+          receipt.auditionHash === hash(await readFile(resolve(directory, "audition.wav")))
+        )
+          audition = { runtimeHash: receipt.runtimeHash, sha256: receipt.auditionHash };
+      } catch {
+        // An absent or interrupted audition does not hide the original recording.
+      }
       result.push({
         voice,
         name: profile.name,
         durationSeconds: profile.durationSeconds,
         accepted: !!acceptance,
+        ...(audition ? { audition } : {}),
         warnings: profile.warnings,
       });
     } catch {

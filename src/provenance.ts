@@ -94,6 +94,7 @@ export async function runtimeFiles(): Promise<string[]> {
     "media/local-voices",
     "media/qwen",
     "media/voice-reference",
+    "media/voice-display",
     "media/voice-profiles",
     "media/model-lock",
     "media/voice-profile-api",

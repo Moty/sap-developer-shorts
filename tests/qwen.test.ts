@@ -322,6 +322,15 @@ test("profile revisions verify sample bytes, require audition acceptance, reject
     await assert.rejects(readVoiceProfile(result.voice, { root }), /accept/);
     const saved = await readVoiceProfile(result.voice, { root, accepted: false });
     await writeFile(resolve(saved.directory, "audition.wav"), audio);
+    await atomicJson(resolve(saved.directory, "audition.json"), {
+      auditionHash: hash(audio),
+      runtimeHash: "c".repeat(64),
+    });
+    assert.equal((await listVoiceProfiles(root))[0]?.audition?.sha256, hash(audio));
+    await writeFile(resolve(saved.directory, "audition.wav"), "partial");
+    assert.equal((await listVoiceProfiles(root))[0]?.audition, undefined);
+    assert.equal((await listVoiceProfiles(root))[0]?.name, "Fixture");
+    await writeFile(resolve(saved.directory, "audition.wav"), audio);
     await atomicJson(resolve(saved.directory, "accepted.json"), {
       auditionHash: hash(audio),
       runtimeHash: "c".repeat(64),

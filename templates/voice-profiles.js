@@ -43,21 +43,28 @@
   function showSaved() {
     const profile = selected();
     state.selection = (state.selection ?? 0) + 1;
-    state.auditionFor = null;
+    state.auditionFor = profile?.auditionReady ? key(profile.voice) : null;
     state.current = profile?.voice ?? null;
     byId("my-voice-reference").hidden = !profile;
     if (profile) byId("my-voice-reference").src = audioUrl(profile.voice, "reference");
     byId("my-voice-generate").disabled = !profile;
     byId("my-voice-delete").disabled = !profile;
-    byId("my-voice-accept").disabled = true;
-    byId("my-voice-audition").hidden = true;
+    byId("my-voice-accept").disabled = !profile?.auditionReady;
+    byId("my-voice-accept").textContent = profile?.accepted
+      ? "Use this saved voice"
+      : "I listened · use this voice";
+    byId("my-voice-audition").hidden = !profile?.auditionReady;
+    if (profile?.auditionReady)
+      byId("my-voice-audition").src =
+        `${audioUrl(profile.voice, "audition")}&v=${profile.audition?.sha256 ?? "saved"}`;
     if (profile)
       message(
-        `${profile.name} · ${profile.durationSeconds.toFixed(1)}s · ${profile.accepted ? "Ready to use" : "Generate and listen to an audition"}${profile.warnings?.length ? ` · ${profile.warnings.join(" ")}` : ""}`,
+        `${profile.name} · ${profile.durationSeconds.toFixed(1)}s · ${profile.accepted ? "Ready to use" : profile.auditionReady ? "Listen to the saved audition, then use this voice" : "Sample saved. Next: generate and listen to an audition"}${profile.warnings?.length ? ` · ${profile.warnings.join(" ")}` : ""}`,
       );
   }
-  async function refresh(preserve) {
+  async function refresh(preserve, stillCurrent = () => true) {
     const data = await request("");
+    if (!stillCurrent()) return null;
     state.profiles = data.profiles;
     byId("my-voice-runtime").textContent = data.runtime.ready
       ? "Qwen voice cloning is ready on this Mac."
@@ -73,20 +80,25 @@
       option.value = key(profile.voice);
       option.textContent = `${profile.name}${profile.accepted ? " · Ready" : " · Audition needed"}`;
       select.append(option);
-      if (!profile.accepted) continue;
       for (const speakerSelect of document.querySelectorAll('[id^="speaker-voice-"]')) {
         if (speakerSelect.tagName !== "SELECT") continue;
         let item = Array.from(speakerSelect.options).find((item) => item.value === option.value);
+        if (!item && !profile.accepted) continue;
         if (!item) {
           item = document.createElement("option");
           item.value = option.value;
           speakerSelect.append(item);
         }
-        item.textContent = `My voice · ${profile.name}`;
+        item.textContent = `My voice · ${profile.name}${profile.accepted ? "" : " · Audition needed"}`;
       }
     }
+    const assigned = byId(`speaker-voice-${byId("my-voice-speaker").value || "0"}`)?.value;
     if (preserve) select.value = preserve;
+    else if (state.profiles.some((profile) => key(profile.voice) === assigned))
+      select.value = assigned;
     showSaved();
+    document.dispatchEvent?.(new Event("shorts:voices-ready"));
+    return state.selection;
   }
   function loadBlob(blob) {
     if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
@@ -222,12 +234,30 @@
     const button = byId("my-voice-generate");
     button.disabled = true;
     byId("my-voice-accept").disabled = true;
+    state.auditionFor = null;
+    byId("my-voice-audition").hidden = true;
+    byId("my-voice-accept").textContent = "I listened · use this voice";
     const voice = state.current ? structuredClone(state.current) : null;
     const selection = state.selection;
     try {
       if (!voice) return;
       message("Generating a local audition. Allow about half a minute…");
       await request("/audition", { voice });
+      const profile = state.profiles.find((item) => key(item.voice) === key(voice));
+      if (profile) {
+        profile.auditionReady = true;
+        profile.accepted = false;
+        delete profile.audition;
+        const option = Array.from(byId("my-voice-saved").options).find(
+          (item) => item.value === key(voice),
+        );
+        if (option) option.textContent = `${profile.name} · Audition needed`;
+        for (const select of document.querySelectorAll('[id^="speaker-voice-"]')) {
+          if (select.tagName !== "SELECT") continue;
+          const item = Array.from(select.options).find((item) => item.value === key(voice));
+          if (item) item.textContent = `My voice · ${profile.name} · Audition needed`;
+        }
+      }
       if (selection !== state.selection || !state.current || key(state.current) !== key(voice))
         return;
       state.auditionFor = key(voice);
@@ -248,10 +278,16 @@
         throw new Error("Generate an audition for the selected voice first.");
       const voice = structuredClone(state.current);
       const selection = state.selection;
+      const speaker = byId("my-voice-speaker").value || "0";
+      const select = byId(`speaker-voice-${speaker}`);
+      const previousVoice = select.value;
+      const sameTarget = () =>
+        (byId("my-voice-speaker").value || "0") === speaker && select.value === previousVoice;
+      const stillCurrent = () => selection === state.selection && sameTarget();
       await request("/accept", { voice });
-      if (selection !== state.selection) return;
-      await refresh(key(voice));
-      const select = byId(`speaker-voice-${byId("my-voice-speaker").value}`);
+      if (!stillCurrent()) return;
+      const refreshed = await refresh(key(voice), stillCurrent);
+      if (refreshed === null || refreshed !== state.selection || !sameTarget()) return;
       select.value = key(voice);
       select.dispatchEvent(new Event("change", { bubbles: true }));
       message("Voice accepted and selected. Save your draft, or produce the video.");
@@ -259,6 +295,12 @@
       message(error.message);
     }
   });
+  byId("my-voice-speaker").addEventListener("change", showSaved);
+  for (const select of document.querySelectorAll('[id^="speaker-voice-"]'))
+    if (select.tagName === "SELECT")
+      select.addEventListener("change", () => {
+        state.selection = (state.selection ?? 0) + 1;
+      });
   byId("my-voice-delete").addEventListener("click", async () => {
     try {
       if (!state.current) return;
