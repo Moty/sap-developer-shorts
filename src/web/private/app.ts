@@ -26,6 +26,16 @@ const notice = (message: string, error = false) => {
   element("notice").textContent = message;
   element("notice").classList.toggle("error", error);
 };
+const uuid = (): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 const config = await (await fetch("/v1/config")).json();
 element("cloud-status").textContent = config.cloudEnabled
   ? "Enabled · on-demand paid compute"
@@ -783,7 +793,7 @@ element("produce").onclick = () =>
       workspace("jobs"),
       { kind: "episode", episodeId: saved.id, revision: saved.revision, target: target() },
       "POST",
-      { "idempotency-key": crypto.randomUUID() },
+      { "idempotency-key": uuid() },
     );
     notice("Production queued. Find it in Generation history.");
     await refresh();
@@ -840,7 +850,7 @@ async function queueAudition(voice: Data) {
     workspace("jobs"),
     { kind: "audition", profileId: voice.id, target: target() },
     "POST",
-    { "idempotency-key": crypto.randomUUID() },
+    { "idempotency-key": uuid() },
   );
   notice("Audition queued. Stay here; playback and approval will appear when it finishes.");
   await refresh();
@@ -1242,7 +1252,7 @@ async function renderJobs(jobs: Data[]) {
       item.append(
         action("Retry with selected engine", async () => {
           await api(workspace(`jobs/${job.id}/retry`), { target: target() }, "POST", {
-            "idempotency-key": crypto.randomUUID(),
+            "idempotency-key": uuid(),
           });
           await refresh();
         }),

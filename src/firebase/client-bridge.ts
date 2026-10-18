@@ -60,6 +60,17 @@ export function renderFirebaseBridgeScript(config: FirebaseClientConfig): string
       .join("");
   }
 
+  function uuid() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   async function ensureAuthToken() {
     if (!CONFIG.apiKey || Date.now() < authUnavailableUntil) return null;
     if (cachedToken && cachedTokenExpiry - Date.now() > 60000) {
@@ -793,7 +804,7 @@ export function renderFirebaseBridgeScript(config: FirebaseClientConfig): string
           stage: running.data.stage,
         });
       }
-      const jobId = crypto.randomUUID();
+      const jobId = uuid();
       const now = new Date().toISOString();
       await fsSetDoc("productions", jobId, {
         schemaVersion: 1,
@@ -837,7 +848,7 @@ export function renderFirebaseBridgeScript(config: FirebaseClientConfig): string
       if (!body.text || typeof body.text !== "string" || !body.text.trim()) {
         return jsonResponse(400, { error: "Text is required for audition" });
       }
-      const auditionId = crypto.randomUUID();
+      const auditionId = uuid();
       const now = new Date().toISOString();
       await fsSetDoc("auditions", auditionId, {
         id: auditionId,

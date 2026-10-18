@@ -2,6 +2,14 @@
   "projects": {
     "default": "sap-shorts-160871"
   },
-  "targets": {},
+  "targets": {
+    "sap-shorts-160871": {
+      "storage": {
+        "sample-firebase-ai-app-n-dda65": [
+          "sample-firebase-ai-app-n-dda65.firebasestorage.app"
+        ]
+      }
+    }
+  },
   "etags": {}
 }
