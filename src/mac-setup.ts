@@ -82,6 +82,14 @@ export async function runMacSetup(options: MacSetupOptions = {}): Promise<boolea
     );
   }
 
+  try {
+    const { qwenRuntime } = await import("./media/qwen.js");
+    const qwen = await qwenRuntime();
+    log(`  ✓ Qwen voice cloning verified (engine: ${qwen.engine})`);
+  } catch {
+    log("  ℹ Qwen voice cloning optional (setup with: npm run shorts -- voice-clone-setup)");
+  }
+
   // 5. Build Initial Local Studio Library
   log("\n[5/5] Building initial Studio Library artifact...");
   const built = await buildLibrary();

@@ -48,6 +48,15 @@ export async function doctor(): Promise<boolean> {
       ? `OPTIONAL Portrait: local Ditto models ready (${portrait.accelerator}); output quality still needs review.`
       : "OPTIONAL Portrait: run npm run shorts -- talking-head-setup for realistic photo narration.",
   );
+  try {
+    const { qwenRuntime } = await import("./media/qwen.js");
+    const qwen = await qwenRuntime();
+    console.log(`OPTIONAL Voice Clone: local Qwen models ready (${qwen.engine}).`);
+  } catch {
+    console.log(
+      "OPTIONAL Voice Clone: run npm run shorts -- voice-clone-setup for personal voice cloning.",
+    );
+  }
   console.log("Publishing: not connected.");
   return healthy;
 }
