@@ -31,11 +31,13 @@ export async function loadPrivateConfig(path = process.env.SHORTS_PRIVATE_CONFIG
   if (emulator && !projectId.startsWith("demo-"))
     fail(500, "UNSAFE_CONFIG", "Emulator mode requires a demo- project ID.");
   const origin = new URL(text(raw.origin, "studio origin", 300));
-  if (
-    origin.protocol !== "https:" &&
-    !["127.0.0.1", "localhost"].includes(origin.hostname)
-  )
-    fail(500, "UNSAFE_CONFIG", "Private studio requires HTTPS outside loopback emulators.");
+  const isLocalHost =
+    ["127.0.0.1", "localhost"].includes(origin.hostname) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname);
+  if (origin.protocol !== "https:" && !isLocalHost)
+    fail(500, "UNSAFE_CONFIG", "Private studio requires HTTPS outside local networks.");
   if (origin.pathname !== "/" || origin.search || origin.hash || origin.username || origin.password)
     fail(500, "UNSAFE_CONFIG", "Configure an origin without a path or credentials.");
   const endpoint = (key: string, fallback: string) => {

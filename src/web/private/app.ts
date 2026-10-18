@@ -119,7 +119,20 @@ async function api(
     },
     ...(input !== undefined ? { body: JSON.stringify(input) } : {}),
   });
-  const data = await response.json();
+  const rawText = await response.text();
+  let data: any;
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    if (!response.ok) {
+      if (response.status === 404)
+        throw new Error(
+          "API backend unavailable. Connect to your local network (e.g. http://192.168.50.49:5890) where the studio server is running.",
+        );
+      throw new Error(`Server returned status ${response.status}`);
+    }
+    throw new Error("Invalid response from server.");
+  }
   if (version !== generation) throw new Error("The session changed. Open your workspace again.");
   if (!response.ok)
     throw Object.assign(new Error(data.error ?? "Request failed."), { code: data.code });
