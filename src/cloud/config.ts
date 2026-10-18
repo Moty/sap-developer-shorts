@@ -33,7 +33,7 @@ export async function loadPrivateConfig(path = process.env.SHORTS_PRIVATE_CONFIG
   const origin = new URL(text(raw.origin, "studio origin", 300));
   if (
     origin.protocol !== "https:" &&
-    !(emulator && ["127.0.0.1", "localhost"].includes(origin.hostname))
+    !["127.0.0.1", "localhost"].includes(origin.hostname)
   )
     fail(500, "UNSAFE_CONFIG", "Private studio requires HTTPS outside loopback emulators.");
   if (origin.pathname !== "/" || origin.search || origin.hash || origin.username || origin.password)

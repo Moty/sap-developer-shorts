@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "sap-shorts-private",
     "public": "dist/private-studio",
     "ignore": ["**/.*", "**/node_modules/**"],
     "headers": [

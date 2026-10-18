@@ -86,7 +86,12 @@ export function createPrivateServer(
       try {
         const url = new URL(request.url ?? "/", config.origin);
         const path = url.pathname;
-        if (request.headers.origin && request.headers.origin !== config.origin)
+        const loopbackOrigins = [`http://localhost:${config.port}`, `http://127.0.0.1:${config.port}`];
+        if (
+          request.headers.origin &&
+          request.headers.origin !== config.origin &&
+          !loopbackOrigins.includes(request.headers.origin)
+        )
           fail(403, "ORIGIN_DENIED", "Use this workspace's studio.");
         if (path === "/healthz") {
           send(response, { status: "ok", mode: "private-workspace" });

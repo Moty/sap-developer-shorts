@@ -44,3 +44,5 @@ __pycache__/
 # Generated container inventories and approved public template copies
 config/worker-files.json
 config/private-templates/
+config/private/
+
