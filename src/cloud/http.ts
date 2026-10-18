@@ -90,7 +90,11 @@ export function createPrivateServer(
           if (orig === config.origin) return true;
           try {
             const u = new URL(orig);
-            if (u.port !== String(config.port)) return false;
+            const isStandardPort =
+              u.port === "" ||
+              (u.protocol === "https:" && u.port === "443") ||
+              (u.protocol === "http:" && u.port === "80");
+            if (u.port !== String(config.port) && !isStandardPort) return false;
             return (
               ["localhost", "127.0.0.1", "mordechais-mac-mini"].includes(u.hostname) ||
               u.hostname.endsWith(".ts.net") ||
@@ -105,6 +109,22 @@ export function createPrivateServer(
         };
         if (request.headers.origin && !isAllowedOrigin(request.headers.origin))
           fail(403, "ORIGIN_DENIED", "Use this workspace's studio.");
+        if (request.headers.origin && isAllowedOrigin(request.headers.origin)) {
+          response.setHeader("access-control-allow-origin", request.headers.origin);
+          response.setHeader(
+            "access-control-allow-headers",
+            "content-type, authorization, idempotency-key, x-voice-metadata",
+          );
+          response.setHeader(
+            "access-control-allow-methods",
+            "GET, POST, PUT, DELETE, OPTIONS, HEAD",
+          );
+        }
+        if (request.method === "OPTIONS") {
+          response.statusCode = 204;
+          response.end();
+          return;
+        }
         if (path === "/healthz") {
           send(response, { status: "ok", mode: "private-workspace" });
           return;
@@ -130,7 +150,8 @@ export function createPrivateServer(
               "/app.css": "app.css",
             } as Record<string, string>
           )[path];
-          if (!file || request.method !== "GET") fail(404, "NOT_FOUND", "Page unavailable.");
+          if (!file || (request.method !== "GET" && request.method !== "HEAD"))
+            fail(404, "NOT_FOUND", "Page unavailable.");
           response.setHeader(
             "content-security-policy",
             `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com ${config.emulator ? `http://${config.authEmulator}` : ""}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
@@ -143,6 +164,10 @@ export function createPrivateServer(
                 ? "text/javascript"
                 : "text/css",
           );
+          if (request.method === "HEAD") {
+            response.end();
+            return;
+          }
           response.end(await readFile(resolve(directory, file)));
           return;
         }
