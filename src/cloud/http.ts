@@ -154,7 +154,7 @@ export function createPrivateServer(
             fail(404, "NOT_FOUND", "Page unavailable.");
           response.setHeader(
             "content-security-policy",
-            `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com ${config.emulator ? `http://${config.authEmulator}` : ""}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
+            `default-src 'none'; script-src 'self' https://apis.google.com https://www.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.googleapis.com https://${config.authDomain} ${config.emulator ? `http://${config.authEmulator}` : ""}; frame-src 'self' https://${config.authDomain} https://*.firebaseapp.com https://www.google.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self' javascript:`,
           );
           response.setHeader(
             "content-type",

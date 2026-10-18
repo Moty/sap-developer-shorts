@@ -26,6 +26,16 @@ const notice = (message: string, error = false) => {
   element("notice").textContent = message;
   element("notice").classList.toggle("error", error);
 };
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (event) => {
+    const msg = event.message || (event.error && (event.error as Error).message) || String(event);
+    notice(`Client error: ${msg}`, true);
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    const msg = (event.reason && (event.reason as Error).message) || String(event.reason);
+    notice(`Error: ${msg}`, true);
+  });
+}
 const uuid = (): string => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -191,10 +201,14 @@ document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((button) => {
   button.onclick = () => showTab(button.dataset.tab ?? "episodes");
 });
 async function authenticate(signup = false) {
-  await setPersistence(
-    auth,
-    field("remember").checked ? browserLocalPersistence : browserSessionPersistence,
-  );
+  try {
+    await setPersistence(
+      auth,
+      field("remember").checked ? browserLocalPersistence : browserSessionPersistence,
+    );
+  } catch (error) {
+    console.warn("Auth persistence fallback", error);
+  }
   if (signup) {
     const result = await createUserWithEmailAndPassword(
       auth,
@@ -206,6 +220,12 @@ async function authenticate(signup = false) {
   } else await signInWithEmailAndPassword(auth, field("email").value, field("password").value);
 }
 element<HTMLFormElement>("auth-form").onsubmit = (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  void run(() => authenticate());
+  return false;
+};
+element("signin-button").onclick = (event) => {
   event.preventDefault();
   void run(() => authenticate());
 };
@@ -239,23 +259,29 @@ async function enter() {
     action("Sign out", () => signOut(auth), "text"),
   );
   if (!user.emailVerified) return;
-  await api("/v1/bootstrap", {});
-  const account = await api("/v1/me");
-  tenantId = account.workspace.id;
-  templates = await api("/v1/templates");
-  const select = element<HTMLSelectElement>("template");
-  select.replaceChildren();
-  for (const template of templates)
-    select.add(new Option(template.episode.title, template.selector));
-  element("workspace").hidden = false;
-  await refresh();
-  const pairing = /^#pair=([a-zA-Z0-9_-]+)$/u.exec(location.hash);
-  if (pairing) {
-    field("pair-id").value = pairing[1] ?? "";
-    showTab("engines");
+  try {
+    await api("/v1/bootstrap", {});
+    const account = await api("/v1/me");
+    tenantId = account.workspace.id;
+    templates = await api("/v1/templates");
+    const select = element<HTMLSelectElement>("template");
+    select.replaceChildren();
+    for (const template of templates)
+      select.add(new Option(template.episode.title, template.selector));
+    element("workspace").hidden = false;
+    await refresh();
+    const pairing = /^#pair=([a-zA-Z0-9_-]+)$/u.exec(location.hash);
+    if (pairing) {
+      field("pair-id").value = pairing[1] ?? "";
+      showTab("engines");
+    }
+    if (polling) clearInterval(polling);
+    polling = setInterval(() => void run(refresh), 8000);
+  } catch (error) {
+    element("auth").hidden = false;
+    element("workspace").hidden = true;
+    throw error;
   }
-  if (polling) clearInterval(polling);
-  polling = setInterval(() => void run(refresh), 8000);
 }
 onAuthStateChanged(auth, () => {
   generation++;
