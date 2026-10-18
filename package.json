@@ -28,7 +28,7 @@
     "firebase:export": "tsx src/cli.ts firebase-export",
     "firebase:worker": "tsx src/cli.ts firebase-worker",
     "firebase:sync": "tsx src/cli.ts firebase-sync",
-    "firebase:deploy": "npm run firebase:export && npx firebase deploy",
+    "firebase:deploy": "npm run firebase:export && npx firebase deploy --only hosting,firestore:rules",
     "private:build": "tsx scripts/private/build.ts",
     "private:serve": "tsx src/cloud/server.ts",
     "private:emulators": "firebase emulators:start --config firebase.private.json --project demo-sap-shorts-private --only auth,firestore,storage",
