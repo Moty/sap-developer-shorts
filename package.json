@@ -31,6 +31,7 @@
     "firebase:deploy": "npm run firebase:export && npx firebase deploy --only hosting,firestore:rules",
     "private:build": "tsx scripts/private/build.ts",
     "private:serve": "tsx src/cloud/server.ts",
+    "studio": "GOOGLE_APPLICATION_CREDENTIALS=credentials/sample-firebase-ai-app-n-dda65-admin.json SHORTS_PRIVATE_CONFIG=config/private/production.json tsx src/cloud/server.ts",
     "private:emulators": "firebase emulators:start --config firebase.private.json --project demo-sap-shorts-private --only auth,firestore,storage",
     "worker:register": "tsx src/worker/cli.ts register",
     "worker:start": "tsx src/worker/cli.ts start",
