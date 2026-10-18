@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { isNewsEpisode } from "./domain.js";
+import { formatGenerationTime, generationTimingHtml } from "./generation-timing.js";
 import type { LibraryContent, LibraryEntry } from "./library.js";
 import { auditionText, voiceSampleCard } from "./media/voice-audition.js";
 import { kokoroVoice, kokoroVoices } from "./media/voices.js";
@@ -83,7 +84,7 @@ function card(entry: LibraryEntry) {
   return `<article class="episode-card work-row" data-selector="${esc(selector)}" data-kind="${news ? "news" : "tutorial"}" data-stage="${entry.video ? "review" : "editing"}" data-attention="${attention}" data-search="${esc(search)}">
   <div class="work-thumbnail">${entry.video ? `<img src="${prefix}/video/poster.png" alt="" width="54" height="96" loading="lazy">` : `<span>${esc(episode.id.split("-")[0] ?? "SAP")}</span>`}</div>
   <div class="work-title"><div class="work-meta"><span>${esc(episode.id)} · ${news ? "News" : "Tutorial"}</span><span class="version-name">${esc(version)}</span></div><h3>${esc(episode.title)}</h3><p>${esc(presentationLabel(episode))} · ${preview?.kind === "narrated" ? `${preview.durationSeconds.toFixed(1)}s recorded` : `${episode.targetDurationSeconds}s planned`}</p><p class="work-issue" data-work-issue ${attention ? "" : "hidden"}>${attention ? esc(studioReadiness(entry).label) : ""}</p></div>
-  <div class="work-state"><span class="stage-badge" data-work-stage>${entry.video ? "To review" : "Editing"}</span><small data-work-next>${entry.video ? "Video produced · awaiting your review" : "Script saved · video not produced"}</small></div>
+  <div class="work-state"><span class="stage-badge" data-work-stage>${entry.video ? "To review" : "Editing"}</span><small data-work-next>${entry.video ? "Video produced · awaiting your review" : "Script saved · video not produced"}</small>${entry.generation ? `<small>Generated in ${formatGenerationTime(entry.generation.totalMs)}${entry.generation.reusedAudio || entry.generation.reusedVideo ? " · reused media" : ""}</small>` : ""}</div>
   <div class="work-actions"><a class="primary-action" data-work-action href="${prefix}/${entry.video ? "publish.html" : "edit.html"}">${entry.video ? "Review video" : "Continue editing"}</a><details class="work-more"><summary aria-label="More actions for ${esc(selector)}">More</summary><div><a href="${prefix}/edit.html">Edit a new version</a>${entry.video ? `<a href="${videoLinkFor(entry)}">Watch MP4</a>` : ""}${preview ? `<a href="${linkFor(entry)}">Review preview</a>` : ""}<button type="button" class="produce-card-btn" data-selector="${esc(selector)}">${entry.video ? "Re-render MP4" : "Produce saved script"}</button>${entry.download ? `<a href="${prefix}/episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}<span>${esc(recordedNarrator(entry))}</span>${!preview ? "<span>No matching preview yet · No recording yet</span>" : ""}${news ? newsReviewNotice(episode.news, entry.sourceReviewExpired) : ""}</div></details></div></article>`;
 }
 
@@ -197,7 +198,7 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}</div><footer 
                 )
                 .replace(
                   '<div class="links">',
-                  `<div class="links">${entry.download ? `<a href="../episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}`,
+                  `${generationTimingHtml(entry.generation)}<div class="links">${entry.download ? `<a href="../episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}`,
                 )
             : bytes;
         files[`${prefix}/video/${name}`] =

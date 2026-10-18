@@ -30,6 +30,41 @@ async function entry(selector: string, voice = "af_heart"): Promise<LibraryEntry
   };
 }
 
+test("saved review pages show generation time separately from playback duration and preserve media", async () => {
+  const value = await entry("CAP-01@casual");
+  const media = Buffer.from("unchanged verified MP4 fixture");
+  value.video = {
+    renderKey: "fixture",
+    durationSeconds: 55,
+    files: {
+      "review.html": Buffer.from('<!--LIBRARY_BACK--><div class="links"></div>'),
+      "short.mp4": media,
+    },
+  };
+  value.generation = {
+    basis: "generation",
+    totalMs: 538000,
+    stages: { preparationMs: 1000, audioMs: 43000, videoMs: 494000 },
+    reusedAudio: true,
+    reusedVideo: false,
+  };
+  const pages = await createLibraryPages({
+    entries: [value],
+    topics: [],
+    newsTopics: [],
+    budgetCents: 500,
+  });
+  assert.match(String(pages["review.html"]), /55\.0s recorded/);
+  assert.match(String(pages["review.html"]), /Generated in 8m 58s · reused media/);
+  for (const name of ["publish.html", "video/review.html"]) {
+    const html = String(pages[`episodes/CAP-01@casual/${name}`]);
+    assert.match(html, /Total to MP4: 8m 58s/);
+    assert.match(html, /Audio &amp; captions · reused/);
+    assert.match(html, /Video &amp; portrait/);
+  }
+  assert.deepEqual(pages["episodes/CAP-01@casual/video/short.mp4"], media);
+});
+
 test("studio voice labels describe the recording, including an older chosen voice, rather than current defaults", async () => {
   const solo = await entry("CAP-01@casual", "af_bella");
   assert.equal(

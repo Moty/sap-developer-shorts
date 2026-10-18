@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { readContentEpisode } from "./contracts.js";
 import { hash } from "./digest.js";
 import { isNewsEpisode } from "./domain.js";
+import type { GenerationStage, GenerationTiming } from "./generation-timing.js";
 import { buildLibrary } from "./library.js";
 import { resolveVoicePlan } from "./media/local-voices.js";
 import type { MediaJob } from "./media/model.js";
@@ -52,6 +53,8 @@ export interface ProductionReport {
   videoDirectory: string | null;
   libraryDirectory: string | null;
   reusedVideo: boolean;
+  reusedAudio?: boolean;
+  generationTiming?: GenerationTiming;
   issue: { code: string; message: string; nextAction: string } | null;
 }
 
@@ -69,7 +72,7 @@ interface ProductionStages {
   preflight(): Promise<void>;
   narration(
     checkpoint: (job: MediaJob) => Promise<void>,
-  ): Promise<{ job: MediaJob; durationSeconds: number; hookSeconds: number }>;
+  ): Promise<{ job: MediaJob; durationSeconds: number; hookSeconds: number; reused?: boolean }>;
   render(mediaJobId: string): Promise<{ directory: string; mediaJobId: string; reused: boolean }>;
   library(mediaJobId: string): Promise<{ directory: string; mediaJobId: string }>;
 }
@@ -153,6 +156,7 @@ function localStages(
     },
     async narration(checkpoint) {
       let job = await planMediaEpisode(selector, "local", "success", { artifactRoot, execution });
+      const alreadyComplete = job.phase === "SUCCEEDED";
       await checkpoint(job);
       const store = await MediaStore.open(mediaDatabase);
       try {
@@ -186,6 +190,7 @@ function localStages(
           job,
           durationSeconds: recorded.timing.durationSeconds,
           hookSeconds: recorded.timing.scenes[0]?.speechSeconds ?? Infinity,
+          reused: alreadyComplete || !!job.audioReuse,
         };
       } finally {
         store.close();
@@ -228,6 +233,20 @@ export async function produce(
     options.artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
   );
   const id = randomUUID();
+  const generationStarted = performance.now();
+  const generationTiming: GenerationTiming = { totalMs: 0, stages: {} };
+  let timedStage: GenerationStage | null = null;
+  let stageStarted = generationStarted;
+  const updateTiming = (finish = false) => {
+    if (generationTiming.completedAt) return;
+    const now = performance.now();
+    generationTiming.totalMs = Math.max(0, Math.round(now - generationStarted));
+    const step = timedStage && generationTiming.stages[timedStage];
+    if (step) {
+      step.elapsedMs = Math.max(0, Math.round(now - stageStarted));
+      if (finish) step.completedAt = new Date().toISOString();
+    }
+  };
   const directory = inside(root, `productions/${id}`);
   await mkdir(directory, { recursive: true });
   const report: ProductionReport = {
@@ -250,9 +269,12 @@ export async function produce(
     videoDirectory: null,
     libraryDirectory: null,
     reusedVideo: false,
+    reusedAudio: false,
+    generationTiming,
     issue: null,
   };
   const save = async () => {
+    updateTiming();
     report.updatedAt = new Date().toISOString();
     await writeFile(resolve(directory, "production.tmp"), `${JSON.stringify(report, null, 2)}\n`);
     await rename(resolve(directory, "production.tmp"), resolve(directory, "production.json"));
@@ -261,6 +283,15 @@ export async function produce(
   const stages = { ...localStages(selector, root, progress, options.execution), ...options.stages };
   let current: Stage = "PREFLIGHT";
   const enter = async (stage: Stage) => {
+    updateTiming(true);
+    if (stage === "LIBRARY") {
+      generationTiming.completedAt = new Date().toISOString();
+      timedStage = null;
+    } else {
+      timedStage = stage;
+      stageStarted = performance.now();
+      generationTiming.stages[stage] = { startedAt: new Date().toISOString(), elapsedMs: 0 };
+    }
     current = stage;
     report.stage = stage;
     await save();
@@ -310,6 +341,7 @@ export async function produce(
     report.presentation = presentationLabel(job.request.episode);
     report.narrationDirectory = job.outputDirectory;
     report.audioReusedFrom = job.audioReuse?.jobId ?? null;
+    report.reusedAudio = narration.reused ?? !!job.audioReuse;
     report.durationSeconds = narration.durationSeconds;
     report.hookSeconds = narration.hookSeconds;
     await save();
@@ -340,6 +372,8 @@ export async function produce(
     report.stage = "READY";
     await save();
   } catch (error) {
+    updateTiming(true);
+    generationTiming.completedAt ??= new Date().toISOString();
     report.failedAt = current;
     report.stage = error instanceof ProductionBlocked ? "BLOCKED" : "FAILED";
     report.issue =

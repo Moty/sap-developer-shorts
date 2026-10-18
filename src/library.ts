@@ -11,6 +11,11 @@ import {
   type EpisodeDownload,
   type PackageVideoReceipt,
 } from "./episode-package.js";
+import {
+  type GenerationSummary,
+  generationForOutput,
+  readGenerationReports,
+} from "./generation-timing.js";
 import { createLibraryPages } from "./library-review.js";
 import { buildVtt, readPcmWav } from "./media/audio.js";
 import { validateTiming } from "./media/package.js";
@@ -40,6 +45,7 @@ export interface LibraryEntry {
   preview: LibraryPreview | null;
   sourceReviewExpired: boolean;
   video?: {
+    directory?: string;
     renderKey: string;
     durationSeconds: number;
     files: Record<string, Buffer>;
@@ -47,6 +53,7 @@ export interface LibraryEntry {
   };
   download?: EpisodeDownload;
   recordedVoiceLabel?: string;
+  generation?: GenerationSummary;
 }
 
 export interface LibraryContent {
@@ -97,6 +104,7 @@ export async function collectLibrary(
     throw error;
   }
   let excludedRuns = 0;
+  const generationReports = await readGenerationReports(artifactRoot);
   for (const candidate of directories) {
     if (
       !candidate.isDirectory() ||
@@ -244,6 +252,7 @@ export async function collectLibrary(
         )
           continue;
         entry.video = {
+          directory: videoRoot,
           renderKey: receipt.renderKey,
           durationSeconds: receipt.quality.durationSeconds,
           files,
@@ -253,6 +262,15 @@ export async function collectLibrary(
       } catch {
         excludedRuns++;
       }
+    }
+    if (entry.video?.directory && entry.preview.mediaJobId) {
+      const summary = generationForOutput(generationReports, {
+        selector: episodeSelector(entry.episode),
+        inputHash: hash(JSON.stringify(entry.episode)),
+        mediaJobId: entry.preview.mediaJobId,
+        videoDirectory: entry.video.directory,
+      });
+      if (summary) entry.generation = summary;
     }
   }
   return { entries, excludedRuns };
@@ -363,27 +381,30 @@ export async function buildLibrary(
       audioHash,
       durationSeconds,
     })),
-    episodes: library.entries.map(({ episode, preview, sourceReviewExpired, video }) => ({
-      id: episode.id,
-      selector: episodeSelector(episode),
-      ...(hasClonedVoices(episode) ? { localOnly: true } : {}),
-      ...(video
-        ? { video: { renderKey: video.renderKey, durationSeconds: video.durationSeconds } }
-        : {}),
-      version: episode.version,
-      inputHash: hash(JSON.stringify(episode)),
-      sourceReviewExpired,
-      preview: preview
-        ? {
-            kind: preview.kind,
-            sourceRunId: preview.sourceRunId,
-            sourceManifestHash: preview.sourceManifestHash,
-            mediaJobId: preview.mediaJobId,
-            durationSeconds: preview.durationSeconds,
-            timingReady: preview.timingReady,
-          }
-        : null,
-    })),
+    episodes: library.entries.map(
+      ({ episode, preview, sourceReviewExpired, video, generation }) => ({
+        id: episode.id,
+        selector: episodeSelector(episode),
+        ...(hasClonedVoices(episode) ? { localOnly: true } : {}),
+        ...(generation ? { generation } : {}),
+        ...(video
+          ? { video: { renderKey: video.renderKey, durationSeconds: video.durationSeconds } }
+          : {}),
+        version: episode.version,
+        inputHash: hash(JSON.stringify(episode)),
+        sourceReviewExpired,
+        preview: preview
+          ? {
+              kind: preview.kind,
+              sourceRunId: preview.sourceRunId,
+              sourceManifestHash: preview.sourceManifestHash,
+              mediaJobId: preview.mediaJobId,
+              durationSeconds: preview.durationSeconds,
+              timingReady: preview.timingReady,
+            }
+          : null,
+      }),
+    ),
   };
   await writeFile(
     resolve(temporary, "library-manifest.json"),

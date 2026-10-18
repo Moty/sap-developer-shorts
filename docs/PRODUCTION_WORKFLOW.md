@@ -51,6 +51,30 @@ These show saved work. A saved `READY` report describes that attempt; files may
 have been moved or the draft changed afterward. Rerun `produce` to validate the
 current draft and its saved media before using it.
 
+## Generation time
+
+The workspace, MP4 review and **Review & publish** pages show generation time
+separately from the video's playback duration. New `produce` attempts persist
+elapsed milliseconds and start/finish timestamps for:
+
+- **Preparation:** script, voice and tool checks.
+- **Audio & captions:** source/demo verification, narration, alignment and audio packaging.
+- **Video & portrait:** portrait animation, scene drawing, encoding and video/audio checks.
+
+**Total to MP4** stops when the verified MP4 is ready, before building the refreshed
+studio. Timers use a monotonic clock and include model loading and local waits
+within each stage. They describe that attempt on its rendering machine, rather
+than predicting the next run. Reused audio/video is labeled; its elapsed time
+covers retrieval and verification, not the original synthesis.
+
+Older `READY` reports show **Total recorded run** from their overall timestamps,
+including studio packaging, without an invented stage breakdown. Outputs without
+a matching saved report show that timing was not recorded. The summary is matched
+to the exact script, narration job and video, so a later failed attempt cannot
+replace the timing of a playable output. Rebuild `library` to add these labels to
+existing saved videos; their media files are retained. Standalone `narrate`,
+`render` and voice-audition commands do not create this production breakdown.
+
 ## Open the result
 
 Use the printed studio directory with `serve`, or start an available localhost

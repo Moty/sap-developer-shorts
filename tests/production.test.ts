@@ -253,6 +253,8 @@ test("production persists blocked preflight and timing outcomes without invoking
   assert.equal(blocked.stage, "BLOCKED");
   assert.equal(blocked.failedAt, "PREFLIGHT");
   assert.equal(blocked.issue?.nextAction, "Run voice-setup");
+  assert.deepEqual(Object.keys(blocked.generationTiming?.stages ?? {}), ["PREFLIGHT"]);
+  assert.ok(blocked.generationTiming?.stages.PREFLIGHT?.completedAt);
   assert.equal((await latestProduction("CAP-01", root))?.id, blocked.id);
   const timing = await produce("CAP-01", {
     artifactRoot: root,
@@ -292,6 +294,9 @@ test("production retains completed narration on export failure and rejects a dif
   assert.equal(failed.failedAt, "RENDER");
   assert.equal(failed.mediaJobId, job.id);
   assert.equal(failed.narrationDirectory, job.outputDirectory);
+  assert.ok(failed.generationTiming?.stages.NARRATION?.completedAt);
+  assert.ok(failed.generationTiming?.stages.RENDER?.completedAt);
+  assert.ok(failed.generationTiming?.completedAt);
   const mismatch = await produce("CAP-01", {
     artifactRoot: root,
     stages: {
@@ -313,23 +318,38 @@ test("production retains completed narration on export failure and rejects a dif
 
 test("ready production carries one explicit narration through MP4 and studio and records reusable output", async (t) => {
   const { root, job } = await fixture(t);
+  let timingAtMp4: unknown;
   const report = await produce("CAP-01", {
     artifactRoot: root,
     stages: {
       preflight: async () => {},
-      narration: async () => ({ job, durationSeconds: 55, hookSeconds: 2 }),
+      narration: async () => ({ job, durationSeconds: 55, hookSeconds: 2, reused: true }),
       render: async (id) => {
         assert.equal(id, job.id);
         return { directory: "saved-video", mediaJobId: id, reused: true };
       },
       library: async (id) => {
         assert.equal(id, job.id);
+        const saved = await latestProduction("CAP-01", root);
+        assert.equal(saved?.stage, "LIBRARY");
+        assert.ok(saved?.generationTiming?.completedAt);
+        for (const step of Object.values(saved.generationTiming.stages)) {
+          assert.ok(step.completedAt);
+          assert.ok(step.elapsedMs >= 0);
+        }
+        timingAtMp4 = saved.generationTiming;
         return { directory: "saved-library", mediaJobId: id };
       },
     },
   });
   assert.equal(report.stage, "READY");
   assert.equal(report.reusedVideo, true);
+  assert.equal(report.reusedAudio, true);
+  assert.deepEqual(
+    report.generationTiming,
+    timingAtMp4,
+    "studio packaging must not change MP4 generation time",
+  );
   assert.deepEqual(report.voices, [job.request.settings.localPreview.voice]);
   assert.equal(report.inputHash, hash(JSON.stringify(episode)));
   assert.deepEqual(

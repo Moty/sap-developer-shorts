@@ -56,6 +56,7 @@ export async function runtimeFiles(): Promise<string[]> {
     "library-package",
     "presentation",
     "production",
+    "generation-timing",
     "variants",
     "script-editor",
     "script-import",
