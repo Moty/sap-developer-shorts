@@ -25,14 +25,7 @@ if (input.kind === "audition") {
 } else {
   const { produce } = await import("../production.js");
   const report = await produce(input.episode.id, {
-    progress: (message) =>
-      progress(
-        message.includes("Narrat") || message.includes("Recorded")
-          ? "NARRATION"
-          : message.includes("Render") || message.includes("frame")
-            ? "RENDER"
-            : "PREFLIGHT",
-      ),
+    stageProgress: progress,
     stages: { library: async (mediaJobId) => ({ directory: projectRoot, mediaJobId }) },
   });
   if (report.stage !== "READY" || !report.videoDirectory || !report.narrationDirectory) {

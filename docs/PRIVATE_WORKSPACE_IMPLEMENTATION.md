@@ -251,3 +251,36 @@ Full validation passed on Node 22.13.0 in a source-only staged checkout:
 and content validation), followed by both builds. Original untracked personal
 photos and presentation drafts were preserved and excluded. No extra personal
 render or paid compute was started, and no user script text was changed.
+
+
+## Registered-worker portrait export recovery — October 17, 2026
+
+The next Joule Work attempt passed narration with the user's shortened opening,
+but failed after realistic portrait generation and MP4 encoding. Final input
+verification treated the portrait runtime manifest as a job-local source file,
+although installed models are intentionally held outside the disposable worker
+workspace. The worker also inferred stages from progress-message wording, so
+ordinary video verification messages incorrectly reset the display to PREFLIGHT.
+
+The exporter now verifies the installed portrait runtime through the same model
+root used at render start, checking both its manifest hash and installed engine
+source hashes. Other renderer inputs remain confined to the job workspace.
+Production emits explicit stage events for the worker, independent of human
+progress text. No model reinstallation, new audition or script rewrite was needed.
+
+Validation passed on Node 22.13.0: 258 tests with no failures/skips, lint/typecheck,
+5 live CAP checks, content validation and both builds in a source-only staged
+checkout. Both builds also completed in the local workspace. The regression test
+uses separate job/model roots, succeeds with no job-local model manifest, and
+rejects changed manifests, engine sources, ordinary renderer inputs and missing
+runtime files. Production tests check stage events on success and export failure.
+
+Retried the user's saved revision unchanged through the existing registered Mac
+worker and Firebase emulators. Job `a521f906-d3d7-4969-b0ec-74f0f4535f41` succeeded:
+49.780-second video, 2.24-second opening, 103.707 seconds generation, 9.387 seconds
+queue wait and 114.358 seconds until ready. The job stored video, narration,
+captions, episode package and output manifest. Browser QA opened Watch video and
+confirmed playback at 1080×1920, 49.780 seconds, with no media error. The previously
+rendered portrait sequence was reusable; this run is not a cold-model performance
+benchmark. Personal files stayed untracked, and no paid compute or publication
+was used.

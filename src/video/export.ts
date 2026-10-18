@@ -31,6 +31,7 @@ import { publishedDemoCommit } from "./source.js";
 import { concatTimeline, videoFps, videoTimeline } from "./timeline.js";
 
 const exec = promisify(execFile);
+const portraitRuntimeSource = ".state/portrait-runtime/runtime.json";
 const encoding = {
   width: 1080,
   height: 1920,
@@ -119,6 +120,22 @@ export function loudnessResult(stderr: string) {
   return values as Record<string, string>;
 }
 
+export async function verifyRenderSources(sources: Record<string, string>): Promise<void> {
+  for (const [name, expected] of Object.entries(sources)) {
+    let actual: string | undefined;
+    if (name === portraitRuntimeSource) {
+      // Workers keep installed models outside their disposable job workspace.
+      // Recheck the same runtime and installed engine sources used at render start.
+      const { talkingHeadRuntime } = await import("../media/talking-head.js");
+      const runtime = await talkingHeadRuntime();
+      actual = runtime.installed ? runtime.hash : undefined;
+    } else {
+      actual = hash(await readFile(await sourceFile(name)));
+    }
+    if (actual !== expected) throw new Error(`Renderer input changed: ${name}; retry the export`);
+  }
+}
+
 async function videoPage(episode: ContentEpisode, timing: NarrationTiming): Promise<string> {
   const seconds = timing.durationSeconds;
   const narrator =
@@ -204,7 +221,7 @@ export async function renderVideo(
       throw new Error(
         "Realistic portraits require npm run shorts -- talking-head-setup before rendering.",
       );
-    renderSources[".state/portrait-runtime/runtime.json"] = runtime.hash;
+    renderSources[portraitRuntimeSource] = runtime.hash;
   }
   for (const speaker of episode.presentation?.speakers ?? []) {
     if (speaker.avatar?.mode === "photo" && speaker.avatar.imageId) {
@@ -499,9 +516,7 @@ export async function renderVideo(
       const after = await loadVerifiedRun(sourceDirectory);
       if (after.manifestHash !== preview.sourceManifestHash)
         throw new Error("Source changed during MP4 rendering");
-      for (const [name, expected] of Object.entries(renderSources))
-        if (hash(await readFile(await sourceFile(name))) !== expected)
-          throw new Error(`Renderer input changed: ${name}; retry the export`);
+      await verifyRenderSources(renderSources);
       await rename(resolve(directory, "short.tmp.mp4"), resolve(directory, "short.mp4"));
       await writeFile(
         resolve(directory, "poster.png"),

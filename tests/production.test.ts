@@ -280,8 +280,10 @@ test("production persists blocked preflight and timing outcomes without invoking
 test("production retains completed narration on export failure and rejects a different selected voice job", async (t) => {
   const { root, job } = await fixture(t);
   const narration = async () => ({ job, durationSeconds: 55, hookSeconds: 2 });
+  const stages: string[] = [];
   const failed = await produce("CAP-01", {
     artifactRoot: root,
+    stageProgress: (stage) => stages.push(stage),
     stages: {
       preflight: async () => {},
       narration,
@@ -292,6 +294,7 @@ test("production retains completed narration on export failure and rejects a dif
   });
   assert.equal(failed.stage, "FAILED");
   assert.equal(failed.failedAt, "RENDER");
+  assert.deepEqual(stages, ["PREFLIGHT", "NARRATION", "RENDER"]);
   assert.equal(failed.mediaJobId, job.id);
   assert.equal(failed.narrationDirectory, job.outputDirectory);
   assert.ok(failed.generationTiming?.stages.NARRATION?.completedAt);
@@ -319,8 +322,10 @@ test("production retains completed narration on export failure and rejects a dif
 test("ready production carries one explicit narration through MP4 and studio and records reusable output", async (t) => {
   const { root, job } = await fixture(t);
   let timingAtMp4: unknown;
+  const stages: string[] = [];
   const report = await produce("CAP-01", {
     artifactRoot: root,
+    stageProgress: (stage) => stages.push(stage),
     stages: {
       preflight: async () => {},
       narration: async () => ({ job, durationSeconds: 55, hookSeconds: 2, reused: true }),
@@ -343,6 +348,7 @@ test("ready production carries one explicit narration through MP4 and studio and
     },
   });
   assert.equal(report.stage, "READY");
+  assert.deepEqual(stages, ["PREFLIGHT", "NARRATION", "RENDER", "LIBRARY"]);
   assert.equal(report.reusedVideo, true);
   assert.equal(report.reusedAudio, true);
   assert.deepEqual(

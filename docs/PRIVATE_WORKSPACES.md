@@ -226,6 +226,16 @@ save, and produce its new revision. Plain retry resubmits the earlier saved
 revision and does not shorten the words. Normal retries remain available for
 engine failures and cancellations.
 
+Older registered-worker builds could finish realistic portrait generation and
+then fail the MP4's final input check because they looked for
+`.state/portrait-runtime/runtime.json` inside the disposable job folder. Installed
+models belong to the device's shared model directory. Update the project and run
+`npm run build` on the rendering Mac, then retry the saved job. Reinstalling the
+model or recording another voice sample does not fix this path mismatch. The
+corrected exporter rechecks the installed runtime and its engine source hashes
+before accepting the video. Worker progress now uses explicit production stages;
+ordinary renderer messages can no longer reset its display to `PREFLIGHT`.
+
 Private media is fetched through the authenticated API into temporary browser
 blobs, including playback/seeking and downloads. There are no permanent public
 Firebase download tokens. Signing out clears private UI/media state. This pilot

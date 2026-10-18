@@ -222,6 +222,7 @@ export async function produce(
   options: {
     artifactRoot?: string;
     progress?: (message: string) => void;
+    stageProgress?: (stage: Stage) => void;
     stages?: Partial<ProductionStages>;
     execution?: "local" | "cloud";
   } = {},
@@ -295,6 +296,7 @@ export async function produce(
     current = stage;
     report.stage = stage;
     await save();
+    options.stageProgress?.(stage);
     progress(stage);
   };
   try {
