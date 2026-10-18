@@ -5,7 +5,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { projectRoot } from "../paths.js";
 import { firebaseRenderPermission, firebaseUserVerifier } from "./auth.js";
-import { FirebaseBlobs } from "./blobs.js";
+import { DiskBlobs, FirebaseBlobs } from "./blobs.js";
 import { loadPrivateConfig } from "./config.js";
 import { FirebaseDatabase } from "./database.js";
 import { createPrivateServer } from "./http.js";
@@ -30,9 +30,17 @@ const app = initializeApp(
   },
   "private-studio",
 );
+const storageBucket = getStorage(app).bucket();
+const [bucketExists] = await storageBucket.exists().catch(() => [false]);
+const blobs = bucketExists
+  ? new FirebaseBlobs(storageBucket)
+  : new DiskBlobs(resolve(projectRoot, ".state/blobs"));
+if (!bucketExists) {
+  console.log("Notice: GCS bucket not provisioned on GCP. Media assets stored locally in .state/blobs.");
+}
 const service = new WorkspaceService(
   new FirebaseDatabase(getFirestore(app)),
-  new FirebaseBlobs(getStorage(app).bucket()),
+  blobs,
   {
     pilotEmails: config.pilotEmails,
     isUserActive: firebaseRenderPermission(getAuth(app)),

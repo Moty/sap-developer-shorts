@@ -1,3 +1,5 @@
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import type { getStorage } from "firebase-admin/storage";
 
 type Bucket = ReturnType<ReturnType<typeof getStorage>["bucket"]>;
@@ -52,3 +54,20 @@ export class MemoryBlobs implements BlobStore {
     this.data.delete(valid(path));
   }
 }
+export class DiskBlobs implements BlobStore {
+  constructor(private readonly directory: string) {}
+  async put(path: string, bytes: Buffer, _contentType: string) {
+    const fullPath = resolve(this.directory, valid(path));
+    await mkdir(dirname(fullPath), { recursive: true });
+    await writeFile(fullPath, bytes);
+  }
+  async get(path: string) {
+    const fullPath = resolve(this.directory, valid(path));
+    return readFile(fullPath);
+  }
+  async delete(path: string) {
+    const fullPath = resolve(this.directory, valid(path));
+    await rm(fullPath, { force: true });
+  }
+}
+

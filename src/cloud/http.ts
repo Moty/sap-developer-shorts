@@ -458,13 +458,14 @@ export function createPrivateServer(
               );
             }
           } catch (error) {
+            console.error("Media upload preparation error:", error);
             if (error instanceof ApiError) throw error;
             fail(
               400,
               "MEDIA_INVALID",
               collection === "voices"
                 ? "The voice sample could not be prepared. Use a clear 3–30-second spoken excerpt, an exact transcript, and a supported audio format. Your recording is still available in this form."
-                : "The portrait could not be prepared. Use a valid PNG or JPEG up to 4 MB and 24 megapixels.",
+                : (error instanceof Error && error.message.includes("MB") ? error.message : "The portrait could not be prepared. Use a valid PNG or JPEG up to 4 MB and 24 megapixels."),
             );
           } finally {
             await rm(work, { recursive: true, force: true });
