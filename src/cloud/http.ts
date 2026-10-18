@@ -92,7 +92,9 @@ export function createPrivateServer(
             const u = new URL(orig);
             if (u.port !== String(config.port)) return false;
             return (
-              ["localhost", "127.0.0.1"].includes(u.hostname) ||
+              ["localhost", "127.0.0.1", "mordechais-mac-mini"].includes(u.hostname) ||
+              u.hostname.endsWith(".ts.net") ||
+              /^100\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(u.hostname) ||
               /^192\.168\.\d{1,3}\.\d{1,3}$/u.test(u.hostname) ||
               /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(u.hostname) ||
               /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/u.test(u.hostname)

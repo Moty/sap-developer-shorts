@@ -32,7 +32,9 @@ export async function loadPrivateConfig(path = process.env.SHORTS_PRIVATE_CONFIG
     fail(500, "UNSAFE_CONFIG", "Emulator mode requires a demo- project ID.");
   const origin = new URL(text(raw.origin, "studio origin", 300));
   const isLocalHost =
-    ["127.0.0.1", "localhost"].includes(origin.hostname) ||
+    ["127.0.0.1", "localhost", "mordechais-mac-mini"].includes(origin.hostname) ||
+    origin.hostname.endsWith(".ts.net") ||
+    /^100\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
     /^192\.168\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
     /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
     /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname);
