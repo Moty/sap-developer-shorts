@@ -5,6 +5,7 @@
   "authDomain": "REPLACE_WITH_PRIVATE_AUTH_DOMAIN",
   "appId": "REPLACE_WITH_FIREBASE_WEB_APP_ID",
   "origin": "https://REPLACE_WITH_PRIVATE_STUDIO_HOST",
+  "listenHost": "0.0.0.0",
   "port": 8080,
   "pilotEmails": [],
   "emulator": false

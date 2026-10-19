@@ -291,7 +291,7 @@ test("private voice endpoints require a localhost session and same-origin reques
       headers: { cookie, origin: "https://elsewhere.example", "content-type": "application/json" },
       body: "{}",
     });
-    assert.equal(denied.status, 400);
+    assert.equal(denied.status, 403);
   } finally {
     await new Promise<void>((done) => server.close(() => done()));
     await rm(root, { recursive: true, force: true });

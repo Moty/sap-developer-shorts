@@ -86,27 +86,9 @@ export function createPrivateServer(
       try {
         const url = new URL(request.url ?? "/", config.origin);
         const path = url.pathname;
-        const isAllowedOrigin = (orig: string) => {
-          if (orig === config.origin) return true;
-          try {
-            const u = new URL(orig);
-            const isStandardPort =
-              u.port === "" ||
-              (u.protocol === "https:" && u.port === "443") ||
-              (u.protocol === "http:" && u.port === "80");
-            if (u.port !== String(config.port) && !isStandardPort) return false;
-            return (
-              ["localhost", "127.0.0.1", "mordechais-mac-mini"].includes(u.hostname) ||
-              u.hostname.endsWith(".ts.net") ||
-              /^100\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(u.hostname) ||
-              /^192\.168\.\d{1,3}\.\d{1,3}$/u.test(u.hostname) ||
-              /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(u.hostname) ||
-              /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/u.test(u.hostname)
-            );
-          } catch {
-            return false;
-          }
-        };
+        const isAllowedOrigin = (orig: string) => orig === config.origin;
+        if (path !== "/healthz" && request.headers.host !== new URL(config.origin).host)
+          fail(403, "ORIGIN_DENIED", "Use this workspace's configured studio address.");
         if (request.headers.origin && !isAllowedOrigin(request.headers.origin))
           fail(403, "ORIGIN_DENIED", "Use this workspace's studio.");
         if (request.headers.origin && isAllowedOrigin(request.headers.origin)) {
@@ -490,7 +472,9 @@ export function createPrivateServer(
               "MEDIA_INVALID",
               collection === "voices"
                 ? "The voice sample could not be prepared. Use a clear 3–30-second spoken excerpt, an exact transcript, and a supported audio format. Your recording is still available in this form."
-                : (error instanceof Error && error.message.includes("MB") ? error.message : "The portrait could not be prepared. Use a valid PNG or JPEG up to 4 MB and 24 megapixels."),
+                : error instanceof Error && error.message.includes("MB")
+                  ? error.message
+                  : "The portrait could not be prepared. Use a valid PNG or JPEG up to 4 MB and 24 megapixels.",
             );
           } finally {
             await rm(work, { recursive: true, force: true });

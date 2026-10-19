@@ -284,7 +284,10 @@ reuse the old public bridge deployment commands or rules for this studio.
    staging and production configurations.
 3. Copy `config/private/production.example.json` into an ignored location such as
    `.state/private-config.json`; fill in the actual web config, HTTPS origin,
-   and invited email list. Do not commit private operator configuration.
+   and invited email list. Keep `listenHost` on `127.0.0.1` for a same-Mac
+   reverse proxy. Set it to `0.0.0.0` only for a production container or host
+   whose configured public origin is HTTPS. Do not commit private operator
+   configuration.
 4. Deploy `infra/private/firestore.rules` and `infra/private/storage.rules` through
    `firebase.private.json`, explicitly naming the approved project. Both deny
    direct browser access. The API authenticates/authorizes privileged server calls.
@@ -315,6 +318,15 @@ The Firebase API key in browser configuration is public app configuration. API
 service credentials are workload identities and must never be shipped to the
 browser or paired Macs. A consumer Google/Gemini subscription does not establish
 Firebase/Google Cloud billing coverage.
+
+Plain HTTP is accepted only when the configured origin is `localhost`,
+`127.0.0.1`, or `[::1]`, and the listener defaults to `127.0.0.1`. A LAN address,
+Tailscale address/hostname, or another Mac must use an HTTPS origin. The server
+rejects an all-interface listener for emulator or plaintext configurations, so
+remote phone testing needs the deployed HTTPS studio or an explicitly configured
+HTTPS reverse proxy. The API also rejects requests sent to a host alias or browser
+origin other than the one configured in `origin`; proxies must preserve that
+public host.
 
 ## Optional Google Cloud GPU provider
 

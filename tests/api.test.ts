@@ -158,6 +158,86 @@ test("Studio API production validation and error handling", async (t) => {
   assert.ok(imgBuf.byteLength > 500);
 });
 
+test("Studio API applies one same-origin JSON policy to every mutation route", async (t) => {
+  resetJobsForTest();
+  const directory = await mkdtemp(resolve(tmpdir(), "sap-shorts-api-policy-"));
+  await writeFile(resolve(directory, "review.html"), "Studio Review");
+  const audio = encodePcmWav(Buffer.alloc(sampleRate * 2, 1));
+  let auditionCalls = 0;
+  const { server, url } = await startPreviewServer(directory, 0, "127.0.0.1", {
+    audition: async (text) => {
+      auditionCalls++;
+      return { audio, durationSeconds: 1, spokenText: text };
+    },
+  });
+  t.after(async () => {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+      server.closeAllConnections();
+    });
+    await rm(directory, { recursive: true, force: true });
+    resetJobsForTest();
+  });
+  const base = new URL(url).origin;
+  for (const path of [
+    "/api/workflow",
+    "/api/scripts",
+    "/api/avatars",
+    "/api/audition",
+    "/api/produce",
+    "/api/local-voices/audition",
+  ]) {
+    const response = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://unrelated.example" },
+      body: "{}",
+    });
+    assert.equal(response.status, 403, path);
+  }
+  const crossOriginText = await fetch(`${base}/api/audition`, {
+    method: "POST",
+    headers: { "content-type": "text/plain", origin: "https://unrelated.example" },
+    body: JSON.stringify({ text: "must not run" }),
+  });
+  assert.equal(crossOriginText.status, 403);
+  const sameOriginText = await fetch(`${base}/api/audition`, {
+    method: "POST",
+    headers: { "content-type": "text/plain", origin: base },
+    body: JSON.stringify({ text: "must not run" }),
+  });
+  assert.equal(sameOriginText.status, 403);
+  const misleadingJson = await fetch(`${base}/api/audition`, {
+    method: "POST",
+    headers: { "content-type": "application/json-p", origin: base },
+    body: JSON.stringify({ text: "must not run" }),
+  });
+  assert.equal(misleadingJson.status, 403);
+  const malformedOrigin = await fetch(`${base}/api/audition`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "not a valid origin" },
+    body: JSON.stringify({ text: "must not run" }),
+  });
+  assert.equal(malformedOrigin.status, 403);
+  const wrongScheme = await fetch(`${base}/api/audition`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: base.replace("http://", "https://"),
+    },
+    body: JSON.stringify({ text: "must not run" }),
+  });
+  assert.equal(wrongScheme.status, 403);
+  assert.equal(auditionCalls, 0);
+
+  const allowed = await fetch(`${base}/api/audition`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: base },
+    body: JSON.stringify({ text: "ordinary same-origin request" }),
+  });
+  assert.equal(allowed.status, 200);
+  assert.equal(auditionCalls, 1);
+});
+
 test("Studio API rejects a duplicate edited script before starting a different production", async (t) => {
   resetJobsForTest();
   const directory = await mkdtemp(resolve(tmpdir(), "sap-shorts-api-collision-"));

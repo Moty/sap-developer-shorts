@@ -16,6 +16,25 @@ PCM audio through an injected speech function, so they test request validation,
 arguments, WAV transport, and headers without requiring synthesis. Actual Kokoro
 generation is a separate local integration check.
 
+Legacy Firebase rule behavior has a separate emulator check because it requires
+Java and the Firebase emulator binaries:
+
+```sh
+npm run firebase:test:legacy-rules
+```
+
+The check proves anonymous and ordinary authenticated accounts cannot mutate any
+legacy Firestore workflow collection, an authorized editor can still use every
+explicit schema-valid path, Storage type limits remain enforced, the bucket
+catch-all denies even editors, and exported episode media remains publicly
+readable. The first run may download Firebase emulator jars. This test does not
+deploy rules or inspect a live Firebase project.
+
+API security tests send foreign-origin JSON, foreign-origin `text/plain`,
+same-origin `text/plain`, malformed origins, and a legitimate same-origin JSON
+audition through the real preview server. Private configuration tests reject LAN
+and Tailscale plaintext origins and all-interface plaintext/emulator listeners.
+
 ## Local speech and video checks
 
 With uv and FFmpeg/FFprobe installed:

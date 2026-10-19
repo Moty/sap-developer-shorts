@@ -81,6 +81,28 @@ function sendJson(response: ServerResponse, statusCode: number, data: unknown) {
   response.end(json);
 }
 
+function isSameOriginMutation(request: IncomingMessage) {
+  if (!/^application\/json(?:\s*;|$)/iu.test(request.headers["content-type"] ?? "")) return false;
+  if (
+    request.headers["sec-fetch-site"] &&
+    request.headers["sec-fetch-site"] !== "same-origin" &&
+    request.headers["sec-fetch-site"] !== "none"
+  )
+    return false;
+  const origin = request.headers.origin;
+  if (!origin) return true;
+  try {
+    const parsed = new URL(origin);
+    return (
+      parsed.protocol === "http:" &&
+      parsed.origin === origin &&
+      parsed.host === request.headers.host
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function handleApiRequest(
   request: IncomingMessage,
   response: ServerResponse,
@@ -89,6 +111,10 @@ export async function handleApiRequest(
 ): Promise<boolean> {
   const path = url.pathname;
   if (!path.startsWith("/api/")) return false;
+  if (request.method === "POST" && !isSameOriginMutation(request)) {
+    sendJson(response, 403, { error: "Save changes from this local studio using JSON." });
+    return true;
+  }
   if (
     await handleVoiceProfileApi(request, response, url, {
       ...(options.privateVoiceToken ? { token: options.privateVoiceToken } : {}),
@@ -100,17 +126,6 @@ export async function handleApiRequest(
     })
   )
     return true;
-  if (request.method === "POST" && ["/api/workflow", "/api/scripts"].includes(path)) {
-    const origin = request.headers.origin;
-    if (
-      (origin && new URL(origin).host !== request.headers.host) ||
-      !request.headers["content-type"]?.startsWith("application/json")
-    ) {
-      sendJson(response, 403, { error: "Save changes from this local studio using JSON." });
-      return true;
-    }
-  }
-
   if (path === "/api/workflow" && ["GET", "POST"].includes(request.method ?? "")) {
     try {
       const directory = options.libraryDirectory?.();

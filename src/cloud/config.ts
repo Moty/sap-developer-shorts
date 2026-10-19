@@ -10,6 +10,7 @@ export interface PrivateConfig {
   authDomain: string;
   appId: string;
   origin: string;
+  listenHost: "127.0.0.1" | "::1" | "0.0.0.0";
   pilotEmails: string[];
   port: number;
   emulator: boolean;
@@ -31,15 +32,9 @@ export async function loadPrivateConfig(path = process.env.SHORTS_PRIVATE_CONFIG
   if (emulator && !projectId.startsWith("demo-"))
     fail(500, "UNSAFE_CONFIG", "Emulator mode requires a demo- project ID.");
   const origin = new URL(text(raw.origin, "studio origin", 300));
-  const isLocalHost =
-    ["127.0.0.1", "localhost", "mordechais-mac-mini"].includes(origin.hostname) ||
-    origin.hostname.endsWith(".ts.net") ||
-    /^100\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
-    /^192\.168\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
-    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname) ||
-    /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/u.test(origin.hostname);
-  if (origin.protocol !== "https:" && !isLocalHost)
-    fail(500, "UNSAFE_CONFIG", "Private studio requires HTTPS outside local networks.");
+  const isLoopback = ["127.0.0.1", "localhost", "[::1]"].includes(origin.hostname);
+  if (origin.protocol !== "https:" && !isLoopback)
+    fail(500, "UNSAFE_CONFIG", "Private studio requires HTTPS outside loopback.");
   if (origin.pathname !== "/" || origin.search || origin.hash || origin.username || origin.password)
     fail(500, "UNSAFE_CONFIG", "Configure an origin without a path or credentials.");
   const endpoint = (key: string, fallback: string) => {
@@ -48,6 +43,11 @@ export async function loadPrivateConfig(path = process.env.SHORTS_PRIVATE_CONFIG
       fail(500, "UNSAFE_CONFIG", "Emulators must be bound to loopback.");
     return value;
   };
+  const listenHost = String(raw.listenHost ?? "127.0.0.1");
+  if (!["127.0.0.1", "::1", "0.0.0.0"].includes(listenHost))
+    fail(500, "UNSAFE_CONFIG", "Server listener must use loopback or explicit 0.0.0.0.");
+  if (listenHost === "0.0.0.0" && (emulator || origin.protocol !== "https:"))
+    fail(500, "UNSAFE_CONFIG", "An all-interface listener requires a production HTTPS origin.");
   const config: PrivateConfig = {
     projectId,
     storageBucket: text(raw.storageBucket, "storage bucket"),
@@ -55,6 +55,7 @@ export async function loadPrivateConfig(path = process.env.SHORTS_PRIVATE_CONFIG
     authDomain: text(raw.authDomain, "Auth domain", 200),
     appId: text(raw.appId, "app ID", 200),
     origin: origin.origin,
+    listenHost: listenHost as PrivateConfig["listenHost"],
     pilotEmails: Array.isArray(raw.pilotEmails)
       ? raw.pilotEmails.map((email) => text(email, "pilot email", 254).toLowerCase())
       : [],

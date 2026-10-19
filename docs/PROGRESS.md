@@ -739,3 +739,28 @@ studio and extracted 84.2 MiB archive pass 146 hashes, eleven nested ZIP checks,
 148 archive members, and 231 confined links across 45 HTML files. The native
 studio download matches its archive hash. All earlier artifacts remain intact;
 no speech generation, video export, paid cost, or publication was required.
+
+## Security boundary remediation — October 19, 2026
+
+The legacy shared Firebase rules now require the existing editor/admin policy on
+every mutable Firestore collection and documented Storage prefix. Schema validity
+alone no longer authorizes a write, production ownership can no longer fall back
+to `studio-browser`, worker heartbeat writes require editor authority, and the
+Storage catch-all denies all access. The anonymous static bridge remains useful
+for viewing public exports but is retired as an editing and production client;
+the account-based private workspace is the supported remote creation path.
+
+The private workspace rejects plaintext origins outside loopback and defaults to
+a loopback listener. An explicit `0.0.0.0` listener is accepted only with a
+production HTTPS origin. The local preview server now applies one mutation guard
+to workflow, scripts, avatars, auditions, production, and private voice actions:
+browser POSTs must use same-origin JSON before any route handler can run.
+The private API accepts only its configured Host and browser Origin, preventing a
+secure public configuration from also serving a direct plaintext LAN alias.
+
+Focused API/configuration tests and the legacy Auth/Firestore/Storage emulator
+test cover the original bypasses plus ordinary authorized behavior. Full local
+validation passed with 262 automated tests, five live CAP checks, lint,
+TypeScript, content validation, and the compiled build. The rule emulator test
+also passed independently. No Firebase project, service, media, or publication
+was changed by this remediation.

@@ -264,8 +264,8 @@ service cloud.firestore {
 
     match /episodes/{episodeId} {
       allow read: if true;
-      allow create: if isValidEpisode(request.resource.data, episodeId);
-      allow update: if isValidEpisode(request.resource.data, episodeId) &&
+      allow create: if isEditor() && isValidEpisode(request.resource.data, episodeId);
+      allow update: if isEditor() && isValidEpisode(request.resource.data, episodeId) &&
                        areEpisodeImmutableFieldsUnchanged();
       allow delete: if isEditor();
 
@@ -307,8 +307,8 @@ service cloud.firestore {
 
       match /variants/{variantId} {
         allow read: if true;
-        allow create: if isValidVariant(request.resource.data, episodeId, variantId);
-        allow update: if isValidVariant(request.resource.data, episodeId, variantId) &&
+        allow create: if isEditor() && isValidVariant(request.resource.data, episodeId, variantId);
+        allow update: if isEditor() && isValidVariant(request.resource.data, episodeId, variantId) &&
                          areVariantImmutableFieldsUnchanged();
         allow delete: if isEditor();
       }
@@ -366,13 +366,12 @@ service cloud.firestore {
 
     match /productions/{jobId} {
       allow read: if true;
-      allow create: if isValidProductionJob(request.resource.data, jobId) &&
+      allow create: if isEditor() &&
+                       isValidProductionJob(request.resource.data, jobId) &&
                        request.resource.data.stage in ['PENDING', 'PREFLIGHT'] &&
-                       (!('createdBy' in request.resource.data) ||
-                        request.auth == null ||
-                        request.resource.data.createdBy == request.auth.uid ||
-                        request.resource.data.createdBy == 'studio-browser');
-      allow update: if isValidProductionJob(request.resource.data, jobId) &&
+                       (!('createdBy' in request.resource.data) || request.resource.data.createdBy == request.auth.uid);
+      allow update: if isEditor() &&
+                       isValidProductionJob(request.resource.data, jobId) &&
                        areProductionImmutableFieldsUnchanged() &&
                        isValidStageTransition(resource.data.stage, request.resource.data.stage);
       allow delete: if isEditor();
@@ -485,8 +484,8 @@ service cloud.firestore {
 
     match /workflow/{recordId} {
       allow read: if true;
-      allow create: if isValidWorkflowRecord(request.resource.data);
-      allow update: if isValidWorkflowRecord(request.resource.data) &&
+      allow create: if isEditor() && isValidWorkflowRecord(request.resource.data);
+      allow update: if isEditor() && isValidWorkflowRecord(request.resource.data) &&
                        areWorkflowImmutableFieldsUnchanged();
       allow delete: if isEditor();
     }
@@ -516,8 +515,8 @@ service cloud.firestore {
 
     match /avatars/{imageId} {
       allow read: if true;
-      allow create: if isValidAvatarDoc(request.resource.data, imageId);
-      allow update: if isValidAvatarDoc(request.resource.data, imageId) &&
+      allow create: if isEditor() && isValidAvatarDoc(request.resource.data, imageId);
+      allow update: if isEditor() && isValidAvatarDoc(request.resource.data, imageId) &&
                        areAvatarImmutableFieldsUnchanged();
       allow delete: if isEditor();
     }
@@ -555,8 +554,8 @@ service cloud.firestore {
 
     match /auditions/{auditionId} {
       allow read: if true;
-      allow create: if isValidAuditionDoc(request.resource.data, auditionId);
-      allow update: if isValidAuditionDoc(request.resource.data, auditionId) &&
+      allow create: if isEditor() && isValidAuditionDoc(request.resource.data, auditionId);
+      allow update: if isEditor() && isValidAuditionDoc(request.resource.data, auditionId) &&
                        areAuditionImmutableFieldsUnchanged();
       allow delete: if isEditor();
     }
@@ -585,7 +584,7 @@ service cloud.firestore {
 
     match /workers/{workerId} {
       allow read: if true;
-      allow create, update: if isAuthenticated() && isValidWorkerDoc(request.resource.data, workerId);
+      allow create, update: if isEditor() && isValidWorkerDoc(request.resource.data, workerId);
       allow delete: if isEditor();
     }
 

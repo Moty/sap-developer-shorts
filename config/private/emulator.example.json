@@ -5,6 +5,7 @@
   "authDomain": "demo-sap-shorts-private.firebaseapp.com",
   "appId": "demo-private-studio",
   "origin": "http://127.0.0.1:5890",
+  "listenHost": "127.0.0.1",
   "port": 5890,
   "pilotEmails": ["creator@example.test", "second@example.test"],
   "emulator": true,

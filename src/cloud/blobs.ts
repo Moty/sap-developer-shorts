@@ -70,4 +70,3 @@ export class DiskBlobs implements BlobStore {
     await rm(fullPath, { force: true });
   }
 }
-

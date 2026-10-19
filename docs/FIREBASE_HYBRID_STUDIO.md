@@ -5,6 +5,14 @@ of Mac mini, MacBook Pro, and cloud GPU workers, see the [accounts and rendering
 engines plan](FIREBASE_AUTH_CLOUD_RENDERING_PLAN.md). This guide describes the
 existing shared hybrid mode; it does not provide private multiuser isolation.
 
+The shared bridge is now a compatibility viewer for anonymous browser sessions.
+Firestore and Storage mutations require the legacy editor/admin authorization
+policy, and unknown Storage paths are denied. The bundled bridge signs in
+anonymously, so it cannot edit scripts, upload portraits, request production, or
+write review state. Use the account-based private workspace for those actions.
+Existing exported public media remains readable by design; do not place private
+voice samples, portraits, or workspace data in this legacy project.
+
 The SAP Developer Shorts platform supports dual-mode operation:
 1. **Local & Offline Mode**: Run the creator studio and video rendering entirely on your local Mac using Node.js, Kokoro neural TTS, and Ditto Apple Silicon MPS acceleration.
 2. **Hybrid Cloud Mode**: Host the Creator Studio UI on Google Firebase Hosting (accessible on desktop, iPad, or mobile), with heavy neural speech and video rendering running on your local Mac mini or Apple Silicon laptop via Cloud Firestore and Cloud Storage.
@@ -148,7 +156,9 @@ npm run firebase:worker
 Then open the Firebase Studio on your phone or laptop:
 [https://sap-shorts-160871.web.app/review.html](https://sap-shorts-160871.web.app/review.html)
 
-Any edit, avatar upload, or "Produce Video" request triggered from the cloud UI will immediately be claimed, synthesized, and rendered by your Mac!
+The legacy hosted studio can browse existing public exports. Use the private
+workspace and its registered-worker flow to edit, upload a portrait, or produce
+from another device.
 
 ---
 
@@ -158,7 +168,8 @@ Any edit, avatar upload, or "Produce Video" request triggered from the cloud UI 
 | :--- | :--- |
 | `npm run mac:setup` | Turnkey setup for Apple Silicon Mac (installs models, voices, verifies runtimes). |
 | `npm run firebase:export` | Bundles Studio HTML, CSS, JS, MediaPipe models, and `/firebase-bridge.js` into `dist/studio`. |
-| `npm run firebase:deploy` | Exports the studio and deploys to Firebase Hosting (`firebase deploy`). |
+| `npm run firebase:test:legacy-rules` | Starts disposable Auth, Firestore, and Storage emulators and verifies the legacy authorization boundary. |
+| `npm run firebase:deploy` | Exports the studio and deploys Hosting plus the reviewed Firestore and Storage rules. |
 | `npm run firebase:worker` | Starts the local Mac render worker daemon polling Firestore for production jobs. |
 | `npm run firebase:sync` | Performs a one-time bidirectional sync between local files and Cloud Firestore / Storage. |
 | `npm run shorts -- serve dist/studio` | Serves the exported studio locally with byte-range streaming. |
@@ -176,10 +187,25 @@ The Firebase Hosting environment applies strict security headers while permittin
 }
 ```
 
-### Firestore Security Rules (`firestore.rules`)
-All documents enforce strict schema validation:
+### Firestore and Storage rules
+
+Schema validation is combined with authorization; a structurally valid document
+does not grant permission to write it. Creates, updates, and deletes across
+episodes, variants, production jobs, workflow state, avatars, auditions, and
+worker records require an editor/admin custom claim or the existing verified SAP
+editor policy. Production `createdBy`, when present, must match the authorized
+request UID. Admin SDK workers bypass Firebase rules and therefore require a
+separately reviewed service identity.
+
+Storage keeps intentional public reads only on the four documented export
+prefixes. Writes on those prefixes require the same editor policy, portrait and
+audition uploads retain size/type limits, and the bucket catch-all denies reads
+and writes. `npm run firebase:deploy` includes both rulesets, but deployment still
+requires an explicit operator decision and project selection.
+
+The main document schemas remain constrained:
 - `/episodes/{episodeId}` & `/variants/{variantId}`: Validates episode format, tone, scenes, and duration limits.
 - `/productions/{jobId}`: Validates stage transitions (`PENDING`, `PREFLIGHT`, `NARRATION`, `RENDER`, `LIBRARY`, `READY`, `BLOCKED`, `FAILED`).
-- `/avatars/{avatarId}`: Validates avatar photo metadata, mime types, and MediaPipe face landmark calibration arrays.
+- `/avatars/{avatarId}`: Validates normalized portrait metadata and its content hash.
 - `/auditions/{auditionId}`: Validates voice speed, speaker ID, and synthesized audio attributes.
 - `/workflow/{selector}`: Validates approval state, publication status, and verified media digests.

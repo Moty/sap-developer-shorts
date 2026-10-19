@@ -36,34 +36,30 @@ const blobs = bucketExists
   ? new FirebaseBlobs(storageBucket)
   : new DiskBlobs(resolve(projectRoot, ".state/blobs"));
 if (!bucketExists) {
-  console.log("Notice: GCS bucket not provisioned on GCP. Media assets stored locally in .state/blobs.");
+  console.log(
+    "Notice: GCS bucket not provisioned on GCP. Media assets stored locally in .state/blobs.",
+  );
 }
-const service = new WorkspaceService(
-  new FirebaseDatabase(getFirestore(app)),
-  blobs,
-  {
-    pilotEmails: config.pilotEmails,
-    isUserActive: firebaseRenderPermission(getAuth(app)),
-    ...(config.cloud
-      ? {
-          cloudEnabled: true,
-          cloudRuntime: { engine: "qwen-cuda", digest: config.cloud.runtimeDigest },
-          cloudBudgetCents: config.cloud.budgetCents,
-          cloudAttemptCents: config.cloud.attemptCents,
-        }
-      : {}),
-  },
-);
+const service = new WorkspaceService(new FirebaseDatabase(getFirestore(app)), blobs, {
+  pilotEmails: config.pilotEmails,
+  isUserActive: firebaseRenderPermission(getAuth(app)),
+  ...(config.cloud
+    ? {
+        cloudEnabled: true,
+        cloudRuntime: { engine: "qwen-cuda", digest: config.cloud.runtimeDigest },
+        cloudBudgetCents: config.cloud.budgetCents,
+        cloudAttemptCents: config.cloud.attemptCents,
+      }
+    : {}),
+});
 const server = createPrivateServer(
   service,
   firebaseUserVerifier(getAuth(app)),
   config,
   resolve(projectRoot, "dist/private-studio"),
 );
-server.listen(
-  Number(process.env.PORT ?? config.port),
-  config.emulator ? "127.0.0.1" : "0.0.0.0",
-  () => console.log(`Private studio: ${config.origin}`),
+server.listen(Number(process.env.PORT ?? config.port), config.listenHost, () =>
+  console.log(`Private studio: ${config.origin}`),
 );
 const shutdown = () => server.close(() => process.exit(0));
 process.once("SIGTERM", shutdown);
