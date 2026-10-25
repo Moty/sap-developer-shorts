@@ -631,6 +631,102 @@ export async function handleApiRequest(
     return true;
   }
 
+  // GET /api/news/discover
+  if (request.method === "GET" && path === "/api/news/discover") {
+    try {
+      const { fetchTopSapStories } = await import("./news/fetcher.js");
+      const stories = await fetchTopSapStories({ limit: 12 });
+      sendJson(response, 200, { stories });
+    } catch (error) {
+      sendJson(response, 500, { error: (error as Error).message });
+    }
+    return true;
+  }
+
+  // GET /api/news/drafts
+  if (request.method === "GET" && path === "/api/news/drafts") {
+    try {
+      const { readdir, readFile } = await import("node:fs/promises");
+      const { resolve } = await import("node:path");
+      const { projectRoot } = await import("./paths.js");
+      const dir = resolve(projectRoot, "content/drafts");
+      let files: string[] = [];
+      try {
+        files = (await readdir(dir)).filter((f) => f.endsWith(".json"));
+      } catch {}
+      const drafts = await Promise.all(
+        files.map(async (file) => {
+          try {
+            const raw = JSON.parse(await readFile(resolve(dir, file), "utf8"));
+            return raw;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      sendJson(response, 200, { drafts: drafts.filter(Boolean) });
+    } catch (error) {
+      sendJson(response, 500, { error: (error as Error).message });
+    }
+    return true;
+  }
+
+  // POST /api/news/create
+  if (request.method === "POST" && path === "/api/news/create") {
+    try {
+      const body = (await readJsonBody(request)) as { url?: string; promote?: boolean };
+      if (!body?.url || typeof body.url !== "string") {
+        sendJson(response, 400, { error: "A valid official SAP story URL is required" });
+        return true;
+      }
+      const { createNewsEpisodeFromUrl } = await import("./news/generator.js");
+      const result = await createNewsEpisodeFromUrl(body.url, { promote: Boolean(body.promote) });
+
+      if (options.onLibraryUpdated) {
+        const { buildLibrary } = await import("./library.js");
+        const built = await buildLibrary();
+        await options.onLibraryUpdated(built.directory);
+      }
+
+      sendJson(response, 200, {
+        success: true,
+        episode: result.episode,
+        path: result.path,
+      });
+    } catch (error) {
+      sendJson(response, 500, { error: (error as Error).message });
+    }
+    return true;
+  }
+
+  // POST /api/news/promote
+  if (request.method === "POST" && path === "/api/news/promote") {
+    try {
+      const body = (await readJsonBody(request)) as { id?: string };
+      if (!body?.id || typeof body.id !== "string") {
+        sendJson(response, 400, { error: "Episode ID is required" });
+        return true;
+      }
+      const { promoteNewsDraft } = await import("./news/generator.js");
+      const result = await promoteNewsDraft(body.id);
+
+      if (options.onLibraryUpdated) {
+        const { buildLibrary } = await import("./library.js");
+        const built = await buildLibrary();
+        await options.onLibraryUpdated(built.directory);
+      }
+
+      sendJson(response, 200, {
+        success: true,
+        episode: result.episode,
+        path: result.path,
+      });
+    } catch (error) {
+      sendJson(response, 500, { error: (error as Error).message });
+    }
+    return true;
+  }
+
   // Unknown API route
   sendJson(response, 404, { error: "API route not found" });
   return true;

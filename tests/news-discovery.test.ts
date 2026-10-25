@@ -66,3 +66,47 @@ test("readContentEpisode resolves direct json draft path", async () => {
   const episode = await readContentEpisode("content/drafts/NEWS-03.json");
   assert.equal(episode.id, "NEWS-03");
 });
+
+test("news API endpoints return drafts and reject invalid inputs", async (t) => {
+  const { mkdtemp, rm, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { resolve } = await import("node:path");
+  const { startPreviewServer } = await import("../src/serve.js");
+
+  const directory = await mkdtemp(resolve(tmpdir(), "sap-shorts-news-api-"));
+  await writeFile(resolve(directory, "review.html"), "Review");
+
+  const { server, url } = await startPreviewServer(directory, 0, "127.0.0.1");
+  t.after(async () => {
+    await new Promise<void>((res, rej) => {
+      server.close((err) => (err ? rej(err) : res()));
+      server.closeAllConnections();
+    });
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  const base = new URL(url).origin;
+
+  // GET /api/news/drafts
+  const draftsRes = await fetch(`${base}/api/news/drafts`);
+  assert.equal(draftsRes.status, 200);
+  const draftsData = (await draftsRes.json()) as { drafts: { id: string }[] };
+  assert.ok(Array.isArray(draftsData.drafts));
+  assert.ok(draftsData.drafts.some((d) => d.id === "NEWS-03"));
+
+  // POST /api/news/create without URL fails with 400
+  const createFail = await fetch(`${base}/api/news/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  assert.equal(createFail.status, 400);
+
+  // POST /api/news/promote without ID fails with 400
+  const promoteFail = await fetch(`${base}/api/news/promote`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  assert.equal(promoteFail.status, 400);
+});

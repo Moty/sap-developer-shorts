@@ -406,6 +406,200 @@
       if (btn?.dataset?.selector) {
         e.preventDefault();
         triggerProduction(btn.dataset.selector, btn);
+        return;
+      }
+
+      const createBtn = e.target?.closest ? e.target.closest(".create-short-from-news-btn") : null;
+      if (createBtn?.dataset?.url) {
+        e.preventDefault();
+        createShortDraft(createBtn.dataset.url, createBtn);
+        return;
+      }
+
+      const copyBtn = e.target?.closest ? e.target.closest(".copy-linkedin-btn") : null;
+      if (copyBtn) {
+        e.preventDefault();
+        const rawText = decodeURIComponent(copyBtn.dataset.post || "");
+        if (rawText) {
+          navigator.clipboard.writeText(rawText).then(() => {
+            const original = copyBtn.textContent;
+            copyBtn.textContent = "Copied to clipboard! ✓";
+            setTimeout(() => {
+              copyBtn.textContent = original;
+            }, 2500);
+          });
+        }
+        return;
+      }
+
+      const promoteBtn = e.target?.closest ? e.target.closest(".promote-draft-btn") : null;
+      if (promoteBtn?.dataset?.draftId) {
+        e.preventDefault();
+        const draftId = promoteBtn.dataset.draftId;
+        promoteBtn.disabled = true;
+        promoteBtn.textContent = "Promoting…";
+        fetch("/api/news/promote", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: draftId }),
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
+          .then((data) => {
+            showNewsNotice(`Promoted ${data.episode.id} to content/episodes! Backlog marked draft-ready.`);
+            promoteBtn.textContent = "Promoted ✓";
+            setTimeout(() => {
+              window.location.reload();
+            }, 1200);
+          })
+          .catch((err) => {
+            showNewsNotice(`Promotion failed: ${err.message}`, true);
+            promoteBtn.disabled = false;
+            promoteBtn.textContent = "Promote to Backlog";
+          });
+        return;
+      }
+    });
+
+    // --- SAP News Hub Interactivity ---
+    const scanNewsBtn = document.querySelector("#scan-news-btn");
+    const newsGrid = document.querySelector("#live-news-grid");
+    const customNewsForm = document.querySelector("#custom-news-form");
+    const customNewsUrl = document.querySelector("#custom-news-url");
+    const newsStatusMsg = document.querySelector("#news-status-msg");
+    const stagedGrid = document.querySelector("#staged-drafts-grid");
+
+    function showNewsNotice(message, isError = false) {
+      if (!newsStatusMsg) return;
+      newsStatusMsg.hidden = false;
+      newsStatusMsg.className = `news-status-banner ${isError ? "error" : "success"}`;
+      newsStatusMsg.textContent = message;
+      if (!isError) {
+        setTimeout(() => {
+          newsStatusMsg.hidden = true;
+        }, 8000);
+      }
+    }
+
+    function renderStoryCard(story) {
+      const card = document.createElement("article");
+      card.className = "news-story-card";
+      card.dataset.url = story.link;
+      const scoreClass = story.relevanceScore >= 120 ? "high-score" : "med-score";
+      const tagsHtml = (story.categories || [])
+        .slice(0, 3)
+        .map((c) => `<span class="tag-chip">${c}</span>`)
+        .join("");
+
+      card.innerHTML = `
+        <div class="story-meta">
+          <span class="score-badge ${scoreClass}">Score: ${story.relevanceScore}</span>
+          <span class="story-date">${story.publishedIso || ""}</span>
+          <div class="story-tags">${tagsHtml}</div>
+        </div>
+        <h4 class="story-title"><a href="${story.link}" target="_blank" rel="noreferrer">${story.title} ↗</a></h4>
+        <p class="story-angle"><strong>Suggested Angle:</strong> ${story.angleSuggestion || ""}</p>
+        <div class="story-card-actions">
+          <button type="button" class="create-short-from-news-btn primary-action" data-url="${story.link}">+ Create 55s Short Draft</button>
+        </div>
+      `;
+      return card;
+    }
+
+    async function refreshNewsStories() {
+      if (!scanNewsBtn) return;
+      const originalText = scanNewsBtn.textContent;
+      scanNewsBtn.disabled = true;
+      scanNewsBtn.textContent = "Scanning stories…";
+      showNewsNotice("Scanning live official stories from news.sap.com…");
+      try {
+        const res = await fetch("/api/news/discover");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (Array.isArray(data.stories) && data.stories.length > 0) {
+          if (newsGrid) {
+            newsGrid.innerHTML = "";
+            for (const story of data.stories) {
+              newsGrid.appendChild(renderStoryCard(story));
+            }
+          }
+          showNewsNotice(`Discovered ${data.stories.length} top SAP stories ranked for short videos.`);
+        } else {
+          showNewsNotice("No new stories found at this time.");
+        }
+      } catch (err) {
+        showNewsNotice(`Failed to scan stories: ${err.message}`, true);
+      } finally {
+        scanNewsBtn.disabled = false;
+        scanNewsBtn.textContent = originalText;
+      }
+    }
+
+    async function createShortDraft(url, btn) {
+      if (!url) return;
+      const originalText = btn ? btn.textContent : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Synthesizing draft…";
+      }
+      showNewsNotice("Fetching story details, verifying claims, and generating 7-scene Short draft with LinkedIn copy…");
+      try {
+        const res = await fetch("/api/news/create", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const ep = data.episode;
+        showNewsNotice(`Short draft created: ${ep.id} ("${ep.title}")! Staged in content/drafts.`);
+
+        if (stagedGrid) {
+          const draftCard = document.createElement("article");
+          draftCard.className = "staged-draft-card new-draft-highlight";
+          draftCard.id = `draft-${ep.id}`;
+          draftCard.innerHTML = `
+            <div class="draft-header">
+              <span class="draft-badge">${ep.id} · Staged Draft</span>
+              <span class="draft-duration">${ep.targetDurationSeconds}s · ${ep.scenes ? ep.scenes.length : 7} scenes</span>
+            </div>
+            <h4>${ep.title}</h4>
+            <p class="draft-hook"><strong>Hook:</strong> "${ep.scenes && ep.scenes[0] ? ep.scenes[0].narration : ""}"</p>
+            <details class="draft-linkedin-details">
+              <summary>View companion LinkedIn post copy <span aria-hidden="true">+</span></summary>
+              <pre class="draft-linkedin-text">${ep.publication?.text || ""}</pre>
+            </details>
+            <div class="draft-actions">
+              <button type="button" class="copy-linkedin-btn secondary-action" data-post="${encodeURIComponent(ep.publication?.text || "")}">📋 Copy LinkedIn Post</button>
+              <button type="button" class="promote-draft-btn primary-action" data-draft-id="${ep.id}">Promote to Backlog</button>
+            </div>
+          `;
+          stagedGrid.prepend(draftCard);
+          draftCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      } catch (err) {
+        showNewsNotice(`Draft generation failed: ${err.message}`, true);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      }
+    }
+
+    scanNewsBtn?.addEventListener("click", refreshNewsStories);
+
+    customNewsForm?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const url = customNewsUrl?.value?.trim();
+      if (url) {
+        createShortDraft(url, document.querySelector("#custom-news-submit"));
+        if (customNewsUrl) customNewsUrl.value = "";
       }
     });
   }

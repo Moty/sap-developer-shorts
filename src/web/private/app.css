@@ -620,3 +620,14 @@ button:disabled {
 .history-job h3 {
   display: none;
 }
+.custom-news-bar {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+}
+.custom-news-bar input {
+  flex: 1;
+}
+.custom-news-bar button {
+  white-space: nowrap;
+}

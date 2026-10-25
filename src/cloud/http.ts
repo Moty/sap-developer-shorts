@@ -123,6 +123,24 @@ export function createPrivateServer(
           });
           return;
         }
+        if (path === "/v1/news/discover" && request.method === "GET") {
+          const { fetchTopSapStories } = await import("../news/fetcher.js");
+          send(response, { stories: await fetchTopSapStories({ limit: 10 }) });
+          return;
+        }
+        if (path === "/v1/news/create" && request.method === "POST") {
+          const input = await json(request);
+          const storyUrl = text(input.url, "story URL", 1000);
+          const { fetchStoryDetail } = await import("../news/fetcher.js");
+          const { buildNewsEpisodeFromStory } = await import("../news/generator.js");
+          const story = await fetchStoryDetail(storyUrl);
+          const episode = buildNewsEpisodeFromStory(
+            story,
+            typeof input.id === "string" && input.id.trim() ? input.id.trim() : "NEWS-03",
+          );
+          send(response, { story, episode });
+          return;
+        }
         if (!path.startsWith("/v1/")) {
           const file = (
             {

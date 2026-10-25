@@ -191,11 +191,12 @@ async function upload(path: string, bytes: Blob, headers: Record<string, string>
 }
 function showTab(tab: string) {
   element("workspace").dataset.section = tab;
-  for (const name of ["episodes", "voices", "photos", "engines"])
+  for (const name of ["episodes", "news", "voices", "photos", "engines"])
     element(`${name}-panel`).hidden = tab !== name;
   document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((button) => {
     button.classList.toggle("selected", button.dataset.tab === tab);
   });
+  if (tab === "news") void run(loadCloudNews);
 }
 document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((button) => {
   button.onclick = () => showTab(button.dataset.tab ?? "episodes");
@@ -798,6 +799,89 @@ element("new-script").onclick = () =>
     await refresh();
     openEditor(saved);
   });
+
+async function draftCloudNewsShort(url: string, btn?: HTMLElement) {
+  if (btn && "disabled" in btn) {
+    (btn as HTMLButtonElement).disabled = true;
+    btn.textContent = "Synthesizing…";
+  }
+  const status = element("cloud-news-status");
+  status.textContent = "Synthesizing 7-scene Short draft with dated claims and LinkedIn copy…";
+  try {
+    const result = (await api("/v1/news/create", { url })) as { episode: Data };
+    const saved = await api(workspace("episodes"), {
+      episode: result.episode,
+      expectedRevision: null,
+    });
+    notice(`Draft created: ${result.episode.title}`);
+    await refresh();
+    showTab("episodes");
+    openEditor(saved);
+  } catch (error) {
+    status.textContent = `Draft creation failed: ${(error as Error).message}`;
+    notice(`Draft creation failed: ${(error as Error).message}`, true);
+  } finally {
+    if (btn && "disabled" in btn) {
+      (btn as HTMLButtonElement).disabled = false;
+      btn.textContent = "+ Draft 55s Short";
+    }
+  }
+}
+
+async function loadCloudNews() {
+  const status = element("cloud-news-status");
+  const list = element("cloud-news-list");
+  status.textContent = "Scanning live official stories from news.sap.com…";
+  try {
+    const data = (await api("/v1/news/discover", undefined, "GET")) as {
+      stories: {
+        title: string;
+        link: string;
+        relevanceScore: number;
+        publishedIso: string;
+        categories: string[];
+        angleSuggestion: string;
+      }[];
+    };
+    list.replaceChildren();
+    for (const story of data.stories) {
+      const card = node("article", "", "card");
+      const meta = node("div", "", "meta");
+      const badge = node(
+        "span",
+        `Score: ${story.relevanceScore}`,
+        `badge ${story.relevanceScore >= 120 ? "ready" : ""}`,
+      );
+      const date = node("span", story.publishedIso, "muted");
+      meta.append(badge, date);
+      const titleLink = document.createElement("a");
+      titleLink.href = story.link;
+      titleLink.target = "_blank";
+      titleLink.rel = "noreferrer";
+      titleLink.textContent = `${story.title} ↗`;
+      const title = node("h3");
+      title.append(titleLink);
+      const angle = node("p", `Suggested angle: ${story.angleSuggestion}`, "muted");
+      const btn = node("button", "+ Draft 55s Short", "primary");
+      btn.onclick = () => void run(() => draftCloudNewsShort(story.link, btn));
+      card.append(meta, title, angle, btn);
+      list.append(card);
+    }
+    status.textContent = `Discovered ${data.stories.length} stories ranked by short-form video relevance.`;
+  } catch (error) {
+    status.textContent = `Error discovering news: ${(error as Error).message}`;
+  }
+}
+
+element("refresh-cloud-news").onclick = () => void run(loadCloudNews);
+element<HTMLFormElement>("cloud-custom-news-form").onsubmit = (event) => {
+  event.preventDefault();
+  const url = field("cloud-custom-url").value.trim();
+  if (url) {
+    void run(() => draftCloudNewsShort(url, element("cloud-custom-submit")));
+    field("cloud-custom-url").value = "";
+  }
+};
 async function save() {
   if (!current) throw new Error("Open a script first.");
   current.episode.title = field("episode-title").value;
