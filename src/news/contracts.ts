@@ -130,9 +130,15 @@ export function validateNewsEpisode(
 
 export async function readNewsEpisode(id: string): Promise<NewsEpisode> {
   if (!/^NEWS-\d{2}$/u.test(id)) throw new Error(`Invalid news episode ID: ${id}`);
-  const episode = validateNewsEpisode(
-    JSON.parse(await readFile(resolve(projectRoot, "content/episodes", `${id}.json`), "utf8")),
-  );
+  const episodePath = resolve(projectRoot, "content/episodes", `${id}.json`);
+  let content: string;
+  try {
+    content = await readFile(episodePath, "utf8");
+  } catch {
+    const draftPath = resolve(projectRoot, "content/drafts", `${id}.json`);
+    content = await readFile(draftPath, "utf8");
+  }
+  const episode = validateNewsEpisode(JSON.parse(content));
   if (episode.id !== id) throw new Error("News filename and ID differ");
   return episode;
 }

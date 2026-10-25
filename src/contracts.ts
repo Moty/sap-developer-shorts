@@ -146,6 +146,14 @@ export async function readEpisode(id: string): Promise<Episode> {
 }
 
 export async function readContentEpisode(id: string): Promise<ContentEpisode> {
+  if (id.endsWith(".json")) {
+    const raw: unknown = JSON.parse(await readFile(resolve(projectRoot, id), "utf8"));
+    if (typeof raw === "object" && raw !== null && "format" in raw && (raw as { format: unknown }).format === "news") {
+      const { validateNewsEpisode } = await import("./news/contracts.js");
+      return validateNewsEpisode(raw);
+    }
+    return validateEpisode(raw);
+  }
   if (id.includes("@")) return (await import("./variants.js")).readPresentationVariant(id);
   if (id.startsWith("NEWS-")) {
     return (await import("./news/contracts.js")).readNewsEpisode(id);

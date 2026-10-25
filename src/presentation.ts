@@ -1,5 +1,8 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ContentEpisode } from "./domain.js";
 import { assertVoiceReference, isClonedVoice, voiceIdentity } from "./media/voice-reference.js";
+import { projectRoot } from "./paths.js";
 
 export const presentationFormats = [
   {
@@ -49,8 +52,16 @@ export function variantFile(selector: string): string {
 }
 
 export function episodeSourceFiles(episode: ContentEpisode): string[] {
+  const defaultPath = `content/episodes/${episode.id}.json`;
+  const draftPath = `content/drafts/${episode.id}.json`;
+  const episodePath = existsSync(resolve(projectRoot, defaultPath))
+    ? defaultPath
+    : existsSync(resolve(projectRoot, draftPath))
+      ? draftPath
+      : defaultPath;
+
   return [
-    `content/episodes/${episode.id}.json`,
+    episodePath,
     ...(episode.presentation?.variant ? [variantFile(episodeSelector(episode))] : []),
   ];
 }

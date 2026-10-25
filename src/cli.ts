@@ -455,9 +455,65 @@ try {
       `Workflows: pulled ${report.pulledWorkflows.length}, pushed ${report.pushedWorkflows.length}`,
     );
     console.log("Sync complete.");
+  } else if (command === "news-discover") {
+    const { fetchTopSapStories } = await import("./news/fetcher.js");
+    const limit = args[0] ? Number.parseInt(args[0], 10) : 8;
+    console.log(`Scanning live official stories from news.sap.com (top ${limit})...\n`);
+    const stories = await fetchTopSapStories({ limit });
+    if (!stories.length) {
+      console.log("No stories found matching criteria.");
+    } else {
+      stories.forEach((story, idx) => {
+        console.log(`[${idx + 1}] ${story.title}`);
+        console.log(`    Date:     ${story.publishedIso} | Score: ${story.relevanceScore}`);
+        console.log(`    Tags:     ${story.categories.slice(0, 4).join(", ")}`);
+        console.log(`    Angle:    ${story.angleSuggestion}`);
+        console.log(`    Source:   ${story.link}\n`);
+      });
+      console.log(`To create a short script draft from any story:`);
+      console.log(`  npm run shorts -- news-create 1`);
+      console.log(`  npm run shorts -- news-create <STORY_URL>\n`);
+    }
+  } else if (command === "news-create" && args.length >= 1 && args[0]) {
+    const { fetchTopSapStories } = await import("./news/fetcher.js");
+    const { createNewsEpisodeFromUrl } = await import("./news/generator.js");
+    const promote = args.includes("--promote");
+    let targetUrl = args[0];
+    if (/^\d+$/u.test(args[0])) {
+      const idx = Number.parseInt(args[0], 10) - 1;
+      const stories = await fetchTopSapStories({ limit: Math.max(idx + 1, 10) });
+      if (!stories[idx]) throw new Error(`Story index ${args[0]} not found (1-${stories.length})`);
+      targetUrl = stories[idx].link;
+      console.log(`Selected story #${args[0]}: ${stories[idx].title}`);
+    }
+    console.log(`Generating verified Short script from: ${targetUrl}...`);
+    const result = await createNewsEpisodeFromUrl(targetUrl, { promote });
+    console.log(`\nCreated Short Draft: ${result.episode.id} - "${result.episode.title}"`);
+    console.log(`Target Duration:     ${result.episode.targetDurationSeconds} seconds (${result.episode.scenes.length} scenes)`);
+    console.log(`Hook Scene:          "${result.episode.scenes[0]?.narration ?? ""}" (overlay: "${result.episode.scenes[0]?.overlay ?? ""}")`);
+    console.log(`File:                ${result.path}`);
+    if (result.episode.publication?.text) {
+      console.log(`\n--- Companion LinkedIn Post Draft ---`);
+      console.log(result.episode.publication.text);
+      console.log(`------------------------------------\n`);
+    }
+    console.log(`Next steps:`);
+    console.log(`  Preview storyboard: npm run shorts -- preview ${result.episode.id}`);
+    if (!promote) {
+      console.log(`  Promote to backlog: npm run shorts -- news-promote ${result.episode.id}`);
+    }
+    console.log(`  Produce full video: npm run shorts -- produce ${result.episode.id} --serve\n`);
+  } else if (command === "news-promote" && args.length === 1 && args[0]) {
+    const { promoteNewsDraft } = await import("./news/generator.js");
+    const result = await promoteNewsDraft(args[0]);
+    console.log(`\nPromoted ${result.episode.id} to content/episodes/`);
+    console.log(`Backlog updated: content/news/backlog.json (status: draft-ready)`);
+    console.log(`File: ${result.path}`);
+    console.log(`\nNext steps:`);
+    console.log(`  Produce full video: npm run shorts -- produce ${result.episode.id} --serve\n`);
   } else if (command === "help" && !args.length) {
     console.log(
-      "SAP Developer Shorts\n\n  voice-clone-setup              Install local Qwen cloning and alignment\n  voice-clone-status             Check local Qwen runtime\n  voice-profile-list             List private voice profiles\n  voice-profile-add AUDIO JSON   Enroll audio with transcript and consent\n  voice-profile-audition ID      Generate an enrollment audition\n  voice-profile-accept ID        Accept the audition after listening\n  voice-profile-delete ID        Delete a private voice profile\n  doctor                         Check local prerequisites\n  mac-setup [--skip-heavy-models] One-command setup on any Mac (prereqs, models, studio)\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  firebase-export [OUTPUT_DIR]   Export studio to dist/studio with Cloud CSP & bridge\n  firebase-worker                Run local Mac render worker daemon for Firebase UI\n  firebase-sync                  Bi-directionally sync local drafts, avatars & workflow\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  talking-head-setup             Install and verify local portrait models\n  portrait-status                Check the local portrait renderer\n  portrait-render IMAGE AUDIO [STYLE] Render picture + audio locally\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nPortrait generation runs locally. Publishing is not implemented.",
+      "SAP Developer Shorts\n\n  voice-clone-setup              Install local Qwen cloning and alignment\n  voice-clone-status             Check local Qwen runtime\n  voice-profile-list             List private voice profiles\n  voice-profile-add AUDIO JSON   Enroll audio with transcript and consent\n  voice-profile-audition ID      Generate an enrollment audition\n  voice-profile-accept ID        Accept the audition after listening\n  voice-profile-delete ID        Delete a private voice profile\n  doctor                         Check local prerequisites\n  mac-setup [--skip-heavy-models] One-command setup on any Mac (prereqs, models, studio)\n  produce EPISODE_ID [--serve]    Create/resume narration, MP4, and studio\n  production-status EPISODE_ID    Read the latest saved production report\n  library                        Build the shared episode review hub\n  news-discover [LIMIT]          Scan live official SAP news & rank story ideas\n  news-create STORY [--promote]  Create a verified short script draft from news\n  news-promote DRAFT_ID          Promote a staged draft to active episodes\n  library-package LIBRARY_DIR    Save a verified studio as one portable ZIP\n  serve ARTIFACT_DIRECTORY       Open a local player server on port 4173\n  firebase-export [OUTPUT_DIR]   Export studio to dist/studio with Cloud CSP & bridge\n  firebase-worker                Run local Mac render worker daemon for Firebase UI\n  firebase-sync                  Bi-directionally sync local drafts, avatars & workflow\n  validate [EPISODE_ID]           Validate content\n  verify EPISODE_ID               Verify a demo or dated news source review\n  preview EPISODE_ID              Create a silent storyboard\n  render EPISODE_ID              Export a verified vertical MP4 from saved narration\n  styles                         Browse presentation formats and tones\n  script-import JSON_FILE         Import a revised script as a new delivery version\n  voices [EPISODE_ID]             List voices and explain speaker assignments\n  avatar-setup                   Download the verified local face landmark model\n  talking-head-setup             Install and verify local portrait models\n  portrait-status                Check the local portrait renderer\n  portrait-render IMAGE AUDIO [STYLE] Render picture + audio locally\n  voice-setup [VOICE_ID...]        Install selected/additional local voices\n  voice-audition [VOICE_ID...]     Listen to up to three identical voice samples\n  voice-select VOICE_ID            Choose the default Kokoro narrator\n  narrate EPISODE_ID              Create/resume a free local voice preview\n  media-simulate EPISODE_ID [mode] Test media job recovery\n  jobs [EPISODE_ID]               Find saved jobs and recovery actions\n  media-status JOB_ID             Read saved media state\n  media-package JOB_ID            Rebuild from saved narration without submitting\n  media-step JOB_ID               Advance a saved job once\n\nSimulation modes: success, lost-submit, unknown-submit, poll-timeout, failure\nPortrait generation runs locally. Publishing is not implemented.",
     );
   } else {
     throw new Error("Unknown command or arguments. Run npm run shorts -- help.");
