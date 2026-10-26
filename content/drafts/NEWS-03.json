@@ -9,7 +9,7 @@
   "targetDurationSeconds": 55,
   "news": {
     "event": "SAP Technology Insights 2026",
-    "asOf": "2026-10-25",
+    "asOf": "2026-10-26",
     "maxAgeDays": 7,
     "editorialStatus": "draft",
     "selection": "editorial",
@@ -20,22 +20,22 @@
       "id": "sap-official",
       "title": "SAP Puts the Autonomous Enterprise to Work",
       "url": "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/",
-      "retrievedOn": "2026-10-25",
+      "retrievedOn": "2026-10-26",
       "publisher": "SAP",
-      "publishedOn": "2026-10-25"
+      "publishedOn": "2026-10-26"
     }
   ],
   "claims": [
     {
       "id": "announcement-core",
-      "text": "Joule Work is beginning its customer rollout as a new AI user interface that lets employees interact with SAP solutions in their own languag",
+      "text": "Joule Work is beginning its customer rollout as.",
       "sourceIds": [
         "sap-official"
       ],
-      "checkedOn": "2026-10-25",
+      "checkedOn": "2026-10-26",
       "availability": {
         "status": "announced",
-        "timing": "Published 2026-10-25",
+        "timing": "Published 2026-10-26",
         "scope": "Official SAP news announcement."
       },
       "support": [
@@ -48,11 +48,11 @@
     },
     {
       "id": "technical-impact",
-      "text": "Grounded in business context from SAP Knowledge Graph, which maps more than 7 million data fields, Joule provides information users can rely",
+      "text": "Grounded in business context from SAP Knowledge Graph.",
       "sourceIds": [
         "sap-official"
       ],
-      "checkedOn": "2026-10-25",
+      "checkedOn": "2026-10-26",
       "availability": {
         "status": "announced",
         "timing": "Available in current architecture release",
@@ -68,11 +68,11 @@
     },
     {
       "id": "rollout-availability",
-      "text": "At SAP, Joule Work is already live with 110,000 employees, with the company seeing 20% productivity gains across finance, HR and procurement",
+      "text": "At SAP, Joule Work is already live with.",
       "sourceIds": [
         "sap-official"
       ],
-      "checkedOn": "2026-10-25",
+      "checkedOn": "2026-10-26",
       "availability": {
         "status": "announced",
         "timing": "Ongoing platform rollout",
@@ -111,7 +111,7 @@
       "claimIds": [],
       "visual": {
         "kind": "presenter",
-        "label": "As of 2026-10-25"
+        "label": "As of 2026-10-26"
       }
     },
     {

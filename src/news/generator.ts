@@ -28,7 +28,7 @@ function trimWords(text: string, maxWords: number): string {
   const clean = text.replace(/[\r\n\t]+/gu, " ").replace(/\s+/gu, " ").trim();
   const words = clean.split(/\s+/u).filter(Boolean);
   if (words.length <= maxWords) return clean;
-  const cut = words.slice(0, maxWords).join(" ");
+  const cut = words.slice(0, maxWords).join(" ").replace(/[,;:\s]+$/u, "");
   return /[.!?]$/u.test(cut) ? cut : `${cut}.`;
 }
 
@@ -123,6 +123,10 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
   const headline2Narration = trimWords(`Second, ${cleanQ2}`, 28);
   const headline3Narration = trimWords(`Third, ${cleanQ3}`, 32);
 
+  const claim1Text = trimWords(cleanQ1, 8).slice(0, 75);
+  const claim2Text = trimWords(cleanQ2, 8).slice(0, 75);
+  const claim3Text = trimWords(cleanQ3, 8).slice(0, 75);
+
   const payoffNarration = trimWords(
     `My takeaway: ${story.angleSuggestion || "Connect AI models directly to trusted enterprise data semantics."}`,
     16,
@@ -136,7 +140,7 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
   const claims = [
     {
       id: "announcement-core",
-      text: cleanQ1.slice(0, 140),
+      text: claim1Text,
       sourceIds: ["sap-official"],
       checkedOn: today,
       availability: {
@@ -154,7 +158,7 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
     },
     {
       id: "technical-impact",
-      text: cleanQ2.slice(0, 140),
+      text: claim2Text,
       sourceIds: ["sap-official"],
       checkedOn: today,
       availability: {
@@ -172,7 +176,7 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
     },
     {
       id: "rollout-availability",
-      text: cleanQ3.slice(0, 140),
+      text: claim3Text,
       sourceIds: ["sap-official"],
       checkedOn: today,
       availability: {

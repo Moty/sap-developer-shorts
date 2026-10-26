@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "format": "news",
+  "id": "NEWS-04",
+  "version": 1,
+  "title": "SAP Puts the Autonomous Enterprise to Work",
+  "audience": "SAP developers, architects, and business technology teams",
+  "language": "en",
+  "targetDurationSeconds": 55,
+  "news": {
+    "event": "SAP Technology Insights 2026",
+    "asOf": "2026-10-26",
+    "maxAgeDays": 7,
+    "editorialStatus": "draft",
+    "selection": "editorial",
+    "angle": "Examine the technical capability, enterprise context, and real-world availability."
+  },
+  "sources": [
+    {
+      "id": "sap-official",
+      "title": "SAP Puts the Autonomous Enterprise to Work",
+      "url": "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/",
+      "retrievedOn": "2026-10-26",
+      "publisher": "SAP",
+      "publishedOn": "2026-10-26"
+    }
+  ],
+  "claims": [
+    {
+      "id": "announcement-core",
+      "text": "Joule Work is beginning its customer rollout as.",
+      "sourceIds": [
+        "sap-official"
+      ],
+      "checkedOn": "2026-10-26",
+      "availability": {
+        "status": "announced",
+        "timing": "Published 2026-10-26",
+        "scope": "Official SAP news announcement."
+      },
+      "support": [
+        {
+          "sourceId": "sap-official",
+          "locator": "Opening announcement and core capabilities",
+          "summary": "Cites official SAP release details."
+        }
+      ]
+    },
+    {
+      "id": "technical-impact",
+      "text": "Grounded in business context from SAP Knowledge Graph.",
+      "sourceIds": [
+        "sap-official"
+      ],
+      "checkedOn": "2026-10-26",
+      "availability": {
+        "status": "announced",
+        "timing": "Available in current architecture release",
+        "scope": "Enterprise platform and data structures."
+      },
+      "support": [
+        {
+          "sourceId": "sap-official",
+          "locator": "Technical impact and architectural considerations",
+          "summary": "Explains enterprise process and integration benefits."
+        }
+      ]
+    },
+    {
+      "id": "rollout-availability",
+      "text": "At SAP, Joule Work is already live with.",
+      "sourceIds": [
+        "sap-official"
+      ],
+      "checkedOn": "2026-10-26",
+      "availability": {
+        "status": "announced",
+        "timing": "Ongoing platform rollout",
+        "scope": "Global SAP customer and cloud deployments."
+      },
+      "support": [
+        {
+          "sourceId": "sap-official",
+          "locator": "Availability and roadmap details",
+          "summary": "Details the rollout schedule and prerequisites."
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "phase": "hook",
+      "startSeconds": 0,
+      "endSeconds": 3,
+      "narration": "Autonomous enterprise is finally here.",
+      "overlay": "Autonomous enterprise arrives",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Opening hook"
+      }
+    },
+    {
+      "id": "context",
+      "phase": "context",
+      "startSeconds": 3,
+      "endSeconds": 10,
+      "narration": "Checked today from official SAP news. Joule Work, Joule Assistants and SAP Business AI Platform help organizations turn business",
+      "overlay": "What changed today",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "As of 2026-10-26"
+      }
+    },
+    {
+      "id": "headline-1",
+      "phase": "headline",
+      "startSeconds": 10,
+      "endSeconds": 21,
+      "narration": "First, Joule Work is beginning its customer rollout as a new AI user interface that lets employees interact with SAP solutions in their own language and complete work across SAP.",
+      "overlay": "1. Core announcement",
+      "claimIds": [
+        "announcement-core"
+      ],
+      "visual": {
+        "kind": "news-card",
+        "label": "Official announcement"
+      }
+    },
+    {
+      "id": "headline-2",
+      "phase": "headline",
+      "startSeconds": 21,
+      "endSeconds": 31,
+      "narration": "Second, Grounded in business context from SAP Knowledge Graph, which maps more than 7 million data fields, Joule provides information users can rely on.",
+      "overlay": "2. Why it matters",
+      "claimIds": [
+        "technical-impact"
+      ],
+      "visual": {
+        "kind": "news-card",
+        "label": "Architecture & impact"
+      }
+    },
+    {
+      "id": "headline-3",
+      "phase": "headline",
+      "startSeconds": 31,
+      "endSeconds": 43,
+      "narration": "Third, At SAP, Joule Work is already live with 110,000 employees, with the company seeing 20% productivity gains across finance, HR and procurement.",
+      "overlay": "3. When it ships",
+      "claimIds": [
+        "rollout-availability"
+      ],
+      "visual": {
+        "kind": "news-card",
+        "label": "Rollout & availability"
+      }
+    },
+    {
+      "id": "payoff",
+      "phase": "payoff",
+      "startSeconds": 43,
+      "endSeconds": 49,
+      "narration": "My takeaway: Examine the technical capability, enterprise context, and real-world availability.",
+      "overlay": "Editorial takeaway",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Editorial takeaway"
+      }
+    },
+    {
+      "id": "cta",
+      "phase": "cta",
+      "startSeconds": 49,
+      "endSeconds": 55,
+      "narration": "Read the official announcement in the link below. How will this impact your architecture?",
+      "overlay": "Read source. Share thoughts.",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Discussion & CTA"
+      }
+    }
+  ],
+  "pronunciation": {
+    "AI": "ay eye",
+    "SAP": "sap",
+    "Joule": "jool"
+  },
+  "publication": {
+    "channel": "linkedin",
+    "text": "SAP Puts the Autonomous Enterprise to Work\n\nJoule Work, Joule Assistants and SAP Business AI Platform help organizations turn business AI into trusted outcomes across every core function.\n\nKey takeaways from the official announcement:\n1. Core capability: Joule Work is beginning its customer rollout as a new AI user interface that lets employees interact\n2. Architecture impact: Grounded in business context from SAP Knowledge Graph, which maps more than 7 million data fields, J\n3. Availability: At SAP, Joule Work is already live with 110,000 employees, with the company seeing 20% productivity \n\nRead the official source: https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/\n\nHow is your organization preparing for this in your enterprise architecture?\n\n#SAP #BusinessAI #EnterpriseArchitecture #CloudERP #SAPBTP"
+  }
+}
