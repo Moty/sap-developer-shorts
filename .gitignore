@@ -23,6 +23,11 @@ scratch/
 credentials/
 *.pem
 *.key
+*.p12
+*.pfx
+*.cer
+*.certSigningRequest
+*.csr
 config/private/*.json
 !config/private/*.example.json
 
@@ -48,3 +53,8 @@ config/worker-files.json
 config/private-templates/
 config/private/
 
+
+# Local desktop builds and downloaded tools
+/desktop/payload/
+/desktop/out/
+/desktop/vendor-cache/

@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { access } from "node:fs/promises";
+import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { hash } from "../digest.js";
 import { projectRoot } from "../paths.js";
@@ -14,6 +16,13 @@ export async function publishedDemoCommit(
 ): Promise<string | null> {
   if (!files.length || files.some((name) => !/^[a-f0-9]{64}$/u.test(sourceHashes[name] ?? "")))
     return null;
+  // Packaged desktop workspaces have no Git checkout. Avoid invoking the macOS
+  // developer-tools launcher just to discover that metadata is unavailable.
+  try {
+    await access(resolve(root, ".git"));
+  } catch {
+    return null;
+  }
   const deadline = performance.now() + lookupBudgetMs;
   const options = () => {
     const remaining = Math.floor(deadline - performance.now());

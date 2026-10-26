@@ -23,7 +23,7 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "test": "node --import tsx --test tests/*.test.ts",
-    "check": "npm run lint && npm run typecheck && npm test && npm run test:demo && npm run validate",
+    "check": "npm run lint && npm run typecheck && npm test && npm run test:desktop && npm run test:demo && npm run validate",
     "mac:setup": "tsx src/cli.ts mac-setup",
     "firebase:export": "tsx src/cli.ts firebase-export",
     "firebase:worker": "tsx src/cli.ts firebase-worker",
@@ -44,7 +44,11 @@
     "private:test:integration": "tsx scripts/private/integration.ts && tsx scripts/private/rules-test.ts",
     "private:test:render": "tsx scripts/private/render-smoke.ts",
     "private:test:voice": "tsx scripts/private/voice-smoke.ts",
-    "private:test:library": "tsx scripts/private/library-smoke.ts"
+    "private:test:library": "tsx scripts/private/library-smoke.ts",
+    "desktop:prepare": "node desktop/scripts/prepare.mjs",
+    "desktop:build": "node desktop/scripts/build.mjs",
+    "desktop:start": "node desktop/scripts/start.mjs",
+    "test:desktop": "node --test desktop/tests/*.test.cjs"
   },
   "dependencies": {
     "@firebase/app": "0.14.3",

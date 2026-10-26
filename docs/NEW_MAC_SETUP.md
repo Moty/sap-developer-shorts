@@ -1,5 +1,8 @@
 # Set up and test on another Mac
 
+For the desktop app/DMG build and guided setup, see [Mac desktop distribution](MAC_DESKTOP.md).
+The source checkout workflow below remains available.
+
 Start from `main`. The full local workflow has been exercised on Apple Silicon
 macOS; Intel Mac narration with the pinned Python packages has not been verified.
 Use a native Apple Silicon Terminal session when applicable (`uname -m` reports

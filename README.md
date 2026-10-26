@@ -282,3 +282,10 @@ CI is configured to repeat checks on Node 22 and 24. `.env.example` contains pla
 ## License
 
 [MIT](LICENSE). Third-party dependencies retain their own licenses. Bundled DejaVu fonts include their [required redistribution notices](assets/fonts/LICENSE_DEJAVU). Downloaded voice models and generated media remain outside versioned source.
+
+## Mac desktop installer
+
+An Apple Silicon desktop launcher and local-test DMG build are available. The app
+bundles its core tools and offers guided setup for local voice and portrait engines.
+See [Mac desktop distribution](docs/MAC_DESKTOP.md) for builds, installation, data
+storage and the signing/notarization requirements for public distribution.

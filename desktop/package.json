@@ -1,0 +1,20 @@
+{
+  "name": "sap-shorts-desktop",
+  "productName": "SAP Shorts",
+  "version": "0.1.0",
+  "description": "Local SAP Shorts creator studio and Mac rendering engine",
+  "author": "SAP Developer Shorts contributors",
+  "license": "MIT",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-forge package --platform=darwin --arch=arm64",
+    "make": "electron-forge make --platform=darwin --arch=arm64"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "8.0.1",
+    "@electron-forge/maker-zip": "8.0.1",
+    "electron": "45.0.0"
+  }
+}

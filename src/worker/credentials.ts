@@ -5,15 +5,20 @@ import { resolve } from "node:path";
 import { promisify } from "node:util";
 
 const exec = promisify(execFile);
-const directory = resolve(homedir(), "Library/Application Support/SAP Shorts/worker");
+const directory = process.env.SHORTS_WORKER_DATA_ROOT
+  ? resolve(process.env.SHORTS_WORKER_DATA_ROOT)
+  : resolve(homedir(), "Library/Application Support/SAP Shorts/worker");
 const configuration = resolve(directory, "device.json");
 
 import { repositoryRoot } from "../paths.js";
 
 async function keychain(action: string, workerId: string, credential?: string) {
+  const helper = process.env.SHORTS_KEYCHAIN_HELPER;
   const operation = exec(
-    "/usr/bin/swift",
-    [resolve(repositoryRoot, "scripts/private/keychain.swift"), action, workerId],
+    helper ?? "/usr/bin/swift",
+    helper
+      ? [action, workerId]
+      : [resolve(repositoryRoot, "scripts/private/keychain.swift"), action, workerId],
     {
       timeout: 30_000,
       env: {

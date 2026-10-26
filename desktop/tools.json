@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "node": {
+    "version": "22.23.4",
+    "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-arm64.tar.gz",
+    "sha256": "c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428",
+    "directory": "node-v22.23.4-darwin-arm64"
+  },
+  "uv": {
+    "version": "0.13.5",
+    "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-apple-darwin.tar.gz",
+    "sha256": "743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73",
+    "directory": "uv-aarch64-apple-darwin"
+  },
+  "media": {
+    "targetMacOS": "13.0",
+    "ffmpeg": {
+      "version": "9.0.2",
+      "url": "https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n9.0.2.tar.gz",
+      "directory": "FFmpeg-n9.0.2",
+      "sha256": "6e374ed621e48faa40639307dff48ba6fe574a509977956d2cce9669b7cc27e9"
+    },
+    "x264": {
+      "url": "https://github.com/mirror/x264/archive/b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.gz",
+      "directory": "x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+      "revision": "b35605ace3ddf7c1a5d67a2eb553f034aef41d55",
+      "sha256": "cd71a7515b0e9a012e1ac9b1f8415bebcaf6fc97d4db32286642ac4c0fbe24f9"
+    }
+  }
+}

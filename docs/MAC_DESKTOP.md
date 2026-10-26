@@ -1,0 +1,219 @@
+# Mac desktop app and DMG
+
+The desktop edition packages the local studio in an Electron app. It includes a
+compatible Node runtime, FFmpeg/FFprobe with their non-system libraries, uv, the
+backend's locked npm dependencies, presentation renderer, public scripts, and a
+compiled macOS Keychain helper. Recipients do not install Homebrew, Git, Node,
+npm, Python or Xcode separately.
+
+## Install and use
+
+Open the DMG, drag **SAP Shorts.app** into **Applications**, eject the image and
+open the app. The setup window prepares a separate desktop workspace. Choose
+**Open creator studio** to edit scripts and explore presentations immediately.
+Install **Stock narration** to produce a video. The supplied voices include Heart
+(the default) and Michael. **Make a sample video** produces `CAP-01@feed-pop`.
+
+Engine downloads require internet access and available disk space. uv manages
+Python 3.12 and separate pinned Python environments; the existing engine installers
+download and verify their model assets. Qwen is optional (5.42 GiB of model files,
+plus its environment). Ditto portraits are optional (2.32 GB, plus their environment).
+Photo alignment is a separate small model. Once installed, generation runs locally.
+A private temporary shortcut gives the phoneme engine a short data path; it contains
+no voice recordings and is removed when the backend exits normally. Stock-voice
+setup checks this lookup before completing.
+The first edition is an online setup installer; a fully offline model-pack edition
+is not implemented.
+
+Use **Rendering engine** to enter your studio's HTTPS origin and a device name.
+Use **Open online studio** and approve the displayed pairing code in your signed-in
+workspace, then start the worker. Run one worker per physical Mac; stop a source-checkout
+worker before starting the desktop worker. The worker uses the desktop app's installed models. No cloud project,
+Firebase administrator credential or paid rendering is configured by installation.
+
+Closing a window keeps work running. Use the app menu to return to setup, reopen
+the studio, or quit. Active local jobs keep the Mac from idle system sleep while
+the app is running. This cannot override a closed laptop lid, shutdown or forced
+sleep. Quitting interrupts work; follow the saved production status to recover.
+
+## Data and upgrades
+
+The default data directory is:
+
+```
+~/Library/Application Support/SAP Shorts/Desktop/
+```
+
+It contains `workspace/` (content, private models, recordings, photos and generated
+videos), `python/`, `cache/`, `phonemes/`, `worker/`, `shell/` and `backend.log`. **Open app data**
+reveals it in Finder. Credentials are saved in macOS Keychain; desktop worker
+configuration is separate from a source-checkout worker. No private local data is
+included in the installer. Even tracked portrait images are excluded from the
+public seed list.
+
+The packaged program and template files are copied from a checksummed manifest
+into the managed workspace. Application code is repaired/refreshed on launch;
+existing content, production preferences, voices, photos, artifacts and job state
+are preserved. Runtime dependencies remain inside the app bundle. Replace the app
+with a newer version to update; automatic update delivery is not included yet.
+Model or voice-runtime changes may require a new audition, as in the source app.
+Deleting the app does not delete its data folder. Back up that folder separately.
+Do not copy another Mac's Python environments as an installation shortcut.
+
+The source-checkout workspace remains separate. Migration of its personal voices,
+portraits and resumable jobs is not automatic. Existing portable studio ZIPs can
+still be viewed using their documented playback workflow.
+
+## Build on an Apple Silicon Mac
+
+Build prerequisites: Node 22.13+, npm, Git, Xcode Command Line Tools (Swift compiler,
+SDK, `codesign`, `hdiutil`, `make`) and `pkg-config` on the builder's PATH. FFmpeg **9.0.2** and x264 are compiled from checksum-pinned source for
+macOS **13.0**; the build does not copy this Mac's Homebrew media binaries. Builder tools are not required on the receiving Mac.
+
+```sh
+npm ci
+npm run test:desktop
+npm run desktop:build
+```
+
+The build installs the separate locked desktop and backend dependencies, compiles
+the main application, downloads checksum-pinned Node **22.23.4** and uv **0.13.5**,
+compiles the Keychain helper, and builds static FFmpeg executables whose dynamic
+dependencies are system libraries only. Their source archives and build script
+are included under `payload/notices/source/`. The media build is cached; its first
+compilation takes longer.
+It packages with Electron Forge and creates/verifies the disk image using macOS
+`hdiutil`. The public seed allowlist is explicit. It never copies `.state/`,
+`artifacts/`, `.env`, credentials, personal portraits or uncommitted drafts.
+Public editorial content comes from Git's committed version.
+
+Output:
+
+```
+desktop/out/SAP Shorts-darwin-arm64/SAP Shorts.app
+desktop/out/SAP-Shorts-0.1.0-arm64-local-test.dmg
+desktop/out/SAP-Shorts-0.1.0-arm64-local-test.dmg.sha256
+desktop/out/build-report.json
+```
+
+`npm run desktop:prepare` prepares the payload without packaging; after that,
+`npm run desktop:start` opens the development launcher. `desktop:build --
+--skip-prepare` repackages a completed payload. An isolated test may set
+`SAP_SHORTS_DESKTOP_DATA_DIR` to an empty folder. `--smoke-test` writes a startup
+report there and exits; it does not record a microphone, pair a worker, or install
+models. These generated outputs are excluded from Git.
+
+## Public release requirements
+
+The default output is a **local test build**. It has no Developer ID identity or
+Apple notarization ticket. It is not a public distribution candidate. Do not tell
+recipients to disable Gatekeeper or remove quarantine as an installation step.
+
+For public distribution, install a Developer ID Application identity and configure
+notary credentials in the builder's Keychain. Do not put private keys or passwords
+in source control. Complete the third-party redistribution review, then build:
+
+```sh
+DESKTOP_SIGN_IDENTITY="Developer ID Application: Your Organization (TEAMID)" \
+DESKTOP_NOTARY_PROFILE="sap-shorts-notary" \
+DESKTOP_REDISTRIBUTION_REVIEWED=1 \
+npm run desktop:build -- --release
+```
+
+The release path requests Hardened Runtime signing and app notarization through
+Forge, then signs, notarizes, staples and verifies the DMG. A release build fails
+without the required configuration. Setting the review flag documents a completed
+review; it does not grant licenses or perform that review automatically.
+
+The FFmpeg build enables GPL components including libx264. Complete the applicable
+notices/corresponding-source inventory for the chosen FFmpeg and native libraries
+before sharing publicly. `payload/notices/media-build.json` records the included
+pinned source archives, deployment target and build configuration. Node, uv, fonts and the application have
+notices included; npm dependencies retain their license files. Ditto auxiliary
+models have their own terms and need review separately from Ditto's source license.
+Signing/notarization also needs a fresh-Mac Gatekeeper test of the downloaded
+artifact, plus verification of nested native libraries and microphone permissions.
+
+References: [Electron security](https://www.electronjs.org/docs/latest/tutorial/security),
+[Forge signing](https://www.electronforge.io/guides/code-signing/code-signing-macos),
+[Apple notarization](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution),
+[FFmpeg licensing](https://www.ffmpeg.org/legal.html).
+
+## Verification
+
+See the latest verification record below for what was actually tested. A successful
+local startup alone does not establish compatibility with older macOS releases,
+public Gatekeeper acceptance, or subjective voice/portrait quality.
+
+
+## Set up your Apple signing identity
+
+Use the Mac that will build releases. Your Apple Developer Program membership
+must be active; Apple requires the Account Holder role to create a Developer ID
+certificate through the portal.
+
+1. In Keychain Access, use Certificate Assistant to request a certificate. Enter
+   your email and a descriptive key name, leave the certificate-authority email
+   blank, and save the CSR to disk. The matching private key stays in Keychain.
+2. Open [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/certificates/list)
+   and add a **Developer ID Application** certificate. Upload the CSR and download
+   the resulting `.cer` file.
+3. Double-click the `.cer` file to install it in the login keychain. In **My
+   Certificates**, expand it and confirm the matching private key is present.
+4. Verify it with `security find-identity -v -p codesigning`. Record the complete
+   identity name for `DESKTOP_SIGN_IDENTITY`; never send private keys or passwords
+   in chat or commit them.
+5. Create notarization credentials locally with the interactive command below.
+   Supply your Apple ID, Team ID and an app-specific password in Terminal's prompts,
+   or use your organization's approved App Store Connect API-key workflow. Do not
+   put passwords in shell commands, repository configuration or screenshots.
+
+```sh
+xcrun notarytool store-credentials sap-shorts-notary
+```
+
+Use `sap-shorts-notary` as `DESKTOP_NOTARY_PROFILE` in the release build. Creating
+an Installer or Mac App Store certificate does not substitute for the Developer ID
+Application identity used by this DMG's app. The setup process does not revoke
+existing certificates or change Keychain trust settings.
+
+Official references: [Apple's CSR guide](https://developer.apple.com/help/account/certificates/create-a-certificate-signing-request/),
+[Developer ID certificates and required role](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/).
+
+
+## Verified build — October 26, 2026
+
+On this Apple Silicon Mac running macOS 27.0.1:
+
+- A clean source-only checkout passed **301 workflow tests**, **10 desktop tests**,
+  five CAP checks, typecheck, content validation and both builds. Changed-file lint
+  passed. The source repository retains eight unrelated pre-existing lint errors.
+- Desktop tooling and backend dependency audits reported zero vulnerabilities.
+- The actual DMG was verified, mounted read-only and copied to a new folder outside
+  the repository. The copied app started with an empty, separate data directory,
+  served its studio successfully, and used its bundled Node/FFmpeg/FFprobe/uv paths.
+  Its CAP preview passed the five assertions without parent-repository npm modules.
+- A fresh managed Python 3.12.15/Kokoro installation through the app installed Heart
+  and Michael. The complete `CAP-01@feed-pop` production passed decoding, receipt,
+  captions and audio checks: 47.580 seconds, 1080 × 1920, 30 fps H.264/AAC,
+  −16.15 LUFS and −4.39 dB true peak. Audio was generated fresh; production through
+  the verified MP4 took 113.3 seconds (74.6 audio/captions, 38.7 rendering).
+- Photo-alignment installation, creator-studio navigation, video-review display and
+  rejection of an insecure remote worker origin were checked in the native app.
+  Workspace repair preserved installed models and the produced video. Existing
+  source-checkout voice files/settings were unchanged; all six current personal
+  profiles remained accepted, including the profile added independently during work.
+
+No microphone recording or personal photo/voice enrollment was performed in the
+installer test. Optional Qwen and Ditto fresh downloads, live online worker pairing,
+older macOS hardware, Developer ID signing and Apple notarization have not been
+validated with this DMG. The executable deployment target is macOS 13.0; that is a
+build target, not a substitute for testing on each supported OS. A fully offline
+model-pack installer and automatic updates remain future work.
+
+Git history is not installed. Historical demo-commit lookup is therefore skipped;
+a companion post can show a pending code permalink. Review that line before posting;
+the demo and official source references are included locally.
+
+Local evidence is retained under `.state/private-tests/desktop-*`. The installer,
+build cache, test models, voices and generated video are excluded from Git.

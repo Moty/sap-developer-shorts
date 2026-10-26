@@ -1,0 +1,27 @@
+{
+  "name": "sap-shorts-desktop-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pinned Node runtime dependencies for the packaged Mac app",
+  "license": "MIT",
+  "dependencies": {
+    "@firebase/app": "0.14.3",
+    "@firebase/auth": "1.11.0",
+    "@google-cloud/run": "4.2.0",
+    "@mediapipe/tasks-vision": "0.10.32",
+    "@napi-rs/canvas": "1.0.11",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "fflate": "0.8.3",
+    "firebase-admin": "13.10.0",
+    "reveal.js": "6.0.2",
+    "@cap-js/sqlite": "3.1.2"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.6",
+    "firebase-admin": {
+      "@firebase/database-compat": "2.0.11"
+    },
+    "uuid": "11.1.1"
+  }
+}

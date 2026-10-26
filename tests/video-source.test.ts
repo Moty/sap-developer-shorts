@@ -200,3 +200,12 @@ test("history search has a finite candidate limit and safely leaves older snapsh
     latest,
   );
 });
+
+test("a packaged workspace without Git metadata skips the developer-tools launcher", async (t) => {
+  const root = await mkdtemp(resolve(tmpdir(), "sap-no-git-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  assert.equal(
+    await publishedDemoCommit(["demo.txt"], { "demo.txt": hash("packaged source") }, root),
+    null,
+  );
+});
