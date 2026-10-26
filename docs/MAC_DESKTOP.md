@@ -109,6 +109,25 @@ The default output is a **local test build**. It has no Developer ID identity or
 Apple notarization ticket. It is not a public distribution candidate. Do not tell
 recipients to disable Gatekeeper or remove quarantine as an installation step.
 
+To verify signing, notarization and installation on your own Macs while public
+redistribution review is still pending, create a clearly labeled **signed preview**:
+
+```sh
+DESKTOP_SIGN_IDENTITY="Developer ID Application: Your Organization (TEAMID)" \
+DESKTOP_NOTARY_PROFILE="sap-shorts-notary" \
+npm run desktop:build -- --signed-preview
+```
+
+This creates `SAP-Shorts-0.1.0-arm64-signed-preview.dmg` with Apple's signature and
+notarization checks. Its manifest and build report retain `notarized-preview` and
+`redistributionReviewed: false`. Apple notarization does not grant redistribution
+rights for the bundled dependencies. In particular, the CAP demo currently bundles
+`@sap/cds`, `@sap/cds-compiler` and `@sap/cds-fiori` under SAP Developer License terms;
+resolve permission to redistribute them, or move their installation to a separate
+recipient-initiated prerequisite, before public release. The open source notices
+inventory must also be completed. Optional portrait models are downloaded separately.
+The public `--release` gate remains closed without the completed review flag.
+
 For public distribution, install a Developer ID Application identity and configure
 notary credentials in the builder's Keychain. Do not put private keys or passwords
 in source control. Complete the third-party redistribution review, then build:
@@ -163,6 +182,12 @@ certificate through the portal.
 4. Verify it with `security find-identity -v -p codesigning`. Record the complete
    identity name for `DESKTOP_SIGN_IDENTITY`; never send private keys or passwords
    in chat or commit them.
+   If a matching identity is listed without `-v`, but there are no valid identities
+   with `-v`, check for a missing intermediate. For a G2 Developer ID certificate,
+   install **Developer ID - G2** from [Apple PKI](https://www.apple.com/certificateauthority/)
+   into the login keychain using its default trust settings. No trust override or
+   keychain reset is required. When multiple certificates have the same name, use
+   the chosen certificate's SHA-1 fingerprint as `DESKTOP_SIGN_IDENTITY`.
 5. Create notarization credentials locally with the interactive command below.
    Supply your Apple ID, Team ID and an app-specific password in Terminal's prompts,
    or use your organization's approved App Store Connect API-key workflow. Do not
@@ -171,6 +196,22 @@ certificate through the portal.
 ```sh
 xcrun notarytool store-credentials sap-shorts-notary
 ```
+
+At the initial API-key-path prompt, press Return to use Apple ID authentication.
+Alternatively, specify the non-secret account and team explicitly so only the
+app-specific password is prompted:
+
+```sh
+xcrun notarytool store-credentials sap-shorts-notary \
+  --apple-id "YOUR_APPLE_ID_EMAIL" --team-id "YOUR_TEAM_ID"
+```
+
+Generate the password in [Apple Account](https://account.apple.com/) under
+**Sign-In and Security → App-Specific Passwords**, signed in to the same account
+associated with your Developer team. This is separate from the CSR's email field.
+`xcrun notarytool history --keychain-profile sap-shorts-notary` verifies access
+without displaying the stored password. An empty history is normal before the
+first submission.
 
 Use `sap-shorts-notary` as `DESKTOP_NOTARY_PROFILE` in the release build. Creating
 an Installer or Mac App Store certificate does not substitute for the Developer ID

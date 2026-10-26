@@ -175,7 +175,7 @@ const manifest = {
   schemaVersion: 1,
   version,
   revision,
-  distribution: process.env.DESKTOP_RELEASE === "1" ? "signed-release" : "local-test",
+  distribution: process.env.DESKTOP_DISTRIBUTION || "local-test",
   tools,
   media: media.versions,
   minimumMacOS: media.minimumMacOS,
@@ -191,7 +191,7 @@ if (!ffmpegLicense.ok) throw new Error("FFmpeg license could not be retrieved");
 await writeFile(resolve(payload, "notices/FFMPEG-GPLv3.txt"), await ffmpegLicense.text());
 await writeFile(
   resolve(payload, "notices/README.txt"),
-  "Local test distribution. This FFmpeg build enables GPL components including libx264. media-build.json records the build and bundled libraries. Before public distribution, complete the third-party notices/corresponding-source inventory and review auxiliary portrait-model terms. Optional models are not bundled. No private voices, portraits, worker credentials or local drafts are supplied.\n",
+  `${manifest.distribution} distribution. This FFmpeg build enables GPL components including libx264. media-build.json records the build and bundled libraries; corresponding source and build instructions are included in source/. CAP demo packages retain SAP Developer License terms. Before public distribution, complete the third-party notices/corresponding-source inventory and review CAP redistribution rights and auxiliary portrait-model terms. Optional models are not bundled. No private voices, portraits, worker credentials or local drafts are supplied.\n`,
 );
 await import("./icon.mjs");
 console.log(`Desktop payload ready: ${payload} (${files.length} verified files)`);

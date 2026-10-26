@@ -161,3 +161,36 @@ test("public release packaging stops before building when signing and review con
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Developer ID identity/);
 });
+test("signed preview packaging requires credentials and cannot be combined with a public release", () => {
+  const env = { ...process.env };
+  delete env.DESKTOP_SIGN_IDENTITY;
+  delete env.DESKTOP_NOTARY_PROFILE;
+  const script = resolve(__dirname, "../scripts/build.mjs");
+  const missing = spawnSync(process.execPath, [script, "--signed-preview"], {
+    env,
+    encoding: "utf8",
+  });
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /Developer ID identity/);
+  const conflicting = spawnSync(process.execPath, [script, "--release", "--signed-preview"], {
+    env,
+    encoding: "utf8",
+  });
+  assert.notEqual(conflicting.status, 0);
+  assert.match(conflicting.stderr, /Choose either/);
+});
+test("valid signing configuration cannot open the public release gate without redistribution review", () => {
+  const env = {
+    ...process.env,
+    DESKTOP_SIGN_IDENTITY: "fixture-identity",
+    DESKTOP_NOTARY_PROFILE: "fixture-notary",
+  };
+  delete env.DESKTOP_REDISTRIBUTION_REVIEWED;
+  const result = spawnSync(
+    process.execPath,
+    [resolve(__dirname, "../scripts/build.mjs"), "--release"],
+    { env, encoding: "utf8" },
+  );
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /third-party redistribution review/);
+});
