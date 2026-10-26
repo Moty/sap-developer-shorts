@@ -222,7 +222,7 @@ Official references: [Apple's CSR guide](https://developer.apple.com/help/accoun
 [Developer ID certificates and required role](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/).
 
 
-## Verified build — October 26, 2026
+## Local test build verification — October 26, 2026
 
 On this Apple Silicon Mac running macOS 27.0.1:
 
@@ -258,3 +258,40 @@ the demo and official source references are included locally.
 
 Local evidence is retained under `.state/private-tests/desktop-*`. The installer,
 build cache, test models, voices and generated video are excluded from Git.
+
+## Signed preview verification — October 26, 2026
+
+The signed preview was built from commit `4e49fea` using the newer Developer ID
+Application certificate and credentials stored in the builder's Keychain. No
+password, private key or exported signing identity is included in the repository.
+
+- The 12 desktop tests passed, including the separate signed-preview and public
+  release gates; changed-file lint passed.
+- Apple accepted the app with no issues: submission
+  `221ce90a-ac27-4dad-b8cc-32878e5abaee`.
+- A copy extracted from the exact submitted app archive started outside the
+  repository using an empty data directory. Its studio returned HTTP 200.
+- All 20 native Mach-O files passed explicit signature checks, carried the expected
+  Developer ID team, a secure timestamp and Hardened Runtime. The signing
+  certificate fingerprint matched the newer identity selected for the build.
+- The bundled signed Node loaded Canvas and rendered a PNG, executed a SQLite
+  query, and passed all five live CAP demo checks in the isolated workspace.
+- Apple accepted the DMG with no issues: submission
+  `fcac9490-6218-4ea8-bc01-a1ddd2172a11`. Both app and DMG tickets were stapled and
+  validated. Gatekeeper accepted both as **Notarized Developer ID**.
+- The final DMG was mounted read-only and its app copied outside the repository.
+  The copied app passed signature/ticket/Gatekeeper checks, opened its setup screen
+  with **Core tools ready**, and opened the creator studio with 13 public scripts.
+  The isolated test app was then quit normally; the source studio remained running.
+
+Final artifact: `desktop/out/SAP-Shorts-0.1.0-arm64-signed-preview.dmg`
+(345,310,895 bytes). SHA-256:
+
+```text
+9883ffe3ddf2dcfe5ea1af453076998473f1ee24df297376e32e6aef3382fde5
+```
+
+This is a notarized-preview workflow, not a completed public redistribution review.
+The package retains the CAP redistribution prerequisite above. Another physical Mac,
+older macOS versions, microphone recording, personal voice enrollment and a full
+Ditto render still require separate testing.
