@@ -321,3 +321,38 @@ than attempting to replace an existing `~/.local/bin/python3.12`.
 Updating the app keeps personal voices, photos, scripts and produced artifacts.
 Save current edits before quitting to replace the app; browser recovery is scoped
 to its original tab/address, while **Save draft** stores a version on disk.
+
+Verification for 0.1.1 (source commit `021d874`):
+
+- All **302 workflow tests**, **12 desktop tests**, typecheck, five live CAP checks,
+  content validation and both builds passed in a clean source workspace. Changed
+  files passed lint; the previously recorded repository-wide lint issues remain.
+- A personal Qwen narrator and realistic Ditto portrait completed an isolated news
+  production after shortening only its opening. The verified output is **56.433
+  seconds**, 1080 × 1920, 30 fps H.264/AAC, with a **0.96-second opening**. Full decode,
+  captions and audio checks passed (−16.24 LUFS, −4.49 dB true peak). Generation took
+  **13 minutes 9 seconds**: 91 seconds for audio/alignment and 698 seconds for portrait
+  animation, video rendering and checks. These are measurements on this Mac, not an
+  estimate for every device. The private test media is not committed or bundled.
+- Browser testing confirmed automatic recovery keeps fields editable and restores
+  voice, photo, portrait mode and movement settings. Undo returned to the saved
+  Ditto configuration. The completed video appeared in **To review**; approval and
+  publication were left pending. The running user's editor was preserved.
+- Apple accepted the app (`d302b92c-f1ba-41f0-b165-908e87f9bc51`) and DMG
+  (`e8e7f492-c8c3-422c-9055-4f143ccc6d66`) with no issues. Tickets validated and
+  Gatekeeper accepted the app and DMG as **Notarized Developer ID**.
+- The final DMG was mounted read-only and its app copied outside the repository.
+  That copy started with an empty data directory and served its studio with HTTP
+  200. All **20 native binaries** passed signature, timestamp, team and Hardened
+  Runtime checks; all **338 seed files** passed their checksums.
+
+Signed preview: `desktop/out/SAP-Shorts-0.1.1-arm64-signed-preview.dmg`
+(350,125,260 bytes). SHA-256:
+
+```text
+2fbc93b77d0bcb175a83b68965c868583785e5af095455f92d092a217c36e2c3
+```
+
+Quit the installed app after saving current edits, replace it from the DMG, then
+reopen. Tests used separate workspaces; the currently running installed app is not
+silently replaced or restarted. Public redistribution review remains pending.
