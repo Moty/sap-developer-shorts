@@ -104,6 +104,7 @@ async function workshop(
     storage?: RecoveryStorage | null;
     blockedAccess?: boolean;
     pathname?: string;
+    nativePhotoSelect?: boolean;
     mutatePayload?: (payload: Record<string, unknown>) => void;
   } = {},
 ) {
@@ -228,7 +229,20 @@ async function workshop(
     if (typeof speaker.voice === "string") node(`speaker-voice-setup-${index}`);
     node(`speaker-avatar-mode-${index}`, speaker.avatar?.mode ?? "illustrated");
     node(`speaker-avatar-photo-panel-${index}`);
-    node(`speaker-avatar-image-${index}`, speaker.avatar?.imageId ?? "");
+    const imageSelect = node(`speaker-avatar-image-${index}`, speaker.avatar?.imageId ?? "");
+    if (recovery.nativePhotoSelect) {
+      let selectedImage = imageSelect.value;
+      Object.defineProperty(imageSelect, "value", {
+        get: () => selectedImage,
+        set: (value: string) => {
+          selectedImage = [...imageSelect.options, ...imageSelect.children].some(
+            (option) => option.value === value,
+          )
+            ? value
+            : "";
+        },
+      });
+    }
     node(`speaker-avatar-motion-style-${index}`, speaker.avatar?.motion?.style ?? "conversational");
     node(
       `speaker-avatar-motion-intensity-${index}`,
@@ -776,7 +790,7 @@ test("unchanged input, blur, and download reads preserve review controls while s
   );
 });
 
-test("same-tab recovery gates editing and restores exact raw solo, dialogue and news fields", async () => {
+test("same-tab recovery automatically restores editable raw solo, dialogue and news fields", async () => {
   for (const selector of ["CAP-02", "CAP-01@duo", "NEWS-02@duo"]) {
     const storage = recoveryStorage();
     const first = await workshop(selector, undefined, { storage });
@@ -792,21 +806,13 @@ test("same-tab recovery gates editing and restores exact raw solo, dialogue and 
     assert.equal(storage.data.size, 1);
     const saved = JSON.parse([...storage.data.values()][0] ?? "null");
     const second = await workshop(selector, undefined, { storage });
-    assert.equal(second.get("editor-fields").disabled, true);
-    assert.equal(second.get("download-controls").hidden, true);
-    assert.equal(second.get("resume-draft").hidden, false);
-    assert.equal(second.get("discard-draft").hidden, false);
-    assert.equal(second.focused(), "resume-draft", "pending recovery brings its choice into view");
-    second.download();
-    second.update();
-    assert.equal(second.downloads.length, 0);
-    assert.equal(second.get(narration).value, first.seed.scenes[0].narration);
-    second.get("resume-draft").click();
     assert.equal(second.get("editor-fields").disabled, false);
     assert.equal(second.get("download-controls").hidden, false);
+    assert.equal(second.get("resume-draft").hidden, true);
+    assert.equal(second.get("discard-draft").hidden, false);
     for (const [id, value] of Object.entries(saved.fields))
       assert.equal(second.get(id).value, value);
-    assert.equal(second.focused(), "variant-name");
+    assert.notEqual(second.focused(), "resume-draft");
     assert.match(second.get("draft-recovery-message").textContent, /Recovered/u);
     assert.equal(storage.calls.set, 1, "resume does not rewrite the same raw fields");
     second.download();
@@ -994,21 +1000,21 @@ test("a reordered baseline record is cleared instead of falsely offering recover
   assert.equal(storage.data.size, 0);
 });
 
-test("pending recovery becomes visible after restored scroll without stealing focus after a choice", async () => {
+test("automatic recovery preserves restored scroll and focus while offering an editable undo", async () => {
   const storage = recoveryStorage();
   const first = await workshop("CAP-02", undefined, { storage });
   first.get("publication-text").value = "A post edited near the bottom of the page.";
   first.update();
   const pending = await workshop("CAP-02", undefined, { storage });
-  assert.equal(pending.focused(), "resume-draft");
+  assert.equal(pending.get("editor-fields").disabled, false);
   pending.pageshow();
   pending.restoreScroll(4049);
   pending.animationFrame();
   assert.equal(pending.scrollPosition(), 4049);
   pending.animationFrame();
-  assert.equal(pending.scrollPosition(), 0);
-  assert.deepEqual(pending.scrolledIntoView, ["draft-recovery"]);
-  assert.equal(pending.focused(), "resume-draft");
+  assert.equal(pending.scrollPosition(), 4049);
+  assert.deepEqual(pending.scrolledIntoView, []);
+  assert.notEqual(pending.focused(), "resume-draft");
   for (const choice of ["resume-draft", "discard-draft"]) {
     first.update();
     // Preserve a valid saved record for both independent navigation cases.
@@ -1118,20 +1124,8 @@ test("automatic mouth calibration survives download, import and tab recovery", a
   ui.get("speaker-avatar-mouth-x-0").value = "0.461";
   ui.get("speaker-avatar-geometry-0").value = JSON.stringify(metadata);
   ui.update();
-  const resumed = await workshop("CAP-01@duo", undefined, { storage });
+  const resumed = await workshop("CAP-01@duo", undefined, { storage, nativePhotoSelect: true });
   const select = resumed.get("speaker-avatar-image-0");
-  let selectedImage = "";
-  Object.defineProperty(select, "value", {
-    get: () => selectedImage,
-    set: (value: string) => {
-      selectedImage = [...select.options, ...select.children].some(
-        (option) => option.value === value,
-      )
-        ? value
-        : "";
-    },
-  });
-  resumed.get("resume-draft").click();
   assert.equal(select.value, "mira-portrait.png");
   resumed.download();
   const draft = JSON.parse(resumed.downloads[0]?.parts.join("") ?? "null");
@@ -1186,8 +1180,8 @@ test("personal voice references survive recovery before the asynchronous profile
   first.update();
   assert.equal(storage.data.size, 1);
   const restored = await workshop("CAP-01@casual-v2", ["af_heart"], { storage });
-  assert.equal(restored.get("resume-draft").hidden, false);
-  restored.get("resume-draft").click();
+  assert.equal(restored.get("resume-draft").hidden, true);
+  assert.equal(restored.get("editor-fields").disabled, false);
   assert.equal(restored.get("speaker-voice-0").value, reference);
   restored.download();
   const definition = JSON.parse(restored.downloads[0]?.parts.join("") ?? "null");

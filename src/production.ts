@@ -357,8 +357,8 @@ export async function produce(
     )
       throw new ProductionBlocked(
         "TIMING_REVIEW_REQUIRED",
-        "The narration must run 45–60 seconds with an opening no longer than three seconds.",
-        "Revise the spoken script or selected speed, then rerun produce; the saved recording remains available.",
+        `Video not produced: narration ${narration.durationSeconds.toFixed(1)}s; opening ${narration.hookSeconds.toFixed(2)}s. The video needs 45–60 seconds total and an opening of at most 3 seconds.`,
+        "Edit the opening or narration in this saved version, then produce again. Your voice, photo and recording remain saved.",
       );
     await enter("RENDER");
     const video = await stages.render(job.id);

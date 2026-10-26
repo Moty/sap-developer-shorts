@@ -39,6 +39,26 @@ export interface ApiOptions {
   artifactRoot?: string;
   audition?: typeof auditionPhrase;
   libraryDirectory?: () => string;
+  production?: typeof produce;
+  rebuildLibrary?: (options?: { artifactRoot?: string }) => Promise<{ directory: string }>;
+}
+
+async function refreshSavedLibrary(options: ApiOptions, directory?: string) {
+  if (!options.onLibraryUpdated) return false;
+  try {
+    const output =
+      directory ??
+      (
+        await (options.rebuildLibrary ?? buildLibrary)(
+          options.artifactRoot ? { artifactRoot: options.artifactRoot } : {},
+        )
+      ).directory;
+    await options.onLibraryUpdated(output);
+    return true;
+  } catch (error) {
+    console.warn("Saved script retained; workspace refresh failed:", (error as Error).message);
+    return false;
+  }
 }
 
 let activeJob: ProductionJobState | null = null;
@@ -207,7 +227,11 @@ export async function handleApiRequest(
             const episode = await readContentEpisode(entry.selector);
             const changed = hash(JSON.stringify(episode)) !== entry.inputHash;
             const expired = entry.sourceReviewExpired || workflowSourcesExpired(episode);
-            const current = activeJob?.selector === entry.selector ? activeJob : null;
+            const current =
+              activeJob?.selector === entry.selector &&
+              !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)
+                ? activeJob
+                : null;
             const interrupted =
               report && !["READY", "BLOCKED", "FAILED"].includes(report.stage) && !current;
             const issue = changed
@@ -216,11 +240,23 @@ export async function handleApiRequest(
                 ? "Sources need rechecking before sharing current news."
                 : interrupted
                   ? "Production was interrupted. Produce again to resume."
-                  : report?.issue?.message;
+                  : report?.issue?.code === "TIMING_REVIEW_REQUIRED" &&
+                      typeof report.durationSeconds === "number" &&
+                      typeof report.hookSeconds === "number"
+                    ? `Video not produced: narration ${report.durationSeconds.toFixed(1)}s; opening ${report.hookSeconds.toFixed(2)}s. Aim for 45–60 seconds total and an opening of at most 3 seconds.`
+                    : report?.issue?.message;
             return {
               selector: entry.selector,
               renderKey: entry.video?.renderKey ?? null,
               ...state,
+              ...(report?.stage === "BLOCKED" && !entry.video
+                ? {
+                    label:
+                      report.issue?.code === "TIMING_REVIEW_REQUIRED"
+                        ? "Needs script edit"
+                        : "Setup needed",
+                  }
+                : {}),
               ...(changed ? { stage: "editing", label: "Editing" } : {}),
               ...(current ? { stage: "producing", label: "Producing" } : {}),
               reviewBlocked: changed || expired,
@@ -230,6 +266,7 @@ export async function handleApiRequest(
                   (entry.preview?.kind === "narrated" && !entry.preview.timingReady),
               ),
               issue: issue ?? null,
+              productionStage: report?.stage ?? null,
             };
           }),
         );
@@ -461,18 +498,7 @@ export async function handleApiRequest(
       if (definition.presentation?.speakers?.some((speaker) => isClonedVoice(speaker.voice)))
         assertPrivateVoiceRequest(request, options.privateVoiceToken);
       const saved = await savePresentation(definition);
-      let libraryUpdated = false;
-      if (options.onLibraryUpdated) {
-        try {
-          const library = await buildLibrary(
-            options.artifactRoot ? { artifactRoot: options.artifactRoot } : {},
-          );
-          await options.onLibraryUpdated(library.directory);
-          libraryUpdated = true;
-        } catch {
-          /* The script is durable even if a media library cannot be rebuilt. */
-        }
-      }
+      const libraryUpdated = await refreshSavedLibrary(options);
       sendJson(response, 201, {
         selector: saved.selector,
         file: saved.file,
@@ -514,6 +540,7 @@ export async function handleApiRequest(
         definition?: unknown;
       };
       let selector = body?.selector;
+      let libraryUpdated = false;
       if (body?.definition) {
         const definition = body.definition as {
           presentation?: { speakers?: { voice?: unknown }[] };
@@ -522,6 +549,8 @@ export async function handleApiRequest(
           assertPrivateVoiceRequest(request, options.privateVoiceToken);
         const saved = await savePresentation(body.definition);
         selector = saved.selector;
+        // A saved version must remain discoverable even if narration or video fails.
+        libraryUpdated = await refreshSavedLibrary(options);
       }
 
       if (
@@ -576,7 +605,7 @@ export async function handleApiRequest(
       // Run production asynchronously
       void (async () => {
         try {
-          const report = await produce(selector, {
+          const report = await (options.production ?? produce)(selector, {
             ...(options.artifactRoot !== undefined ? { artifactRoot: options.artifactRoot } : {}),
             progress(message) {
               job.updatedAt = new Date().toISOString();
@@ -604,10 +633,12 @@ export async function handleApiRequest(
           job.stage = report.stage;
           job.report = report;
           job.updatedAt = new Date().toISOString();
-          if (report.stage === "READY" && report.libraryDirectory && options.onLibraryUpdated) {
-            await options.onLibraryUpdated(report.libraryDirectory);
-          }
-          notify({ type: "complete", data: { stage: report.stage, report } });
+          job.progressMessage = report.issue?.message ?? "Video produced · ready for review";
+          libraryUpdated = await refreshSavedLibrary(
+            options,
+            report.stage === "READY" ? (report.libraryDirectory ?? undefined) : undefined,
+          );
+          notify({ type: "complete", data: { stage: report.stage, report, libraryUpdated } });
         } catch (error) {
           job.stage = "FAILED";
           job.error = (error as Error).message;
@@ -622,6 +653,7 @@ export async function handleApiRequest(
         status: "ACCEPTED",
         jobId,
         selector,
+        libraryUpdated,
         streamUrl: `/api/productions/${jobId}/stream`,
         statusUrl: `/api/productions/${jobId}`,
       });

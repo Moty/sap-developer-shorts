@@ -77,6 +77,8 @@
   let storage;
   let recoveryKey;
   let pendingRecovery = null;
+  let recoveredDraft = false;
+  let editorEnabled = false;
   let lastSavedFields = startingSignature;
   let hasSavedDraft = false;
   const recoveryMessage = (message) => {
@@ -690,6 +692,11 @@
       selector,
     };
     if (guided) byId("editor-save-state").textContent = `Saved on this Mac · ${selector}`;
+    if (guided) {
+      const link = element("a", "saved-version-link", "Open saved version ↗");
+      link.href = `../../episodes/${encodeURIComponent(selector)}/edit.html`;
+      byId("editor-save-state").append(element("span", "", " · "), link);
+    }
   }
   if (guided) {
     for (const button of document.querySelectorAll("[data-editor-step]"))
@@ -817,7 +824,7 @@
             payload = JSON.parse(e.data || "{}");
           } catch {}
           const report = payload.report || {};
-          const stage = payload.stage || report.stage || "READY";
+          const stage = payload.stage || report.stage || "FAILED";
           if (stage !== "READY") {
             const issueMsg =
               report.issue?.message || payload.error || "Production stopped before MP4 export.";
@@ -829,9 +836,26 @@
             setProduceProgress(stage, `${issueMsg}${timingDetail}${nextAction}`);
             if (produceResult) {
               produceResult.hidden = false;
-              const strong = element("strong", "", `Production ${stage}`);
+              const strong = element("strong", "", "Video not produced · your version is saved");
               const p = element("p", "", `${issueMsg}${timingDetail}${nextAction}`);
-              produceResult.replaceChildren(strong, p);
+              const edit = element(
+                "button",
+                "secondary-btn",
+                report.issue?.code === "TIMING_REVIEW_REQUIRED"
+                  ? "Edit opening & narration"
+                  : "Review voice & portrait",
+              );
+              edit.type = "button";
+              edit.addEventListener("click", () => {
+                showStep(
+                  report.issue?.code === "TIMING_REVIEW_REQUIRED" ? "script" : "voice",
+                  true,
+                );
+                byId(seed.scenes[0]?.dialogue ? "turn-0-0" : "narration-0").focus();
+              });
+              const saved = element("a", "", "Open saved version ↗");
+              saved.href = `../../episodes/${encodeURIComponent(selector)}/edit.html`;
+              produceResult.replaceChildren(strong, p, edit, saved);
             }
             return;
           }
@@ -1551,12 +1575,16 @@
     byId("editor-fields").disabled = false;
     byId("download-controls").hidden = false;
     byId("resume-draft").hidden = true;
-    byId("discard-draft").hidden = true;
+    byId("discard-draft").hidden = !recoveredDraft;
     readDraft();
-    setupAuditioning();
+    if (!editorEnabled) {
+      setupAuditioning();
+      editorEnabled = true;
+    }
+    for (const [index] of seed.presentation.speakers.entries()) refreshAvatarUi(index);
     showStep(editorStep);
   }
-  byId("resume-draft").addEventListener("click", () => {
+  function restoreRecovery() {
     if (!pendingRecovery) return;
     // A native select drops values that are not yet in its option list.
     // Restore validated image options before the asynchronous saved-photo list loads.
@@ -1566,7 +1594,7 @@
       const select = byId(id);
       if (
         value &&
-        /^[a-z0-9][a-z0-9_-]{0,47}\.(png|jpg|jpeg|webp)$/u.test(value) &&
+        /^[a-z0-9][a-z0-9._-]{0,63}\.(png|jpg|jpeg|webp)$/iu.test(value) &&
         !Array.from(select.options).some((option) => option.value === value)
       ) {
         const option = element("option", "", value);
@@ -1590,15 +1618,17 @@
     for (const id of fieldIds) byId(id).value = pendingRecovery[id];
     lastSavedFields = JSON.stringify(rawFields());
     pendingRecovery = null;
+    recoveredDraft = true;
     recoveryMessage(
-      "Recovered this tab's unsaved draft. Check the validation messages and review changes before downloading.",
+      "Recovered this tab's unsaved changes. Continue editing, or choose Start with original to return to the starting script.",
     );
     enableEditor();
-    byId("variant-name").focus();
-  });
+  }
+  byId("resume-draft").addEventListener("click", restoreRecovery);
   byId("discard-draft").addEventListener("click", () => {
-    if (!pendingRecovery) return;
+    if (!pendingRecovery && !recoveredDraft) return;
     pendingRecovery = null;
+    recoveredDraft = false;
     for (const id of fieldIds) byId(id).value = startingFields[id];
     try {
       clearSavedDraft();
@@ -1621,10 +1651,6 @@
     );
   });
   prepareRecovery();
-  if (pendingRecovery) {
-    byId("editor-fields").disabled = true;
-    byId("download-controls").hidden = true;
-    download.disabled = true;
-    byId("resume-draft").focus();
-  } else enableEditor();
+  if (pendingRecovery) restoreRecovery();
+  else enableEditor();
 })();

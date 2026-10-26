@@ -91,8 +91,8 @@ Output:
 
 ```
 desktop/out/SAP Shorts-darwin-arm64/SAP Shorts.app
-desktop/out/SAP-Shorts-0.1.0-arm64-local-test.dmg
-desktop/out/SAP-Shorts-0.1.0-arm64-local-test.dmg.sha256
+desktop/out/SAP-Shorts-0.1.1-arm64-local-test.dmg
+desktop/out/SAP-Shorts-0.1.1-arm64-local-test.dmg.sha256
 desktop/out/build-report.json
 ```
 
@@ -118,7 +118,7 @@ DESKTOP_NOTARY_PROFILE="sap-shorts-notary" \
 npm run desktop:build -- --signed-preview
 ```
 
-This creates `SAP-Shorts-0.1.0-arm64-signed-preview.dmg` with Apple's signature and
+This creates `SAP-Shorts-0.1.1-arm64-signed-preview.dmg` with Apple's signature and
 notarization checks. Its manifest and build report retain `notarized-preview` and
 `redistributionReviewed: false`. Apple notarization does not grant redistribution
 rights for the bundled dependencies. In particular, the CAP demo currently bundles
@@ -295,3 +295,29 @@ This is a notarized-preview workflow, not a completed public redistribution revi
 The package retains the CAP redistribution prerequisite above. Another physical Mac,
 older macOS versions, microphone recording, personal voice enrollment and a full
 Ditto render still require separate testing.
+
+## Desktop 0.1.1 — saved revisions and production recovery
+
+Version 0.1.1 fixes a saved-version discovery bug: **Produce video** now refreshes
+the workspace immediately after saving a revision, and again when production
+stops. Previously a revision created through Produce could remain absent from
+the workspace if narration was blocked, despite its voice/photo settings being
+saved correctly. Opening the original version then showed its original narrator.
+
+Matching browser drafts now recover automatically into an editable form, with
+**Start with original** available to undo recovery. Restored portrait controls
+show the saved Ditto/lightweight choice and motion settings. A saved-version
+link opens the version that owns the chosen voice and photo.
+
+A blocked job is labeled **Needs script edit** or **Setup needed**, and the editor
+explicitly says **Video not produced**. Timing results include measured total and
+opening duration, with a button to return to the opening. Narration completion is
+not treated as MP4 completion. The video still requires 45–60 seconds total and an
+opening of at most three seconds; a five-word title can take longer when it contains
+dates and numbers. Shorten only the opening in a new revision when appropriate.
+
+Managed Python launchers are installed inside the desktop data directory rather
+than attempting to replace an existing `~/.local/bin/python3.12`.
+Updating the app keeps personal voices, photos, scripts and produced artifacts.
+Save current edits before quitting to replace the app; browser recovery is scoped
+to its original tab/address, while **Save draft** stores a version on disk.

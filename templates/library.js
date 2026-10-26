@@ -267,7 +267,10 @@
           publish: "Approved · ready to post",
           published: "Live post link recorded",
         };
-        card.querySelector("[data-work-next]").textContent = next[state.stage];
+        card.querySelector("[data-work-next]").textContent =
+          state.productionStage === "BLOCKED" || state.productionStage === "FAILED"
+            ? "No MP4 yet · open this saved version to resolve the issue"
+            : next[state.stage];
         const issue = card.querySelector("[data-work-issue]");
         if (state.issue) {
           issue.hidden = false;
@@ -286,6 +289,10 @@
         if (state.stage === "producing") {
           action.textContent = "View progress";
           action.href = "#studio-produce-banner";
+        } else if (state.stage === "editing") {
+          action.textContent =
+            state.productionStage === "BLOCKED" ? "Fix saved version" : "Continue editing";
+          action.href = `episodes/${encodeURIComponent(state.selector)}/edit.html`;
         }
       }
       for (const count of document.querySelectorAll("[data-stage-count]"))
@@ -356,7 +363,7 @@
         payload = JSON.parse(e.data || "{}");
       } catch {}
       const report = payload.report || {};
-      const stage = payload.stage || report.stage || "READY";
+      const stage = payload.stage || report.stage || "FAILED";
       if (stage !== "READY") {
         btn.disabled = false;
         btn.textContent = originalText;
@@ -366,7 +373,7 @@
           Number.isFinite(report.durationSeconds) && Number.isFinite(report.hookSeconds)
             ? ` (Measured: ${report.durationSeconds.toFixed(1)}s total, ${report.hookSeconds.toFixed(2)}s opening hook)`
             : "";
-        if (title) title.textContent = `${selector} · ${stage}`;
+        if (title) title.textContent = `${selector} · no video produced`;
         if (msg) msg.textContent = `${issueMsg}${timingDetail}`;
         return;
       }

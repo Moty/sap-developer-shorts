@@ -162,6 +162,7 @@ function desktopEnvironment(payload, workspace, dataRoot, inherited = process.en
     XDG_CACHE_HOME: resolve(dataRoot, "cache"),
     MPLCONFIGDIR: resolve(dataRoot, "cache/matplotlib"),
     UV_PYTHON_INSTALL_DIR: resolve(dataRoot, "python"),
+    UV_PYTHON_BIN_DIR: resolve(dataRoot, "python-bin"),
     UV_CACHE_DIR: resolve(dataRoot, "cache/uv"),
     UV_PYTHON_PREFERENCE: "only-managed",
     UV_PYTHON: "3.12",

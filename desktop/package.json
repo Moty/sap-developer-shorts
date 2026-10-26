@@ -1,7 +1,7 @@
 {
   "name": "sap-shorts-desktop",
   "productName": "SAP Shorts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local SAP Shorts creator studio and Mac rendering engine",
   "author": "SAP Developer Shorts contributors",
   "license": "MIT",

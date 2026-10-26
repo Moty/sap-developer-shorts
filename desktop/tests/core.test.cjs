@@ -121,6 +121,7 @@ test("the packaged environment selects bundled tools and separates desktop data 
   assert.ok(env.PATH.startsWith("/data/workspace/.desktop-bin:/app/payload/bin:"));
   assert.equal(env.SHORTS_WORKER_DATA_ROOT, "/data/worker");
   assert.equal(env.UV_PYTHON_PREFERENCE, "only-managed");
+  assert.equal(env.UV_PYTHON_BIN_DIR, "/data/python-bin");
   assert.equal(env.HTTPS_PROXY, "https://proxy.example");
 });
 test("device pairing validates an origin and name without accepting arbitrary command arguments", () => {
