@@ -140,3 +140,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+.presentation-action {
+  color: #386453;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

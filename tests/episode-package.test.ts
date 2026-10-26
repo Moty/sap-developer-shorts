@@ -287,3 +287,25 @@ test("static review links package downloads only when a matching export package 
   });
   assert.doesNotMatch(String(noPackage["review.html"]), /Download episode package/);
 });
+
+test("portable packages include complete interactive decks and reject missing or changed presentation members", async () => {
+  const value = await entry();
+  assert.ok(value.video?.receipt);
+  const presentation = {
+    "presentation.html": "<html>Interactive fixture</html>",
+    "presentation.json": "{}",
+    "reveal-LICENSE.txt": "MIT fixture",
+  };
+  for (const [name, text] of Object.entries(presentation)) {
+    value.video.files[name] = Buffer.from(text);
+    value.video.receipt.artifactHashes[name] = hash(text);
+  }
+  const files = extract(buildEpisodePackage(value, now));
+  for (const [name, text] of Object.entries(presentation))
+    assert.equal(files[name]?.toString(), text);
+  delete value.video.receipt.artifactHashes["presentation.json"];
+  assert.throws(() => buildEpisodePackage(value, now), /presentation changed/);
+  value.video.receipt.artifactHashes["presentation.json"] = hash("{}");
+  value.video.files["presentation.html"] = Buffer.from("changed");
+  assert.throws(() => buildEpisodePackage(value, now), /presentation changed/);
+});

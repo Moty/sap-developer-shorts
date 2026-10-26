@@ -225,3 +225,14 @@ use synthetic automated tests; QA did not capture a real microphone or trigger
 production, installation, approval or publication. Changed-file lint passes;
 eight pre-existing repository lint errors remain in unrelated files. Local
 evidence is under `.state/private-tests/library-browser-*`.
+
+## Explore the generated presentation
+
+Each saved short has a **Presentation** link in its workspace row. This opens a
+dark 9:16 interactive deck generated from the saved script and its available
+evidence. Play the narration, inspect code lines, switch captured results to a
+stock chart, explore a captured-row filter, or expand news scope and sources.
+Focus view enlarges the canvas. New MP4 exports use the refreshed motion design
+and include the interactive deck in their portable package. See
+[Interactive portrait presentations](PRESENTATIONS.md) for the renderer choice,
+data boundaries, local setup and export behavior.

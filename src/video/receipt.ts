@@ -49,6 +49,15 @@ export async function readVideoReceipt(directory: string) {
       throw new Error(`Saved video artifact changed: ${name}`);
     files[name] = bytes;
   }
+  const presentationFiles = ["presentation.html", "presentation.json", "reveal-LICENSE.txt"];
+  if (presentationFiles.some((name) => receipt.artifactHashes?.[name])) {
+    for (const name of presentationFiles) {
+      const bytes = await read(name);
+      if (hash(bytes) !== receipt.artifactHashes?.[name])
+        throw new Error(`Saved presentation artifact changed: ${name}`);
+      files[name] = bytes;
+    }
+  }
   if (
     files["short.mp4"]?.toString("ascii", 4, 8) !== "ftyp" ||
     files["poster.png"]?.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a"

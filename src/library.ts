@@ -4,7 +4,13 @@ import { mkdir, readdir, readFile, realpath, rename, stat, writeFile } from "nod
 import { resolve } from "node:path";
 import { readContentEpisode, validateContent } from "./contracts.js";
 import { hash } from "./digest.js";
-import { type ContentEpisode, isNewsEpisode, type NewsTopic, type Topic } from "./domain.js";
+import {
+  type ContentEpisode,
+  type DemoEvidence,
+  isNewsEpisode,
+  type NewsTopic,
+  type Topic,
+} from "./domain.js";
 import {
   assertPackageReceipt,
   buildEpisodePackage,
@@ -26,6 +32,7 @@ import { hasClonedVoices } from "./media/voice-reference.js";
 import { loadVerifiedRun, productionSettings } from "./media/worker.js";
 import { inside, projectRoot, sourceFile } from "./paths.js";
 import { episodeSelector, episodeSourceFiles } from "./presentation.js";
+import { createPresentationDeck, presentationAssets } from "./presentation-deck.js";
 import { readRuntimeFiles } from "./provenance.js";
 import { assertVideoQuality, readVideoReceipt } from "./video/receipt.js";
 
@@ -52,6 +59,7 @@ export interface LibraryEntry {
     receipt?: PackageVideoReceipt;
   };
   download?: EpisodeDownload;
+  deck?: Record<string, string | Buffer>;
   updatedAt?: string;
   recordedVoiceLabel?: string;
   generation?: GenerationSummary;
@@ -318,11 +326,52 @@ export async function buildLibrary(
     ).toISOString();
     if (entry.preview?.kind === "narrated" && hasClonedVoices(entry.episode))
       entry.recordedVoiceLabel = await episodeVoiceDescription(entry.episode);
+    const code: Record<string, string> = {};
+    let evidence: DemoEvidence | undefined;
+    const savedSource = entry.preview
+      ? await loadVerifiedRun(resolve(artifactRoot, entry.preview.sourceRunId), {
+          requireFreshNews: false,
+        })
+      : undefined;
+    for (const scene of entry.episode.scenes) {
+      if ("codePath" in scene.visual && scene.visual.codePath) {
+        const bytes = await readFile(await sourceFile(scene.visual.codePath));
+        if (
+          !savedSource ||
+          hash(bytes) === savedSource.manifest.sourceHashes[scene.visual.codePath]
+        )
+          code[scene.visual.codePath] = bytes.toString("utf8");
+      }
+    }
+    if (savedSource && !isNewsEpisode(entry.episode))
+      evidence = JSON.parse(
+        (
+          await readHashed(
+            resolve(artifactRoot, entry.preview?.sourceRunId ?? ""),
+            "demo-evidence.json",
+            savedSource.manifest.artifactHashes["demo-evidence.json"],
+          )
+        ).toString("utf8"),
+      );
+    entry.deck = await createPresentationDeck({
+      workspaceHref: "../../review.html#episodes",
+      episode: entry.episode,
+      code,
+      ...(evidence ? { evidence } : {}),
+      ...(entry.preview?.kind === "narrated"
+        ? {
+            timing: JSON.parse(entry.preview.files["timing.json"]?.toString("utf8") ?? "null"),
+            audioSrc: "narration.wav" as const,
+          }
+        : {}),
+      sourceReviewExpired: entry.sourceReviewExpired,
+    });
     const download = buildEpisodePackage(entry, now);
     if (download) entry.download = download;
   }
   const sourceHashes: Record<string, string> = {};
   for (const name of [
+    ...presentationAssets,
     "templates/library.css",
     "templates/library.js",
     "templates/library-browser.css",

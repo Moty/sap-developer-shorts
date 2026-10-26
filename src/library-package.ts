@@ -117,16 +117,59 @@ function validateManifest(value: unknown) {
   );
   const allowed = new Set(["review.html"]);
   const expectedSources = new Set(sourceInputs);
-  if (Object.hasOwn(object(manifest.sourceHashes), "templates/voice-profiles.js"))
-    expectedSources.add("templates/voice-profiles.js");
+  for (const name of [
+    "templates/voice-profiles.js",
+    "templates/local-actions.js",
+    "templates/voice-library.css",
+    "templates/library-browser.css",
+    "templates/library-collections.js",
+    "templates/library-navigation.js",
+    "templates/presentation.css",
+    "templates/presentation.js",
+  ])
+    if (Object.hasOwn(object(manifest.sourceHashes), name)) expectedSources.add(name);
+  const allowPresentation = (prefix: string) => {
+    const names = ["presentation.html", "presentation.json", "reveal-LICENSE.txt"].map(
+      (name) => prefix + name,
+    );
+    if (names.some((name) => Object.hasOwn(object(manifest.artifactHashes), name))) {
+      check(
+        names.every((name) => Object.hasOwn(object(manifest.artifactHashes), name)),
+        "incomplete presentation inventory",
+      );
+      for (const name of names) allowed.add(name);
+    }
+  };
   const episodes = new Map<string, { version: number; renderKey?: string }>();
   let videoCount = 0;
   for (const value of list(manifest.episodes)) {
     const episode = shape(
       value,
       ["id", "selector", "version", "inputHash", "sourceReviewExpired", "preview"],
-      ["video", "localOnly"],
+      ["video", "localOnly", "generation"],
     );
+    if (Object.hasOwn(episode, "generation")) {
+      const summary = shape(
+        episode.generation,
+        ["totalMs", "basis", "reusedAudio", "reusedVideo"],
+        ["stages"],
+      );
+      number(summary.totalMs, 0, Number.MAX_SAFE_INTEGER);
+      check(
+        ["generation", "legacy-run"].includes(String(summary.basis)),
+        "invalid generation timing basis",
+      );
+      check(
+        typeof summary.reusedAudio === "boolean" && typeof summary.reusedVideo === "boolean",
+        "invalid generation reuse flags",
+      );
+      if (summary.basis === "generation")
+        check(Object.hasOwn(summary, "stages"), "missing generation stage timings");
+      if (Object.hasOwn(summary, "stages")) {
+        const stages = shape(summary.stages, ["preparationMs", "audioMs", "videoMs"]);
+        for (const elapsed of Object.values(stages)) number(elapsed, 0, summary.totalMs as number);
+      }
+    }
     if (Object.hasOwn(episode, "localOnly"))
       check(episode.localOnly === true, "invalid local-only marker");
     const id = string(episode.id, idPattern, "episode ID");
@@ -146,6 +189,7 @@ function validateManifest(value: unknown) {
       expectedSources.add(`content/presentations/${selector.replace("@", "--")}.json`);
     const prefix = `episodes/${selector}/`;
     allowed.add(`${prefix}edit.html`);
+    allowPresentation(prefix);
     if (episode.preview === null) {
       check(!Object.hasOwn(episode, "video"), "video without a preview");
       continue;
@@ -201,6 +245,7 @@ function validateManifest(value: unknown) {
         "publication-draft.txt",
       ])
         allowed.add(`${prefix}video/${name}`);
+      allowPresentation(`${prefix}video/`);
       videoCount++;
       // Older saved libraries predate the review-and-publication screen.
       if (Object.hasOwn(object(manifest.artifactHashes), `${prefix}publish.html`))

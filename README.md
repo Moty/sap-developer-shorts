@@ -62,6 +62,11 @@ npm run shorts -- serve LIBRARY_DIRECTORY
 
 Use the library directory printed by the first command. The workspace separates ideas, editing, active production, videos to review, approved videos to publish, and recorded publications. Each version has a visible name and next action; stage, type, search and attention filters work together on desktop and phones. The library prefers validated narrated output over silent storyboards and excludes previews that no longer match the current script or whose saved files have changed. See [the creator journey](docs/CREATOR_STUDIO.md).
 
+Each entry also opens an [interactive 9:16 presentation](docs/PRESENTATIONS.md)
+with local Reveal.js playback, code inspection, captured-result charts and filters,
+or source-backed news cards. New MP4 productions include the refreshed motion
+design and an interactive deck in the episode package.
+
 This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 
 Use **Download episode package · ZIP** on a verified episode to save its video,

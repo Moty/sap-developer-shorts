@@ -398,3 +398,46 @@ test("manifest, artifact-count, and aggregate byte limits are checked before all
   await assert.rejects(f.run, /512 MiB/u);
   await f.noOutput();
 });
+
+test("studio packages retain complete presentation files for scripts and videos, plus their known template provenance", async (t) => {
+  const f = await fixture(t);
+  for (const prefix of ["episodes/CAP-01/", "episodes/CAP-01/video/", "episodes/CAP-02/"]) {
+    for (const name of ["presentation.html", "presentation.json", "reveal-LICENSE.txt"]) {
+      const path = prefix + name,
+        bytes = Buffer.from(`Saved ${path}`);
+      f.manifest.artifactHashes[path] = hash(bytes);
+      await writeFile(resolve(f.source, path), bytes);
+    }
+  }
+  for (const name of [
+    "templates/presentation.css",
+    "templates/presentation.js",
+    "templates/library-collections.js",
+    "templates/library-navigation.js",
+    "templates/library-browser.css",
+    "templates/voice-library.css",
+    "templates/local-actions.js",
+  ])
+    f.manifest.sourceHashes[name] = hash(name);
+  const generation = {
+    totalMs: 1000,
+    basis: "generation",
+    reusedAudio: false,
+    reusedVideo: false,
+    stages: { preparationMs: 100, audioMs: 400, videoMs: 500 },
+  };
+  const episode = f.manifest.episodes[0] as Record<string, unknown>;
+  episode.generation = generation;
+  await f.save();
+  const result = await f.run();
+  const archive = unzipSync(await readFile(resolve(result.directory, "studio.zip")));
+  assert.ok(archive["studio/episodes/CAP-01/video/presentation.html"]);
+  assert.ok(archive["studio/episodes/CAP-02/presentation.json"]);
+  generation.stages.audioMs = -1;
+  await f.save();
+  await assert.rejects(f.run(), /Cannot package saved studio/);
+  generation.stages.audioMs = 400;
+  delete f.manifest.artifactHashes["episodes/CAP-02/presentation.json"];
+  await f.save();
+  await assert.rejects(f.run(), /incomplete presentation inventory/);
+});

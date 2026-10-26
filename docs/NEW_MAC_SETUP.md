@@ -6,6 +6,11 @@ Use a native Apple Silicon Terminal session when applicable (`uname -m` reports
 `arm64`). No SAP account, global CAP install, GPU, paid provider, or API key is
 needed for these local tests.
 
+The interactive portrait presentation renderer is installed by `npm ci` as part
+of the application. It needs no separate service or model download. After building
+the local workspace, use an entry's **Presentation** link. See
+[Interactive portrait presentations](PRESENTATIONS.md) for playback and export.
+
 ## 1. Install the tools
 
 You need Git, Node.js 22.13 or newer, npm, uv, and FFmpeg/FFprobe. The repository's

@@ -82,6 +82,15 @@ export function buildEpisodePackage(entry: LibraryEntry, now = new Date()): Epis
       throw new Error(`Episode package video artifact changed: ${name}`);
     files[name] = Buffer.from(bytes);
   }
+  const presentationFiles = ["presentation.html", "presentation.json", "reveal-LICENSE.txt"];
+  for (const name of presentationFiles.some((name) => receipt.artifactHashes[name])
+    ? presentationFiles
+    : []) {
+    const bytes = video.files[name];
+    if (!bytes || hash(bytes) !== receipt.artifactHashes[name])
+      throw new Error(`Episode package presentation changed: ${name}`);
+    files[name] = Buffer.from(bytes);
+  }
   for (const name of ["captions.vtt", "timing.json"])
     if (hash(preview.files[name] ?? Buffer.alloc(0)) !== receipt.artifactHashes[name])
       throw new Error("Episode package captions and timing differ from the selected narration.");

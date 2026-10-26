@@ -7,6 +7,7 @@ import { drawAvatarBadge, loadAvatarImage, resolveCueAnimation } from "../media/
 import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
+import { sceneMotion, storySteps } from "./motion.js";
 import { type VideoMoment, videoFps } from "./timeline.js";
 
 export const videoFontFiles = [
@@ -213,15 +214,22 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   const cue = moment.cueIndex === null ? undefined : timing.cues[moment.cueIndex];
   const canvas = createCanvas(layout.canvas.width, layout.canvas.height);
   const ctx = canvas.getContext("2d");
+  const motion = sceneMotion(episode, timing, moment.sceneIndex, moment.startFrame);
   const comic = episode.presentation?.tone === "comic";
-  const accent = comic ? "#edcb7c" : "#b8dbbc";
+  const accent = comic ? "#fbbf24" : "#5eead4";
   const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
-  gradient.addColorStop(0, "#234d48");
-  gradient.addColorStop(0.6, "#142f38");
-  gradient.addColorStop(1, "#0b202a");
+  gradient.addColorStop(0, "#0f172a");
+  gradient.addColorStop(0.6, "#080f20");
+  gradient.addColorStop(1, "#020617");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 1080, 1920);
-  ctx.globalAlpha = 0.05;
+  const glowX = 850 + Math.sin(motion.elapsed * 0.35) * 75;
+  const glow = ctx.createRadialGradient(glowX, 560, 10, glowX, 560, 650);
+  glow.addColorStop(0, "#0e749030");
+  glow.addColorStop(1, "#0e749000");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 1080, 1920);
+  ctx.globalAlpha = 0.035;
   for (let x = 72; x < 1000; x += 64)
     for (let y = 100; y < 1750; y += 64) {
       ctx.beginPath();
@@ -251,9 +259,26 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       break;
     headlineSize -= 2;
   }
-  text(ctx, scene.overlay, layout.headline, headlineSize, "#f7faf2", "Shorts Heading", "headline");
+  ctx.save();
+  ctx.globalAlpha = motion.opacity;
+  text(
+    ctx,
+    scene.overlay,
+    { ...layout.headline, y: layout.headline.y + motion.offsetY },
+    headlineSize,
+    "#f8fafc",
+    "Shorts Heading",
+    "headline",
+  );
+  ctx.restore();
   const box = layout.demo;
-  panel(ctx, box.x, box.y, box.width, box.height, "#0d232d");
+  panel(ctx, box.x, box.y, box.width, box.height, "#0b1222");
+  ctx.strokeStyle = "#25344c";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(box.x, box.y, box.width, box.height, 24);
+  ctx.stroke();
+  panel(ctx, box.x + 24, box.y + box.height - 10, (box.width - 48) * motion.progress, 3, accent, 1);
   // Subtle window header divider & terminal control dots
   ctx.save();
   ctx.strokeStyle = "rgba(184, 219, 188, 0.14)";
@@ -330,8 +355,9 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
           accent,
           "Shorts Heading",
         ) + 24;
-      for (const row of capture.value) {
-        panel(ctx, body.x, y, body.width, 84, "#193641", 12);
+      const maximumStock = Math.max(1, ...capture.value.map((row) => row.stock));
+      for (const [rowIndex, row] of capture.value.entries()) {
+        panel(ctx, body.x, y, body.width, 84, "#132239", 12);
         text(ctx, row.title, { x: body.x + 20, y: y + 20, width: 580, height: 48 }, 34, "#e6f2e8");
         text(
           ctx,
@@ -340,7 +366,35 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
           26,
           "#a9c6bb",
         );
+        const reveal = Math.min(1, Math.max(0, motion.elapsed - rowIndex * 0.12) / 0.65);
+        panel(
+          ctx,
+          body.x + 20,
+          y + 74,
+          Math.max(1, (body.width - 40) * (row.stock / maximumStock) * reveal),
+          3,
+          row.stock > 0 ? accent : "#475569",
+          1,
+        );
         y += 100;
+      }
+      if (y + 130 < box.y + box.height - 24) {
+        text(
+          ctx,
+          String(Math.round(capture.value.length * Math.min(1, motion.elapsed / 0.7))),
+          { x: body.x, y: y + 36, width: 140, height: 110 },
+          80,
+          accent,
+          "Shorts Heading",
+          "captured row counter",
+        );
+        text(
+          ctx,
+          "captured rows",
+          { x: body.x + 155, y: y + 65, width: body.width - 155, height: 50 },
+          32,
+          "#94a3b8",
+        );
       }
       if (y > box.y + box.height - 20) throw new Error("Captured results overflow the video panel");
     }
@@ -380,43 +434,47 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     const title =
       scene.phase === "cta"
         ? isNewsEpisode(episode)
-          ? "Read the official sources."
-          : "Try the working example."
-        : isNewsEpisode(episode)
-          ? "What changed.\nWhy it matters.\nWhen it ships."
-          : episode.title;
-    y +=
+          ? "Explore the official sources"
+          : "Try the working example"
+        : episode.title;
+    const openingHeight = text(
+      ctx,
+      title,
+      { ...body, y: y + 12, height: 310 },
+      58,
+      "#f8fafc",
+      "Shorts Heading",
+      "opening",
+    );
+    let flowY = y + openingHeight + 60;
+    for (const [index, step] of storySteps(episode).entries()) {
+      const stepEnter = Math.min(1, Math.max(0, motion.elapsed - index * 0.14) / 0.5);
+      const offset = 18 * (1 - stepEnter);
+      ctx.save();
+      ctx.globalAlpha = 0.65 + 0.35 * stepEnter;
+      panel(ctx, body.x, flowY + offset, body.width, 104, "#122139", 16);
       text(
         ctx,
-        title,
-        { ...body, y: y + 40, height: 340 },
-        60,
-        "#f0f5e9",
+        String(index + 1).padStart(2, "0"),
+        { x: body.x + 20, y: flowY + offset + 32, width: 70, height: 44 },
+        30,
+        accent,
+        "Shorts Code",
+      );
+      text(
+        ctx,
+        step.label,
+        { x: body.x + 100, y: flowY + offset + 25, width: body.width - 125, height: 70 },
+        30,
+        "#dbeafe",
         "Shorts Heading",
-        "opening",
-      ) + 100;
-    text(
-      ctx,
-      isNewsEpisode(episode) ? `SAP news · checked ${episode.news.asOf}` : "Build → Run → Verify",
-      { ...body, y, height: 120 },
-      32,
-      accent,
-    );
-    text(
-      ctx,
-      scene.phase === "cta"
-        ? isNewsEpisode(episode)
-          ? "Official sources in the post."
-          : "Project and official sources in the post."
-        : episode.presentation?.format === "dialogue"
-          ? `A developer conversation with ${episode.presentation.speakers.map((speaker) => speaker.name).join(" + ")}`
-          : isNewsEpisode(episode)
-            ? "Official sources. Availability and scope."
-            : "One idea. A working example.",
-      { ...body, y: y + 140, height: 150 },
-      34,
-      "#a9c5bc",
-    );
+        "story step",
+      );
+      ctx.restore();
+      flowY += 126;
+    }
+    if (flowY > box.y + box.height - 24)
+      throw new Error("Video story flow does not fit its readable text bounds");
   }
   if (cue) {
     const captionY = layout.captions.y;
@@ -536,7 +594,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     ctx,
     72,
     1735,
-    Math.max(7, (864 * (moment.sceneIndex + 1)) / episode.scenes.length),
+    Math.max(7, (864 * (moment.sceneIndex + motion.progress)) / episode.scenes.length),
     7,
     accent,
     3,
