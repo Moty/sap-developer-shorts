@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { voiceStyleRecording } from "../voice-styles.js";
 import { withModelLock } from "./model-lock.js";
 import { acceptClonedVoice, auditionClonedVoice, qwenStatus } from "./qwen.js";
 import {
@@ -13,6 +14,7 @@ import {
 } from "./voice-profiles.js";
 import { isClonedVoice } from "./voice-reference.js";
 import { prepareVoiceSample } from "./voice-sample-input.js";
+import { readVoiceStyleMetadata, saveVoiceStyleMetadata } from "./voice-style-metadata.js";
 
 interface PrivateApiOptions {
   token?: string;
@@ -65,14 +67,22 @@ export async function handleVoiceProfileApi(
       const [runtime, profiles] = await Promise.all([qwenStatus(), listVoiceProfiles()]);
       options.send(response, 200, {
         runtime,
-        profiles: profiles.map((profile) => {
-          const auditionReady = !!(
-            runtime.ready &&
-            "hash" in runtime &&
-            profile.audition?.runtimeHash === runtime.hash
-          );
-          return { ...profile, auditionReady, accepted: profile.accepted && auditionReady };
-        }),
+        profiles: await Promise.all(
+          profiles.map(async (profile) => {
+            const auditionReady = !!(
+              runtime.ready &&
+              "hash" in runtime &&
+              profile.audition?.runtimeHash === runtime.hash
+            );
+            const labels = await readVoiceStyleMetadata(profile.voice);
+            return {
+              ...profile,
+              ...(labels ?? {}),
+              auditionReady,
+              accepted: profile.accepted && auditionReady,
+            };
+          }),
+        ),
       });
       return true;
     }
@@ -104,6 +114,10 @@ export async function handleVoiceProfileApi(
       unknown
     >;
     if (url.pathname === "/api/local-voices/enroll") {
+      const labels =
+        body.style !== undefined || body.speakerName !== undefined
+          ? voiceStyleRecording(body.speakerName, body.style)
+          : null;
       if (
         typeof body.audio !== "string" ||
         body.audio.length > maximumSampleBytes * 1.4 ||
@@ -124,13 +138,15 @@ export async function handleVoiceProfileApi(
             },
             work,
           );
-          return await createVoiceProfile(sample.bytes, {
-            name: body.name as string,
+          const saved = await createVoiceProfile(sample.bytes, {
+            name: labels?.name ?? (body.name as string),
             transcript: body.transcript as string,
             consent: body.consent === true,
             startSeconds: sample.startSeconds,
             endSeconds: sample.endSeconds,
           });
+          if (labels) await saveVoiceStyleMetadata(saved.voice, labels.speakerName, labels.style);
+          return { ...saved, ...(labels ?? {}) };
         } finally {
           await rm(work, { recursive: true, force: true });
         }

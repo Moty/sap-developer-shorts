@@ -2,6 +2,34 @@
 
 The selected style is a **warm, conversational female narrator**. The default local preview now uses Kokoro's American English **Heart** voice (`af_heart`) at speed 0.96. Each scene is generated continuously, preserving sentence flow; the old system preview generated short phrases separately and padded scenes to their planned slots.
 
+## Personal voice styles in the library
+
+Open **Voice library → My voice styles → Add a voice style** in the running local
+studio. Enter the speaker name, then choose **Professional**, **Calm**, **Comic**,
+**Upbeat**, **Sad / reflective**, **Conversational**, **Casual**, or **News presenter**.
+Read with that delivery; the selected reference guides Qwen's performance.
+
+Each style offers an original reading passage and guidance. Choosing a style
+updates the suggested passage; **Use this text as transcript** explicitly copies
+its words. Browsing keeps an existing custom transcript. Record or upload a clear
+sample, then review its audio, exact transcript and consent before saving.
+Samples are 3–30 seconds, with 10–20 seconds recommended. Longer uploads can use
+an excerpt. The speaker name stays ready for another style after saving.
+
+A take is a separate profile, named for example **Moty · Professional**. Existing
+recordings are retained. Filter saved recordings by style, select one, generate
+its audition, listen, and choose **I listened · make available**. Each new take
+needs its own audition and approval. Choose that recording under **My voice** in
+an episode's **Voice & portrait** step; accepting from the library does not change
+an episode or the stock narrator default. Editors share the same recording panel.
+
+Style labels organize recorded takes; they do not turn one recording into eight
+emotional performances. Capture the delivery in the reference and review its
+synthesized audition. Profiles and reference audio stay in the private local
+`.state/voice-profiles` directory. Optional `library.json` labels are separate from
+the immutable sample revision and approval files. Older recordings appear as
+original/unlabelled recordings and continue to work without migration.
+
 ## Local setup
 
 To use a recording of your voice instead of a stock profile, see

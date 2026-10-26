@@ -317,6 +317,7 @@ export async function buildLibrary(
     "templates/library.css",
     "templates/library.js",
     "templates/local-actions.js",
+    "templates/voice-library.css",
     "templates/script-editor.css",
     "templates/script-editor.js",
     "templates/voice-profiles.js",

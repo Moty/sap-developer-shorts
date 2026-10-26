@@ -150,3 +150,33 @@ repeated during QA. Upstream repository lint already fails on news formatting
 and code diagnostics; the baseline check and change check are recorded under
 `.state/private-tests/local-actions-*-lint.log`. Personal photos and presentation
 files were preserved and excluded from the commit.
+
+
+## Reusable personal delivery recordings
+
+**Voice library → My voice styles** now shares the episode editor's recorder,
+upload, excerpt, transcript, consent and audition controls. **Add a voice style**
+uses a two-step record/review form, with the speaker name retained for the next
+take. Professional, calm, comic, upbeat, sad/reflective, conversational, casual
+and news deliveries have reading guidance. Saved recordings can be filtered by
+style and auditioned independently before becoming available in episode editors.
+See [personal voice styles](VOICE_OPTIONS.md#personal-voice-styles-in-the-library).
+
+The library does not require an open episode and does not assign an episode
+speaker when a recording is accepted. Existing profiles keep their original
+audio, revisions and approvals; optional style labels live in a separate sidecar.
+The recorder releases the microphone on navigation and cancels a pending capture
+request if the page changes before permission resolves.
+
+Validated October 25, 2026: 282 automated tests passed with no skips, plus five
+live CAP checks, typecheck, content validation and both builds in a source-only
+checkout. Isolated HTTP tests saved separate professional, calm and upbeat
+synthetic samples and checked consent, invalid styles and older enrollment
+requests. Browser QA verified the style passages, saved-recording filters and
+shared episode editor, including its portrait selector. All four existing local
+profiles retained their approvals, the Qwen runtime remained ready, and the
+narrator default stayed unchanged. No personal sample was recorded, cloned or
+accepted during QA; delivery quality still requires listening to each audition.
+Changed-file lint passed. Repository lint retains eight pre-existing errors in
+unmodified files; validation logs and screenshots are saved locally under
+`.state/private-tests/voice-style-*`.

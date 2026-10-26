@@ -1,0 +1,145 @@
+.personal-voice-panel {
+  margin: 24px 0;
+  padding: 20px;
+  border: 1px solid #cbd8cf;
+  border-radius: 14px;
+  background: #f0f5ef;
+}
+.personal-voice-panel > summary {
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 650;
+  color: #254c40;
+}
+.personal-voice-panel p {
+  line-height: 1.6;
+}
+.personal-voice-panel label {
+  display: block;
+  margin: 12px 0 5px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.personal-voice-panel :is(input:not([type="checkbox"]), select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #bdcdc4;
+  border-radius: 8px;
+  background: #fff;
+  color: #203c36;
+  font: inherit;
+}
+.personal-voice-panel input[type="file"] {
+  max-width: 100%;
+}
+.personal-voice-panel button {
+  font: inherit;
+  padding: 9px 12px;
+  margin: 4px 6px 4px 0;
+  border: 1px solid #b8ccc4;
+  border-radius: 8px;
+  color: #275d4e;
+  background: #e2ebe7;
+  cursor: pointer;
+}
+.personal-voice-panel button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.personal-voice-panel audio {
+  width: 100%;
+  min-width: 0;
+  margin: 10px 0;
+}
+.personal-voice-panel .voice-help {
+  font-size: 13px;
+  color: #526d5f;
+}
+.voice-panel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 22px;
+  align-items: start;
+  margin-top: 20px;
+}
+.voice-recording-identity {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.voice-enrollment {
+  min-width: 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #d3ded6;
+  border-radius: 10px;
+}
+.voice-enrollment > summary {
+  font-weight: 650;
+  cursor: pointer;
+}
+.personal-voice-setup {
+  font-size: 13px;
+  margin: 10px 0;
+}
+.personal-voice-setup > summary {
+  cursor: pointer;
+}
+.personal-voice-panel .reading-card {
+  margin: 14px 0;
+  padding: 14px;
+  background: #f6f7f2;
+  border-radius: 8px;
+}
+.personal-voice-panel .reading-text {
+  font-size: 16px;
+  line-height: 1.65;
+}
+.personal-voice-panel .my-voice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.personal-voice-panel .my-voice-consent {
+  display: flex;
+  gap: 10px;
+  align-items: start;
+  font-weight: 400;
+}
+.personal-voice-panel .my-voice-consent input {
+  margin-top: 5px;
+}
+.personal-voice-panel .my-voice-trim {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.voice-excerpt {
+  margin: 12px 0;
+}
+.voice-excerpt > summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+#my-voice-status {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 800px) {
+  .voice-panel-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 420px) {
+  .personal-voice-panel {
+    padding: 14px;
+  }
+  .voice-recording-identity {
+    grid-template-columns: 1fr;
+  }
+  .personal-voice-panel .my-voice-trim {
+    grid-template-columns: 1fr;
+  }
+}

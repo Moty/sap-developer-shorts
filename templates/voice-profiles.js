@@ -1,6 +1,15 @@
 (() => {
   const byId = (id) => document.getElementById(id);
   if (!byId("my-voice-panel")) return;
+  const libraryData = byId("voice-library-data");
+  const panelData = JSON.parse(
+    (libraryData?.textContent ? libraryData : byId("editor-data")).textContent,
+  );
+  const library = panelData.voicePanelContext === "library";
+  const styles = panelData.voiceStyles ?? [];
+  const styleLabel = (id) => styles.find((style) => style.id === id)?.label;
+  const acceptLabel = () =>
+    library ? "I listened · make available" : "I listened · use this voice";
   const key = (voice) =>
     typeof voice === "string" ? voice : `qwen:${voice.profileId}:${voice.revision}`;
   const state = {
@@ -10,7 +19,29 @@
     recording: null,
     stream: null,
     context: null,
+    recordingEpoch: 0,
+    leaving: false,
+    runtimeReady: false,
   };
+  globalThis.addEventListener?.("pagehide", () => {
+    state.leaving = true;
+    state.recordingEpoch++;
+    clearTimeout(state.recordingTimer);
+    if (state.recording?.state === "recording") state.recording.stop();
+    for (const track of state.stream?.getTracks() ?? []) track.stop();
+    state.context?.close().catch(() => {});
+    if (state.blobUrl) {
+      URL.revokeObjectURL(state.blobUrl);
+      state.blobUrl = null;
+    }
+  });
+  globalThis.addEventListener?.("pageshow", () => {
+    state.leaving = false;
+    if (state.blob && !state.blobUrl) {
+      state.blobUrl = URL.createObjectURL(state.blob);
+      byId("my-voice-upload-preview").src = state.blobUrl;
+    }
+  });
   globalThis.shortsVoiceProfiles = {
     isAvailable: (value) =>
       state.profiles.some((profile) => profile.accepted && key(profile.voice) === value),
@@ -47,12 +78,14 @@
     state.current = profile?.voice ?? null;
     byId("my-voice-reference").hidden = !profile;
     if (profile) byId("my-voice-reference").src = audioUrl(profile.voice, "reference");
-    byId("my-voice-generate").disabled = !profile;
+    byId("my-voice-generate").disabled = !profile || !state.runtimeReady;
     byId("my-voice-delete").disabled = !profile;
-    byId("my-voice-accept").disabled = !profile?.auditionReady;
+    byId("my-voice-accept").disabled = !profile?.auditionReady || !!(library && profile?.accepted);
     byId("my-voice-accept").textContent = profile?.accepted
-      ? "Use this saved voice"
-      : "I listened · use this voice";
+      ? library
+        ? "Accepted · ready for episodes"
+        : "Use this saved voice"
+      : acceptLabel();
     byId("my-voice-audition").hidden = !profile?.auditionReady;
     if (profile?.auditionReady)
       byId("my-voice-audition").src =
@@ -61,48 +94,78 @@
       message(
         `${profile.name} · ${profile.durationSeconds.toFixed(1)}s · ${profile.accepted ? "Ready to use" : profile.auditionReady ? "Listen to the saved audition, then use this voice" : "Sample saved. Next: generate and listen to an audition"}${profile.warnings?.length ? ` · ${profile.warnings.join(" ")}` : ""}`,
       );
+    else message("Choose a saved recording, or open Add a voice style to record another take.");
+    if (styles.length)
+      byId("my-voice-style-summary").textContent = profile
+        ? profile.style
+          ? `${profile.speakerName} · ${styleLabel(profile.style) || profile.styleLabel}`
+          : "Original recording · no delivery style label"
+        : "";
   }
   globalThis.shortsVoiceProfiles.refresh = () =>
     refresh(state.current ? key(state.current) : undefined);
-  async function refresh(preserve, stillCurrent = () => true) {
-    const data = await request("");
-    if (!stillCurrent()) return null;
-    state.profiles = data.profiles;
-    byId("my-voice-runtime").textContent = data.runtime.ready
-      ? "Qwen voice cloning is ready on this Mac."
-      : data.runtime.message;
+  function populate(preserve) {
+    const filter = styles.length ? byId("my-voice-filter").value || "all" : "all";
+    const visible = state.profiles.filter(
+      (profile) =>
+        filter === "all" || (filter === "unlabelled" ? !profile.style : profile.style === filter),
+    );
     const select = byId("my-voice-saved");
     select.replaceChildren();
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = "Choose a saved voice";
     select.append(placeholder);
-    for (const profile of state.profiles) {
+    for (const profile of visible) {
       const option = document.createElement("option");
       option.value = key(profile.voice);
       option.textContent = `${profile.name}${profile.accepted ? " · Ready" : " · Audition needed"}`;
       select.append(option);
+    }
+    for (const profile of state.profiles) {
+      const value = key(profile.voice);
       for (const speakerSelect of document.querySelectorAll('[id^="speaker-voice-"]')) {
         if (speakerSelect.tagName !== "SELECT") continue;
-        let item = Array.from(speakerSelect.options).find((item) => item.value === option.value);
+        let item = Array.from(speakerSelect.options).find((item) => item.value === value);
         if (!item && !profile.accepted) continue;
         if (!item) {
           item = document.createElement("option");
-          item.value = option.value;
+          item.value = value;
           speakerSelect.append(item);
         }
         item.textContent = `My voice · ${profile.name}${profile.accepted ? "" : " · Audition needed"}`;
       }
     }
-    const assigned = byId(`speaker-voice-${byId("my-voice-speaker").value || "0"}`)?.value;
-    if (preserve) select.value = preserve;
-    else if (state.profiles.some((profile) => key(profile.voice) === assigned))
-      select.value = assigned;
+    const assigned = library
+      ? null
+      : byId(`speaker-voice-${byId("my-voice-speaker").value || "0"}`)?.value;
+    if (preserve && visible.some((profile) => key(profile.voice) === preserve))
+      select.value = preserve;
+    else if (visible.some((profile) => key(profile.voice) === assigned)) select.value = assigned;
+    if (styles.length)
+      byId("my-voice-count").textContent =
+        `${visible.length} of ${state.profiles.length} recordings shown. Each take keeps its own audition and approval.`;
     showSaved();
+  }
+  async function refresh(preserve, stillCurrent = () => true) {
+    const data = await request("");
+    if (!stillCurrent()) return null;
+    state.profiles = data.profiles;
+    state.runtimeReady = data.runtime.ready;
+    byId("my-voice-runtime").textContent = data.runtime.ready
+      ? "Qwen voice cloning is ready on this Mac."
+      : "Personal voice tools need setup. Open Personal voice tools above and choose Set up personal voice tools.";
+    if (styles.length && preserve) {
+      const profile = state.profiles.find((item) => key(item.voice) === preserve);
+      const filter = byId("my-voice-filter");
+      if (profile && filter.value !== "all" && filter.value !== profile.style)
+        filter.value = profile.style ?? "unlabelled";
+    }
+    populate(preserve);
     document.dispatchEvent?.(new Event("shorts:voices-ready"));
     return state.selection;
   }
-  const passages = JSON.parse(byId("editor-data").textContent).voiceReadingScripts;
+  const passages = panelData.voiceReadingScripts;
   const passageChoice = byId("my-voice-reading-choice");
   const selectedPassage = () =>
     passages.find((passage) => passage.id === passageChoice.value) ?? passages[0];
@@ -113,6 +176,30 @@
   }
   passageChoice.addEventListener("change", showPassage);
   showPassage();
+  function recordingStep(review) {
+    if (!styles.length) return;
+    byId("my-voice-record-pane").hidden = review;
+    byId("my-voice-review-pane").hidden = !review;
+  }
+  if (styles.length) {
+    byId("my-voice-filter").addEventListener("change", () =>
+      populate(state.current ? key(state.current) : undefined),
+    );
+    byId("my-voice-style").addEventListener("change", () => {
+      const style = styles.find((option) => option.id === byId("my-voice-style").value);
+      if (style) {
+        passageChoice.value = style.readingScript;
+        showPassage();
+      }
+      byId("my-voice-style-guidance").textContent = state.blob
+        ? "Check that your recording matches this delivery, or record another take. Style labels do not change the recorded audio."
+        : "Read with the delivery you want for this style. Use the passage as your transcript if you read it exactly.";
+    });
+    byId("my-voice-review-next").addEventListener("click", () => {
+      if (state.blob) recordingStep(true);
+    });
+    byId("my-voice-review-back").addEventListener("click", () => recordingStep(false));
+  }
   function lockRecording(locked) {
     for (const id of [
       "my-voice-file",
@@ -124,6 +211,15 @@
       "my-voice-save",
     ])
       byId(id).disabled = locked;
+    if (styles.length)
+      for (const id of [
+        "my-voice-name",
+        "my-voice-style",
+        "my-voice-review-next",
+        "my-voice-review-back",
+      ])
+        byId(id).disabled = locked;
+    if (styles.length && !locked) byId("my-voice-review-next").disabled = !state.blob;
   }
   function loadBlob(blob, recordedDuration) {
     if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
@@ -142,6 +238,10 @@
       if (Number.isFinite(player.duration)) setEnd(player.duration);
     };
     message("Preview the recording, select the excerpt, and enter exactly what is spoken in it.");
+    if (styles.length) {
+      byId("my-voice-review-next").disabled = false;
+      recordingStep(true);
+    }
   }
   for (const id of ["my-voice-start", "my-voice-end"])
     byId(id).addEventListener("input", () => {
@@ -189,7 +289,14 @@
     try {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined")
         throw new Error("Microphone recording is unavailable here.");
+      const epoch = state.recordingEpoch;
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (state.leaving || epoch !== state.recordingEpoch) {
+        for (const track of stream.getTracks()) track.stop();
+        throw new Error(
+          "Recording was stopped when you left this page. Start a new take when ready.",
+        );
+      }
       state.stream = stream;
       context = new AudioContext();
       state.context = context;
@@ -214,6 +321,7 @@
       recorder.onstop = () => {
         clearTimeout(state.recordingTimer);
         try {
+          if (state.leaving || epoch !== state.recordingEpoch) return;
           loadBlob(
             new Blob(chunks, { type: recorder.mimeType }),
             Math.min(29.9, (Date.now() - state.recordingStarted) / 1000),
@@ -251,6 +359,9 @@
         throw new Error("Stop recording before saving.");
       if (!state.blob) throw new Error("Record or upload an audio sample first.");
       if (state.blob.size > 30 * 1024 * 1024) throw new Error("Choose a recording up to 30 MiB.");
+      const style = styles.find((option) => option.id === byId("my-voice-style").value);
+      if (styles.length && (!style || !byId("my-voice-name").value.trim()))
+        throw new Error("Enter the speaker name and choose a recording style.");
       const audio = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result).split(",")[1]);
@@ -263,6 +374,7 @@
         name: byId("my-voice-name").value,
         transcript: byId("my-voice-transcript").value,
         consent: byId("my-voice-consent").checked,
+        ...(style ? { speakerName: byId("my-voice-name").value.trim(), style: style.id } : {}),
         ...(state.fullRecording
           ? {}
           : {
@@ -274,6 +386,18 @@
       byId("my-voice-transcript").value = "";
       byId("my-voice-file").value = "";
       byId("my-voice-consent").checked = false;
+      state.blob = null;
+      state.fullRecording = false;
+      if (state.blobUrl) {
+        URL.revokeObjectURL(state.blobUrl);
+        state.blobUrl = null;
+      }
+      byId("my-voice-upload-preview").hidden = true;
+      if (styles.length) {
+        byId("my-voice-enrollment").open = false;
+        byId("my-voice-review-next").disabled = true;
+        recordingStep(false);
+      }
     } catch (error) {
       message(error.message);
     } finally {
@@ -286,7 +410,7 @@
     byId("my-voice-accept").disabled = true;
     state.auditionFor = null;
     byId("my-voice-audition").hidden = true;
-    byId("my-voice-accept").textContent = "I listened · use this voice";
+    byId("my-voice-accept").textContent = acceptLabel();
     const voice = state.current ? structuredClone(state.current) : null;
     const selection = state.selection;
     try {
@@ -328,6 +452,22 @@
         throw new Error("Generate an audition for the selected voice first.");
       const voice = structuredClone(state.current);
       const selection = state.selection;
+      if (library) {
+        const stillCurrent = () => selection === state.selection;
+        await request("/accept", { voice });
+        if (!stillCurrent()) return;
+        const refreshed = await refresh(key(voice), stillCurrent);
+        if (
+          refreshed !== null &&
+          refreshed === state.selection &&
+          state.current &&
+          key(state.current) === key(voice)
+        )
+          message(
+            "Voice accepted. Choose this recording under My voice in an episode's Voice & portrait step.",
+          );
+        return;
+      }
       const speaker = byId("my-voice-speaker").value || "0";
       const select = byId(`speaker-voice-${speaker}`);
       const previousVoice = select.value;
@@ -376,8 +516,15 @@
     }
   });
   byId("my-voice-saved").addEventListener("change", showSaved);
+  globalThis.addEventListener?.("shorts-local-action-complete", (event) => {
+    if (event.detail?.action === "clone-setup")
+      void globalThis.shortsVoiceProfiles.refresh().catch((error) => message(error.message));
+  });
   request("/session")
-    .then(() => refresh())
+    .then(async () => {
+      await refresh();
+      byId("my-voice-controls").hidden = false;
+    })
     .catch(() => {
       byId("my-voice-controls").hidden = true;
       byId("my-voice-runtime").textContent =

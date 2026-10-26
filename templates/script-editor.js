@@ -639,7 +639,6 @@
         if (label) label.textContent = "Realistic local rendering is ready.";
       }
     }
-    if (job.action === "clone-setup") void globalThis.shortsVoiceProfiles?.refresh?.();
   });
   download.addEventListener("click", () => {
     if (pendingRecovery) return;

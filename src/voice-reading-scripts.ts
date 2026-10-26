@@ -32,4 +32,32 @@ export const voiceReadingScripts = [
     guidance: "Keep it light. Use a small change in expression for the question and the last line.",
     text: "This morning, I took a different path to the office. A bright blue bicycle rolled past the bakery. Was I late? Just a little, but the fresh bread was worth it.",
   },
+  {
+    id: "calm",
+    label: "Calm & reassuring",
+    guidance:
+      "Speak gently at a comfortable pace. Leave a little space between thoughts without whispering.",
+    text: "Take a moment, and let's work through this together. We don't need to rush. First, we'll understand the question, then try one small step. There's time to check the result.",
+  },
+  {
+    id: "comic",
+    label: "Comic & playful",
+    guidance:
+      "Use a light smile and a small pause before the last line. Keep the joke natural instead of doing a character voice.",
+    text: "I thought this would take five minutes. Then the error message invited three friends. Sound familiar? Let's fix one thing at a time. Even my coffee needs a support ticket today.",
+  },
+  {
+    id: "upbeat",
+    label: "Upbeat & enthusiastic",
+    guidance:
+      "Bring energy and a smile, with clear emphasis. Use your normal volume rather than shouting.",
+    text: "We've got something exciting to try today! A small change can make a real difference. Ready to see it work? Let's jump in, check the result, and celebrate a little progress together.",
+  },
+  {
+    id: "sad",
+    label: "Sad & reflective",
+    guidance:
+      "Use a quieter, reflective delivery with gentle emphasis. Keep the words audible and avoid forcing tears or a whisper.",
+    text: "Some days don't turn out the way we hoped. A plan changes, and we need a moment to find our footing. That's all right. We can pause, listen, and decide what comes next.",
+  },
 ] as const;
