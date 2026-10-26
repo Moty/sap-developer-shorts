@@ -5,11 +5,12 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { readContentEpisode } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
-import type { DemoEvidence } from "../src/domain.js";
+import { type DemoEvidence, isNewsEpisode } from "../src/domain.js";
 import { readLayout } from "../src/layout.js";
 import type { NarrationTiming } from "../src/media/model.js";
 import { sourceFile } from "../src/paths.js";
 import { createPresentationDeck, presentationPlan } from "../src/presentation-deck.js";
+import { cueIdentifiers, feedSceneDesign } from "../src/video/feed-design.js";
 import { drawVideoFrame } from "../src/video/frames.js";
 import { sceneMotion, storySteps } from "../src/video/motion.js";
 import { readVideoReceipt } from "../src/video/receipt.js";
@@ -173,4 +174,54 @@ test("video receipts validate optional complete presentation artifacts and still
   assert.ok((await readVideoReceipt(root)).files["presentation.html"]);
   await writeFile(resolve(root, "presentation.html"), "tampered");
   await assert.rejects(readVideoReceipt(root), /presentation artifact changed/);
+});
+
+test("feed layouts follow the real scene content and keep the service diagram tied to its claim", async () => {
+  const { episode } = await input();
+  assert.deepEqual(
+    episode.scenes.map((_, index) => feedSceneDesign(episode, index).kind),
+    ["hook", "code", "code", "code", "result", "result", "closing"],
+  );
+  assert.equal(feedSceneDesign(episode, 0).serviceBridge, true);
+  assert.ok(!isNewsEpisode(episode));
+  episode.claims = episode.claims.filter((claim) => claim.id !== "explicit-service");
+  assert.equal(feedSceneDesign(episode, 0).serviceBridge, false);
+  const model = episode.scenes[2];
+  assert.ok(model);
+  model.phase = "hook";
+  assert.equal(feedSceneDesign(episode, 2).kind, "code");
+  const news = await readContentEpisode("NEWS-01");
+  assert.equal(feedSceneDesign(news, 0).serviceBridge, false);
+  assert.throws(() => feedSceneDesign(episode, 100), /Missing feed scene/);
+});
+test("feed emphasis preserves exact source identifiers and the closing question comes from the script", async () => {
+  const { episode } = await input();
+  const last = episode.scenes.at(-1);
+  assert.ok(last);
+  last.narration = "Try the demo. Which entity would you expose first?";
+  assert.equal(
+    feedSceneDesign(episode, episode.scenes.length - 1).question,
+    "Which entity would you expose first?",
+  );
+  assert.deepEqual(
+    cueIdentifiers(
+      "entity Products { ID: UUID; stock: Integer; stocked: Boolean; }",
+      "Your Products entity has an ID and stock.",
+    ),
+    ["entity", "Products", "ID", "stock"],
+  );
+  assert.deepEqual(cueIdentifiers("stocked", "stock"), []);
+});
+test("the feed comparison keeps the public CAP script and voice; the deck uses real navigation and source links", async () => {
+  const episode = await readContentEpisode("CAP-01@feed-pop");
+  const baseline = await readContentEpisode("CAP-01@casual-v2");
+  assert.deepEqual(episode.scenes, baseline.scenes);
+  assert.deepEqual(episode.claims, baseline.claims);
+  assert.deepEqual(episode.presentation?.speakers, baseline.presentation?.speakers);
+  const { code, evidence } = await input();
+  const files = await createPresentationDeck({ episode, code, evidence });
+  assert.match(files["presentation.html"], /class="bridge-node bridge-missing" data-jump="3"/);
+  assert.match(files["presentation.html"], /class="closing-action"/);
+  assert.ok(files["presentation.html"].includes(episode.sources[0]?.url ?? "missing"));
+  assert.match(files["presentation.html"], /<details class="code-interaction">/);
 });

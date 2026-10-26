@@ -40,6 +40,17 @@
     cancelAnimationFrame(frame);
     audio?.pause();
     play.textContent = label();
+    for (const slide of slides) {
+      const chip = slide.querySelector(".spoken-code-focus");
+      if (chip) chip.hidden = true;
+      const counter = slide.querySelector("[data-counter]");
+      if (counter)
+        counter.textContent = String(
+          Array.from(slide.querySelectorAll(".result-rows [data-stock]")).filter(
+            (row) => !row.hidden,
+          ).length,
+        );
+    }
   };
   const sceneAt = (value) =>
     Math.max(
@@ -84,6 +95,33 @@
             words.has(word.toLowerCase()),
           ),
         );
+    }
+    const focusChip = slides[index].querySelector(".spoken-code-focus");
+    if (focusChip) {
+      const terms = Array.from(slides[index].querySelectorAll(".code-line.focused")).flatMap(
+        (line) => line.textContent.match(/[A-Za-z_$][A-Za-z0-9_$]*/gu) ?? [],
+      );
+      const spoken = new Set(
+        (cue?.text.match(/[A-Za-z_$][A-Za-z0-9_$]*/gu) ?? []).map((word) => word.toLowerCase()),
+      );
+      const matches = [
+        ...new Set(
+          terms.filter(
+            (word) =>
+              spoken.has(word.toLowerCase()) && (word.length >= 3 || word.toLowerCase() === "id"),
+          ),
+        ),
+      ].slice(0, 2);
+      focusChip.hidden = !playing || matches.length === 0;
+      focusChip.textContent = matches.join(" · ");
+    }
+    if (playing && !reduced && scene.kind === "results") {
+      const rowCount = scene.rows?.length ?? 0;
+      const focused = rowCount ? Math.floor(Math.max(0, time - scene.start) / 2.4) % rowCount : -1;
+      for (const view of slides[index].querySelectorAll("[data-view]"))
+        Array.from(view.children).forEach((row, position) => {
+          row.classList.toggle("is-spotlight", position === focused);
+        });
     }
     const counter = slides[index].querySelector("[data-counter]");
     const filter = slides[index].querySelector("[data-stock-filter]");

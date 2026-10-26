@@ -29,8 +29,11 @@ additional terminal setup is needed for presentations.
 The presentation uses the script's existing order and measured narration timing
 when it exists. Script-only decks are explicitly labelled as planned previews.
 
-- **Opening/closing:** animated flow cards link to the script's actual demo or
-  announcement steps.
+- **Opening:** a large headline and blue/violet canvas establish the hook immediately.
+  CAP scripts with the explicit-service claim use a model → missing service → API
+  diagram; other scripts use their own actual story steps.
+- **Closing:** one question taken from the narration and an official-source action
+  replace the repeated step list.
 - **Code:** the complete saved source stays intact. A line inspector and
   expandable explanation help review it. During playback, complete identifiers
   mentioned in the caption highlight their source lines.
@@ -55,10 +58,11 @@ portrait canvas stays in slide mode on narrow screens: Reveal's automatic mobile
 ## MP4 output
 
 The existing deterministic 30 fps video renderer now uses the same script-derived
-story steps and a darker visual system. It adds eased headline entrances,
-animated process cards, frame-based scene progress, subtle ambient motion and
-stock bars/counts derived from captured results. Full code and captured values
-remain unchanged. Existing caption bounds, presenter/photo integration, source
+story steps and a scene-specific visual system. It adds a large, readable opening
+from the first frame, bright blue/violet hook and closing scenes, cyan code focus,
+lime results, amber news availability, animated connections, rotating result-row
+focus, frame-based progress and stock bars/counts derived from captured results.
+Full code and captured values remain unchanged. Existing caption bounds, presenter/photo integration, source
 checks, duration checks, audio normalization and complete video decoding remain
 in the export path.
 
@@ -90,6 +94,7 @@ than overwriting an earlier verified export.
 - `templates/presentation.css` and `templates/presentation.js`: local visual
   system, 500 ms transitions, playback, accessibility and interactions.
 - `src/video/motion.ts`: deterministic motion and shared story-step selection.
+- `src/video/feed-design.ts`: scene roles, palettes and source-derived emphasis.
 - `src/video/frames.ts`: frame rendering within the existing mobile safe areas.
 
 Source content is escaped as text. The generated plan is data, not model-written
@@ -122,3 +127,48 @@ the final MP4 were visually reviewed across the opening, code, result and closin
 scenes. This did not include a new subjective evaluation of speech or portrait
 realism. Logs, screenshots and the recorded output checks remain locally under
 `.state/private-tests/presentation-*`; generated media is excluded from Git.
+
+## Feed edition and visual comparison
+
+The October 26 feed pass uses a stronger first-frame hierarchy, deliberate color
+changes between scene types, larger result numbers and a single closing question.
+Code retains the complete source and highlights identifiers in the current caption.
+Its advanced inspection controls are collapsed in the browser deck so they do not
+compete with the story. Captions and the existing portrait safe area remain intact.
+Reduced-motion preferences still suppress decorative browser animation.
+
+The design follows LinkedIn's official guidance to [tell the story visually early
+and design for viewing without sound](https://business.linkedin.com/advertise/ads/sponsored-content/video-ads/tips).
+That guidance informs the visual choices; this project has not measured feed
+retention or engagement uplift. Compare the outputs with the intended audience.
+The interactive deck has navigation and data controls; LinkedIn receives the
+fixed, animated MP4 when you choose to upload it.
+
+With the standard local Kokoro/FFmpeg setup installed, reproduce the public CAP
+comparison sample locally:
+
+```sh
+npm ci
+npm run build
+npm run shorts -- produce CAP-01@feed-pop
+```
+
+Use the returned studio link, then open **Presentation** or **Review video** for
+that version. The sample keeps the existing casual CAP narration, Heart voice and
+source-backed data; its pronunciation dictionary matches the locally reviewed
+CAP pilot. A render with completed compatible speech reuses the verified audio.
+New generation uses the new visual system; earlier verified MP4s are preserved.
+
+Validated October 26, 2026 in a clean source-only checkout: **300 tests**, five
+live CAP checks, typecheck, content validation and both builds passed. Changed-file
+lint is clean. The tracked repository still has eight unrelated pre-existing lint
+errors; additional local user drafts may also appear in a whole-workspace lint.
+
+The `CAP-01@feed-pop` pilot is 47.580 seconds, 1080 × 1920 at 30 fps. It reused
+completed narration from the earlier pilot and took **44.1 seconds** through
+render verification (**40.2 seconds** for rendering). Receipt checks, complete
+video decoding and audio checks passed. The saved audio content matches the
+previous pilot; this comparison evaluates the visuals. Native first-frame and
+all-scene frames, the actual exported MP4, CAP code/results interactions and news
+availability/source disclosures were visually checked. Private local evidence is
+under `.state/private-tests/feed-*`; generated media is excluded from Git.

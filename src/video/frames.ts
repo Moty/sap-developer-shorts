@@ -7,6 +7,7 @@ import { drawAvatarBadge, loadAvatarImage, resolveCueAnimation } from "../media/
 import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
+import { cueIdentifiers, feedSceneDesign } from "./feed-design.js";
 import { sceneMotion, storySteps } from "./motion.js";
 import { type VideoMoment, videoFps } from "./timeline.js";
 
@@ -134,7 +135,7 @@ function text(
       for (const { start, end } of codeHighlights(line, spokenFocus)) {
         const left = box.x + context.measureText(line.slice(0, start)).width;
         const width = context.measureText(line.slice(start, end)).width;
-        context.fillStyle = "#35524b";
+        context.fillStyle = "#235477";
         context.fillRect(left - 2, box.y + index * lineHeight - 2, width + 4, lineHeight);
       }
       context.fillStyle = color;
@@ -216,13 +217,28 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   const ctx = canvas.getContext("2d");
   const motion = sceneMotion(episode, timing, moment.sceneIndex, moment.startFrame);
   const comic = episode.presentation?.tone === "comic";
-  const accent = comic ? "#fbbf24" : "#5eead4";
+  const design = feedSceneDesign(episode, moment.sceneIndex);
+  const hero = design.kind === "hook" || design.kind === "closing";
+  const accent = comic ? "#ffd166" : design.accent;
   const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
-  gradient.addColorStop(0, "#0f172a");
-  gradient.addColorStop(0.6, "#080f20");
-  gradient.addColorStop(1, "#020617");
+  gradient.addColorStop(0, design.surface);
+  gradient.addColorStop(0.58, "#081126");
+  gradient.addColorStop(1, "#030715");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 1080, 1920);
+  if (hero) {
+    const band = ctx.createLinearGradient(0, 0, 1080, 1250);
+    band.addColorStop(0, design.kind === "hook" ? "#4738cd" : "#5a36aa");
+    band.addColorStop(1, "#12357b");
+    ctx.fillStyle = band;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(1080, 0);
+    ctx.lineTo(1080, 960);
+    ctx.lineTo(0, 1210);
+    ctx.closePath();
+    ctx.fill();
+  }
   const glowX = 850 + Math.sin(motion.elapsed * 0.35) * 75;
   const glow = ctx.createRadialGradient(glowX, 560, 10, glowX, 560, 650);
   glow.addColorStop(0, "#0e749030");
@@ -247,77 +263,127 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     "Shorts Heading",
     "brand",
   );
-  let headlineSize = layout.headline.fontSize;
-  const minimumHeadlineSize = Math.min(56, headlineSize);
+  const headline = hero ? { ...layout.headline, height: 360 } : layout.headline;
+  let headlineSize = hero ? 128 : Math.max(80, layout.headline.fontSize);
+  const minimumHeadlineSize = 56;
   for (;;) {
     ctx.font = `${headlineSize}px "Shorts Heading"`;
     if (
-      wrapVideoText(ctx, scene.overlay, layout.headline.width).length * headlineSize * 1.22 <=
-        layout.headline.height ||
+      wrapVideoText(ctx, scene.overlay, headline.width).length * headlineSize * 1.22 <=
+        headline.height ||
       headlineSize <= minimumHeadlineSize
     )
       break;
     headlineSize -= 2;
   }
   ctx.save();
-  ctx.globalAlpha = motion.opacity;
+  ctx.globalAlpha = hero ? 0.9 + 0.1 * motion.enter : motion.opacity;
   text(
     ctx,
     scene.overlay,
-    { ...layout.headline, y: layout.headline.y + motion.offsetY },
+    { ...headline, y: headline.y + motion.offsetY },
     headlineSize,
     "#f8fafc",
     "Shorts Heading",
     "headline",
   );
   ctx.restore();
+  if (!hero) {
+    ctx.save();
+    ctx.globalAlpha = 0.09;
+    text(
+      ctx,
+      String(moment.sceneIndex + 1).padStart(2, "0"),
+      { x: 760, y: 260, width: 240, height: 180 },
+      130,
+      accent,
+      "Shorts Heading",
+      "scene marker",
+    );
+    ctx.restore();
+  }
   const box = layout.demo;
-  panel(ctx, box.x, box.y, box.width, box.height, "#0b1222");
-  ctx.strokeStyle = "#25344c";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(box.x, box.y, box.width, box.height, 24);
-  ctx.stroke();
-  panel(ctx, box.x + 24, box.y + box.height - 10, (box.width - 48) * motion.progress, 3, accent, 1);
-  // Subtle window header divider & terminal control dots
-  ctx.save();
-  ctx.strokeStyle = "rgba(184, 219, 188, 0.14)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(box.x + 24, box.y + 84);
-  ctx.lineTo(box.x + box.width - 24, box.y + 84);
-  ctx.stroke();
-  const dotColors = ["#d96c63", "#e0b25b", "#59b381"];
-  dotColors.forEach((dotColor, idx) => {
-    ctx.fillStyle = dotColor;
-    ctx.globalAlpha = 0.72;
-    ctx.beginPath();
-    ctx.arc(box.x + box.width - 88 + idx * 24, box.y + 44, 6.5, 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.restore();
-  if (comic) {
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 3;
+  if (!hero) {
+    panel(ctx, box.x, box.y, box.width, box.height, "#0b1222");
+    ctx.strokeStyle = "#25344c";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(box.x, box.y, box.width, box.height, 24);
     ctx.stroke();
+    panel(
+      ctx,
+      box.x + 24,
+      box.y + box.height - 10,
+      (box.width - 48) * motion.progress,
+      3,
+      accent,
+      1,
+    );
+    // Subtle window header divider & terminal control dots
+    ctx.save();
+    ctx.strokeStyle = "rgba(184, 219, 188, 0.14)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(box.x + 24, box.y + 84);
+    ctx.lineTo(box.x + box.width - 24, box.y + 84);
+    ctx.stroke();
+    const dotColors = ["#d96c63", "#e0b25b", "#59b381"];
+    dotColors.forEach((dotColor, idx) => {
+      ctx.fillStyle = dotColor;
+      ctx.globalAlpha = 0.72;
+      ctx.beginPath();
+      ctx.arc(box.x + box.width - 88 + idx * 24, box.y + 44, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+    if (comic) {
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(box.x, box.y, box.width, box.height, 24);
+      ctx.stroke();
+    }
+    text(
+      ctx,
+      scene.visual.label,
+      { x: box.x + 32, y: box.y + 28, width: box.width - 64, height: 70 },
+      26,
+      "#9fb8b6",
+      "Shorts Body",
+      "panel label",
+    );
   }
-  text(
-    ctx,
-    scene.visual.label,
-    { x: box.x + 32, y: box.y + 28, width: box.width - 64, height: 70 },
-    26,
-    "#9fb8b6",
-    "Shorts Body",
-    "panel label",
-  );
   let y = box.y + 118;
   const body = { x: box.x + 32, y, width: box.width - 64, height: box.height - 150 };
   if (scene.visual.kind === "code" && "codePath" in scene.visual && scene.visual.codePath) {
     const source = code[scene.visual.codePath];
     if (!source) throw new Error("Missing verified source code for video");
-    text(ctx, source, body, box.fontSize, "#d6ead7", "Shorts Code", "source code", cue?.text);
+    const codeHeight = text(
+      ctx,
+      source,
+      body,
+      box.fontSize,
+      "#e4f0ff",
+      "Shorts Code",
+      "source code",
+      cue?.text,
+    );
+    const identifiers = cueIdentifiers(source, cue?.text ?? "")
+      .slice(0, 2)
+      .join(" · ");
+    if (identifiers && codeHeight + 125 < body.height) {
+      const focusY = box.y + box.height - 105;
+      panel(ctx, body.x, focusY, body.width, 72, "#183b65", 12);
+      text(
+        ctx,
+        identifiers,
+        { x: body.x + 20, y: focusY + 16, width: body.width - 40, height: 48 },
+        34,
+        accent,
+        "Shorts Heading",
+        "spoken code focus",
+      );
+    }
   } else if (scene.visual.kind === "output" && "captureKey" in scene.visual) {
     if (!evidence || !scene.visual.captureKey) throw new Error("Missing captured demo result");
     if (scene.visual.instructions?.length) {
@@ -346,44 +412,13 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
         "captured metadata",
       );
     else {
-      y +=
+      const spacious = !scene.visual.instructions?.length;
+      if (spacious) {
         text(
           ctx,
-          "200 OK · captured result",
-          { ...body, y, height: 65 },
-          32,
-          accent,
-          "Shorts Heading",
-        ) + 24;
-      const maximumStock = Math.max(1, ...capture.value.map((row) => row.stock));
-      for (const [rowIndex, row] of capture.value.entries()) {
-        panel(ctx, body.x, y, body.width, 84, "#132239", 12);
-        text(ctx, row.title, { x: body.x + 20, y: y + 20, width: 580, height: 48 }, 34, "#e6f2e8");
-        text(
-          ctx,
-          `${row.stock} in stock`,
-          { x: body.x + 570, y: y + 26, width: 200, height: 40 },
-          26,
-          "#a9c6bb",
-        );
-        const reveal = Math.min(1, Math.max(0, motion.elapsed - rowIndex * 0.12) / 0.65);
-        panel(
-          ctx,
-          body.x + 20,
-          y + 74,
-          Math.max(1, (body.width - 40) * (row.stock / maximumStock) * reveal),
-          3,
-          row.stock > 0 ? accent : "#475569",
-          1,
-        );
-        y += 100;
-      }
-      if (y + 130 < box.y + box.height - 24) {
-        text(
-          ctx,
-          String(Math.round(capture.value.length * Math.min(1, motion.elapsed / 0.7))),
-          { x: body.x, y: y + 36, width: 140, height: 110 },
-          80,
+          String(Math.round(capture.value.length * Math.min(1, motion.elapsed / 0.65))),
+          { x: body.x, y: y - 12, width: 230, height: 235 },
+          188,
           accent,
           "Shorts Heading",
           "captured row counter",
@@ -391,9 +426,76 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
         text(
           ctx,
           "captured rows",
-          { x: body.x + 155, y: y + 65, width: body.width - 155, height: 50 },
-          32,
-          "#94a3b8",
+          { x: body.x + 250, y: y + 100, width: body.width - 250, height: 65 },
+          38,
+          "#e2f5fa",
+          "Shorts Heading",
+        );
+        y += 235;
+      } else {
+        text(
+          ctx,
+          "200 OK · captured result",
+          { ...body, y, height: 60 },
+          34,
+          accent,
+          "Shorts Heading",
+        );
+        y += 78;
+      }
+      const maximumStock = Math.max(1, ...capture.value.map((row) => row.stock));
+      const rowHeight = spacious ? 128 : 90;
+      for (const [rowIndex, row] of capture.value.entries()) {
+        const spotlight =
+          Math.floor(motion.elapsed / 2.4) % Math.max(1, capture.value.length) === rowIndex;
+        panel(ctx, body.x, y, body.width, rowHeight - 12, rowIndex % 2 ? "#242a53" : "#124051", 16);
+        if (spotlight) panel(ctx, body.x, y + 12, 6, rowHeight - 36, accent, 3);
+        const reveal = Math.min(1, Math.max(0, motion.elapsed - rowIndex * 0.16) / 0.65);
+        text(
+          ctx,
+          row.title,
+          { x: body.x + 20, y: y + 20, width: body.width - 210, height: 56 },
+          spacious ? 42 : 34,
+          "#f2f7ff",
+          "Shorts Heading",
+          "captured product",
+        );
+        text(
+          ctx,
+          String(row.stock),
+          { x: body.x + body.width - 170, y: y + 18, width: 145, height: 60 },
+          spacious ? 48 : 36,
+          accent,
+          "Shorts Heading",
+          "captured stock",
+        );
+        text(
+          ctx,
+          "in stock",
+          { x: body.x + body.width - 170, y: y + (spacious ? 72 : 48), width: 145, height: 30 },
+          spacious ? 22 : 18,
+          "#bfd7df",
+        );
+        panel(
+          ctx,
+          body.x + 20,
+          y + rowHeight - (spacious ? 22 : 18),
+          Math.max(1, (body.width - 40) * (row.stock / maximumStock) * reveal),
+          spacious ? 6 : 4,
+          accent,
+          3,
+        );
+        y += rowHeight;
+      }
+      if (!spacious && y + 130 < box.y + box.height - 24) {
+        text(
+          ctx,
+          `${capture.value.length} captured rows`,
+          { x: body.x, y: y + 30, width: body.width, height: 65 },
+          44,
+          accent,
+          "Shorts Heading",
+          "captured total",
         );
       }
       if (y > box.y + box.height - 20) throw new Error("Captured results overflow the video panel");
@@ -401,13 +503,22 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   } else if (isNewsEpisode(episode) && scene.visual.kind === "news-card" && "claimIds" in scene) {
     const claim = episode.claims.find((item) => item.id === scene.claimIds[0]);
     if (!claim) throw new Error("Missing sourced news card");
+    panel(
+      ctx,
+      body.x,
+      y,
+      body.width,
+      84,
+      claim.availability.status === "generally-available" ? "#bfe96d" : "#ffcb77",
+      12,
+    );
     y +=
       text(
         ctx,
         availabilityLabels[claim.availability.status],
-        { ...body, y, height: 80 },
-        34,
-        accent,
+        { ...body, x: body.x + 20, width: body.width - 40, y: y + 16, height: 64 },
+        40,
+        "#101a33",
         "Shorts Heading",
       ) + 36;
     y +=
@@ -430,54 +541,142 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       "Shorts Body",
       "news scope",
     );
-  } else {
-    const title =
-      scene.phase === "cta"
-        ? isNewsEpisode(episode)
-          ? "Explore the official sources"
-          : "Try the working example"
-        : episode.title;
-    const openingHeight = text(
+  } else if (design.kind === "hook") {
+    text(
       ctx,
-      title,
-      { ...body, y: y + 12, height: 310 },
-      58,
-      "#f8fafc",
-      "Shorts Heading",
-      "opening",
+      episode.title,
+      { x: 72, y: 565, width: 864, height: 90 },
+      30,
+      "#cfdbff",
+      "Shorts Body",
+      "topic context",
     );
-    let flowY = y + openingHeight + 60;
-    for (const [index, step] of storySteps(episode).entries()) {
-      const stepEnter = Math.min(1, Math.max(0, motion.elapsed - index * 0.14) / 0.5);
-      const offset = 18 * (1 - stepEnter);
-      ctx.save();
-      ctx.globalAlpha = 0.65 + 0.35 * stepEnter;
-      panel(ctx, body.x, flowY + offset, body.width, 104, "#122139", 16);
+    if (design.serviceBridge) {
+      const nodes = [
+        { x: 72, label: "MODEL", glyph: "{ }", fill: "#172c64" },
+        { x: 382, label: "SERVICE?", glyph: "?", fill: "#392d66" },
+        { x: 692, label: "API", glyph: "↗", fill: "#15446b" },
+      ];
+      for (const [index, node] of nodes.entries()) {
+        const lift = (1 - Math.min(1, Math.max(0, motion.elapsed - index * 0.12) / 0.5)) * 22;
+        panel(ctx, node.x, 760 + lift, 244, 240, node.fill, 26);
+        ctx.strokeStyle = index === 1 ? "#ffcb77" : accent;
+        ctx.lineWidth = index === 1 ? 5 : 2;
+        ctx.setLineDash(index === 1 ? [14, 12] : []);
+        ctx.beginPath();
+        ctx.roundRect(node.x, 760 + lift, 244, 240, 26);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        text(
+          ctx,
+          node.glyph,
+          { x: node.x + 30, y: 790 + lift, width: 195, height: 130 },
+          90,
+          index === 1 ? "#ffcb77" : accent,
+          "Shorts Heading",
+          "architecture symbol",
+        );
+        text(
+          ctx,
+          node.label,
+          { x: node.x + 20, y: 930 + lift, width: 214, height: 50 },
+          index === 1 ? 31 : 36,
+          "#f7faff",
+          "Shorts Heading",
+          "architecture node",
+        );
+        if (index < 2) {
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = 5;
+          ctx.beginPath();
+          ctx.moveTo(node.x + 252, 878);
+          ctx.lineTo(node.x + 302, 878);
+          ctx.stroke();
+          const packet = (motion.elapsed % 1.8) / 1.8;
+          panel(ctx, node.x + 250 + packet * 42, 870, 14, 14, accent, 7);
+        }
+      }
       text(
         ctx,
-        String(index + 1).padStart(2, "0"),
-        { x: body.x + 20, y: flowY + offset + 32, width: 70, height: 44 },
+        "The missing connection",
+        { x: 72, y: 1080, width: 864, height: 80 },
+        46,
+        accent,
+        "Shorts Heading",
+        "hook insight",
+      );
+    } else {
+      let rowY = 735;
+      for (const [index, step] of storySteps(episode).entries()) {
+        panel(ctx, 72, rowY, 864, 130, index % 2 ? "#393072" : "#173c75", 20);
+        text(
+          ctx,
+          String(index + 1).padStart(2, "0"),
+          { x: 98, y: rowY + 30, width: 100, height: 75 },
+          48,
+          accent,
+          "Shorts Heading",
+        );
+        text(
+          ctx,
+          step.label,
+          { x: 220, y: rowY + 26, width: 680, height: 90 },
+          34,
+          "#f5f8ff",
+          "Shorts Heading",
+          "hook step",
+        );
+        rowY += 156;
+      }
+    }
+  } else if (design.kind === "closing") {
+    text(
+      ctx,
+      design.question,
+      { x: 72, y: 640, width: 864, height: 450 },
+      78,
+      "#f7f8ff",
+      "Shorts Heading",
+      "closing question",
+    );
+    panel(ctx, 72, 1140, 864, 130, accent, 24);
+    text(
+      ctx,
+      isNewsEpisode(episode) ? "Explore the sources ↗" : "Try the example ↗",
+      { x: 110, y: 1173, width: 790, height: 75 },
+      48,
+      "#10182b",
+      "Shorts Heading",
+      "closing action",
+    );
+  } else {
+    text(ctx, episode.title, { ...body, height: 310 }, 58, "#f7f8ff", "Shorts Heading", "opening");
+    let flowY = y + 330;
+    for (const [index, step] of storySteps(episode).entries()) {
+      panel(ctx, body.x, flowY, body.width, 104, "#18325b", 16);
+      text(
+        ctx,
+        `${index + 1}. ${step.label}`,
+        { x: body.x + 20, y: flowY + 20, width: body.width - 40, height: 80 },
         30,
         accent,
-        "Shorts Code",
-      );
-      text(
-        ctx,
-        step.label,
-        { x: body.x + 100, y: flowY + offset + 25, width: body.width - 125, height: 70 },
-        30,
-        "#dbeafe",
         "Shorts Heading",
         "story step",
       );
-      ctx.restore();
-      flowY += 126;
+      flowY += 120;
     }
-    if (flowY > box.y + box.height - 24)
-      throw new Error("Video story flow does not fit its readable text bounds");
   }
   if (cue) {
     const captionY = layout.captions.y;
+    panel(
+      ctx,
+      layout.captions.x - 14,
+      captionY - 12,
+      layout.captions.width + 28,
+      layout.captions.height + 30,
+      "#050b1ae6",
+      16,
+    );
     // Left vertical accent bar beside active caption
     panel(ctx, layout.captions.x - 20, captionY + 6, 6, 52, accent, 3);
     if (cue.speakerName) {

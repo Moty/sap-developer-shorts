@@ -8,6 +8,7 @@ import { availabilityLabels } from "./news/contracts.js";
 import { sourceFile } from "./paths.js";
 import { episodeSelector } from "./presentation.js";
 import { escapeHtml as esc } from "./review.js";
+import { feedSceneDesign } from "./video/feed-design.js";
 import { storySteps } from "./video/motion.js";
 
 export const presentationAssets = ["templates/presentation.css", "templates/presentation.js"];
@@ -39,6 +40,7 @@ export function presentationPlan(input: PresentationInput) {
         : undefined;
     const sourceCode = "codePath" in scene.visual ? code[scene.visual.codePath ?? ""] : undefined;
     return {
+      design: feedSceneDesign(episode, index),
       id: scene.id,
       index,
       phase: scene.phase,
@@ -130,6 +132,13 @@ export function revealAssets() {
 function sceneHtml(scene: PresentationPlan["scenes"][number], plan: PresentationPlan) {
   const steps = `<div class="story-flow">${plan.steps.map((step, index) => `<button type="button" class="flow-step transition-all duration-500 ease-out" data-jump="${step.index}" style="--order:${index}"><span class="step-index">0${index + 1}</span><strong>${esc(step.label)}</strong><span class="flow-arrow" aria-hidden="true">↓</span></button>`).join("")}</div>`;
   let content = steps;
+  if (scene.design.kind === "hook" && scene.design.serviceBridge) {
+    const target =
+      plan.scenes.find((item) => item.id === "service")?.index ?? plan.steps[0]?.index ?? 0;
+    content = `<p class="hook-topic">${esc(plan.title)}</p><div class="hook-bridge" role="group" aria-label="A data model needs a service to expose its API"><div class="bridge-node"><span class="bridge-glyph">{ }</span><strong>MODEL</strong></div><span class="bridge-link" aria-hidden="true">→</span><button type="button" class="bridge-node bridge-missing" data-jump="${target}"><span class="bridge-glyph">?</span><strong>SERVICE?</strong></button><span class="bridge-link" aria-hidden="true">→</span><div class="bridge-node"><span class="bridge-glyph">↗</span><strong>API</strong></div></div><p class="hook-insight">The missing connection</p>`;
+  }
+  if (scene.design.kind === "closing")
+    content = `<blockquote class="closing-question">${esc(scene.design.question)}</blockquote>${plan.sources[0] ? `<a class="closing-action" href="${esc(plan.sources[0].url)}" target="_blank" rel="noreferrer">Open the official guide ↗</a>` : ""}`;
   if (scene.kind === "code")
     content = `<div class="code-window"><div class="window-label"><span class="window-dots" aria-hidden="true">● ● ●</span><span>${esc(scene.label)}</span></div><pre class="code-content"><code>${
       scene.code
@@ -141,7 +150,7 @@ function sceneHtml(scene: PresentationPlan["scenes"][number], plan: Presentation
             )
             .join("\n")
         : "Code is unavailable for this saved source."
-    }</code></pre></div><div class="code-interaction"><label>Inspect a line<input type="range" min="0" max="${Math.max(0, (scene.code?.split("\n").length ?? 1) - 1)}" value="0" data-code-focus aria-label="Highlighted source line"></label><button type="button" data-show-story>What to notice</button><p class="story-explanation" hidden>${esc(scene.narration)}</p></div>`;
+    }</code></pre><div class="spoken-code-focus" hidden aria-live="off"></div></div><details class="code-interaction"><summary>Inspect source &amp; explanation</summary><label>Inspect a line<input type="range" min="0" max="${Math.max(0, (scene.code?.split("\n").length ?? 1) - 1)}" value="0" data-code-focus aria-label="Highlighted source line"></label><button type="button" data-show-story>What to notice</button><p class="story-explanation" hidden>${esc(scene.narration)}</p></details>`;
   if (scene.kind === "results")
     content = `<div class="result-head"><div><span class="data-count" data-counter="${scene.rows?.length ?? 0}">${scene.rows?.length ?? 0}</span><span class="metric-unit">captured rows</span></div><span class="response-state">200 OK</span></div>${scene.instructions.length ? `<details class="request-details"><summary>Request & command</summary><pre>${scene.instructions.map(esc).join("\n")}</pre></details>` : ""}<div class="result-tabs" role="group" aria-label="Captured result view"><button type="button" data-result-view="rows" aria-pressed="true">Results</button><button type="button" data-result-view="bars" aria-pressed="false">Stock chart</button></div><div class="result-rows" data-view="rows">${scene.rows?.map((row) => `<div class="result-row" data-stock="${row.stock}"><strong>${esc(row.title)}</strong><span>${row.stock}<small>in stock</small></span></div>`).join("")}</div><div class="result-bars" data-view="bars" hidden>${scene.rows?.map((row) => `<div class="stock-bar-row" data-stock="${row.stock}"><div><span>${esc(row.title)}</span><b>${row.stock}</b></div><div class="stock-track"><i style="--stock:${Math.max(0, row.stock) / Math.max(1, ...(scene.rows?.map((item) => item.stock) ?? []))}"></i></div></div>`).join("")}</div><label class="stock-filter">Explore saved rows: minimum stock <output>0</output><input type="range" data-stock-filter min="0" max="${Math.max(1, ...(scene.rows?.map((row) => row.stock) ?? []))}" value="0" aria-label="Minimum stock in captured rows"></label><p class="data-footnote">Explores this captured result. No live request is made.</p>`;
   if (scene.kind === "capture")
@@ -150,7 +159,7 @@ function sceneHtml(scene: PresentationPlan["scenes"][number], plan: Presentation
     content = `<div class="claim-stack">${scene.claims
       .map(
         (claim) =>
-          `<article class="sourced-claim transition-all duration-500 ease-out"><div class="availability"><span class="status-orbit" aria-hidden="true"></span>${esc(claim.status)}</div><h3>${esc(claim.text)}</h3><div class="availability-line"><span class="availability-dot" aria-hidden="true"></span><p>${esc(claim.timing)}</p></div><details><summary>Scope & sources</summary><p>${esc(claim.scope)}</p>${claim.sourceIds
+          `<article class="sourced-claim transition-all duration-500 ease-out"><div class="availability" data-availability="${esc(claim.status)}"><span class="status-orbit" aria-hidden="true"></span>${esc(claim.status)}</div><h3>${esc(claim.text)}</h3><div class="availability-line"><span class="availability-dot" aria-hidden="true"></span><p>${esc(claim.timing)}</p></div><details><summary>Scope & sources</summary><p>${esc(claim.scope)}</p>${claim.sourceIds
             .map((id) => {
               const source = plan.sources.find((item) => item.id === id);
               return source
@@ -160,7 +169,7 @@ function sceneHtml(scene: PresentationPlan["scenes"][number], plan: Presentation
             .join("")}</details></article>`,
       )
       .join("")}</div>`;
-  return `<section class="deck-slide scene-${scene.kind}" data-scene="${scene.index}" data-auto-animate data-transition="fade"><div class="ambient-field" aria-hidden="true"></div><header class="slide-topline"><span>SAP DEVELOPER SHORTS</span><span>${String(scene.index + 1).padStart(2, "0")} / ${String(plan.scenes.length).padStart(2, "0")}</span></header><h2 data-id="headline">${esc(scene.title)}</h2><div class="slide-main">${content}</div><footer class="slide-footer"><span>${esc(scene.label)}</span><div class="narration-caption" aria-live="off"></div><div class="scene-progress"><i></i></div></footer></section>`;
+  return `<section class="deck-slide scene-${scene.kind} feed-${scene.design.kind}" style="--scene-accent:${scene.design.accent};--scene-secondary:${scene.design.secondary};--scene-surface:${scene.design.surface}" data-scene="${scene.index}" data-auto-animate data-transition="fade"><div class="ambient-field" aria-hidden="true"></div><header class="slide-topline"><span>SAP DEVELOPER SHORTS</span><span>${String(scene.index + 1).padStart(2, "0")} / ${String(plan.scenes.length).padStart(2, "0")}</span></header><h2 data-id="headline">${esc(scene.title)}</h2><div class="slide-main">${content}</div><footer class="slide-footer"><span>${esc(scene.label)}</span><div class="narration-caption" aria-live="off"></div><div class="scene-progress"><i></i></div></footer></section>`;
 }
 export async function createPresentationDeck(input: PresentationInput) {
   const plan = presentationPlan(input);
