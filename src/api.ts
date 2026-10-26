@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { readContentEpisode } from "./contracts.js";
 import { hash } from "./digest.js";
 import { buildLibrary } from "./library.js";
+import { type LocalActionManager, parseLocalAction } from "./local-actions.js";
 import { pronounce } from "./media/audio.js";
 import { synthesizeClonedSpeech } from "./media/qwen.js";
 import { type auditionPhrase, installedKokoroVoices } from "./media/voice-audition.js";
@@ -32,6 +33,7 @@ export interface ProductionJobState {
 }
 
 export interface ApiOptions {
+  localActions?: LocalActionManager;
   privateVoiceToken?: string;
   onLibraryUpdated?: (newDirectory: string) => void | Promise<void>;
   artifactRoot?: string;
@@ -115,10 +117,69 @@ export async function handleApiRequest(
     sendJson(response, 403, { error: "Save changes from this local studio using JSON." });
     return true;
   }
+  if (path === "/api/local-actions" || path.startsWith("/api/local-actions/")) {
+    try {
+      assertPrivateVoiceRequest(request, options.privateVoiceToken);
+    } catch (error) {
+      sendJson(response, 403, { error: (error as Error).message });
+      return true;
+    }
+    const actions = options.localActions;
+    if (!actions) {
+      sendJson(response, 503, { error: "Reopen the current local studio to use these controls." });
+      return true;
+    }
+    if (request.method === "GET" && path === "/api/local-actions") {
+      sendJson(response, 200, { job: actions.latest() });
+      return true;
+    }
+    if (request.method === "POST" && path === "/api/local-actions") {
+      try {
+        const input = parseLocalAction(await readJsonBody(request, 4096));
+        if (
+          productionStarting ||
+          (activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage))
+        ) {
+          sendJson(response, 409, {
+            error:
+              "Wait for the current production to finish before running setup or changing voices.",
+          });
+          return true;
+        }
+        sendJson(response, 202, actions.start(input));
+      } catch (error) {
+        sendJson(response, actions.busy ? 409 : 400, { error: (error as Error).message });
+      }
+      return true;
+    }
+    const match = /^\/api\/local-actions\/([a-f0-9-]+)(\/audio)?$/u.exec(path);
+    const job = match && actions.get(match[1] as string);
+    if (request.method === "GET" && match && job) {
+      if (match[2]) {
+        const audio = actions.audio(match[1] as string);
+        if (!audio) sendJson(response, 404, { error: "The voice sample is not ready." });
+        else {
+          response.writeHead(200, {
+            "content-type": "audio/wav",
+            "content-length": audio.length,
+            "cache-control": "no-store",
+            "x-content-type-options": "nosniff",
+          });
+          response.end(audio);
+        }
+      } else sendJson(response, 200, job);
+      return true;
+    }
+    sendJson(response, 404, {
+      error: "Studio action unavailable. If the server restarted, start the action again.",
+    });
+    return true;
+  }
   if (
     await handleVoiceProfileApi(request, response, url, {
       ...(options.privateVoiceToken ? { token: options.privateVoiceToken } : {}),
       busy:
+        options.localActions?.busy ||
         productionStarting ||
         (!!activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)),
       readBody: readJsonBody,
@@ -330,6 +391,12 @@ export async function handleApiRequest(
 
   // POST /api/audition
   if (request.method === "POST" && path === "/api/audition") {
+    if (options.localActions?.busy) {
+      sendJson(response, 409, {
+        error: "Wait for the current studio action to finish before auditioning another voice.",
+      });
+      return true;
+    }
     if (activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)) {
       sendJson(response, 409, {
         error: "Wait for the current production to finish before auditioning another voice.",
@@ -419,6 +486,12 @@ export async function handleApiRequest(
 
   // POST /api/produce
   if (request.method === "POST" && path === "/api/produce") {
+    if (options.localActions?.busy) {
+      sendJson(response, 409, {
+        error: "Wait for the current studio action to finish before producing a video.",
+      });
+      return true;
+    }
     if (productionStarting) {
       sendJson(response, 409, {
         error: "A production request is being prepared. Try again shortly.",

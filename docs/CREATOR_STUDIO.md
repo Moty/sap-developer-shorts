@@ -108,3 +108,45 @@ state. QA draft files are removed after verification. No real episode is marked
 published and no external post is created by this work. This is responsive UI
 verification, not a comprehensive assistive-technology audit or a new assessment
 of portrait realism.
+
+
+## Run voice and setup actions from the local UI
+
+In **Voice library**, use **Generate voice sample** to save and play the comparison
+passage, **Install voice** for another Kokoro profile, or **Set as default narrator**
+to select an installed voice. Generating or installing a sample keeps the current
+default. Prepared scripts retain their explicit speaker choices. Terminal
+alternatives are kept in collapsed details.
+
+The script editor has setup controls for a missing selected stock voice, personal
+voice tools (Qwen), automatic face alignment, and realistic portrait rendering.
+Personal voice setup appears in My voice; portrait tools are grouped under
+**Local portrait tools**. Setup downloads the existing pinned model/runtime files
+and may take several minutes. System prerequisites such as uv and FFmpeg still
+need to be installed on the Mac. These controls do not install or register a
+different physical Mac; use the private workspace's engine registration flow
+for remote rendering devices.
+
+Actions show progress and errors, finish in the background while the user
+navigates, and retain up to 20 results until the server restarts. Repeated clicks
+on the same active action reuse its job. A different action or production waits
+for it to finish. Model execution shares the normal lock with render workers.
+Generated samples remain saved independently of the in-memory action history.
+Voice actions refresh the served library; the page offers **Refresh voice library**
+when needed. Setup in an editor preserves the draft fields.
+
+The API accepts only named actions and supported voice IDs. It requires the
+existing loopback-only session cookie and same-origin JSON. It never accepts a
+terminal command from the page. Exported/static copies keep these buttons
+disabled, with a message to open the running localhost studio. The account-based
+workspace continues to manage registered workers separately.
+
+Validated October 25, 2026: 274 automated tests, five live CAP checks, typecheck,
+content validation and both builds passed in a source-only checkout. Browser QA
+generated and played a real 10.35-second Heart sample, preserved the default
+settings, checked install/default availability, and verified the editor's Qwen,
+face and portrait setup controls. Downloads for other model setups were not
+repeated during QA. Upstream repository lint already fails on news formatting
+and code diagnostics; the baseline check and change check are recorded under
+`.state/private-tests/local-actions-*-lint.log`. Personal photos and presentation
+files were preserved and excluded from the commit.

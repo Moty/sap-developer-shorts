@@ -225,6 +225,7 @@ async function workshop(
       (option) => ({ value: option[1] as string, textContent: option[2] as string }),
     );
     node(`speaker-voice-${index}-help`);
+    if (typeof speaker.voice === "string") node(`speaker-voice-setup-${index}`);
     node(`speaker-avatar-mode-${index}`, speaker.avatar?.mode ?? "illustrated");
     node(`speaker-avatar-photo-panel-${index}`);
     node(`speaker-avatar-image-${index}`, speaker.avatar?.imageId ?? "");
@@ -512,7 +513,7 @@ test("conversation voice choices preserve names and turns and block duplicate or
 test("missing original voices stay selectable and drafts remain portable without local assets", async () => {
   const ui = await workshop("CAP-02", []);
   assert.equal(ui.get("speaker-voice-0").value, "af_heart");
-  assert.match(ui.get("speaker-voice-0-help").textContent, /voice-setup af_heart/u);
+  assert.match(ui.get("speaker-voice-0-help").textContent, /Install this voice using the button/u);
   assert.equal(ui.get("download-script").disabled, false);
   ui.download();
   const checked = await validatePresentationDefinition(
@@ -709,7 +710,7 @@ test("voice review compares profile IDs and can restore missing original assets 
   assert.match(ui.get("review-changes-list").textContent, /Setup needed/u);
   ui.restore("Restore starting voices");
   assert.equal(ui.get("speaker-voice-0").value, "af_heart");
-  assert.match(ui.get("speaker-voice-0-help").textContent, /voice-setup af_heart/u);
+  assert.match(ui.get("speaker-voice-0-help").textContent, /Install this voice using the button/u);
   assert.equal(ui.changes().length, 0);
   const select = ui.get("speaker-voice-0");
   for (const option of select.options) option.textContent = "Same display label";

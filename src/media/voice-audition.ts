@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { hash } from "../digest.js";
+import { localActionButton } from "../local-action-controls.js";
 import { inside, projectRoot, sourceFile } from "../paths.js";
 import { escapeHtml as esc } from "../review.js";
 import { pronounce, readPcmWav, sampleRate } from "./audio.js";
@@ -113,7 +114,7 @@ export async function readVoiceSample(
 
 export function voiceSampleCard(sample: VoiceSample, selected: string, prefix = "") {
   const voice = kokoroVoice(sample.identity.voice);
-  return `<article class="voice-card"><div class="voice-heading"><h3>${esc(voice.name)}</h3>${voice.id === selected ? '<span class="voice-selected">Default narrator</span>' : ""}</div><p>${esc(voice.accent)} · ${esc(voice.gender)}</p><audio controls preload="metadata" aria-label="${esc(voice.name)} voice sample" src="${prefix}${sample.key}/sample.wav"></audio><p class="voice-meta">${sample.durationSeconds.toFixed(1)}s · Speed ${sample.identity.speed.toFixed(2)} · <code>${esc(voice.id)}</code></p><details class="production-command"><summary>Use this voice</summary><p>Set the default for episodes without their own speaker assignments:</p><code tabindex="0">npm run shorts -- voice-select ${esc(voice.id)}</code><p>Then create a new recording:</p><code tabindex="0">npm run shorts -- produce CAP-01 --serve</code></details></article>`;
+  return `<article class="voice-card" data-local-action-scope><div class="voice-heading"><h3>${esc(voice.name)}</h3>${`<span class="voice-selected" data-default-voice="${esc(voice.id)}"${voice.id === selected ? "" : " hidden"}>Default narrator</span>`}</div><p>${esc(voice.accent)} · ${esc(voice.gender)}</p><audio controls preload="metadata" data-local-action-audio aria-label="${esc(voice.name)} voice sample" src="${prefix}${sample.key}/sample.wav"></audio><p class="voice-meta">${sample.durationSeconds.toFixed(1)}s · Speed ${sample.identity.speed.toFixed(2)} · <code>${esc(voice.id)}</code></p>${localActionButton("voice-default", voice.id === selected ? "Default narrator" : "Set as default narrator", voice.id, voice.id === selected)}${localActionButton("voice-audition", "Regenerate sample", voice.id)}<p data-local-action-status role="status" aria-live="polite"></p><details class="production-command"><summary>Terminal alternatives</summary><p>Set the default for episodes without their own speaker assignments:</p><code tabindex="0">npm run shorts -- voice-select ${esc(voice.id)}</code></details></article>`;
 }
 
 async function createVoiceAuditionInternal(
@@ -271,7 +272,8 @@ export async function buildAuditionPage(
   await mkdir(temporary, { recursive: true });
   try {
     const css = await readFile(await sourceFile("templates/library.css"), "utf8");
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Kokoro voice samples · SAP Shorts</title><style>${css}</style></head><body><main class="audition-page"><p class="eyebrow">LISTEN BEFORE YOU CHOOSE</p><h1>Kokoro voice samples</h1><p>Identical words and speed. These samples help choose a narrator; they are not episode recordings.</p><blockquote class="audition-transcript">${esc(auditionText)}</blockquote><div class="voice-grid">${samples.map((sample) => voiceSampleCard(sample, selected)).join("")}</div><p>Your default voice has not changed. Prepared styles retain their own speaker assignments.</p></main></body></html>`;
+    const actions = await readFile(await sourceFile("templates/local-actions.js"), "utf8");
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src 'self' blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'"><title>Kokoro voice samples · SAP Shorts</title><style>${css}</style></head><body><main class="audition-page"><p class="eyebrow">LISTEN BEFORE YOU CHOOSE</p><h1>Kokoro voice samples</h1><p>Identical words and speed. These samples help choose a narrator; they are not episode recordings.</p><blockquote class="audition-transcript">${esc(auditionText)}</blockquote><div class="voice-grid">${samples.map((sample) => voiceSampleCard(sample, selected)).join("")}</div><p id="local-actions-help">Use the running local studio to select a default voice.</p><p id="local-actions-status" role="status"></p><p>Prepared styles retain their own speaker assignments.</p></main><script>${actions}</script></body></html>`;
     await writeFile(resolve(temporary, "review.html"), html, { flag: "wx" });
     for (const sample of samples) {
       const verified = await readVoiceSample(sample.directory, sample.identity);

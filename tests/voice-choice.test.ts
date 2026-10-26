@@ -187,6 +187,13 @@ test("studio embeds portable verified voice samples with native audio and clear 
   assert.match(html, /Listen to the voices/);
   assert.match(html, /Installed but no current sample: Michael/);
   assert.match(html, /voice-select af_heart/);
+  assert.match(html, /data-local-action="voice-default"[^>]*data-voice="af_heart"[^>]*disabled/u);
+  assert.match(
+    html,
+    /data-local-action="voice-audition"[^>]*data-voice="am_michael"[^>]*disabled/u,
+  );
+  assert.match(html, /data-local-action="voice-install"[^>]*data-voice="af_bella"[^>]*disabled/u);
+  assert.match(html, /<summary>Terminal alternatives<\/summary>/u);
   assert.match(html, /Casual, comic, and conversation scripts have their own speaker assignments/);
   assert.equal(hash(pages[`voices/${sample.key}/sample.wav`] as Buffer), sample.audioHash);
   assert.throws(

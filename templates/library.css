@@ -1467,6 +1467,43 @@ code:focus-visible {
   min-width: 0;
   margin: 8px 0;
 }
+
+.local-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #b8ccc4;
+  border-radius: 8px;
+  background: #e2ebe7;
+  color: #275d4e;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  margin: 6px 8px 6px 0;
+  white-space: normal;
+}
+.local-action-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+[data-local-action-status] {
+  overflow-wrap: anywhere;
+}
+[data-local-action-status]:empty {
+  display: none;
+}
+.voice-options-grid .local-action-button {
+  width: 100%;
+  justify-content: center;
+}
+.voice-options-grid audio {
+  width: 100%;
+  min-width: 0;
+}
 .voice-meta,
 .voice-scope,
 .voice-options > p {
@@ -2302,7 +2339,9 @@ button.produce-card-btn:disabled {
   padding: 18px;
   display: flex;
   flex-direction: column;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 .news-story-card:hover {
   transform: translateY(-2px);
@@ -2401,8 +2440,12 @@ button.produce-card-btn:disabled {
   animation: pulse-border 2s ease;
 }
 @keyframes pulse-border {
-  0% { box-shadow: 0 0 0 4px rgba(16, 126, 84, 0.4); }
-  100% { box-shadow: none; }
+  0% {
+    box-shadow: 0 0 0 4px rgba(16, 126, 84, 0.4);
+  }
+  100% {
+    box-shadow: none;
+  }
 }
 .draft-header {
   display: flex;
@@ -2469,4 +2512,3 @@ button.produce-card-btn:disabled {
   font-size: 12px;
   padding: 7px 10px;
 }
-

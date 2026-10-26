@@ -36,6 +36,8 @@ export async function runtimeFiles(): Promise<string[]> {
   const names = [
     "cli",
     "api",
+    "local-actions",
+    "local-action-controls",
     "contracts",
     "domain",
     "demos",

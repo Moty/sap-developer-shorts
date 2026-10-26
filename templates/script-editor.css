@@ -7,6 +7,30 @@
 * {
   box-sizing: border-box;
 }
+
+.local-action-button {
+  border: 1px solid #b8ccc4;
+  border-radius: 8px;
+  background: #e2ebe7;
+  color: #275d4e;
+  padding: 10px 14px;
+  font: inherit;
+  cursor: pointer;
+  margin: 6px 0;
+}
+.local-action-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.local-setup-tools {
+  margin: 12px 0;
+}
+[data-local-action-status] {
+  overflow-wrap: anywhere;
+}
+[data-local-action-status]:empty {
+  display: none;
+}
 body {
   margin: 0;
 }

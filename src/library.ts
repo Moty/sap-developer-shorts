@@ -316,6 +316,7 @@ export async function buildLibrary(
   for (const name of [
     "templates/library.css",
     "templates/library.js",
+    "templates/local-actions.js",
     "templates/script-editor.css",
     "templates/script-editor.js",
     "templates/voice-profiles.js",

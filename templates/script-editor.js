@@ -481,7 +481,16 @@
         ? "Personal voice profile on this Mac. Production checks its accepted revision."
         : availableVoices.includes(selected)
           ? "Local voice assets checked when this studio was built. Production checks them again."
-          : `Original voice retained. Before production, run npm run shorts -- voice-setup ${original}, then rebuild the studio.`;
+          : "Install this voice using the button below before production.";
+      const setup =
+        typeof seed.presentation.speakers[index].voice === "string"
+          ? byId(`speaker-voice-setup-${index}`)
+          : null;
+      if (setup) {
+        setup.hidden = selected.startsWith("qwen:") || availableVoices.includes(selected);
+        const button = setup.querySelector?.("[data-local-action]");
+        if (button) button.dataset.voice = selected;
+      }
       const avatarMode = byId(`speaker-avatar-mode-${index}`).value;
       const photoPanel = byId(`speaker-avatar-photo-panel-${index}`);
       photoPanel.hidden = avatarMode !== "photo";
@@ -618,6 +627,20 @@
   byId("editor-fields").addEventListener("input", update);
   byId("editor-fields").addEventListener("change", update);
   document.addEventListener?.("shorts:voices-ready", update);
+  addEventListener("shorts-local-action-complete", (event) => {
+    const job = event.detail;
+    if (job.action === "voice-install" && job.voice && !availableVoices.includes(job.voice)) {
+      availableVoices.push(job.voice);
+      update();
+    }
+    if (job.action === "portrait-setup") {
+      for (const [index] of seed.presentation.speakers.entries()) {
+        const label = byId(`speaker-avatar-runtime-${index}`);
+        if (label) label.textContent = "Realistic local rendering is ready.";
+      }
+    }
+    if (job.action === "clone-setup") void globalThis.shortsVoiceProfiles?.refresh?.();
+  });
   download.addEventListener("click", () => {
     if (pendingRecovery) return;
     const { draft, errors } = readDraft();
@@ -1111,7 +1134,7 @@
           if (current())
             detectStatus(
               index,
-              `Automatic alignment unavailable: ${error.message} You can adjust manually. If setup is needed, run npm run shorts -- avatar-setup.`,
+              `Automatic alignment unavailable: ${error.message} You can adjust manually. If setup is needed, open Local portrait tools and choose Set up face alignment.`,
             );
         }
       }
@@ -1334,7 +1357,7 @@
             if (label)
               label.textContent = runtime?.installed
                 ? "Realistic local rendering is ready. Generating a portrait takes longer than the silent preview."
-                : "Realistic rendering needs setup: npm run shorts -- talking-head-setup";
+                : "Open Local portrait tools below and choose Set up realistic portraits.";
           }
         })
         .catch(() => {

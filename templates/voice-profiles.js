@@ -62,6 +62,8 @@
         `${profile.name} · ${profile.durationSeconds.toFixed(1)}s · ${profile.accepted ? "Ready to use" : profile.auditionReady ? "Listen to the saved audition, then use this voice" : "Sample saved. Next: generate and listen to an audition"}${profile.warnings?.length ? ` · ${profile.warnings.join(" ")}` : ""}`,
       );
   }
+  globalThis.shortsVoiceProfiles.refresh = () =>
+    refresh(state.current ? key(state.current) : undefined);
   async function refresh(preserve, stillCurrent = () => true) {
     const data = await request("");
     if (!stillCurrent()) return null;

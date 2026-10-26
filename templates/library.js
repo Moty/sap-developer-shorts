@@ -377,9 +377,7 @@
       });
       if (res.status === 409) {
         const data = await res.json();
-        alert(
-          `A production job is already running for ${data.selector} (${data.stage}). Please wait for it to complete.`,
-        );
+        alert(data.error || "A production job is already running. Wait for it to complete.");
         btn.disabled = false;
         btn.textContent = originalText;
         if (banner) banner.hidden = true;
@@ -448,7 +446,9 @@
             return res.json();
           })
           .then((data) => {
-            showNewsNotice(`Promoted ${data.episode.id} to content/episodes! Backlog marked draft-ready.`);
+            showNewsNotice(
+              `Promoted ${data.episode.id} to content/episodes! Backlog marked draft-ready.`,
+            );
             promoteBtn.textContent = "Promoted ✓";
             setTimeout(() => {
               window.location.reload();
@@ -525,7 +525,9 @@
               newsGrid.appendChild(renderStoryCard(story));
             }
           }
-          showNewsNotice(`Discovered ${data.stories.length} top SAP stories ranked for short videos.`);
+          showNewsNotice(
+            `Discovered ${data.stories.length} top SAP stories ranked for short videos.`,
+          );
         } else {
           showNewsNotice("No new stories found at this time.");
         }
@@ -544,7 +546,9 @@
         btn.disabled = true;
         btn.textContent = "Synthesizing draft…";
       }
-      showNewsNotice("Fetching story details, verifying claims, and generating 7-scene Short draft with LinkedIn copy…");
+      showNewsNotice(
+        "Fetching story details, verifying claims, and generating 7-scene Short draft with LinkedIn copy…",
+      );
       try {
         const res = await fetch("/api/news/create", {
           method: "POST",

@@ -4,6 +4,8 @@ import { realpath, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname } from "node:path";
 import { type ApiOptions, handleApiRequest } from "./api.js";
+import { buildLibrary } from "./library.js";
+import { LocalActionManager, runLocalAction } from "./local-actions.js";
 import { inside } from "./paths.js";
 
 const contentTypes: Record<string, string> = {
@@ -27,11 +29,31 @@ export async function startPreviewServer(
   const privateVoiceToken = ["127.0.0.1", "localhost", "::1"].includes(host)
     ? randomUUID()
     : undefined;
+  const localActions =
+    apiOptions.localActions ??
+    new LocalActionManager(async (input, progress) => {
+      const result = await runLocalAction(input, progress, apiOptions.artifactRoot);
+      if (input.action.startsWith("voice-")) {
+        progress("Updating the voice library…");
+        try {
+          const built = await buildLibrary(
+            apiOptions.artifactRoot ? { artifactRoot: apiOptions.artifactRoot } : {},
+          );
+          root = await realpath(built.directory);
+          result.libraryUpdated = true;
+        } catch {
+          result.warning =
+            "The action finished, but the library refresh failed. Your result is saved. Try refreshing the studio later.";
+        }
+      }
+      return result;
+    });
   async function respond(request: IncomingMessage, response: ServerResponse) {
     const url = new URL(request.url ?? "/", "http://localhost");
     if (url.pathname.startsWith("/api/")) {
       const handled = await handleApiRequest(request, response, url, {
         ...apiOptions,
+        localActions,
         ...(privateVoiceToken ? { privateVoiceToken } : {}),
         libraryDirectory: () => root,
         onLibraryUpdated: async (newDirectory) => {
