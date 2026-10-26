@@ -35,6 +35,13 @@
       state.blobUrl = null;
     }
   });
+  globalThis.addEventListener?.("shorts:voice-panel-hidden", () => {
+    // Switching workspace sections stops capture while keeping a completed take for review.
+    if (state.recording?.state === "recording") state.recording.stop();
+    else if (state.recordingPending) state.recordingEpoch++;
+    for (const track of state.stream?.getTracks() ?? []) track.stop();
+    state.context?.close().catch(() => {});
+  });
   globalThis.addEventListener?.("pageshow", () => {
     state.leaving = false;
     if (state.blob && !state.blobUrl) {
@@ -106,9 +113,20 @@
     refresh(state.current ? key(state.current) : undefined);
   function populate(preserve) {
     const filter = styles.length ? byId("my-voice-filter").value || "all" : "all";
+    const terms = (byId("my-voice-query")?.value ?? "")
+      .trim()
+      .toLowerCase()
+      .split(/\s+/u)
+      .filter(Boolean);
     const visible = state.profiles.filter(
       (profile) =>
-        filter === "all" || (filter === "unlabelled" ? !profile.style : profile.style === filter),
+        (filter === "all" ||
+          (filter === "unlabelled" ? !profile.style : profile.style === filter)) &&
+        terms.every((term) =>
+          `${profile.name} ${profile.speakerName ?? ""} ${styleLabel(profile.style) ?? ""}`
+            .toLowerCase()
+            .includes(term),
+        ),
     );
     const select = byId("my-voice-saved");
     select.replaceChildren();
@@ -182,6 +200,9 @@
     byId("my-voice-review-pane").hidden = !review;
   }
   if (styles.length) {
+    byId("my-voice-query")?.addEventListener("input", () =>
+      populate(state.current ? key(state.current) : undefined),
+    );
     byId("my-voice-filter").addEventListener("change", () =>
       populate(state.current ? key(state.current) : undefined),
     );
@@ -382,6 +403,7 @@
               endSeconds: Number(byId("my-voice-end").value),
             }),
       });
+      if (byId("my-voice-query")) byId("my-voice-query").value = "";
       await refresh(key(result.voice));
       byId("my-voice-transcript").value = "";
       byId("my-voice-file").value = "";

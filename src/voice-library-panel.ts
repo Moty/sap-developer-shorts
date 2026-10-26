@@ -22,6 +22,7 @@ export function voiceLibraryPanel(options: {
 <div id="my-voice-controls" hidden><div class="voice-panel-layout">
 <section class="saved-personal-voices" aria-labelledby="saved-personal-heading"><h3 id="saved-personal-heading">Saved recordings</h3>
 <div${library ? " hidden" : ""}><label for="my-voice-speaker">Use for speaker</label><select id="my-voice-speaker">${speakers.length ? speakers.map((speaker, index) => `<option value="${index}">${esc(speaker.name)}</option>`).join("") : '<option value="0">Voice library</option>'}</select></div>
+<label for="my-voice-query">Find a personal recording</label><input id="my-voice-query" type="search" maxlength="80" placeholder="Search speaker or style…" autocomplete="off">
 <label for="my-voice-filter">Filter by delivery style</label><select id="my-voice-filter"><option value="all">All styles</option>${voiceStyles.map((style) => `<option value="${style.id}">${esc(style.label)}</option>`).join("")}<option value="unlabelled">Original / unlabelled recordings</option></select>
 <label for="my-voice-saved">Saved personal voices</label><select id="my-voice-saved"><option value="">Choose a saved voice</option></select>
 <p id="my-voice-count" class="voice-help"></p><p id="my-voice-style-summary" class="voice-help"></p>

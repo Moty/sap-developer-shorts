@@ -180,3 +180,48 @@ accepted during QA; delivery quality still requires listening to each audition.
 Changed-file lint passed. Repository lint retains eight pre-existing errors in
 unmodified files; validation logs and screenshots are saved locally under
 `.state/private-tests/voice-style-*`.
+
+## Browse a growing workspace
+
+The sidebar switches between **My shorts**, **Ideas**, **Delivery styles**, and
+**Voice library**. Only the selected section is shown. Existing comparison,
+editor return and voice-library links still open their matching section; browser
+Back and Forward follow section navigation. Static copies keep all content
+readable when JavaScript is disabled.
+
+My shorts shows eight entries per page by default. Search examines all saved
+versions, including their narration, rather than only the current page. Combine
+it with the stage, tutorial/news and attention filters. Sort by **Recently
+updated**, **Oldest updated**, **Title A–Z**, or **Episode ID**. Update time uses
+the later of the local script file modification and its recorded preview time;
+after a fresh clone, script dates reflect the checkout. Choose 8, 16 or 32 per
+page, use Previous/Next, or jump directly to a page at either end of the list.
+Result counts distinguish filtered matches from the complete library.
+
+Ideas separates official stories, staged drafts, the news backlog and tutorial
+ideas. Each collection has its own search, sort and page controls. New drafts
+open in the staged view even if its previous search would hide them. Story
+refreshes update the existing collection. Both the saved stock samples and the
+complete stock voice catalog are paged and searchable; personal recordings have
+name/style search alongside their delivery-style filter.
+
+Search, sorting, page size and page number are remembered separately for each
+collection in this browser tab's session storage. Shorts also remember their
+stage/type/attention filters. Filtering or changing sort/page size returns to the
+first page; live workflow polling keeps the current page, clamping it if the
+result list becomes shorter. Storage being unavailable does not prevent browsing.
+Switching sections pauses their media and stops any active microphone recording,
+keeping a completed take available for review without saving or accepting it.
+
+Validated October 25, 2026: all 289 automated tests, five live CAP checks,
+typecheck, content validation and both builds passed in a source-only checkout.
+Browser QA exercised the 47-entry local library, both page controls, a direct
+last-page jump, title sorting, full-list search, empty-state reset, return from a
+video review with filters preserved, separate idea views and personal/stock
+voice searches. The 28-entry stock catalog and tutorial backlog each show six
+items per page. Single-page lists hide unnecessary pagination. No browser
+console errors were observed. Microphone cancellation and preserved-take behavior
+use synthetic automated tests; QA did not capture a real microphone or trigger
+production, installation, approval or publication. Changed-file lint passes;
+eight pre-existing repository lint errors remain in unrelated files. Local
+evidence is under `.state/private-tests/library-browser-*`.

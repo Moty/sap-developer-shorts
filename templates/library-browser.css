@@ -1,0 +1,142 @@
+/* Collection controls are shared across the local workspace's bounded lists. */
+.collection-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid #d7dfd4;
+  border-radius: 12px;
+  background: #f0f3ec;
+}
+.collection-tools > label,
+.collection-pages label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #3f594d;
+  font-size: 12px;
+  font-weight: 600;
+}
+.collection-search {
+  flex: 1 1 220px;
+}
+.collection-tools input,
+.collection-tools select,
+.collection-pages select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #c4d1c6;
+  border-radius: 7px;
+  background: #fff;
+  color: #244c3f;
+  font: inherit;
+  font-size: 14px;
+}
+.collection-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: end;
+  gap: 10px;
+  margin: 18px 0;
+}
+.collection-tools .collection-pages {
+  margin: 0 0 0 auto;
+}
+.collection-pages button,
+.collection-empty button {
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #bccdc0;
+  border-radius: 7px;
+  background: #fff;
+  color: #285845;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.collection-pages button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.collection-status,
+.collection-empty {
+  margin: 14px 0;
+  color: #55695e;
+  font-size: 13px;
+}
+.idea-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 24px 0;
+  border-bottom: 1px solid #d5dfd3;
+  padding-bottom: 14px;
+}
+.idea-tabs a {
+  padding: 11px 15px;
+  color: #405d4f;
+  text-decoration: none;
+  border-radius: 8px;
+  background: #edf1e9;
+  font-size: 14px;
+}
+.idea-tabs a[aria-current="page"] {
+  background: #285540;
+  color: #fff;
+}
+.idea-tabs span {
+  margin-left: 6px;
+}
+.tutorial-idea-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.tutorial-idea-grid article {
+  border: 1px solid #dae2d4;
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+}
+.tutorial-idea-grid span,
+.tutorial-idea-grid p {
+  font-size: 13px;
+  color: #61725e;
+}
+.tutorial-idea-grid h3 {
+  font-size: 17px;
+}
+.workflow-studio .workspace-resources {
+  margin-top: 0;
+}
+.workflow-studio [data-workspace-view] {
+  scroll-margin-top: 20px;
+}
+@media (max-width: 700px) {
+  .collection-tools {
+    gap: 10px;
+    padding: 12px;
+  }
+  .collection-tools > label {
+    flex: 1 1 120px;
+  }
+  .collection-tools .collection-search {
+    flex-basis: 100%;
+  }
+  .collection-pages {
+    justify-content: space-between;
+  }
+  .collection-tools .collection-pages {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+  .tutorial-idea-grid {
+    grid-template-columns: 1fr;
+  }
+}

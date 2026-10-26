@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Dirent } from "node:fs";
-import { mkdir, readdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { readContentEpisode, validateContent } from "./contracts.js";
 import { hash } from "./digest.js";
@@ -52,6 +52,7 @@ export interface LibraryEntry {
     receipt?: PackageVideoReceipt;
   };
   download?: EpisodeDownload;
+  updatedAt?: string;
   recordedVoiceLabel?: string;
   generation?: GenerationSummary;
 }
@@ -307,6 +308,14 @@ export async function buildLibrary(
   const availableVoices =
     settings.localPreview.engine === "kokoro" ? await verifiedKokoroVoices() : [];
   for (const entry of library.entries) {
+    const dates = await Promise.all(
+      episodeSourceFiles(entry.episode).map(
+        async (name) => (await stat(await sourceFile(name))).mtimeMs,
+      ),
+    );
+    entry.updatedAt = new Date(
+      Math.max(...dates, Date.parse(entry.preview?.updatedAt ?? "") || 0),
+    ).toISOString();
     if (entry.preview?.kind === "narrated" && hasClonedVoices(entry.episode))
       entry.recordedVoiceLabel = await episodeVoiceDescription(entry.episode);
     const download = buildEpisodePackage(entry, now);
@@ -316,6 +325,9 @@ export async function buildLibrary(
   for (const name of [
     "templates/library.css",
     "templates/library.js",
+    "templates/library-browser.css",
+    "templates/library-collections.js",
+    "templates/library-navigation.js",
     "templates/local-actions.js",
     "templates/voice-library.css",
     "templates/script-editor.css",

@@ -138,6 +138,7 @@
         }
       }
       chooseStyle();
+      window.dispatchEvent?.(new Event("shorts:style-selected"));
     });
   window.addEventListener("hashchange", chooseStyle);
   window.addEventListener("popstate", chooseStyle);
@@ -148,8 +149,16 @@
   const clear = document.querySelector("#clear-search");
   const status = document.querySelector("#filter-status");
   const empty = document.querySelector("#no-episodes");
-  let format = "all";
-  let stage = "all";
+  const collections = globalThis.shortsCollections;
+  const rememberedFilters = collections?.read("shorts:episode-filters") ?? {};
+  let format = ["all", "news", "tutorial"].includes(rememberedFilters.format)
+    ? rememberedFilters.format
+    : "all";
+  let stage = ["all", "editing", "producing", "review", "publish", "published"].includes(
+    rememberedFilters.stage,
+  )
+    ? rememberedFilters.stage
+    : "all";
   const stageButtons = [...document.querySelectorAll("[data-stage-filter]")];
   const attentionFilter = document.querySelector("#attention-filter");
   if (typeof window.location.href === "string") {
@@ -157,7 +166,22 @@
     if (stageButtons.some((button) => button.dataset.stageFilter === requested)) stage = requested;
   }
 
-  function update() {
+  if (attentionFilter) attentionFilter.checked = rememberedFilters.attention === true;
+  const episodeCollection = collections?.create({
+    id: "shorts",
+    root: document.querySelector("#shorts-list"),
+    query: input,
+    status,
+    empty,
+    label: "shorts",
+    pageSize: 8,
+    scrollTarget: document.querySelector("#episodes"),
+    match: (card) =>
+      (format === "all" || card.dataset.kind === format) &&
+      (stage === "all" || card.dataset.stage === stage) &&
+      (!attentionFilter?.checked || card.dataset.attention === "true"),
+  });
+  function update(reset = false) {
     const terms = input.value.trim().toLowerCase().split(/\s+/u).filter(Boolean);
     let visible = 0;
     for (const card of cards) {
@@ -176,6 +200,12 @@
     clear.hidden = !input.value;
     empty.hidden = visible !== 0;
     status.textContent = `${visible} ${visible === 1 ? "version" : "versions"}`;
+    episodeCollection?.render({ reset });
+    collections?.save("shorts:episode-filters", {
+      format,
+      stage,
+      attention: !!attentionFilter?.checked,
+    });
   }
   for (const button of stageButtons)
     button.addEventListener("click", () => {
@@ -183,18 +213,18 @@
       const url = new URL(window.location.href);
       url.searchParams.set("stage", stage);
       window.history.replaceState(null, "", url);
-      update();
+      update(true);
     });
-  attentionFilter?.addEventListener("change", update);
+  attentionFilter?.addEventListener("change", () => update(true));
   for (const button of buttons)
     button.addEventListener("click", () => {
       format = button.dataset.format;
-      update();
+      update(true);
     });
-  input.addEventListener("input", update);
+  input.addEventListener("input", () => update(true));
   clear.addEventListener("click", () => {
     input.value = "";
-    update();
+    update(true);
     input.focus();
   });
   document.querySelector("#reset-filters").addEventListener("click", () => {
@@ -207,7 +237,7 @@
       window.history.replaceState(null, "", url);
     }
     input.value = "";
-    update();
+    update(true);
     input.focus();
   });
   update();
@@ -487,6 +517,8 @@
       const card = document.createElement("article");
       card.className = "news-story-card";
       card.dataset.url = story.link;
+      card.dataset.updated = story.publishedIso || "";
+      card.dataset.score = String(story.relevanceScore || 0);
       const scoreClass = story.relevanceScore >= 120 ? "high-score" : "med-score";
       const tagsHtml = (story.categories || [])
         .slice(0, 3)
@@ -524,6 +556,7 @@
             for (const story of data.stories) {
               newsGrid.appendChild(renderStoryCard(story));
             }
+            globalThis.shortsWorkspace?.refresh("stories");
           }
           showNewsNotice(
             `Discovered ${data.stories.length} top SAP stories ranked for short videos.`,
@@ -573,7 +606,7 @@
               <span class="draft-duration">${ep.targetDurationSeconds}s · ${ep.scenes ? ep.scenes.length : 7} scenes</span>
             </div>
             <h4>${ep.title}</h4>
-            <p class="draft-hook"><strong>Hook:</strong> "${ep.scenes && ep.scenes[0] ? ep.scenes[0].narration : ""}"</p>
+            <p class="draft-hook"><strong>Hook:</strong> "${ep.scenes?.[0]?.narration ?? ""}"</p>
             <details class="draft-linkedin-details">
               <summary>View companion LinkedIn post copy <span aria-hidden="true">+</span></summary>
               <pre class="draft-linkedin-text">${ep.publication?.text || ""}</pre>
@@ -584,7 +617,8 @@
             </div>
           `;
           stagedGrid.prepend(draftCard);
-          draftCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          globalThis.shortsWorkspace?.refresh("drafts");
+          globalThis.shortsWorkspace?.revealDraft(draftCard);
         }
       } catch (err) {
         showNewsNotice(`Draft generation failed: ${err.message}`, true);

@@ -59,6 +59,7 @@ async function ui(
   options: {
     microphone?: () => Promise<unknown>;
     audioContext?: unknown;
+    recorder?: unknown;
     profiles?: ProfileFixture[];
     assigned?: typeof a;
     deferAcceptRefresh?: boolean;
@@ -157,7 +158,7 @@ async function ui(
     },
     navigator: { mediaDevices: { getUserMedia: options.microphone } },
     AudioContext: options.audioContext,
-    MediaRecorder: class {},
+    MediaRecorder: options.recorder ?? class {},
     FileReader: class {
       result = "";
       onload?: () => void;
@@ -391,6 +392,13 @@ test("voice library filters independent recordings by style without requiring an
       .options.some((option) => option.textContent.includes("Moty · Calm")),
   );
   assert.equal(runtime.get("my-voice-reference").hidden, true);
+  runtime.get("my-voice-filter").value = "all";
+  runtime.get("my-voice-query").value = "moty calm";
+  runtime.get("my-voice-query").dispatchEvent(new Event("input"));
+  assert.deepEqual(
+    runtime.get("my-voice-saved").options.map((option) => option.textContent),
+    ["Choose a saved voice", "Moty · Calm · Audition needed"],
+  );
 });
 
 test("library accepts only the audition explicitly selected and makes it available without assigning a speaker", async () => {
@@ -479,4 +487,85 @@ test("leaving the voice library cancels a pending microphone request before it c
   assert.ok(stopped > 0);
   assert.match(runtime.get("my-voice-status").textContent, /Recording was stopped/u);
   assert.equal(runtime.get("my-voice-record").disabled, false);
+});
+
+test("switching workspace sections cancels a pending microphone permission request", async () => {
+  let resolveStream: ((value: unknown) => void) | undefined;
+  let stopped = 0;
+  const runtime = await ui({
+    library: true,
+    microphone: () =>
+      new Promise((resolve) => {
+        resolveStream = resolve;
+      }),
+  });
+  const pending = runtime.get("my-voice-record").click();
+  await new Promise(setImmediate);
+  runtime.pageEvent("shorts:voice-panel-hidden");
+  assert.ok(resolveStream);
+  resolveStream({
+    getTracks: () => [
+      {
+        stop: () => {
+          stopped++;
+        },
+      },
+    ],
+  });
+  await pending;
+  assert.ok(stopped > 0);
+  assert.equal(runtime.get("my-voice-record").disabled, false);
+});
+
+test("switching workspace sections stops active capture and preserves the take for review", async () => {
+  let stopped = 0;
+  const runtime = await ui({
+    library: true,
+    microphone: async () => ({
+      getTracks: () => [
+        {
+          stop: () => {
+            stopped++;
+          },
+        },
+      ],
+    }),
+    audioContext: class {
+      state = "running";
+      createMediaStreamSource() {
+        return { connect() {} };
+      }
+      createAnalyser() {
+        return {
+          fftSize: 2,
+          getByteTimeDomainData(samples: Uint8Array) {
+            samples.fill(128);
+          },
+        };
+      }
+      async close() {
+        this.state = "closed";
+      }
+    },
+    recorder: class {
+      state = "inactive";
+      mimeType = "audio/wav";
+      onstop?: () => void;
+      start() {
+        this.state = "recording";
+      }
+      stop() {
+        this.state = "inactive";
+        this.onstop?.();
+      }
+    },
+  });
+  await runtime.get("my-voice-record").click();
+  assert.equal(runtime.get("my-voice-record").textContent, "Stop recording");
+  runtime.pageEvent("shorts:voice-panel-hidden");
+  assert.ok(stopped > 0);
+  assert.equal(runtime.get("my-voice-upload-preview").hidden, false);
+  assert.equal(runtime.get("my-voice-review-pane").hidden, false);
+  assert.equal(runtime.get("my-voice-record").textContent, "Record sample");
+  runtime.pageEvent("pagehide");
 });
