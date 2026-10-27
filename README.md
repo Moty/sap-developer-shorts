@@ -67,6 +67,12 @@ with local Reveal.js playback, code inspection, captured-result charts and filte
 or source-backed news cards. New MP4 productions include the refreshed motion
 design and an interactive deck in the episode package.
 
+For the next content-generation milestone, see the
+[content quality audit and editorial engine proposal](docs/CONTENT_QUALITY_REVIEW.md)
+and [conversational script/storyboard example](samples/editorial_quality_pilot.md).
+The existing news URL drafter uses paragraph extraction and templates; a writing
+LLM and its editorial review workflow are proposed, not yet connected.
+
 This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 
 Use **Download episode package · ZIP** on a verified episode to save its video,

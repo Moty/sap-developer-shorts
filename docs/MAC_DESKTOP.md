@@ -60,6 +60,18 @@ Model or voice-runtime changes may require a new audition, as in the source app.
 Deleting the app does not delete its data folder. Back up that folder separately.
 Do not copy another Mac's Python environments as an installation shortcut.
 
+### Release cadence
+
+Routine source, editorial and UI updates do not trigger a desktop version bump,
+DMG build or notarization submission. Develop and test in the source checkout,
+commit and push complete milestones, and batch desktop packages for an explicitly
+requested release. Documentation/research changes need no installer.
+
+An installed app runs its packaged code; pulling the source repository does not
+update it. When an installed-app fix or another-Mac test is needed, agree on a
+release milestone and package the accumulated tested changes. Automatic updates
+and independently downloadable executable patches are not implemented.
+
 The source-checkout workspace remains separate. Migration of its personal voices,
 portraits and resumable jobs is not automatic. Existing portable studio ZIPs can
 still be viewed using their documented playback workflow.

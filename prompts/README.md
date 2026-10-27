@@ -11,3 +11,10 @@ Prompt version: **1**. These define sequential editorial roles and a separate ne
 The episode contract is `schemas/episode.schema.json`. Application checks and executable demo assertions are required regardless of a model's review result. Allow at most two script revision passes per generation job; if unresolved, return a specific revision request. Record prompt version, provider/model, sources, usage, and review results when the generation adapter is implemented.
 
 News uses `schemas/news-episode.schema.json`, with availability, scope, and freshness checks. See [the news workflow](../docs/NEWS_WORKFLOW.md). These prompts are local editorial instructions; no model API is invoked by the current command-line workflow.
+
+The current URL-to-news draft implementation uses heuristics and paragraph
+extraction; it does not execute these editorial roles. See the October 2026
+[content quality review and editorial engine proposal](../docs/CONTENT_QUALITY_REVIEW.md)
+for observed output failures, a source-grounded writing/review pipeline, model
+comparison criteria and implementation milestones. That proposal is not yet an
+integrated generation provider.

@@ -2,6 +2,13 @@
 
 The project supports two editorial formats through the same `validate`, `verify`, `preview`, and `narrate` commands. Technical tutorials retain their registered executable demo and live assertions. News episodes summarize dated announcements and retain source-review notes. A news episode must never receive a “technical demo verified” badge or invented execution checks.
 
+The studio now also discovers official RSS stories and creates staged drafts from
+article URLs. This path uses paragraph extraction and templates, with structural
+validation; it does not run the editorial LLM prompts or independently establish
+source support. The [content quality review](CONTENT_QUALITY_REVIEW.md) identifies
+its current writing, attribution and date-handling limitations and proposes the
+replacement workflow. Review every automatic draft before producing or sharing.
+
 ## Start from a news page
 
 For a prepared conversational example, use `NEWS-02@duo`: the Joule Work brief
@@ -50,7 +57,7 @@ remain visible. Rebuild an older studio to add this behavior. Whole-studio ZIP
 packaging preserves the chosen snapshot's exact bytes and does not retrofit
 earlier archives or renew the review window.
 
-News stages are `VALIDATED → VERIFYING → SOURCES_CHECKED → PREVIEW_READY`, with failures saved as `FAILED`. Runs save the exact episode, `news-evidence.json`, narration draft, post draft, HTML, layout, source/runtime hashes, and artifact hashes. The news evidence freezes the supplied editorial review; it is not independent proof that the claims are true. An editor must compare the narration and availability wording with the linked sections. There is no automated browser snapshot or article ingestion yet.
+News stages are `VALIDATED → VERIFYING → SOURCES_CHECKED → PREVIEW_READY`, with failures saved as `FAILED`. Runs save the exact episode, `news-evidence.json`, narration draft, post draft, HTML, layout, source/runtime hashes, and artifact hashes. The news evidence freezes the supplied editorial review; it is not independent proof that the claims are true. An editor must compare the narration and availability wording with the linked sections. URL drafting now extracts article text; the verification command still does not independently re-read or fact-check that article.
 
 Both formats then use the same durable media worker, local speech adapter, measured WAV/caption validation, narration player, and recovery mechanisms. Editing content creates a new request; packaging an existing completed narration reuses its audio. The saved stock presenter and pilot spending preference are unchanged. No paid provider or publishing adapter is enabled.
 
@@ -62,7 +69,7 @@ The initial roundup and six-item editorial backlog were prepared from the [SAP C
 - Editorial role: [news editor prompt](../prompts/v1/news-editor.md)
 - Media operations: [narration and recovery](MEDIA_WORKFLOW.md)
 
-Verified local MP4 exports and episode ZIP downloads are available through `produce SELECTOR --serve`. Automatic discovery, scheduled news monitoring, article extraction, trend scoring, and publishing remain future work. No schedule is created by this implementation.
+Verified local MP4 exports and episode ZIP downloads are available through `produce SELECTOR --serve`. RSS discovery, keyword relevance scoring and URL article extraction are available. Scheduled news monitoring, measured trend scoring, LLM story generation and publishing remain future work. No schedule is created by this implementation.
 
 
 ## Joule Work follow-up
