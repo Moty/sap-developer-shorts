@@ -6,6 +6,11 @@ been screened; application integration remains proposed. See the
 [measured comparison and reproducible outputs](LOCAL_MODEL_BENCHMARK.md).
 No additional writing weights were downloaded for that experiment.
 
+Follow-up [provider research and decision](EDITORIAL_PROVIDER_DECISION.md)
+adds Muse Glimmer and larger Gemma comparisons, identifies a Qwen settings gap,
+and recommends an explicit optional paid writing benchmark. Qwen remains a
+provisional installed control; no default provider has been selected or changed.
+
 This supersedes the cloud-first pilot suggested in the initial
 [content quality review](CONTENT_QUALITY_REVIEW.md). External writing providers
 are optional, explicit integrations, disabled by default. There must be no
