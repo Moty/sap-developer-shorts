@@ -12,12 +12,15 @@ selection, source interpretation and composition, rather than an existing model
 being too small. Keep local Kokoro/Qwen speech and Ditto rendering; a writing
 provider is a separate choice from the voice and GPU engine.
 
-Start a comparison with GPT-6.1 Sol for ideation/writing and GPT-6 Astra for
-technical/editorial review. Include Claude Opus 5.5 as a comparison writer and
-Gemini as a finished-video reviewer. These are proposed roles, not results of a
-head-to-head SAP writing benchmark. Choose the production default from blind
-comparisons of our own scripts. A stronger model alone will not repair the
-paragraph extraction, missing attribution or repetitive scene design.
+The user's preferred architecture is now **local writing**, keeping the workflow
+self-contained. Start by testing Qwen3.8-27B in 4-bit MLX format, with Gemma 4
+26B A4B as a comparison and a compact Qwen option for smaller Macs. See the
+[local model research and revised runtime plan](LOCAL_EDITORIAL_MODELS.md) for
+hardware evidence, exact repositories/sizes and implementation behaviour.
+External providers remain optional and disabled by default; there is no automatic
+cloud fallback. Choose the writing default from blind comparisons of our scripts.
+A stronger model alone will not repair paragraph extraction, missing attribution
+or repetitive scene design.
 
 Routine changes should be reviewed, tested and committed in the source project.
 Batch desktop installers at explicit release milestones; see
@@ -124,21 +127,26 @@ authored comic timing. The model must choose a story structure as well as a tone
 
 ## Model options and recommended pilot
 
+Local inference is the preferred pilot. Use the shortlist and managed MLX runtime
+in [local writing models](LOCAL_EDITORIAL_MODELS.md). The hosted options below
+remain research references for an explicitly requested external comparison;
+they are not prerequisites or the default implementation path.
+
 Official product capabilities establish feasibility, not which model writes our
 best script. Account access and current prices must be checked when configuring
 a provider; this review enables no API billing.
 
 | Option | Proposed use | Boundary |
 | --- | --- | --- |
-| [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) | Initial writer: generate distinct angles, scripts and structured story plans. | Documented text/image input and structured outputs; lower-cost positioning than Astra. Quality for this series remains to be measured. |
+| [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) | Optional external writing comparison. | Documented text/image input and structured outputs; lower-cost positioning than Astra. Quality for this series remains to be measured. |
 | [GPT-6 Astra](https://developers.openai.com/api/docs/models/gpt-6-astra) | Review source support, weak explanations and difficult technical choices; optional premium writer. | Text/image input. Do not present it as directly hearing or watching the whole MP4. |
 | [Claude Opus 5.5](https://platform.claude.com/docs/en/models/overview) | Comparison writer for voice, analogies and dialogue. | A credible candidate from the current model lineup; no evidence here that it universally outwrites the other models. |
 | [Gemini](https://ai.google.dev/gemini-api/docs/video-understanding) | Review final audio and visual streams with timestamps; optional writing comparison. | Native video understanding, with sampling limitations for fast changes. Use a supported model and record its actual ID. |
-| [Local LLM through LM Studio](https://lmstudio.ai/docs/developer/core/server) | Optional private/offline writer through a local API. | Feasible adapter, with model quality, memory and speed benchmarked on the actual Mac. Do not equate Qwen3-TTS with a writing LLM. |
+| [Managed local MLX writer](LOCAL_EDITORIAL_MODELS.md) | Preferred ideation, writing and sequential review path; LM Studio can be an optional development adapter. | Benchmark the selected weights and runtime on the actual Mac. Do not equate Qwen3-TTS with a writing LLM. |
 
-Start with one provider integrated well, then add alternatives through the same
-contract. Writer and reviewer are sequential workflow steps; separate autonomous
-agent infrastructure is unnecessary for this bounded task.
+Start with one local provider integrated well, then add local alternatives through
+the same contract. Writer and reviewer are sequential workflow steps; separate
+autonomous agent infrastructure is unnecessary for this bounded task.
 
 The existing Google subscription can be used for a manual comparison/review if
 the required features are available in that account. Do not assume it pays for
@@ -244,10 +252,10 @@ Humor is not required for a professional script.
 
 Pilot design: use six representative briefs (two tested tutorials, two news
 explainers, one dialogue and one comic version). Compare current output with the
-new workflow, then run the same brief through Sol, Opus and optionally Gemini.
+new local workflow, then compare the selected local Qwen and Gemma candidates.
 Use equal length budgets, identical evidence and bounded revision opportunities.
 Blind and randomize names/order. Record user preferences, concrete findings,
-revision counts, latency and total token cost including reasoning/retries.
+revision counts, latency, peak memory and token counts including reasoning/retries.
 Treat six briefs as an initial screening, not a statistically conclusive ranking.
 
 Separate a development set from held-out briefs. Use the user's selections to
@@ -262,28 +270,30 @@ after explicitly published pilots, without claiming a model score predicts them.
 | Milestone | Concrete changes | Acceptance evidence |
 | --- | --- | --- |
 | M0: Correct the drafting baseline | Fix real publication-date extraction, sentence handling, attribution and unsupported defaults in fetcher/generator. Show heuristic drafts as needing editorial review. Retain original saved content. | Fixtures for old/unknown dates, missing facts, detached quotations, performance forecasts and heading/content mismatch; sparse sources cannot produce fabricated release scope. |
-| M1: Research and provider foundation | Add typed research/fact/proposal contracts, provider interface, settings and durable editorial jobs. Implement one provider plus mock adapter. Keep import/export/manual authoring available. | Source IDs/digests survive; malformed responses, cancellation, restart and provider errors preserve drafts; no model key in browser bundles or artifacts. |
+| M1: Research and provider foundation | Add typed research/fact/proposal contracts, provider interface, settings and durable editorial jobs. Implement one managed local MLX provider plus mock adapter, model setup and offline smoke test. Keep import/export/manual authoring available. | Source IDs/digests survive; malformed responses, cancellation, restart and provider errors preserve drafts; model assets are verified, missing setup has a UI action, and no remote model endpoint is contacted. |
 | M2: Ideation and script workshop | Add Generate story ideas, two script choices, targeted rewrite and Compare versions. Version prompts separately from app binaries. Preserve voice/photo assignments. | Distinct proposals with a promised payoff; a rewrite creates a new saved version and retains exact selected presenters; no render is triggered by browsing ideas. |
 | M3: Editorial review and voice preview | Add source/technical review, creative rubric and bounded revision loop. Opening/passages audition before full production; timing feedback appears beside the scene. | Review finds the concrete failures in this audit; actual spoken hook passes; unresolved facts cannot be labelled approved; no portrait job for a script awaiting revision. |
 | M4: Directed visual storytelling | Implement versioned sidecar and initial templates in both renderers, phrase-linked reveals and presenter framing. Start with one CAP and one news pilot. | Phone-size inspection, mute test, narration/visual consistency, data/claim provenance and deterministic MP4 checks; older episodes still render. |
-| M5: Compare and select defaults | Run the blind pilot; add alternative providers only through the shared contract. Optional video-review report import/API adapter. | Stored comparisons, model IDs, prompt versions, input hashes, usage/cost and reviewer agreement; default selected on observed outputs. |
+| M5: Compare and select defaults | Run the blind local-model pilot; add alternatives only through the shared contract. External comparisons/video-review adapters require explicit opt-in. | Stored comparisons, model IDs/revisions, prompt versions, input hashes, memory/time and reviewer agreement; default selected on observed outputs; no automatic cloud fallback. |
 
 Suggested implementation areas are `src/editorial/`, `schemas/editorial/`,
 `prompts/v2/` and the existing local API/editor, followed by private-workspace
 integration. Keep role names as sequential jobs within one bounded orchestrator.
 Create no unbounded background generation loop.
 
-Credentials belong in Keychain for desktop and the existing protected server
-configuration for hosted workspaces. Store usage/timing per editorial stage and
-apply an explicit writing budget before calls. Never silently downgrade a model
-or activate another paid provider. Model calls require only the selected public
-research/code/text; personal voice recordings and photos are not writing inputs.
+Local writing needs no external provider credential. If an external adapter is
+explicitly added, credentials belong in Keychain for desktop and the existing
+protected server configuration for hosted workspaces. Store usage/timing per
+editorial stage; bound local resources and any approved external spending. Never
+silently downgrade a model or activate another provider. Model calls require only
+the selected public research/code/text; personal voice recordings and photos are
+not writing inputs.
 Finished-video review is a separate, explicit transfer when it contains a person.
 Source text remains untrusted data, including instructions embedded in a page.
 
 Local writing must share the device's heavy-job scheduling with speech/portrait
-rendering. Keep the Mac mini and MacBook Pro as rendering options; cloud writing
-does not require moving their rendering or private model assets into the cloud.
+rendering. Keep the Mac mini and MacBook Pro as options, with capacity checked
+per device. The standalone workflow needs no cloud inference or Firebase login.
 
 ## Concrete next pilot
 

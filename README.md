@@ -72,6 +72,8 @@ For the next content-generation milestone, see the
 and [conversational script/storyboard example](samples/editorial_quality_pilot.md).
 The existing news URL drafter uses paragraph extraction and templates; a writing
 LLM and its editorial review workflow are proposed, not yet connected.
+The preferred implementation is a [managed local writing model](docs/LOCAL_EDITORIAL_MODELS.md),
+with Qwen and Gemma candidates, local review and no automatic cloud fallback.
 
 This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 
