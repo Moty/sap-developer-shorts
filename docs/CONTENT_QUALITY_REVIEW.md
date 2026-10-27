@@ -13,8 +13,9 @@ being too small. Keep local Kokoro/Qwen speech and Ditto rendering; a writing
 provider is a separate choice from the voice and GPU engine.
 
 The user's preferred architecture is now **local writing**, keeping the workflow
-self-contained. Start by testing Qwen3.8-27B in 4-bit MLX format, with Gemma 4
-26B A4B as a comparison and a compact Qwen option for smaller Macs. See the
+self-contained. Start by comparing the already available Flint GGUF and
+Qwen3.8-27B in 4-bit MLX format. Gemma 4 26B A4B is a later comparison and compact
+Qwen is an option for smaller Macs. See the
 [local model research and revised runtime plan](LOCAL_EDITORIAL_MODELS.md) for
 hardware evidence, exact repositories/sizes and implementation behaviour.
 External providers remain optional and disabled by default; there is no automatic

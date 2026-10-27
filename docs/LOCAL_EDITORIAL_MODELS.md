@@ -40,8 +40,11 @@ repository whose revision is listed below.
 
 The same catalog contains Qwen3.6-35B-A3B in Q6_K format (about 29.42 GB including
 its associated assets) and Gemma 4 E4B (a smaller variant, not the proposed 26B
-comparison). Another roughly 24 GB model was loaded in the existing LM Studio
-runtime. No model was unloaded, loaded or asked to generate during this research.
+comparison). **Flint Q4_K_M is also already downloaded and loaded** as
+`recursivesi/flint`, with 24.17 GB reported by the catalog. It was idle with no
+queued requests when inspected. Include it in the initial comparison before
+downloading any additional model. No model was unloaded, loaded or asked to
+generate during this research.
 
 Do not infer runtime memory from model parameters or download size alone. Model
 weights, context/cache, compute buffers, the OS and other applications all matter.
@@ -50,18 +53,31 @@ subset participates in a token's computation.
 
 ## Candidate shortlist
 
-Sizes below are sums of published `.safetensors` file sizes from the Hugging Face
-repository metadata read on October 27. Units are decimal GB. Tokenizers, runtime
+Except for the labelled installed Flint GGUF, sizes below are sums of published
+`.safetensors` file sizes from Hugging Face metadata read on October 27.
+Units are decimal GB. Tokenizers, runtime
 packages, context/cache and temporary download space are additional. MLX builds
 are community conversions; the original authors' model cards describe the base
 models, not a guarantee about the quantized conversion's quality.
 
 | Candidate and published conversion | Weight files | Proposed role |
 | --- | --- | --- |
+| [Flint, existing LM Studio GGUF Q4_K_M](https://huggingface.co/lmstudio-community/flint-GGUF) | 24.17 GB catalog size for the installed file | First available baseline because it is already loaded; compare writing and technical review against Qwen. |
 | [Qwen3.8-27B, MLX 4-bit](https://huggingface.co/mlx-community/Qwen3.8-27B-4bit) | 16.05 GB / 14.95 GiB | First quality-oriented writer to test on this 48 GiB Mac. |
 | [Gemma 4 26B A4B instruction-tuned, MLX 4-bit](https://huggingface.co/mlx-community/gemma-4-26b-a4b-it-4bit) | 15.34 GB / 14.29 GiB | Comparison writer for explanation, dialogue and storytelling; evaluate without assuming a winner. |
 | [Qwen3.5-9B, MLX 4-bit](https://huggingface.co/mlx-community/Qwen3.5-9B-4bit) | 5.95 GB / 5.54 GiB | Compact choice for Macs with less memory, subject to an actual capacity/quality test. |
 | [Qwen3.6-35B-A3B, MLX 4-bit](https://huggingface.co/mlx-community/Qwen3.6-35B-A3B-4bit) | 20.40 GB / 19.00 GiB | Optional later throughput comparison. A3B does not mean it only needs memory for 3B weights. |
+
+[Recursive's Flint model card](https://huggingface.co/RecursiveSI/flint) describes
+a 39.8B mixture-of-experts model with about 2.5B active parameters per token,
+specialized for coding agents. It supports text input/output, reasoning and tool
+use. That makes it a plausible technical-review candidate and a writing model to
+test, but its coding results do not establish creative-script quality. It is
+text-only and cannot directly inspect presentation images or listen to narration.
+The installed GGUF runs through LM Studio's llama.cpp backend, not the proposed
+managed MLX path. Preserve an optional local GGUF/LM Studio adapter rather than
+excluding an already available model. A later bundled runtime needs separate
+validation for this exact architecture and quantization.
 
 Qwen's [27B model card](https://huggingface.co/Qwen/Qwen3.8-27B) documents a
 general instruction model with thinking and non-thinking modes. These modes can
@@ -155,12 +171,12 @@ review. Existing transcript, timing, audio and frame checks still apply.
 
 ## First experiment and acceptance
 
-1. Reuse the already downloaded Qwen3.8-27B 4-bit on this Mac for the first test,
-   using its existing local runtime once device capacity is available. Do not
-   displace an unrelated loaded model without coordinating its use. Test with
-   the source-grounded CAP pilot, one
-   sourced SAP news explanation, and a two-person/light-comic brief. Include
-   deliberately incomplete evidence to check that it asks for missing facts.
+1. Use the already loaded Flint as the first available baseline, then compare the
+   already downloaded Qwen3.8-27B 4-bit sequentially when device capacity is
+   available. Do not displace an unrelated workload without coordinating its use.
+   Test the same source-grounded CAP pilot, one sourced SAP news explanation and
+   a two-person/light-comic brief. Include deliberately incomplete evidence to
+   check that each model asks for missing facts.
 2. Measure resource use and judge script quality against the current heuristic
    draft and authored example. Screen for complete sentences, supported claims,
    genuinely different story angles, natural speech, useful visual beats and a
