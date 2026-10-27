@@ -18,6 +18,9 @@ Qwen3.8-27B in 4-bit MLX format. Gemma 4 26B A4B is a later comparison and compa
 Qwen is an option for smaller Macs. See the
 [local model research and revised runtime plan](LOCAL_EDITORIAL_MODELS.md) for
 hardware evidence, exact repositories/sizes and implementation behaviour.
+The initial [six-model local screen](LOCAL_MODEL_BENCHMARK.md) is now complete.
+Qwen3.8 is the provisional writing candidate; no first-pass configuration is
+ready for unattended production, and application integration remains future work.
 External providers remain optional and disabled by default; there is no automatic
 cloud fallback. Choose the writing default from blind comparisons of our scripts.
 A stronger model alone will not repair paragraph extraction, missing attribution

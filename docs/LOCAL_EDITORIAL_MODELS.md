@@ -1,8 +1,10 @@
 # Local writing models for SAP Shorts
 
 Researched October 27, 2026. Preferred architecture: local inference for ideation,
-writing, revision and editorial review. Status: model selection and implementation
-proposal; no writing weights have been downloaded or benchmarked by this work.
+writing, revision and editorial review. Status: six installed models have now
+been screened; application integration remains proposed. See the
+[measured comparison and reproducible outputs](LOCAL_MODEL_BENCHMARK.md).
+No additional writing weights were downloaded for that experiment.
 
 This supersedes the cloud-first pilot suggested in the initial
 [content quality review](CONTENT_QUALITY_REVIEW.md). External writing providers
@@ -44,7 +46,8 @@ comparison). **Flint Q4_K_M is also already downloaded and loaded** as
 `recursivesi/flint`, with 24.17 GB reported by the catalog. It was idle with no
 queued requests when inspected. Include it in the initial comparison before
 downloading any additional model. No model was unloaded, loaded or asked to
-generate during this research.
+generate during the initial inventory research. The subsequent authorized
+benchmark loaded candidates sequentially and restored the original Flint state.
 
 Do not infer runtime memory from model parameters or download size alone. Model
 weights, context/cache, compute buffers, the OS and other applications all matter.
@@ -171,6 +174,12 @@ review. Existing transcript, timing, audio and frame checks still apply.
 
 ## First experiment and acceptance
 
+The [installed-model screen](LOCAL_MODEL_BENCHMARK.md) is complete: three writing
+briefs and one synthetic review per candidate, plus bounded Qwen follow-ups.
+Qwen3.8 is a provisional writer candidate; no configuration is approved for
+unattended production. These results do not replace the held-out/user preference
+and actual audio-timing checks below.
+
 1. Use the already loaded Flint as the first available baseline, then compare the
    already downloaded Qwen3.8-27B 4-bit sequentially when device capacity is
    available. Do not displace an unrelated workload without coordinating its use.
@@ -192,7 +201,8 @@ review. Existing transcript, timing, audio and frame checks still apply.
 Initial success means the user prefers the new scripts, source support passes,
 generation stays within device memory without system-setting overrides, and
 offline inference works. It does not mean parity with every flagship hosted
-model. No latency or creative-quality result is claimed before this experiment.
+model. Measured latency and specific editorial failures are now available in the
+screening report; the application acceptance criteria remain unmet.
 
 Routine source changes follow the documented release cadence. Build another DMG
 only for an explicitly requested release milestone.
