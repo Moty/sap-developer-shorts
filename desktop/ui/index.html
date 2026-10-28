@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
-<title>SAP Shorts · Setup & engines</title>
+<title>SAP Shorts · Set up this Mac</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,7 +15,7 @@
 </div>
 </div>
 <nav aria-label="Desktop sections">
-<button type="button" data-page="create" aria-current="page">Create on this Mac</button>
+<button type="button" data-page="create" aria-current="page">Set up this Mac</button>
 <button type="button" data-page="worker">Rendering engine</button>
 </nav>
 <div class="sidebar-footer">
@@ -27,70 +27,72 @@
 <main>
 <header>
 <div>
-<p class="eyebrow">READY WHEN YOU ARE</p>
-<h1>Your next short starts here.</h1>
-<p class="subtitle">The tools are included. Choose the local voices and presenters you want to use.</p>
+<p class="eyebrow">WELCOME TO SAP SHORTS</p>
+<h1>Let’s get this Mac ready.</h1>
+<p class="subtitle">Start writing in your studio, then add the tools you need for narration and presenters.</p>
 </div>
-<span class="badge" id="readiness">Preparing…</span>
+<span class="badge" id="readiness" role="status">Preparing…</span>
 </header>
+<noscript><p class="no-script">Setup status needs JavaScript. Reopen the desktop window to reconnect to your workspace.</p></noscript>
 <div id="error" role="alert" hidden>
 </div>
 <section id="create" aria-label="Create on this Mac">
 <div class="hero">
 <div>
-<span class="eyebrow">01 / YOUR WORKSPACE</span>
-<h2>From script to screen.</h2>
-<p>Edit scripts, record a voice, choose a portrait and review a finished video.<br>Everything saves in this app's workspace on your Mac.</p>
+<span class="eyebrow">YOUR LOCAL WORKSPACE</span>
+<h2>Make your next short.</h2>
+<p id="workspace-readiness">Preparing your local studio…</p>
+<p class="help">Scripts, recordings and videos save in this app’s workspace on your Mac.</p>
 </div>
-<button type="button" id="studio" class="primary" disabled>Open creator studio ↗</button>
+<button type="button" id="studio" class="primary" disabled>Open studio ↗</button>
 </div>
 <div class="section-title">
 <div>
-<p class="eyebrow">02 / MAKE IT YOURS</p>
-<h2>Choose your rendering tools.</h2>
+<p class="eyebrow">THIS MAC’S READINESS</p>
+<h2>Rendering tools</h2>
 </div>
 <button type="button" data-action="refresh" class="quiet">Refresh status</button>
 </div>
-<p class="help">Engine setup needs internet access. After installation, local rendering uses the saved models. Downloads and Python environments are managed for you.</p>
+<div class="checklist-summary"><div class="readiness-count" aria-hidden="true"><b id="engine-count">—</b><span>of 4</span></div><div><strong id="engine-summary" role="status">Checking rendering tools…</strong><p class="help">Install the tools you want to use. Setup needs internet access; after installation, rendering uses the saved local models.</p></div></div>
 <div class="engine-grid">
 <article>
 <div class="card-header">
-<span class="symbol">◉</span>
+<span class="symbol" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9v6m4-10v14m4-11v8m4-12v16m4-11v6"/></svg></span>
 <span class="badge" data-status="kokoro">Checking</span>
 </div>
-<h3>Stock narration</h3>
+<div class="tool-description"><h3>Stock narration</h3>
 <p>Warm, clear voices for your first short. Includes Heart and Michael.</p>
-<small>Kokoro · managed Python and local voice models</small>
+<small>Kokoro · managed Python and local voice models</small></div>
 <button type="button" data-action="kokoro">Install stock voices</button>
 </article>
 <article>
 <div class="card-header">
-<span class="symbol violet">〰</span>
+<span class="symbol" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1m-7 8v3m-4 0h8"/></svg></span>
 <span class="badge" data-status="qwen">Checking</span>
 </div>
-<h3>Your own voice</h3>
+<div class="tool-description"><h3>Your own voice</h3>
 <p>Create narration from an approved recording of your voice.</p>
-<small>Qwen · 5.42 GiB of model assets + runtime</small>
+<small>Qwen · 5.42 GiB of model assets + runtime</small></div>
 <button type="button" data-action="qwen">Install voice cloning</button>
 </article>
 <article>
 <div class="card-header">
-<span class="symbol cyan">◇</span>
+<span class="symbol" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 9h.01M16 9h.01M8 15c2 2 6 2 8 0"/></svg></span>
 <span class="badge" data-status="face">Checking</span>
 </div>
-<h3>Photo alignment</h3>
+<div class="tool-description"><h3>Photo alignment</h3>
 <p>Locate the mouth automatically when you add a photo presenter.</p>
-<small>MediaPipe · local face landmark detector</small>
+<small>MediaPipe · local face landmark detector</small></div>
 <button type="button" data-action="face">Install photo alignment</button>
 </article>
 <article>
 <div class="card-header">
-<span class="symbol amber">✳</span>
+<span class="symbol" aria-hidden="true"><svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span>
 <span class="badge" data-status="portrait">Checking</span>
 </div>
-<h3>Realistic portraits</h3>
+<div class="tool-description"><h3>Realistic portraits</h3>
 <p>Animate a photo with speech and facial motion on this Mac.</p>
-<small>Ditto · 2.32 GB of model assets + runtime</small>
+<small>Ditto · 2.32 GB of model assets + runtime</small></div>
 <button type="button" data-action="portrait">Install portrait engine</button>
 </article>
 </div>
@@ -113,7 +115,7 @@
 </div>
 <form id="pairing">
 <h2>Connect to your workspace</h2>
-<p>Start pairing here, then approve the device on your studio's Rendering engines page using the code in the activity log.</p>
+<p>Start pairing here, then approve the device in your studio’s Settings using the code in the activity log.</p>
 <label>Studio address<input id="origin" type="url" placeholder="https://studio.example.com" required>
 </label>
 <label>Device name<input id="device" type="text" value="My Mac · SAP Shorts" maxlength="80" required>
@@ -129,8 +131,8 @@
 <p>Start the engine to accept jobs. Pause it before installing or repairing models.</p>
 </div>
 <div class="actions">
-<button type="button" data-action="worker-start">Start worker</button>
-<button type="button" data-action="worker-stop">Pause worker</button>
+<button type="button" data-action="worker-start">Start rendering engine</button>
+<button type="button" data-action="worker-stop">Pause rendering engine</button>
 </div>
 </div>
 <p class="help">Device credentials are stored in macOS Keychain. Pairing does not deploy cloud services or enable paid rendering. Closing a window keeps work running; Quit stops it.</p>

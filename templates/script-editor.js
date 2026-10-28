@@ -189,6 +189,9 @@
   let editorEnabled = false;
   globalThis.shortsWritingEditor = {
     context: JSON.parse(document.getElementById("editor-data").textContent).writingContext,
+    validate() {
+      return pendingRecovery ? null : readDraft();
+    },
     syncStep(step) {
       editorStep = step;
     },
@@ -712,6 +715,11 @@
     draft.title = byId("draft-title").value.trim();
     draft.publicationText = byId("publication-text").value.trim();
     const errors = [];
+    const issues = { script: [], voice: [], presenter: [], post: [] };
+    const invalid = (kind, message) => {
+      errors.push(message);
+      issues[kind].push(message);
+    };
     try {
       const design = currentDesign();
       if (design) draft.presentation.design = design;
@@ -721,7 +729,8 @@
         : "Automatic presentation design. Use the Writing assistant to generate or enhance it with a prompt.";
       byId("presentation-design-reset").disabled = !design;
     } catch {
-      errors.push(
+      invalid(
+        "script",
         "Presentation design is invalid. Restore the automatic design or generate a new proposal.",
       );
     }
@@ -729,7 +738,7 @@
       const original = voiceKey(seed.presentation.speakers[index].voice);
       const selected = byId(`speaker-voice-${index}`).value;
       if (selected !== original && !voiceAvailable(selected) && !validPersonalVoiceKey(selected))
-        errors.push(`Choose an available voice for ${speaker.name}.`);
+        invalid("voice", `Choose an available voice for ${speaker.name}.`);
       speaker.voice = voiceFromKey(selected);
       byId(`speaker-voice-${index}-help`).textContent = selected.startsWith("qwen:")
         ? "Personal voice profile on this Mac. Production checks its accepted revision."
@@ -758,7 +767,7 @@
         byId(`speaker-avatar-mouth-scale-val-${index}`).textContent =
           `${Math.round(mouthScale * 100)}%`;
         if (!imageId || !/^[a-z0-9][a-z0-9._-]{0,63}\.(?:png|jpg|jpeg|webp)$/iu.test(imageId)) {
-          errors.push(`Choose or upload a photo avatar for ${speaker.name}.`);
+          invalid("presenter", `Choose or upload a photo avatar for ${speaker.name}.`);
         }
         speaker.avatar = {
           mode: "photo",
@@ -782,19 +791,20 @@
         ),
       ).size !== draft.presentation.speakers.length
     )
-      errors.push("Choose a different voice for each person in the conversation.");
+      invalid("voice", "Choose a different voice for each person in the conversation.");
     draft.schemaVersion = draft.presentation.speakers.some(
       (speaker) => typeof speaker.voice !== "string",
     )
       ? 2
       : seed.schemaVersion;
     if (!/^[a-z][a-z0-9-]{0,31}$/u.test(draft.presentation.variant))
-      errors.push("Choose a version name using lowercase letters, numbers, and hyphens.");
+      invalid("script", "Choose a version name using lowercase letters, numbers, and hyphens.");
     if (reservedNames.includes(draft.presentation.variant))
-      errors.push("That version already exists. Choose a new name.");
-    if (!draft.title || draft.title.length > 60) errors.push("Use a title of 1–60 characters.");
+      invalid("script", "That version already exists. Choose a new name.");
+    if (!draft.title || draft.title.length > 60)
+      invalid("script", "Use a title of 1–60 characters.");
     if (!draft.publicationText || draft.publicationText.length > 3000)
-      errors.push("Use a companion post of 1–3,000 characters.");
+      invalid("post", "Use a companion post of 1–3,000 characters.");
     let total = 0;
     for (const [index, scene] of draft.scenes.entries()) {
       scene.overlay = byId(`overlay-${index}`).value.trim();
@@ -823,7 +833,7 @@
       const warning = byId(`scene-${index}-warning`);
       warning.textContent = [...problems, ...pacing].join(" ");
       warning.hidden = !problems.length && !pacing.length;
-      if (problems.length) errors.push(`Scene ${index + 1}: ${problems.join(" ")}`);
+      if (problems.length) invalid("script", `Scene ${index + 1}: ${problems.join(" ")}`);
     }
     for (const [term, spoken] of Object.entries(activePronunciation)) {
       if (
@@ -833,7 +843,7 @@
         spoken.length > 160 ||
         /[[\]<>\r\n]/u.test(term + spoken)
       ) {
-        errors.push(`Pronunciation term "${term}" must be plain text without brackets.`);
+        invalid("script", `Pronunciation term "${term}" must be plain text without brackets.`);
       }
     }
     if (JSON.stringify(activePronunciation) !== JSON.stringify(startingPronunciation)) {
@@ -877,7 +887,17 @@
     reviewChanges(draft);
     saveRecovery();
     globalThis.shortsWorkspace?.refresh();
-    return { draft, errors };
+    const result = {
+      draft,
+      errors,
+      issues,
+      enabled: editorEnabled && !pendingRecovery && !saving,
+      voicesReady: draft.presentation.speakers.every((speaker) =>
+        voiceAvailable(voiceKey(speaker.voice)),
+      ),
+    };
+    globalThis.shortsProduction?.update(result);
+    return result;
   }
   const update = () => {
     if (pendingRecovery) return;
@@ -1003,6 +1023,7 @@
       byId("save-draft").disabled = true;
       produceBtn.disabled = true;
       byId("editor-fields").disabled = true;
+      readDraft();
       byId("editor-save-state").textContent = "Saving draft and updating the workspace…";
       try {
         const response = await fetch("/api/scripts", {
@@ -1024,11 +1045,13 @@
         byId("save-draft").disabled = false;
         produceBtn.disabled = false;
         byId("editor-fields").disabled = false;
+        readDraft();
       }
     });
   }
 
   function setProduceProgress(stage, message) {
+    globalThis.shortsProduction?.progress({ stage, message });
     if (progressText) progressText.textContent = `${stage}: ${message || ""}`;
     const stagePercent = {
       PREFLIGHT: "20%",
@@ -1052,6 +1075,7 @@
         return;
       }
       const selector = `${draft.baseEpisodeId}@${draft.presentation.variant}`;
+      globalThis.shortsProduction?.startAttempt({ selector });
       produceBtn.disabled = true;
       download.disabled = true;
       if (progressBox) progressBox.hidden = false;
@@ -1078,6 +1102,10 @@
           produceBtn.disabled = false;
           download.disabled = false;
           if (progressBox) progressBox.hidden = true;
+          setProduceProgress(
+            "FAILED",
+            data.error || "Another production is active. Return to Shorts to check its progress.",
+          );
           return;
         }
         if (!response.ok) {
@@ -1086,6 +1114,11 @@
         }
         const data = await response.json();
         rememberSnapshot(draft, selector);
+        globalThis.shortsProduction?.accepted({
+          id: data.jobId,
+          selector: data.selector || selector,
+          startedAt: data.startedAt,
+        });
         const sse = new EventSource(`/api/productions/${encodeURIComponent(data.jobId)}/stream`);
         sse.addEventListener("status", (e) => {
           try {
@@ -1110,6 +1143,12 @@
           } catch {}
           const report = payload.report || {};
           const stage = payload.stage || report.stage || "FAILED";
+          globalThis.shortsProduction?.progress({
+            stage,
+            report,
+            libraryUpdated: payload.libraryUpdated,
+            message: report.issue?.message || payload.error || "",
+          });
           if (stage !== "READY") {
             const issueMsg =
               report.issue?.message || payload.error || "Production stopped before MP4 export.";
@@ -1159,7 +1198,12 @@
             }
             return;
           }
-          setProduceProgress("READY", "Production complete!");
+          setProduceProgress(
+            "READY",
+            payload.libraryUpdated === false
+              ? "Video produced. Workspace refresh is pending; refresh the studio before opening it."
+              : "Production complete!",
+          );
           if (produceResult) {
             produceResult.hidden = false;
             const strong = element("strong", "", "Video produced · ready for your review");
@@ -1168,13 +1212,17 @@
             watchLink.href = `../../episodes/${encodeURIComponent(selector)}/publish.html`;
             const studioLink = element("a", "", "View in Studio ↗");
             studioLink.href = "../../review.html?stage=review#episodes";
-            p.append(watchLink, element("span", "", " "), studioLink);
+            if (payload.libraryUpdated === false) {
+              strong.textContent = "Video produced · workspace refresh pending";
+              p.append(studioLink);
+            } else p.append(watchLink, element("span", "", " "), studioLink);
             produceResult.replaceChildren(strong, p);
           }
         }
         sse.addEventListener("complete", completeProduction);
         sse.addEventListener("error", (e) => {
           if (!e.data) {
+            globalThis.shortsProduction?.reconnect();
             setProduceProgress(
               "RECONNECTING",
               "Production may still be running. Reconnecting; you can also check the workspace.",
@@ -1187,6 +1235,8 @@
         setProduceProgress("FAILED", error.message);
         produceBtn.disabled = false;
         download.disabled = false;
+      } finally {
+        readDraft();
       }
     });
   }

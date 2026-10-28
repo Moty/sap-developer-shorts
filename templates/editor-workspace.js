@@ -21,7 +21,7 @@
     voice: "voice-heading",
     companion: "companion-post-heading",
     "ai-review": "final-review-heading",
-    produce: "download-controls",
+    produce: "production-heading",
   };
   const get = (id, fallback = "") => byId(id)?.value ?? fallback;
   const words = (text) => text.trim().split(/\s+/u).filter(Boolean).length;
@@ -99,8 +99,7 @@
       if (button.dataset.stepIndex) {
         const position = order.indexOf(button.dataset.editorStep);
         const current = order.indexOf(state.step);
-        button.dataset.stepState =
-          position < current ? "done" : position === current ? "current" : "todo";
+        button.dataset.stepState = position === current ? "current" : "todo";
       }
     }
     for (const button of all("[data-editor-target]")) {
@@ -115,31 +114,23 @@
     const next = byId("editor-next");
     const label =
       state.step === "script"
-        ? "Next: Voice & portrait"
+        ? "Next: Voice & presenter"
         : state.step === "voice"
           ? "Next: Produce"
-          : state.view === "companion"
-            ? "Next: AI content review"
-            : state.view === "ai-review"
-              ? "Next: Produce video"
-              : "Back to script";
+          : "Save & produce";
     next.textContent = label;
-    next.dataset.shortLabel =
-      state.step === "script"
-        ? "Voice"
-        : state.step === "voice"
-          ? "Produce"
-          : state.view === "companion"
-            ? "AI review"
-            : state.view === "ai-review"
-              ? "Video"
-              : "Script";
+    next.dataset.shortLabel = state.step === "script" ? "Voice" : "Produce";
     next.setAttribute("aria-label", label);
+    if (state.step !== "review") {
+      next.disabled = false;
+      next.removeAttribute("aria-describedby");
+    }
     byId("editor-outline-toggle").setAttribute("aria-expanded", String(state.outline));
     byId("editor-evidence").hidden = !state.evidence;
     byId("editor-evidence-toggle").setAttribute("aria-expanded", String(state.evidence));
     if (state.view === "writing") byId("presentation").open = true;
     refresh();
+    globalThis.shortsProduction?.refresh();
     const target =
       state.view === "scene" ? `scene-${state.scene}-heading` : destinations[state.view];
     if (updateUrl && target) history.replaceState(null, "", `#${target}`);
@@ -148,6 +139,8 @@
     measure();
   }
   function activate(view, index = state.scene, moveFocus = true, updateUrl = true) {
+    const detail = view === "companion" ? "post" : view === "ai-review" ? "ai" : null;
+    if (detail) view = "produce";
     if (
       !Object.hasOwn(views, view) ||
       !Number.isInteger(index) ||
@@ -160,10 +153,11 @@
     state.scene = index;
     state.outline = false;
     render(moveFocus, updateUrl);
+    if (detail && byId(`production-${detail}`)) byId(`production-${detail}`).open = true;
   }
   function showStep(step, moveFocus = false) {
     activate(
-      step === "script" ? "scene" : step === "voice" ? "voice" : "companion",
+      step === "script" ? "scene" : step === "voice" ? "voice" : "produce",
       state.scene,
       moveFocus,
     );
@@ -183,7 +177,9 @@
       activate("companion", state.scene, false);
     else if (id === "final-review-heading" || id === "final-review-panel")
       activate("ai-review", state.scene, false);
-    else if (["download-controls", "draft-errors", "produce-script"].includes(id))
+    else if (
+      ["production-heading", "download-controls", "draft-errors", "produce-script"].includes(id)
+    )
       activate("produce", state.scene, false);
     else return false;
     const target = id === "presentation-design" ? "presentation" : id;
@@ -197,6 +193,8 @@
   for (const button of all("[data-editor-step]"))
     button.addEventListener("click", (event) => {
       // Stepper links keep their #fragment for no-JS use; switch panes in place instead.
+      if (event?.button > 0 || event?.metaKey || event?.ctrlKey || event?.shiftKey || event?.altKey)
+        return;
       event?.preventDefault?.();
       showStep(button.dataset.editorStep, true);
     });
@@ -205,17 +203,8 @@
   );
   byId("workspace-scene-next").addEventListener("click", () => activate("scene", state.scene + 1));
   byId("editor-next").addEventListener("click", () => {
-    activate(
-      state.step === "script"
-        ? "voice"
-        : state.step === "voice"
-          ? "companion"
-          : state.view === "companion"
-            ? "ai-review"
-            : state.view === "ai-review"
-              ? "produce"
-              : "scene",
-    );
+    if (state.step === "review") byId("produce-script").click();
+    else activate(state.step === "script" ? "voice" : "produce");
   });
   byId("editor-outline-toggle").addEventListener("click", () => {
     state.outline = !state.outline;

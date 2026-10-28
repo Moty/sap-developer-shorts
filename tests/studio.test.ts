@@ -332,7 +332,7 @@ test("all saved news entry points share dated fallback notices while copied tuto
   ])
     assert.doesNotMatch(
       String(pages[path]),
-      /data-news-review-notice|news-review-freshness/u,
+      /<section\b[^>]*\sdata-news-review-notice(?:\s|=|>)|id="news-review-freshness/u,
       path,
     );
 });

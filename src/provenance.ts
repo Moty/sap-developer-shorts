@@ -69,6 +69,9 @@ export async function runtimeFiles(): Promise<string[]> {
     "episode-package",
     "library-package",
     "version-order",
+    "production-ui",
+    "workspace-panels",
+    "news/new-short-delivery",
     "presentation",
     "presentation-design",
     "timing-policy",
@@ -140,6 +143,8 @@ export async function readRuntimeFiles(): Promise<Record<string, Buffer>> {
   for (const file of await runtimeFiles()) result[file] = await readFile(await sourceFile(file));
   for (const file of [
     "templates/final-review.js",
+    "templates/production-workspace.js",
+    "templates/production-workspace.css",
     "templates/editor-workspace.js",
     "templates/editor-workspace.css",
     "src/media/kokoro-runner.py",

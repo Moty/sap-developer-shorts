@@ -390,6 +390,8 @@ export async function buildLibrary(
     "templates/library-browser.css",
     "templates/library-collections.js",
     "templates/library-stories.js",
+    "templates/workspace-panels.css",
+    "templates/workspace-panels.js",
     "templates/library-navigation.js",
     "templates/local-actions.js",
     "templates/voice-library.css",

@@ -18,6 +18,7 @@ import { kokoroVoices } from "./media/voices.js";
 import { enhanceNewsReviewHtml, newsReviewNotice } from "./news/freshness.js";
 import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationLabel } from "./presentation.js";
+import { type ProductionHistorySample, productionWorkspace } from "./production-ui.js";
 import { escapeHtml as esc } from "./review.js";
 import type { PresentationDefinition } from "./variants.js";
 import { voiceLibraryPanel } from "./voice-library-panel.js";
@@ -67,6 +68,7 @@ export async function createScriptEditor(
     reservedNames?: string[];
     sourceReviewExpired?: boolean;
     /** Shared episode header context (versions, poster, MP4); defaults to a lone version. */
+    productionHistory?: ProductionHistorySample[];
     shell?: Omit<EpisodeShellOptions, "step"> & { deck?: boolean };
   } = {},
 ) {
@@ -101,6 +103,8 @@ export async function createScriptEditor(
     finalReviewScript,
     workspaceCss,
     workspaceScript,
+    productionCss,
+    productionScript,
   ] = await Promise.all([
     readFile(resolve(projectRoot, "templates/script-editor.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/script-editor.js"), "utf8"),
@@ -114,6 +118,8 @@ export async function createScriptEditor(
     readFile(resolve(projectRoot, "templates/final-review.js"), "utf8"),
     readFile(resolve(projectRoot, "templates/editor-workspace.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/editor-workspace.js"), "utf8"),
+    readFile(resolve(projectRoot, "templates/production-workspace.css"), "utf8"),
+    readFile(resolve(projectRoot, "templates/production-workspace.js"), "utf8"),
   ]);
   const shellAssets = await episodeShellAssets();
   const editorData = {
@@ -130,6 +136,7 @@ export async function createScriptEditor(
       selector: episodeSelector(episode),
       sourceHash: hash(JSON.stringify(episode)),
     },
+    productionHistory: options.productionHistory ?? [],
     voiceReadingScripts,
     voiceStyles,
     recoveryId: hash(JSON.stringify(editorData)),
@@ -228,7 +235,8 @@ export async function createScriptEditor(
 ${voicePanelCss}
 ${writingCss}
 ${workspaceCss}
-${shellAssets.css}</style></head>
+${shellAssets.css}
+${productionCss}</style></head>
 <body class="guided-editor workspace-editor ep-page" data-editor-workspace>
 ${episodeShell({
   ...shell,
@@ -257,7 +265,7 @@ ${episodeShell({
   <div class="workspace-heading"><div><p class="eyebrow">EPISODE EDITOR</p><h1 id="workspace-title">${esc(episode.title)}</h1><div class="workspace-meta"><span class="workspace-version" id="workspace-version">New version · ${esc(seed.presentation.variant ?? "")}</span><span>${esc(presentationLabel(episode))}</span><span id="workspace-total-words"></span></div></div><button id="editor-evidence-toggle" type="button" class="workspace-evidence-button" aria-controls="editor-evidence" aria-expanded="false">${icons.source}Sources <span>${episode.sources.length}</span></button></div>
   <noscript><p class="notice">Script revision needs JavaScript. The original script and sources remain readable below.</p></noscript>
   <section id="draft-recovery" class="draft-recovery" aria-label="Draft recovery" hidden><p id="draft-recovery-message" role="status" aria-live="polite"></p><div class="recovery-actions"><button id="resume-draft" type="button" hidden>Resume saved draft</button><button id="discard-draft" type="button" hidden>Start with original</button></div><p class="recovery-help">Recovery stays in this tab. Use Save draft to keep a version on this Mac, or download a portable copy.</p></section>
-      <nav class="workspace-review-tabs" data-editor-pane="review" aria-label="Review sections"><button type="button" data-editor-target="companion">Companion post</button><button type="button" data-editor-target="ai-review">AI content review</button><button type="button" data-editor-target="produce">Produce video</button></nav>
+
       <fieldset id="editor-fields" disabled><legend class="sr-only">Revised script</legend>
         <section id="editor-script-start" class="draft-details" data-editor-pane="script" data-workspace-pane="details" aria-label="Version and title"><label for="variant-name">New version name</label><input id="variant-name" value="${esc(seed.presentation.variant ?? "")}" maxlength="32" autocomplete="off" spellcheck="false" aria-describedby="variant-help"><p id="variant-help">Use lowercase letters, numbers, and hyphens, starting with a letter. Existing versions are kept.</p><label for="draft-title">Short title</label><input id="draft-title" value="${esc(seed.title)}" maxlength="60"><input type="hidden" id="presentation-design" value="${esc(seed.presentation.design ? JSON.stringify(seed.presentation.design) : "")}"><p id="presentation-design-status" class="delivery"></p><div class="design-reset-row"><button type="button" id="presentation-design-reset" class="secondary-btn" aria-describedby="presentation-design-reset-hint">Use automatic presentation design</button><small id="presentation-design-reset-hint" class="design-reset-hint">Only needed after a custom design has been applied; the automatic design is in use now.</small></div></section>
         <details id="presentation" class="writing-editor-disclosure" data-editor-pane="script" data-workspace-pane="writing"><summary>Writing &amp; presentation assistant</summary>${writingPanel(true)}</details>
@@ -267,10 +275,8 @@ ${episodeShell({
         </section>
         ${voiceFields}
         <details class="pronunciation-tools" data-editor-pane="voice"><summary>Pronunciation & voice tests</summary>${pronunciationSection}${sandboxSection}</details>
-        <section class="draft-details" data-editor-pane="review" data-workspace-pane="companion"><h2 id="companion-post-heading">Prepare the companion post</h2><label for="publication-text">Companion post draft</label><textarea id="publication-text" rows="12" maxlength="3000">${esc(seed.publicationText ?? "")}</textarea></section>
-        <div data-editor-pane="review" data-workspace-pane="ai-review">${finalReviewPanel()}</div>
+        ${productionWorkspace(`        <section class="draft-details"><h2 id="companion-post-heading">Prepare the companion post</h2><label for="publication-text">Companion post draft</label><textarea id="publication-text" rows="12" maxlength="3000">${esc(seed.publicationText ?? "")}</textarea></section>`, finalReviewPanel(), `      <section id="download-controls" class="download-panel" data-editor-pane="review" hidden><h2>Produce on this Mac</h2><p id="draft-errors" role="status"></p><div class="save-actions"><button id="produce-script" type="button" class="produce-btn">Save &amp; produce</button><button id="download-script" type="button" class="secondary-btn">Download script</button></div><details class="production-guidance"><summary>Voice &amp; timing details</summary><p>Production creates narration, captions and an MP4 on this Mac. Realistic portraits may take several minutes. You can return to the workspace while it runs.</p><p id="production-voice-summary" role="status"></p><p id="draft-count" aria-live="polite"></p><p>Aim for 45–60 seconds; 15–90 seconds of measured audio is accepted. Opening and section timings are flexible. Captions and scenes follow the actual speech.</p></details><details id="review-changes" class="change-review"><summary id="review-changes-summary">Review changes</summary><p id="review-changes-count" role="status" aria-live="polite"></p><div id="review-changes-list"></div><p class="change-review-help">Review compares this draft with its starting script. Restoring a section keeps your version name and other edits.</p></details><div id="produce-progress-box" class="produce-progress-box" hidden aria-live="polite"><div class="progress-bar"><div id="produce-progress-bar" class="progress-fill"></div></div><p id="produce-progress-text"></p><div id="produce-result" hidden></div></div><p id="download-status" role="status"></p><details><summary>Use the downloaded file</summary><p>From the project folder, import the file you downloaded:</p><code tabindex="0">npm run shorts -- script-import /path/to/downloaded-script.json</code><p>Then create the new version:</p><code id="produce-command" tabindex="0"></code><p>Import checks the current base and preserves existing versions. Review the revised wording against the sources before sharing.</p></details></section>`)}
       </fieldset>
-      <section id="download-controls" class="download-panel" data-editor-pane="review" data-workspace-pane="produce" hidden><h2>Ready to produce?</h2><p>Production creates narration, captions and an MP4 on this Mac. Realistic portraits may take several minutes. You can return to the workspace while it runs.</p><p id="production-voice-summary" role="status"></p><p id="draft-count" aria-live="polite"></p><p>Aim for 45–60 seconds; 15–90 seconds of measured audio is accepted. Opening and section timings are flexible. Captions and scenes follow the actual speech.</p><p id="draft-errors" role="status"></p><details id="review-changes" class="change-review"><summary id="review-changes-summary">Review changes</summary><p id="review-changes-count" role="status" aria-live="polite"></p><div id="review-changes-list"></div><p class="change-review-help">Review compares this draft with its starting script. Restoring a section keeps your version name and other edits.</p></details><div class="save-actions"><button id="produce-script" type="button" class="produce-btn">Produce video</button><button id="download-script" type="button" class="secondary-btn">Download script</button></div><div id="produce-progress-box" class="produce-progress-box" hidden aria-live="polite"><div class="progress-bar"><div id="produce-progress-bar" class="progress-fill"></div></div><p id="produce-progress-text"></p><div id="produce-result" hidden></div></div><p id="download-status" role="status"></p><details><summary>Use the downloaded file</summary><p>From the project folder, import the file you downloaded:</p><code tabindex="0">npm run shorts -- script-import /path/to/downloaded-script.json</code><p>Then create the new version:</p><code id="produce-command" tabindex="0"></code><p>Import checks the current base and preserves existing versions. Review the revised wording against the sources before sharing.</p></details></section>
       <details class="original-script"><summary>Read the original script</summary><pre>${esc(original)}</pre></details>
     </div>
   </div>
@@ -282,6 +288,7 @@ ${photoTexture.replace(/^export /gm, "")}
 ${portraitMotion.replace(/^export /gm, "")}
 ${script}
 ${workspaceScript}
+${productionScript}
 ${shellAssets.script}
 ${writingScript}
 ${finalReviewScript}</script></body></html>`;

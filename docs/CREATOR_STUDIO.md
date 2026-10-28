@@ -1,6 +1,6 @@
 # Creator studio: ideas to publication
 
-Local Apple Silicon studios also offer **Voice & portrait → My voice** for
+Local Apple Silicon studios also offer **Voice & presenter → My voice** for
 recording/uploading a sample, auditioning Qwen narration and assigning an accepted
 profile to each speaker. The default stays Heart. See [personal voice setup and
 privacy](QWEN_VOICES.md). This feature is local-only; hosted studios use stock voices.
@@ -10,7 +10,7 @@ episode id such as CAP-01), however many versions you saved. A row shows the
 opening frame (or a placeholder for drafts), the latest title, the id, type,
 length (measured or planned), the story's stage, its last update and one primary
 next action. **N versions ▾** opens a drawer listing every saved version, newest
-first, as v1…vN in the order they were created or updated; the real selector
+first, as v1…vN using stable saved-version ordinals; the real selector
 (for example `NEWS-01@my-edit`) stays visible beside each label, with its own
 stage, length, voice, last update, Edit/Review action, Presentation link and
 More menu. Drawers start collapsed; without JavaScript they stay open.
@@ -18,7 +18,7 @@ More menu. Drawers start collapsed; without JavaScript they stay open.
 The row's stage and primary action come from the story's **representative
 version**: the most advanced actionable state wins in this order — Producing
 (active job) > To review > To publish > Editing > Published. Ties go to the most
-recently updated version. So a story with an unreviewed video offers **Review
+newest saved version ordinal. With a stage filter, the action comes from a version in that stage. So a story with an unreviewed video offers **Review
 video** even if you are also editing a newer draft; open the drawer to continue
 the draft.
 
@@ -72,19 +72,21 @@ bottom bar.
    the older `#writing` link still works).
    On desktop, an on-screen text cue previews the current headline and narration.
    It is a text preview, not the rendered deck; **Open saved deck** shows that deck.
-2. **Voice & portrait:** choose local voices and a presenter. Mouth calibration
+2. **Voice & presenter:** choose local voices and a presenter. Mouth calibration
    and pronunciation tools are optional disclosures. The existing local portrait
    renderer, face calibration, auditions and recovery behavior are preserved.
-3. **Produce:** (the former Review & produce pane) use the pinned **Companion
-   post**, **AI content review**, and **Produce video** tabs. AI review is optional; its provider, cost consent
-   and exact-content validity checks are unchanged. Production validation and
-   **Review changes** live in Produce video.
+3. **Produce:** one checklist covers Script, Voice, Presenter, Sources, Companion
+   post and optional AI review. Readiness comes from the existing draft/voice
+   validation. Presenter runtime and alignment are checked during production;
+   the checklist does not claim a render has already passed. Open **Companion
+   post** or **Optional AI content review** only when needed. AI review remains
+   optional, with unchanged provider and per-request cost consent.
 
-The sticky header offers **Saved deck**, **Save draft**, a single status line (a
-dot for the saved/unsaved state plus the draft check) and a **Next:** action that
-is labelled with the pane it opens (**Voice & portrait**, **Produce**, **AI content
-review**, **Produce video**) and reads **Back to script** on the last view. It only
-navigates; producing a video is still done with the button in **Produce video**.
+The sticky header offers **Saved deck**, **Save draft**, and one status line.
+**Next: Voice & presenter** and **Next: Produce** navigate the first two steps.
+In Produce, **Save & produce** invokes the same explicit production action as
+its checklist sidebar; the phone bottom bar mirrors that action and its blocked
+state. Earlier steps are not marked complete merely because you visited them.
 Saved portraits appear by a readable name (for example **Moty headshot 2026**, or
 **Uploaded photo 1** for generated file names); the stored image is unchanged. The left outline (Episode details, Scenes, Writing &
 visuals) belongs to step 1 and is shown on desktop while editing the script;
@@ -106,8 +108,17 @@ Producing a just-saved draft submits its existing selector, avoiding a duplicate
 import. Producing unsaved changes saves that revision first. If another job is
 running, the request is rejected before importing another revision. Local
 production continues when navigating away; the workspace polls its status.
-After completion it reloads the refreshed library. An unfinished saved production
-report with no active worker is shown as interrupted, not as a running job.
+The Produce pane reveals the active stages after an explicit start, records the
+exact accepted job in this tab and reconnects after a reload, including after the
+saved draft acquires a new suggested version name. It never automatically retries
+a job. An unfinished saved receipt with no active worker is shown as interrupted.
+
+The timing range uses comparable fresh generation history, excluding reused
+speech/video. It states its sample count and pipeline basis; hardware, script
+length and caches can differ. With no comparable history it offers no ETA.
+Elapsed time and completed stage times come from the actual job. **Review &
+publish** appears only after the server has refreshed the workspace; a failed
+refresh reports the saved result without offering an unavailable editor/video.
 
 Invalid unfinished edits remain recoverable in the same browser tab, subject to
 browser storage availability. **Save draft** requires a valid script. **Download
@@ -115,6 +126,33 @@ script** remains available as the portable JSON workflow. Closing a tab can lose
 unsaved recovery data. If the library rebuild fails after a successful save, the
 editor explicitly reports that the draft was saved but the workspace refresh is
 pending; the saved file remains available for CLI production.
+
+
+## Starting a short and managing presenters
+
+**New short** opens a source/format/tone/planned-length/narrator sheet. Choose a
+scanned official SAP story or paste its official article URL. Creating fetches
+complete source excerpts and saves an editable seven-scene draft; it does not
+make an LLM request. Format/tone are delivery settings and do not rewrite facts
+or narration. A conversation assigns complete scenes to two distinct installed
+stock voices. Use the writing assistant to rewrite and review the actual words.
+**Default / decide later** permits a solo draft before voices are installed;
+select an accepted personal voice in the editor when ready. Tutorials still
+start from prepared scripts in My shorts. A saved draft whose workspace refresh
+fails is identified by ID and cannot be accidentally submitted again in that sheet.
+
+**Formats** pairs format descriptions with prepared examples. **Voices &
+presenters** keeps personal styles, stock samples and saved photos together.
+**Add a voice style** opens the existing record/upload, transcript and consent
+controls in two steps. Saving a sample still requires a generated audition,
+your listening and acceptance before it is offered for episodes. Search/filter
+personal recordings by name or style; cards play saved recordings or auditions.
+Photos show friendly names and links to a script for alignment. Alignment is
+saved per script, so a gallery label is not a global guarantee for every use.
+
+The desktop launcher now separates core studio, writing, voice, portrait and
+worker readiness. Private-studio section names match the creator workflow; its
+existing sign-in, workspace isolation and render-engine controls are unchanged.
 
 ## Review and publication
 

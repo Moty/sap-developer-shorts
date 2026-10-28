@@ -27,8 +27,11 @@
       "Ideas & SAP news",
       "Official SAP stories ranked for a short, plus your staged drafts and backlog.",
     ],
-    styles: ["Delivery styles", "Explore storytelling formats and compare prepared examples."],
-    voices: ["Voice library", "Manage your personal recordings and compare stock narrators."],
+    styles: ["Formats", "Storytelling structures, delivery tones and prepared examples."],
+    voices: [
+      "Voices & presenters",
+      "Choose who speaks and who appears. Your recordings and photos stay on this Mac.",
+    ],
     writing: [
       "Settings",
       "Choose the writing engine: Gemma locally for free, or an SAP Hyperspace model that may incur cost.",

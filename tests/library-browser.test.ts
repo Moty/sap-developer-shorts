@@ -268,7 +268,7 @@ test("workspace navigation isolates sections, honors deep links/history, and sep
   const visible = () =>
     sections.filter((section) => !section.hidden).map((section) => section.dataset.workspaceView);
   assert.deepEqual(visible(), ["voices"]);
-  assert.equal(nodes.get("workspace-title")?.textContent, "Voice library");
+  assert.equal(nodes.get("workspace-title")?.textContent, "Voices & presenters");
   assert.equal(links[3]?.attributes.get("aria-current"), "page");
   location.hash = "#tutorial-ideas";
   handlers.get("hashchange")?.();

@@ -8,11 +8,18 @@ import { buildLibrary } from "./library.js";
 import { type LocalActionManager, parseLocalAction } from "./local-actions.js";
 import { pronounce } from "./media/audio.js";
 import { synthesizeClonedSpeech } from "./media/qwen.js";
+import { verifiedKokoroVoices } from "./media/voice-assets.js";
 import { type auditionPhrase, installedKokoroVoices } from "./media/voice-audition.js";
 import { assertPrivateVoiceRequest, handleVoiceProfileApi } from "./media/voice-profile-api.js";
 import { hasClonedVoices, isClonedVoice } from "./media/voice-reference.js";
 import { kokoroVoices } from "./media/voices.js";
-import { latestProduction, type ProductionReport, produce } from "./production.js";
+import { productionSettings } from "./media/worker.js";
+import {
+  latestProduction,
+  type ProductionReport,
+  produce,
+  productionReceipt,
+} from "./production.js";
 import { savePresentation } from "./script-import.js";
 import { shortDurationAllowed } from "./timing-policy.js";
 import {
@@ -32,6 +39,7 @@ export interface ProductionJobState {
   updatedAt: string;
   report?: ProductionReport;
   error?: string;
+  libraryUpdated?: boolean;
   listeners: Set<(event: { type: string; data: unknown }) => void>;
 }
 
@@ -317,6 +325,58 @@ export async function handleApiRequest(
   // GET /api/health
   if (request.method === "GET" && path === "/api/health") {
     sendJson(response, 200, { status: "ok", timestamp: new Date().toISOString() });
+    return true;
+  }
+
+  // Read-only recovery: exact job identity survives a browser/server restart.
+  if (request.method === "GET" && path === "/api/production-context") {
+    try {
+      const query = new URL(request.url ?? "/", "http://localhost").searchParams;
+      const selector = query.get("selector") ?? "";
+      await readContentEpisode(selector);
+      const id = query.get("jobId");
+      const job = id ? recentJobs.get(id) : activeJob?.selector === selector ? activeJob : null;
+      if (job && job.selector !== selector)
+        throw new Error("Production job belongs to another version");
+      const report =
+        job?.report ??
+        (id
+          ? await productionReceipt(selector, id, options.artifactRoot)
+          : await latestProduction(selector, options.artifactRoot));
+      const active = Boolean(job && !["READY", "FAILED", "BLOCKED"].includes(job.stage));
+      const stage =
+        job?.stage ??
+        (report && !["READY", "FAILED", "BLOCKED"].includes(report.stage)
+          ? "INTERRUPTED"
+          : (report?.stage ?? null));
+      sendJson(response, 200, {
+        selector,
+        id: job?.id ?? report?.id ?? null,
+        active,
+        stage,
+        message: job?.progressMessage ?? report?.issue?.message ?? "",
+        startedAt: job?.startedAt ?? report?.startedAt ?? null,
+        updatedAt: job?.updatedAt ?? report?.updatedAt ?? null,
+        libraryUpdated: job?.libraryUpdated,
+        report: report
+          ? {
+              id: report.id,
+              selector: report.selector,
+              stage: report.stage,
+              failedAt: report.failedAt,
+              startedAt: report.startedAt,
+              updatedAt: report.updatedAt,
+              generationTiming: report.generationTiming,
+              issue: report.issue,
+              durationSeconds: report.durationSeconds,
+              hookSeconds: report.hookSeconds,
+            }
+          : null,
+        otherJob: activeJob && activeJob.id !== job?.id ? { selector: activeJob.selector } : null,
+      });
+    } catch (error) {
+      sendJson(response, 400, { error: (error as Error).message });
+    }
     return true;
   }
 
@@ -635,6 +695,7 @@ export async function handleApiRequest(
       void (async () => {
         try {
           const report = await (options.production ?? produce)(selector, {
+            jobId,
             ...(options.artifactRoot !== undefined ? { artifactRoot: options.artifactRoot } : {}),
             progress(message) {
               job.updatedAt = new Date().toISOString();
@@ -659,14 +720,23 @@ export async function handleApiRequest(
             },
           });
 
-          job.stage = report.stage;
+          // READY links are safe only after this server serves the indexed library.
+          job.stage = report.stage === "READY" ? "LIBRARY" : report.stage;
           job.report = report;
           job.updatedAt = new Date().toISOString();
-          job.progressMessage = report.issue?.message ?? "Video produced · ready for review";
+          job.progressMessage = report.issue?.message ?? "Updating the workspace…";
           libraryUpdated = await refreshSavedLibrary(
             options,
             report.stage === "READY" ? (report.libraryDirectory ?? undefined) : undefined,
           );
+          job.libraryUpdated = libraryUpdated;
+          job.stage = report.stage;
+          job.updatedAt = new Date().toISOString();
+          job.progressMessage =
+            report.issue?.message ??
+            (libraryUpdated
+              ? "Video produced · ready for review"
+              : "Video produced. Workspace refresh is pending; refresh the studio before opening it.");
           notify({ type: "complete", data: { stage: report.stage, report, libraryUpdated } });
         } catch (error) {
           job.stage = "FAILED";
@@ -682,6 +752,7 @@ export async function handleApiRequest(
         status: "ACCEPTED",
         jobId,
         selector,
+        startedAt: job.startedAt,
         libraryUpdated,
         streamUrl: `/api/productions/${jobId}/stream`,
         statusUrl: `/api/productions/${jobId}`,
@@ -714,6 +785,7 @@ export async function handleApiRequest(
       updatedAt: job.updatedAt,
       report: job.report ?? null,
       error: job.error ?? null,
+      libraryUpdated: job.libraryUpdated,
     });
     return true;
   }
@@ -742,6 +814,7 @@ export async function handleApiRequest(
         message: job.progressMessage,
         report: job.report ?? null,
         error: job.error ?? null,
+        libraryUpdated: job.libraryUpdated,
       })}\n\n`,
     );
 
@@ -808,24 +881,40 @@ export async function handleApiRequest(
   // POST /api/news/create
   if (request.method === "POST" && path === "/api/news/create") {
     try {
-      const body = (await readJsonBody(request)) as { url?: string; promote?: boolean };
+      const body = (await readJsonBody(request)) as {
+        url?: string;
+        promote?: boolean;
+        delivery?: unknown;
+      };
       if (!body?.url || typeof body.url !== "string") {
         sendJson(response, 400, { error: "A valid official SAP story URL is required" });
         return true;
       }
       const { createNewsEpisodeFromUrl } = await import("./news/generator.js");
-      const result = await createNewsEpisodeFromUrl(body.url, { promote: Boolean(body.promote) });
-
-      if (options.onLibraryUpdated) {
-        const { buildLibrary } = await import("./library.js");
-        const built = await buildLibrary();
-        await options.onLibraryUpdated(built.directory);
+      const { parseNewShortDelivery } = await import("./news/new-short-delivery.js");
+      let delivery: ReturnType<typeof parseNewShortDelivery>;
+      try {
+        delivery = parseNewShortDelivery(
+          body.delivery,
+          body.delivery === undefined ? [] : await verifiedKokoroVoices(),
+          (await productionSettings()).localPreview.voice,
+        );
+      } catch (error) {
+        sendJson(response, 400, { error: (error as Error).message });
+        return true;
       }
+      const result = await createNewsEpisodeFromUrl(body.url, {
+        promote: Boolean(body.promote),
+        ...(delivery ? { delivery } : {}),
+      });
+
+      const libraryUpdated = await refreshSavedLibrary(options);
 
       sendJson(response, 200, {
         success: true,
         episode: result.episode,
         path: result.path,
+        libraryUpdated,
       });
     } catch (error) {
       sendJson(response, 500, { error: (error as Error).message });

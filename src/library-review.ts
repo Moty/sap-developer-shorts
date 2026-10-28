@@ -36,6 +36,7 @@ import {
 import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationFormats, presentationLabel } from "./presentation.js";
 import { withDeckShell } from "./presentation-deck.js";
+import { productionHistory } from "./production-ui.js";
 import { publishReview } from "./publish-review.js";
 import { escapeHtml as esc } from "./review.js";
 import { createScriptEditor } from "./script-editor.js";
@@ -48,6 +49,7 @@ import {
   studioReturnFragment,
 } from "./studio.js";
 import { voiceLibraryPanel } from "./voice-library-panel.js";
+import { newShortSheet, presenterWorkspace } from "./workspace-panels.js";
 
 const dateLabel = (date: string) =>
   new Intl.DateTimeFormat("en-US", {
@@ -103,7 +105,7 @@ function formatOption(format: (typeof presentationFormats)[number], entries: Lib
   const additional = otherConversation
     ? `<a class="format-example" href="${otherConversation.video ? videoLinkFor(otherConversation) : linkFor(otherConversation)}">${otherConversation.video ? (otherConversation.sourceReviewExpired ? "Watch saved" : "Watch") : "Review"} ${isNewsEpisode(otherConversation.episode) ? "news" : "tutorial"} conversation <span aria-hidden="true">↗</span></a><small>${esc(otherConversation.episode.title)} · ${esc(studioReadiness(otherConversation).label)}</small>`
     : "";
-  return `<article class="style-option" data-story-format="${esc(format.id)}"><span class="style-icon" aria-hidden="true">${format.id === "dialogue" ? "↔" : format.id === "quiz" ? "?" : "✦"}</span><h3>${esc(format.name)}</h3><p>${esc(format.description)}</p><small>${esc(status)}</small>${action}${additional}</article>`;
+  return `<article class="style-option" data-story-format="${esc(format.id)}"><span class="style-icon" aria-hidden="true">${format.id === "dialogue" ? "↔" : format.id === "quiz" ? "?" : "✦"}</span><h3>${esc(format.name)}</h3><p>${esc(format.description)}</p><small>${esc(status)}</small><div class="format-use"><button type="button" class="primary-action" data-new-short-format="${esc(format.id)}" hidden>Use format</button>${action}</div>${additional}</article>`;
 }
 
 interface WorkVersion extends StoryVersion {
@@ -243,7 +245,7 @@ function voiceSection(catalog: LibraryContent["voiceCatalog"]) {
   const missingSamples = catalog.installed.filter(
     (id) => !catalog.samples.some((sample) => sample.identity.voice === id),
   );
-  return `<section id="voices" class="voices-section" data-workspace-view="voices"><div class="section-heading"><div><p class="eyebrow">FIND YOUR NARRATOR</p><h2>Listen to the voices</h2></div><span id="default-voice-label" class="section-note">Default: ${esc(defaultVoice?.name ?? catalog.selected)}</span></div><p class="styles-intro">Compare the same short passage at the same speed. Voice samples help you choose; existing recordings keep their recorded voices.</p>${voiceLibraryPanel({ context: "library" })}<h3>Stock voices</h3><p id="local-actions-help" class="voice-help">Connect to the running local studio to use these buttons.</p><p id="local-actions-status" role="status" aria-live="polite"></p><a id="local-actions-refresh" class="secondary-action" href="review.html#voices" hidden>Refresh voice library</a><blockquote class="audition-transcript">${esc(auditionText)}</blockquote>${collectionTools(
+  return `<section id="voices" class="voices-section" data-workspace-view="voices"><div class="section-heading"><div><p class="eyebrow">FIND YOUR NARRATOR</p><h2>Choose who speaks</h2></div><span id="default-voice-label" class="section-note">Default: ${esc(defaultVoice?.name ?? catalog.selected)}</span></div><p class="styles-intro">Compare the same short passage at the same speed. Voice samples help you choose; existing recordings keep their recorded voices.</p>${voiceLibraryPanel({ context: "library" })}<h3>Stock voices</h3><p id="local-actions-help" class="voice-help">Connect to the running local studio to use these buttons.</p><p id="local-actions-status" role="status" aria-live="polite"></p><a id="local-actions-refresh" class="secondary-action" href="review.html#voices" hidden>Refresh voice library</a><blockquote class="audition-transcript">${esc(auditionText)}</blockquote>${collectionTools(
     "samples",
     "saved stock voices",
     [
@@ -276,6 +278,8 @@ export async function createLibraryPages(
     navigationScript,
     writingCss,
     writingScript,
+    workspaceCss,
+    workspaceScript,
   ] = await Promise.all([
     readFile(resolve(projectRoot, "templates/library.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/library.js"), "utf8"),
@@ -288,6 +292,8 @@ export async function createLibraryPages(
     readFile(resolve(projectRoot, "templates/library-navigation.js"), "utf8"),
     readFile(resolve(projectRoot, "templates/writing-assistant.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/writing-assistant.js"), "utf8"),
+    readFile(resolve(projectRoot, "templates/workspace-panels.css"), "utf8"),
+    readFile(resolve(projectRoot, "templates/workspace-panels.js"), "utf8"),
   ]);
   const stories = groupStories(entries.map(workVersion));
   const counts = stageCounts(stories);
@@ -361,9 +367,9 @@ export async function createLibraryPages(
   ]);
 
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self'; img-src 'self'; media-src 'self' blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">`;
-  const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Workspace</title><style>${css}\n${voicePanelCss}\n${browserCss}\n${writingCss}</style></head><body class="workflow-studio">
+  const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Workspace</title><style>${css}\n${voicePanelCss}\n${browserCss}\n${writingCss}\n${workspaceCss}</style></head><body class="workflow-studio">
 <a class="skip-link" href="#episodes">Skip to workspace</a>
-<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><a class="new-short-button" data-new-short href="#ideas"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>New short</span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${stories.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#styles"><em class="nav-full">Delivery styles</em><em class="nav-short">Styles</em></a><a data-workspace-link="voices" href="#voices"><em class="nav-full">Voice library</em><em class="nav-short">Voices</em></a><a data-workspace-link="writing" href="#settings">Settings</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
+<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><a class="new-short-button" data-new-short href="#ideas"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>New short</span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${stories.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#formats"><em class="nav-full">Formats</em><em class="nav-short">Formats</em></a><a data-workspace-link="voices" href="#voices"><em class="nav-full">Voices &amp; presenters</em><em class="nav-short">Voices</em></a><a data-workspace-link="writing" href="#settings">Settings</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
 <main class="studio-main"><header class="workspace-heading"><div><h1 id="workspace-title">My shorts</h1><p id="workspace-description">Find a draft, review a video, or pick up where you left off.</p></div></header>
 <aside id="studio-produce-banner" class="studio-produce-banner" hidden aria-live="polite"><div class="banner-content"><strong id="studio-produce-title">Producing video…</strong><p id="studio-produce-message"></p><div class="studio-progress-bar"><div id="studio-produce-progress" class="studio-progress-fill"></div></div><a id="studio-job-link" href="#episodes">Open working version</a></div></aside>
 <section id="episodes" class="episodes-section" data-workspace-view="episodes"><section id="needs-you" class="needs-you" aria-labelledby="needs-you-title" hidden><h2 id="needs-you-title" class="sect-h">Needs you</h2><div class="attn" data-needs-list></div></section>
@@ -393,7 +399,7 @@ ${collectionTools(
   { search: false, size: 10 },
 )}</div></div>
 <div class="list-caption"><p id="filter-status" role="status">${stories.length} stories · ${entries.length} versions</p><span id="workflow-sync" role="status">Saved library · connecting to live status…</span></div><div class="episode-grid" id="shorts-list">${stories.map(storyRow).join("\n")}</div><div id="no-episodes" class="empty-library" ${entries.length ? "hidden" : ""}><h3>No shorts in this view</h3><p>Choose another stage or clear your filters. Open Ideas in the sidebar to explore the backlog.</p><button type="button" id="reset-filters">Show all shorts</button></div>${collectionPages("shorts", "stories", "bottom")}</section>
-<div class="workspace-resources"><section id="formats" class="formats-section" data-workspace-view="styles"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Storytelling formats</h2></div></div><p class="styles-intro">Set the tone to professional, casual, or comic. Explore prepared examples below; new deliveries start with a reviewed script.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section" data-workspace-view="ideas"><nav class="idea-tabs" aria-label="Idea collections"><a href="#ideas" data-idea-tab="stories">Official stories</a><a href="#staged-drafts-section" data-idea-tab="drafts">Staged drafts <span id="drafts-count">${stagedDrafts.length}</span></a><a href="#curated-ideas" data-idea-tab="curated">News backlog</a><a href="#tutorial-ideas" data-idea-tab="tutorials">Tutorial ideas</a></nav><div class="news-hub-card" data-idea-panel="stories"><div class="news-hub-header"><div><div class="news-live-tag"><span class="live-pulse"></span> LIVE SAP SCANNER</div><p class="news-hub-sub">Stories from news.sap.com, scored for short-video fit. Starting a short drafts 7 scenes with dated claims and companion LinkedIn copy.</p></div><div class="news-hub-actions"><button type="button" id="scan-news-btn" class="secondary-action">↻ Refresh Top Stories</button></div></div><form id="custom-news-form" class="custom-news-bar" action="javascript:void(0);"><label for="custom-news-url" class="sr-only">SAP article URL</label><input type="url" id="custom-news-url" placeholder="Paste any official SAP article URL (e.g. https://news.sap.com/2026/10/...)" required /><button type="submit" id="custom-news-submit" class="primary-action">Draft Short from URL</button></form><div id="news-status-msg" class="news-status-banner" hidden></div>${collectionTools(
+<div class="workspace-resources"><section id="formats" class="formats-section" data-workspace-view="styles"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Choose a storytelling format</h2></div></div><p class="styles-intro">Choose a structure for your next short, then review its script. Format and tone settings do not rewrite source text. Compare saved examples below.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section" data-workspace-view="ideas"><nav class="idea-tabs" aria-label="Idea collections"><a href="#ideas" data-idea-tab="stories">Official stories</a><a href="#staged-drafts-section" data-idea-tab="drafts">Staged drafts <span id="drafts-count">${stagedDrafts.length}</span></a><a href="#curated-ideas" data-idea-tab="curated">News backlog</a><a href="#tutorial-ideas" data-idea-tab="tutorials">Tutorial ideas</a></nav><div class="news-hub-card" data-idea-panel="stories"><div class="news-hub-header"><div><div class="news-live-tag"><span class="live-pulse"></span> LIVE SAP SCANNER</div><p class="news-hub-sub">Stories from news.sap.com, scored for short-video fit. Starting a short drafts 7 scenes with dated claims and companion LinkedIn copy.</p></div><div class="news-hub-actions"><button type="button" id="scan-news-btn" class="secondary-action">↻ Refresh Top Stories</button></div></div><form id="custom-news-form" class="custom-news-bar" action="javascript:void(0);"><label for="custom-news-url" class="sr-only">SAP article URL</label><input type="url" id="custom-news-url" placeholder="Paste any official SAP article URL (e.g. https://news.sap.com/2026/10/...)" required /><button type="submit" id="custom-news-submit" class="primary-action">Draft Short from URL</button></form><div id="news-status-msg" class="news-status-banner" hidden></div>${collectionTools(
     "stories",
     "stories",
     [
@@ -427,7 +433,7 @@ ${collectionTools(
       ["title", "Title A–Z"],
     ],
   )}<div class="tutorial-idea-grid" id="tutorial-list">${tutorialIdeas.map((topic) => `<article><span>${esc(topic.pillar)}</span><h3>${esc(topic.title)}</h3><p>Research and environment verification needed.</p></article>`).join("")}</div>${collectionEnd("tutorials", "tutorial ideas")}</section></section>
-${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="writing" data-workspace-view="writing"><span id="settings"></span>${writingPanel()}</section></div><footer class="studio-footer"><span>SAP Shorts / Local creator studio</span><span>Produced videos need review. Publication is recorded with a post link.</span></footer></main></div><script>${collectionsScript}\n${storiesScript}\n${localActionsScript}\n${voiceProfilesScript}\n${script}\n${navigationScript}\n${writingScript}</script></body></html>`;
+${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}${presenterWorkspace(entries)}<section id="writing" data-workspace-view="writing"><span id="settings"></span>${writingPanel()}</section></div><footer class="studio-footer"><span>SAP Shorts / Local creator studio</span><span>Produced videos need review. Publication is recorded with a post link.</span></footer></main></div>${newShortSheet(content, initialStories)}<script>${collectionsScript}\n${storiesScript}\n${localActionsScript}\n${voiceProfilesScript}\n${script}\n${navigationScript}\n${writingScript}\n${workspaceScript}</script></body></html>`;
   const files: Record<string, string | Buffer> = { "review.html": enhanceNewsReviewHtml(html) };
   for (const sample of content.voiceCatalog?.samples ?? [])
     files[`voices/${sample.key}/sample.wav`] = sample.audio;
@@ -483,6 +489,7 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="w
             )
           : bytes;
     files[`${prefix}/edit.html`] = await createScriptEditor(entry.episode, {
+      productionHistory: productionHistory(entries),
       defaultVoice: content.voiceCatalog?.selected ?? "af_heart",
       availableVoices: content.voiceCatalog?.available ?? [],
       reservedNames: entries

@@ -11,7 +11,7 @@ The episode editor now uses a focused workspace: a shared episode header with a
 version switcher and the four steps (Script · Voice & presenter · Produce ·
 Review & publish), a desktop scene outline for the Script step, a compact phone
 drawer, one scene card at a time and a sticky save bar. Episode details, writing
-tools, voice/portrait and three production views have separate destinations;
+tools, voice/presenter and the Produce checklist have separate destinations;
 Review & publish, the watch page, MP4 details and the deck share the same header. See [editing and saving](CREATOR_STUDIO.md#editing-and-saving).
 Rebuild the studio to update existing generated editor pages; saved scripts and
 media are preserved. This UI change does not require a new installer release.
@@ -45,7 +45,7 @@ need the running local server to save changes or show live publication status.
 
 ## Compare presentation styles
 
-The **Delivery styles** section compares Professional, Casual, Comic, and
+The **Formats** section compares Professional, Casual, Comic, and
 Conversation versions of the CAP pilot. Each choice shows the recorded Kokoro or
 system voice, measured duration, and a specific readiness label. Valid MP4s have
 a primary **Watch MP4** action and a saved opening-frame image; narration remains
@@ -76,7 +76,7 @@ retains byte-range support for seeking.
 
 ## Preview selection
 
-The **Narrators** section contains identical-text Kokoro samples, with profile ID,
+The **Voices & presenters** section contains identical-text Kokoro samples, with profile ID,
 accent, duration, speed, and the current default. Native audio controls never
 autoplay. Record installed voices with `voice-audition af_heart am_michael`, then
 rebuild the library. Supported profiles without a sample show the relevant
@@ -86,8 +86,8 @@ Samples are separate from episode verification. Their identity binds passage,
 pronunciation, voice, speed, synthesis code, and pinned local runtime. Only
 complete samples with matching WAV hashes are copied into the portable library;
 changed, outdated, and incomplete samples are excluded. The library manifest
-records those identities and copied audio hashes. Choosing a default is a CLI
-action. The script workshop can override a new revision's speaker voices while
+records those identities and copied audio hashes. Connected studios offer explicit buttons to generate samples or choose the
+default; terminal alternatives remain available. The script workshop can override a new revision's speaker voices while
 keeping the global default and existing recordings. Its choices use a build-time
 inventory of hash-checked local model/config/voice assets. Missing originals are
 retained with a setup notice; other missing or damaged voices are not offered.
@@ -119,7 +119,8 @@ it does not rebuild the studio or refresh news sources. See
 Verified MP4s include [episode ZIP downloads](EPISODE_PACKAGES.md), generated from
 the same selected recording. A dated news download retains its source-review
 window and shows a saved-package warning when that window has expired.
-Filters and search work locally in the browser. It links to validated MP4s from
-the local production workflow. Expired news retains its saved media with a
-source-recheck notice on the card and video page. There is no live feed,
-server-side authoring API, paid provider call, or publishing action in the studio.
+Filters and search work locally in the browser. The connected server supplies
+source discovery, explicit authoring/generation actions and live status. A portable
+static copy has no running authoring backend. Expired news retains saved media
+with source-recheck notices. No page automatically makes a paid request or
+publishes externally.

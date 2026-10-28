@@ -51,7 +51,7 @@ test("the library keeps presentation variants separate from the original episode
   assert.ok(pages["episodes/CAP-01/watch.html"]);
   assert.ok(pages["episodes/CAP-01@casual/watch.html"]);
   assert.ok(pages["episodes/CAP-01@duo/watch.html"]);
-  assert.match(String(pages["review.html"]), /Delivery styles/);
+  assert.match(String(pages["review.html"]), /Choose a storytelling format/);
   assert.match(String(pages["review.html"]), /Two-person conversation/);
 });
 

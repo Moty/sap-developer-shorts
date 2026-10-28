@@ -127,6 +127,8 @@ function validateManifest(value: unknown) {
     "templates/library-browser.css",
     "templates/library-collections.js",
     "templates/library-stories.js",
+    "templates/workspace-panels.css",
+    "templates/workspace-panels.js",
     "templates/library-navigation.js",
     "templates/presentation.css",
     "templates/presentation.js",
@@ -341,6 +343,8 @@ function validateManifest(value: unknown) {
       /^(?:src|dist\/src)\/(?:[a-z][a-z0-9-]*\/)*[a-z][a-z0-9-]*\.(?:ts|js|py)$/u.test(name) ||
       [
         "templates/final-review.js",
+        "templates/production-workspace.js",
+        "templates/production-workspace.css",
         "templates/editor-workspace.js",
         "templates/editor-workspace.css",
         "config/qwen-voice.json",

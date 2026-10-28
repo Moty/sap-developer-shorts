@@ -621,7 +621,9 @@
       const createBtn = e.target?.closest ? e.target.closest(".create-short-from-news-btn") : null;
       if (createBtn?.dataset?.url) {
         e.preventDefault();
-        createShortDraft(createBtn.dataset.url, createBtn);
+        if (globalThis.shortsNewShort)
+          globalThis.shortsNewShort.open({ url: createBtn.dataset.url });
+        else createShortDraft(createBtn.dataset.url, createBtn);
         return;
       }
 
@@ -874,19 +876,14 @@
       }
     }
 
-    document.querySelector("[data-new-short]")?.addEventListener?.("click", () => {
-      // The workspace router shows Ideas → Official stories; focus once it has rendered.
-      setTimeout(() => customNewsUrl?.focus?.(), 0);
-    });
-
     scanNewsBtn?.addEventListener("click", refreshNewsStories);
 
     customNewsForm?.addEventListener("submit", (e) => {
       e.preventDefault();
       const url = customNewsUrl?.value?.trim();
       if (url) {
-        createShortDraft(url, document.querySelector("#custom-news-submit"));
-        if (customNewsUrl) customNewsUrl.value = "";
+        if (globalThis.shortsNewShort) globalThis.shortsNewShort.open({ url });
+        else createShortDraft(url, document.querySelector("#custom-news-submit"));
       }
     });
   }

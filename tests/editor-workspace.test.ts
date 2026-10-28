@@ -14,6 +14,7 @@ async function workspace(hash = "") {
   let step = "";
   let url = "";
   let reviews = 0;
+  let attempts = 0;
   class Element {
     value = "";
     textContent = "";
@@ -105,9 +106,15 @@ async function workspace(hash = "") {
     "companion-post-heading",
     "final-review-heading",
     "download-controls",
+    "production-heading",
+    "production-post",
+    "production-ai",
     "draft-errors",
   ])
     new Element(name);
+  new Element("produce-script", {}, "BUTTON").addEventListener("click", () => {
+    attempts++;
+  });
   const seed = {
     scenes: [{ id: "hook" }, { id: "context" }, { id: "payoff", dialogue: [{}, {}] }],
   };
@@ -141,8 +148,6 @@ async function workspace(hash = "") {
     details: "script",
     writing: "script",
     scene: "script",
-    companion: "review",
-    "ai-review": "review",
     produce: "review",
   })) {
     new Element(`view-${view}`, { editorPane: pane, workspacePane: view });
@@ -189,7 +194,7 @@ async function workspace(hash = "") {
     context,
     listeners,
     pageListeners,
-    status: () => ({ focused, step, url, reviews }),
+    status: () => ({ focused, step, url, reviews, attempts }),
   };
 }
 
@@ -220,27 +225,25 @@ test("focused navigation retains every field and DOM node across scenes, tools, 
     );
   }
   assert.equal(ui.id("presentation").open, true);
-  assert.equal(ui.id("editor-next").textContent, "Next: Voice & portrait");
+  assert.equal(ui.id("editor-next").textContent, "Next: Voice & presenter");
   ui.id("step-voice").click();
   assert.equal(ui.id("voice-pane").hidden, false);
   assert.equal(ui.status().step, "voice");
   assert.deepEqual(
     ["script", "voice", "review"].map((group) => ui.id(`stepper-${group}`).dataset.stepState),
-    ["done", "current", "todo"],
+    ["todo", "current", "todo"],
   );
   assert.equal(ui.id("stepper-voice").attributes.get("aria-current"), "step");
   assert.equal(ui.id("editor-next").textContent, "Next: Produce");
   ui.id("editor-next").click();
-  assert.equal(ui.id("view-companion").hidden, false);
-  assert.equal(ui.id("editor-next").textContent, "Next: AI content review");
-  ui.id("editor-next").click();
-  assert.equal(ui.id("view-ai-review").hidden, false);
-  assert.equal(ui.id("editor-next").textContent, "Next: Produce video");
-  ui.id("editor-next").click();
   assert.equal(ui.id("view-produce").hidden, false);
-  assert.equal(ui.id("editor-next").textContent, "Back to script");
-  assert.equal(ui.id("editor-next").attributes.get("aria-label"), "Back to script");
-  assert.equal(ui.id("view-companion").hidden, true);
+  assert.equal(ui.id("editor-next").textContent, "Save & produce");
+  ui.id("editor-next").click();
+  assert.equal(ui.status().attempts, 1, "the top action reuses the existing produce control");
+  ui.context.shortsWorkspace.jumpTo("publication-text");
+  assert.equal(ui.id("production-post").open, true);
+  ui.context.shortsWorkspace.jumpTo("final-review-heading");
+  assert.equal(ui.id("production-ai").open, true);
   assert.ok(ui.status().reviews > 0);
   ui.id("step-script").click();
   assert.equal(ui.cards[2]?.hidden, false);
@@ -264,7 +267,8 @@ test("deep links and validation jumps reveal the right view without breaking fie
   assert.equal(ui.id("view-produce").hidden, false);
   assert.equal(ui.status().focused, "draft-errors");
   ui.context.shortsWorkspace.jumpTo("publication-text");
-  assert.equal(ui.id("view-companion").hidden, false);
+  assert.equal(ui.id("view-produce").hidden, false);
+  assert.equal(ui.id("production-post").open, true);
   assert.equal(ui.context.shortsWorkspace.jumpTo("unknown-section"), false);
   ui.context.location.hash = "#narration-1";
   ui.pageListeners.get("hashchange")?.();
@@ -295,7 +299,7 @@ test("generated editor wires mounted scene cards, exclusive review views and a t
   assert.match(html, /<header class="ep-shell studio-topbar editor-actionbar" data-live-stages>/u);
   assert.equal((html.match(/data-editor-scene="\d+"/gu) ?? []).length, 7);
   assert.equal((html.match(/data-scene-index="\d+"/gu) ?? []).length, 7);
-  for (const view of ["details", "writing", "scene", "companion", "ai-review", "produce"])
+  for (const view of ["details", "writing", "scene", "produce"])
     assert.ok(html.includes(`data-workspace-pane="${view}"`));
   assert.doesNotMatch(html, /id="editor-jump-target"/u);
   assert.match(html, /id="speaker-avatar-mode-0"/u);

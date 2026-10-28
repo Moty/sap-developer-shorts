@@ -1,87 +1,88 @@
-# UX facelift — handoff (resumed after Phase 2a)
+# UX facelift — completed handoff
 
-Self-contained: everything needed to resume is here plus `BRIEF.md` (rules every implementation agent must follow).
+Completed October 28, 2026 on `ux-facelift`. Read [BRIEF.md](BRIEF.md) for constraints
+and [ASTRA_COMPARISON.md](ASTRA_COMPARISON.md) for the independent baseline comparison.
+The user authorized continuing the remaining phases and opening a PR to `main`.
+No main merge or installer release is part of this continuation.
 
-## Goal
-Implement the redesign in `docs/ux-facelift/prototype/` (open `prototype/index.html`; `#<screen-id>` or `#<id>~phone`).
-`prototype/analysis.html` has the findings and roadmap (its "before" image tiles are blank in the repo — expected, see BRIEF).
-The prototype is the target look/structure, not code to paste: adapt it to the existing DOM, CSS variables and behaviour.
-Prototype screen ids: setup, signin, shorts, new, ideas, formats, voices, addvoice, settings, script, voice, produce, review, deck.
+## Delivered
 
-## Repo state
-- Repo `sap-developer-shorts`, branch `ux-facelift` (tracks `origin/ux-facelift`), Phase 2a plus reviewed stabilization; use `git log -1` for the current commit.
-- Uncommitted by design: `content/**`, `assets/avatars/**` (the user's own drafts and personal photos — **never commit, edit or delete**; also never `config/private/**`, `artifacts/.studio-workflow/**`).
-- `docs/ux-facelift/` and the `biome.json` lint exclusion are committed with this handoff.
-- `.state/ux-facelift/<phase>/` holds local screenshot evidence (gitignored; not available on another machine).
+| Restore point | Work |
+| --- | --- |
+| `pre-ux-facelift` · `915a18f` | Main before the facelift |
+| `ux-facelift-phase-a` · `e9dab2e` | Quick wins, source notices, news fit/matching, editor polish |
+| `ux-facelift-phase-1a` · `fffc268` | Story grouping, version drawers, stage filters, Needs you |
+| `ux-facelift-phase-1b` · `b62928b` | Central writing Settings and nearby engine/cost status |
+| `ux-facelift-phase-2a` · `2045edb` | Shared episode shell, four review checks, ZIP allowlist repair |
+| `ux-facelift-stabilization` · `acfdf1c` | Stable version ledger, matching filter actions, history restore, mobile review shortcut, TAP reporter |
+| `ux-facelift-complete` | Integrated Phase 2b, 3a and 3b, independent fixes and final documentation |
 
-## Restore points (all pushed to origin)
-| Tag | Commit | Meaning |
-|---|---|---|
-| `pre-ux-facelift` | `915a18f` | `main` before the facelift |
-| `ux-facelift-phase-a` | `e9dab2e` | Phase A |
-| `ux-facelift-phase-1a` | `fffc268` | Phase 1a |
-| `ux-facelift-phase-1b` | `b62928b` | Phase 1b |
-| `ux-facelift-phase-2a` | `2045edb` | Phase 2a (current HEAD) |
+The final phases share API/editor/runtime files and are committed as one integrated
+milestone. Their scoped notes are [PHASE2B.md](PHASE2B.md), [PHASE3A.md](PHASE3A.md)
+and [PHASE3B.md](PHASE3B.md).
 
-Tags are annotated (`git rev-parse <tag>` gives the tag object; use `<tag>^{commit}` for the commit).
-Revert: on the branch `git reset --hard <tag>` — **warning:** this keeps untracked user files but would discard uncommitted edits to tracked files (e.g. `content/news/backlog.json` is user-modified). Stash/copy those first, and **never run `git clean`**. Safer alternative: `git switch -c ux-facelift-rollback <tag>`.
-When finished, open a PR `ux-facelift` → `main` (`gh pr create`).
+- **Produce:** validation-derived checklist, optional post/AI disclosures, history
+  timing range, actual stages/elapsed times, stable accepted-job receipt and reload
+  recovery. Another active job and transient connection failures recover without
+  automatically submitting again. Initial failures do not claim a saved video;
+  successful renders wait for served-library indexing before offering review links.
+- **Workspace:** real New short sheet (official source, format, tone, planned length,
+  narrator), asset-free default/deferred solo drafting, Formats, playable personal
+  voice cards, two-step recorder/consent dialog and photo gallery with per-script
+  alignment links. Source-based creation preserves complete source/spoken excerpts;
+  tone/format metadata is not an implicit LLM rewrite.
+- **Launcher/private studio:** common visual tokens, truthful optional-engine
+  readiness, matching section names and friendly errors. Existing auth, tenancy,
+  rendering-engine registration and consent behavior remain.
+- **Safety:** exact-MP4 approval, dated source reviews, explicit paid consent, mounted
+  fields, private data boundaries, CSP and portable/static fallbacks remain.
 
-## Working method (one phase at a time)
-1. Implementation agent (Claude Sonnet 5.5 for normal phases, Claude Opus 5.5 for high-risk ones) works uncommitted.
-2. Separate Claude Opus 5.5 code-review pass on the uncommitted diff; fixes applied.
-3. Coordinator verifies (typecheck, tests, screenshots), commits **explicit paths only** (never `git add -A`), tags `ux-facelift-phase-<x>`, pushes branch + tag (`git push origin ux-facelift ux-facelift-phase-<x>`).
+## Verification
 
-Implementation prompt template:
-> Read docs/ux-facelift/BRIEF.md and follow it exactly. Target: prototype screens `<ids>`. Scope: `<bullets>`. Verify per the brief; screenshots under .state/ux-facelift/`<phase>`/. Report changed files, reused vs rewritten, test/lint results, deviations.
+- Main suite **403/403**, desktop **14/14**, CAP demo **5 live checks**.
+- Typecheck and TypeScript build pass; content validate passes.
+- Scoped Biome checks all 39 changed source/test/UI files with no errors (one
+  pre-existing private-app `noExplicitAny` warning). `git diff --check` passes.
+- Fresh local library build and verified portable ZIP pass. Evidence paths are in
+  `.state/ux-facelift/audit/` (gitignored); no personal photos are committed.
+- Read-only CUA checks use **1440×1000** and **390×844**. Workspace, New short,
+  editor/Produce, voice library and review flow retain responsive layouts. Phase3b
+  mock desktop/sign-in screenshots are under `.state/ux-facelift/phase3b/`.
+- Independent GPT-6 Astra review compared against `pre-ux-facelift`, found concrete
+  issues, and verified fixes. Final verdict: materially better overall; no remaining
+  blockers in reviewed scope. Phone header density remains a tradeoff. This is not
+  a user study or a claim of measured faster task completion.
+- Tests use mock production stages/API fixtures and temporary artifact roots.
+  **No real rendering, enrollment, approval, publishing, model download or paid
+  request** was triggered during this work.
 
-Review prompt:
-> Review uncommitted changes (`git diff -- src templates tests docs desktop` + untracked new files) against docs/ux-facelift/BRIEF.md; real bugs only: semantics, CSP, XSS, a11y, package allowlist, no-JS; file:line, severity, fix; don't modify files.
+## Local state and safe continuation
 
-## DONE
-- **Phase A** (Sonnet + Opus review): single source-review notice on `watch.html`; compact workspace hero; removed "Explore ideas ↗"; global **New short** button (currently just focuses the Ideas URL field); news cards show a fit meter + "Already a short" badge (`src/news/story-fit.ts`, conservative URL / truncated-title matching); editor SVG icons, brand sliders, "Next:" labels, friendly portrait names, single status line.
-- **Phase 1a** (Sonnet + Opus review): My shorts grouped by story (`src/library-stories.ts` + mirror `templates/library-stories.js`); representative-version rule Producing > To review > To publish > Editing > Published, superseded reviews ignored; versions drawer v1..vN; pipeline counts; Needs-you cards; tests incl. live-polling DOM bridge (`tests/library-polling.test.ts`).
-- **Phase 1b** (Sonnet + Opus review): Writing engine moved to Settings (`#settings`, legacy `#writing` still works); editor and final review show a status chip + "Change in Settings"; preference-hash recheck before requests; per-request Hyperspace consent unchanged.
-- **Phase 2a** (Opus + Opus review): shared episode shell (`src/episode-shell.ts`, `templates/episode-shell.*`) on edit/publish/watch/video-review/presentation pages; 4 steps **Script · Voice & presenter · Produce · Review & publish**; `publish.html` rewritten (chapters, Transcript/Sources/Details, four approval checks gating the unchanged approve request, locked steps); live stage labels where CSP allows; deck phone fixes; fixed a pre-existing portable-ZIP allowlist gap (writing-assistant, final-review, editor-workspace templates).
+The user's modified `content/news/backlog.json`, untracked drafts and personal
+photos are intentionally untouched/uncommitted. Never add/reset/clean these, or
+`config/private/**` and `artifacts/.studio-workflow/**`. For a rollback, prefer a
+new branch/worktree at a restore tag; a hard reset would discard tracked edits.
 
-## NEXT
+The pre-existing desktop app on **54823** and old preview on **59725** were left
+alone. The coordinator rebuilt a separate loopback preview on **4173** for this
+work; use its reported URL or rebuild with `npm run shorts -- library` and serve
+the printed directory. Stop only a known idle preview owned by this work. Mock
+verification servers are temporary and stopped after checks.
 
-Stabilization completed: stable version ordinals and portable ledger recovery,
-stage filters choose matching version actions, phone review shortcuts, Settings history
-refresh and explicit TAP reporter for Node 26. See [independent comparison](ASTRA_COMPARISON.md).
-Phase 2b is next; user authorized continuing the remaining phases and a final PR.
-### Phase 2b — Produce step (Opus 5.5; high risk) · prototype screen `produce`
-- Pre-flight checklist replacing the Companion post / AI review / Produce tabs. Rows: Script, Voice, Presenter, Sources, Companion post, optional AI review. **Derive state from existing validation; don't re-implement it.**
-- ETA from generation history; "Save & produce vN" reusing the existing produce action.
-- Live staged progress from the existing production status (must survive reload); done/failed states; phone bottom bar.
-- Verify with **mocked APIs** (Playwright route interception). Never start a real production.
+Version identities live at `ARTIFACT_ROOT/.studio-versions/order.sqlite` and in
+new library manifests. Retained snapshots recover an empty/lost ledger; copy the
+ledger or recent library snapshot when migrating machines. Initial legacy order
+is seeded once; old true creation dates cannot be inferred retrospectively.
 
-### Phase 3a (Sonnet) · screens `voices`, `addvoice`, `formats`, `new`
-- Voices & presenters workspace section: playable voice cards, presenter gallery with friendly names / alignment status, two-step "Add voice style" sheet reusing the existing recorder + consent.
-- Formats gallery (replaces Delivery styles).
-- Real **New short** sheet (source, format, tone, length, narrator) over the existing news-create/draft APIs (replaces the Phase A focus-the-URL-field behaviour).
+No installer was rebuilt. Generated pages need a library rebuild to gain the new
+UI; previously saved media and ZIPs remain unchanged.
 
-### Phase 3b (Sonnet; may run in parallel with 3a — disjoint files) · screens `setup`, `signin`
-- Desktop launcher `desktop/ui/*`: restyle to shared tokens + readiness checklist. Also run `npm run test:desktop`.
-- Private studio `src/web/private/*`: section names aligned (Shorts, Ideas, Voices & presenters, Settings) + friendlier error text.
+## Deferred
 
-### Wrap-up
-Opus review of phase 3 → final full verification (typecheck, `npm test`, biome on changed files, `npm run shorts -- library` + `library-package`, screenshots at 1440 and 390) → update `docs/CREATOR_STUDIO.md` (and `docs/REVIEW_STUDIO.md` if labels changed) → open the PR.
-
-### Known deferred items
-Board view, Compare versions, archive old versions (Shorts); Ideas cards don't refresh "already a short" until reload after a rescan.
-
-## Baseline / validation
-- `npm run typecheck` clean.
-- `npm test`: baseline 376/376 on Node 22. The Node 26 reporter assertion has been fixed by requesting TAP explicitly; no test failures are waived. Stabilization adds regression coverage.
-- Biome: run on changed files only (`npx biome check <files>`). Repo baseline has errors in `content/**` JSON formatting (user data), `src/cli.ts`, `src/web/private/app.ts`, `templates/library.css`. `npx biome check docs/ux-facelift biome.json` must stay clean (prototype/ is excluded; `.md` isn't linted).
-- Generated pages carry a strict CSP (`default-src 'none'`, inline script/style only, no external resources; `review.html` has no `data:` images). Keep inline SVG, system fonts, no-JS fallbacks, same-origin APIs, `prefers-reduced-motion`.
-- Visual check: `npm run shorts -- library` (prints the dir) → `npm run shorts -- serve <dir>` (port 4173, async; stop afterwards) → `node docs/ux-facelift/tools/shot.mjs <url> <out.png> <w> <h> [full] [clickSel]` at 1440×1000 and 390×844. Output must show no overflow or console errors. Setup for the tool and Chromium path adaptation: see BRIEF.md (`npm i --no-save playwright-core@1.56`; Chromium expected at `~/Library/Caches/ms-playwright/chromium-1248/...`, otherwise edit `exe` in `shot.mjs`).
-- Example pages use the user's local content (`episodes/NEWS-06%40draft-revision-7/edit.html`, `episodes/NEWS-10%40quality-review/publish.html`); on another machine pick any episode present in the generated library.
-
-## Hard rules (recap)
-- Never commit user data (`content/**`, `assets/avatars/**`, `config/private/**`).
-- Never trigger production, approval, publication, model installs/downloads, voice enrollment or paid requests during verification.
-- Never touch the desktop app instance on port 54823.
-- Never `git add -A`, `git clean`, or force-push; implementation and review agents don't commit, stash or reset at all.
-- Preserve safety semantics: exact-MP4 approval binding, source-review windows, explicit per-request cost consent, draft recovery, editor "fields stay mounted", existing versions/recordings.
+- Phone chrome can be further reduced after real user testing.
+- Board view, Compare versions, archive old versions and completion notifications.
+- Ideas' saved “already a short” indicators refresh on reload after scans.
+- Timing references match pipeline shape, not exact hardware or script length;
+  their displayed range is approximate, not a promised completion time.
+- Source quality and creative wording still need editorial review; format selection
+  alone does not produce a new authored narrative.
