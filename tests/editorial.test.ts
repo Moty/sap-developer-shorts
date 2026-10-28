@@ -8,6 +8,11 @@ import test, { type TestContext } from "node:test";
 import { readContentEpisode } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
 import type { ContentEpisode } from "../src/domain.js";
+import {
+  applyFinalReviewFixes,
+  type FinalReview,
+  parseFinalReview,
+} from "../src/editorial/final-review.js";
 import { type WritingJob, WritingManager } from "../src/editorial/manager.js";
 import {
   type JsonTransport,
@@ -20,10 +25,14 @@ import {
   defaultWritingSettings,
   parseWritingSettings,
   type WritingSecrets,
+  type WritingSettings,
   writingBaseUrl,
 } from "../src/editorial/settings.js";
 import {
   applyWritingProposal,
+  episodeWithWritingSnapshot,
+  finalReviewContext,
+  finalReviewFingerprint,
   parseWritingInput,
   parseWritingResult,
   type WritingInput,
@@ -105,7 +114,10 @@ async function fixture(t: TestContext, completion?: JsonTransport) {
     selector: "CAP-01@casual-v2",
     sourceHash: hash(JSON.stringify(episode)),
     settingsHash: (await manager.status()).settingsHash,
-    snapshot: snapshot(episode),
+    snapshot: {
+      ...snapshot(episode),
+      ...(action === "final-review" ? { publicationText: episode.publication.text } : {}),
+    },
     action,
     style: "conversational",
     instruction: "Use a useful discovery.",
@@ -233,7 +245,7 @@ test("provider output validation retains usage on incomplete responses and keeps
     (error: WritingError) => error.code === "INCOMPLETE_OUTPUT" && error.usage?.totalTokens === 91,
   );
   assert.equal(body.model, "gpt-6.1-sol");
-  assert.equal(body.max_completion_tokens, 4096);
+  assert.equal(body.max_completion_tokens, value.outputTokens.writing);
   assert.equal(body.temperature, undefined);
   assert.equal(body.top_k, undefined);
   assert.equal(body.reasoning_effort, undefined);
@@ -682,4 +694,394 @@ test("presentation generation uses one completion, previews safely, and binds bo
         episode.scenes.map((scene) => scene.id),
       ),
     );
+});
+
+test("final review checks companion and rendered headlines while excluding private media and preserving saved facts", async (t) => {
+  const f = await fixture(t);
+  const episode = structuredClone(f.episode());
+  assert.ok(episode.presentation?.speakers[0]);
+  episode.presentation.speakers[0].voice = {
+    engine: "qwen",
+    profileId: randomUUID(),
+    revision: "a".repeat(64),
+  };
+  episode.presentation.speakers[0].avatar = { mode: "photo", imageId: "private-headshot.png" };
+  f.replaceEpisode(episode);
+  const input = await f.input("final-review");
+  input.snapshot.publicationText = "A companion post with &#8211; left inside it.";
+  input.snapshot.design = {
+    schemaVersion: 1,
+    theme: "ocean",
+    motion: "smooth",
+    scenes: episode.scenes.map((scene) => ({
+      id: scene.id,
+      headline: "A visual cue",
+      emphasis: "balanced",
+    })),
+  };
+  const context = finalReviewContext(episode, input.snapshot);
+  assert.equal(context.companionPost, input.snapshot.publicationText);
+  assert.ok(context.visualHeadlines.every((item) => item.text === "A visual cue"));
+  const prompt = JSON.stringify(writingMessages(input, episode));
+  assert.match(prompt, /companion|geography|HTML entities|BEFORE rendering/u);
+  assert.doesNotMatch(prompt, /private-headshot|profileId|imageId|faceLandmarks/u);
+  assert.ok(!prompt.includes(fixtureKey));
+  assert.throws(
+    () => parseWritingInput({ ...input, snapshot: snapshot(episode) }),
+    /companion post/u,
+  );
+  const compiled = episodeWithWritingSnapshot(episode, input.snapshot);
+  assert.deepEqual(compiled.claims, episode.claims);
+  assert.deepEqual(compiled.sources, episode.sources);
+  assert.deepEqual(compiled.presentation?.speakers, episode.presentation.speakers);
+});
+
+test("final reviews persist, use exactly one completion, and become outdated for any reviewed text/evidence change", async (t) => {
+  const review: FinalReview = {
+    summary: "No issues in the supplied text; sources and media still need review.",
+    issues: [],
+  };
+  const f = await fixture(t, async () => reply(review));
+  const input = await f.input("final-review");
+  input.snapshot.design = {
+    schemaVersion: 1,
+    theme: "ocean",
+    motion: "smooth",
+    scenes: f
+      .episode()
+      .scenes.map((scene) => ({ id: scene.id, headline: scene.overlay, emphasis: "balanced" })),
+  };
+  await assert.rejects(
+    f.manager.start({ ...input, allowRemote: false }),
+    /possible downstream cost/u,
+  );
+  const running = await f.manager.start(input);
+  assert.equal((await f.manager.start(input)).id, running.id);
+  const completed = await waitFor(f.manager, running.id);
+  assert.equal(completed.state, "SUCCEEDED");
+  assert.equal(completed.stages.length, 1);
+  assert.equal(completed.finalReviewHash, finalReviewFingerprint(f.episode(), input.snapshot));
+  const body = { selector: input.selector, sourceHash: input.sourceHash, snapshot: input.snapshot };
+  const status = await f.manager.finalReviewStatus(body);
+  assert.equal(status.state, "current");
+  assert.equal(status.outcome, "clear");
+  for (const change of [
+    (copy: WritingInput["snapshot"]) => {
+      copy.publicationText += " A changed post.";
+    },
+    (copy: WritingInput["snapshot"]) => {
+      copy.title = "A new title";
+    },
+    (copy: WritingInput["snapshot"]) => {
+      (copy.scenes[0] as NonNullable<(typeof copy.scenes)[0]>).texts[0] = "A different opening?";
+    },
+    (copy: WritingInput["snapshot"]) => {
+      if (copy.design?.scenes[0]) copy.design.scenes[0].headline = "A new visual cue";
+    },
+  ]) {
+    const copy = structuredClone(input.snapshot);
+    change(copy);
+    assert.equal(
+      (await f.manager.finalReviewStatus({ ...body, snapshot: copy })).state,
+      "outdated",
+    );
+  }
+  const original = structuredClone(f.episode());
+  const changedEvidence = structuredClone(original);
+  assert.ok(changedEvidence.claims[0]);
+  changedEvidence.claims[0].text += " Changed source scope.";
+  f.replaceEpisode(changedEvidence);
+  assert.equal(
+    (
+      await f.manager.finalReviewStatus({
+        ...body,
+        sourceHash: hash(JSON.stringify(changedEvidence)),
+      })
+    ).state,
+    "outdated",
+  );
+  const savedCopy = structuredClone(original);
+  assert.ok(savedCopy.presentation);
+  savedCopy.presentation.variant = "saved-copy";
+  f.replaceEpisode(savedCopy);
+  assert.equal(
+    (
+      await f.manager.finalReviewStatus({
+        ...body,
+        selector: "CAP-01@saved-copy",
+        sourceHash: hash(JSON.stringify(savedCopy)),
+      })
+    ).state,
+    "current",
+  );
+  const restarted = new WritingManager({
+    directory: f.directory,
+    readEpisode: async () => savedCopy,
+  });
+  assert.equal(
+    (
+      await restarted.finalReviewStatus({
+        ...body,
+        selector: "CAP-01@saved-copy",
+        sourceHash: hash(JSON.stringify(savedCopy)),
+      })
+    ).state,
+    "current",
+  );
+  assert.equal(
+    f.requests.filter((item) => item.url.endsWith("/chat/completions")).length,
+    1,
+    "status, restart and content comparison never infer",
+  );
+});
+
+test("final-review fixes require an exact current binding, validate edits, and keep voice/photo/evidence intact", async (t) => {
+  let review: FinalReview;
+  const f = await fixture(t, async () => reply(review));
+  const input = await f.input("final-review");
+  review = {
+    summary: "Align the post and opening.",
+    issues: [
+      {
+        severity: "medium",
+        area: "companion",
+        sceneId: "overall",
+        message: "Post needs a clearer discussion question.",
+        suggestion: "Keep sources and add a concrete question.",
+        fix: {
+          field: "publicationText",
+          sceneId: "overall",
+          turnIndex: 0,
+          before: input.snapshot.publicationText as string,
+          after: `${input.snapshot.publicationText}\n\nWhich entity would you expose?`,
+        },
+      },
+      {
+        severity: "low",
+        area: "script",
+        sceneId: "hook",
+        message: "Opening could sound more natural.",
+        suggestion: "Use a direct question.",
+        fix: {
+          field: "narration",
+          sceneId: "hook",
+          turnIndex: 0,
+          before: input.snapshot.scenes[0]?.texts[0] as string,
+          after: "Where did your API go?",
+        },
+      },
+    ],
+  };
+  const job = await waitFor(f.manager, (await f.manager.start(input)).id);
+  assert.equal(job.state, "SUCCEEDED");
+  const body = { selector: input.selector, sourceHash: input.sourceHash, snapshot: input.snapshot };
+  const { snapshot: fixed } = await f.manager.finalReviewFixes(job.id, body);
+  assert.equal(fixed.scenes[0]?.texts[0], "Where did your API go?");
+  assert.ok(fixed.publicationText?.endsWith("Which entity would you expose?"));
+  const compiled = episodeWithWritingSnapshot(f.episode(), fixed);
+  assert.deepEqual(compiled.presentation?.speakers, f.episode().presentation?.speakers);
+  assert.deepEqual(compiled.claims, f.episode().claims);
+  assert.deepEqual(compiled.sources, f.episode().sources);
+  assert.equal((await f.manager.finalReviewStatus({ ...body, snapshot: fixed })).state, "outdated");
+  await assert.rejects(
+    f.manager.finalReviewFixes(job.id, { ...body, snapshot: fixed }),
+    /content changed/u,
+  );
+  assert.throws(
+    () =>
+      applyFinalReviewFixes(
+        fixed,
+        review.issues.flatMap((i) => (i.fix ? [i.fix] : [])),
+      ),
+    /content changed/u,
+  );
+  for (const invalid of [
+    {
+      ...review,
+      issues: [
+        { ...review.issues[0], fix: { ...review.issues[0]?.fix, before: "A partial excerpt" } },
+      ],
+    },
+    { ...review, issues: [{ ...review.issues[0], area: "sources" }] },
+    {
+      ...review,
+      issues: [{ ...review.issues[0], fix: { ...review.issues[0]?.fix, field: "voice" } }],
+    },
+    { ...review, issues: [review.issues[0], review.issues[0]] },
+  ])
+    assert.throws(() => parseFinalReview(invalid, input.snapshot, f.episode()));
+});
+
+test("final-review status and fixes routes enforce the local session and never start inference", async (t) => {
+  const f = await fixture(t, async () =>
+    reply({
+      summary: "Check source scope with the publisher.",
+      issues: [
+        {
+          severity: "high",
+          area: "sources",
+          sceneId: "overall",
+          message: "Saved sources need a current review.",
+          suggestion: "Re-read the official sources.",
+          fix: null,
+        },
+      ],
+    }),
+  );
+  const input = await f.input("final-review");
+  const job = await waitFor(f.manager, (await f.manager.start(input)).id);
+  const { server, url } = await startPreviewServer(f.directory, 0, "127.0.0.1", {
+    editorial: f.manager,
+  });
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((done) => server.close(() => done()));
+  });
+  const origin = new URL(url).origin;
+  const body = JSON.stringify({
+    selector: input.selector,
+    sourceHash: input.sourceHash,
+    snapshot: input.snapshot,
+  });
+  assert.equal(
+    (
+      await fetch(`${origin}/api/editorial/final-review`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      })
+    ).status,
+    403,
+  );
+  const cookie = (await fetch(`${origin}/api/local-voices/session`)).headers
+    .get("set-cookie")
+    ?.split(";")[0];
+  assert.ok(cookie);
+  const headers = { cookie, origin, "content-type": "application/json" };
+  const response = await fetch(`${origin}/api/editorial/final-review`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  assert.equal(response.status, 200);
+  const result = (await response.json()) as { state: string; outcome: string };
+  assert.equal(result.state, "current");
+  assert.equal(result.outcome, "needs-attention");
+  const fixes = await fetch(`${origin}/api/editorial/jobs/${job.id}/fixes`, {
+    method: "POST",
+    headers,
+    body,
+  });
+  assert.equal(fixes.status, 200);
+  assert.deepEqual(((await fixes.json()) as { fixes: unknown[] }).fixes, []);
+  assert.equal(
+    (
+      await fetch(`${origin}/api/editorial/final-review`, {
+        method: "POST",
+        headers: { ...headers, origin: "https://foreign.example" },
+        body,
+      })
+    ).status,
+    403,
+  );
+  assert.equal(f.requests.filter((r) => r.url.endsWith("/chat/completions")).length, 1);
+});
+
+test("response budgets are configurable, migrate old settings, and omit all app token caps in provider-default mode", async () => {
+  const legacy = structuredClone(defaultWritingSettings) as Partial<typeof defaultWritingSettings>;
+  delete legacy.outputTokens;
+  assert.deepEqual(parseWritingSettings(legacy).outputTokens, {
+    writing: 8192,
+    finalReview: 16384,
+  });
+  for (const invalid of [-1, 0, 255, 131073, 1024.5, "8192", undefined])
+    assert.throws(() =>
+      parseWritingSettings({
+        ...settings(),
+        outputTokens: { writing: invalid, finalReview: 16384 },
+      }),
+    );
+  for (const provider of ["local", "hyperspace"] as const) {
+    const config: WritingSettings = {
+      ...settings(),
+      provider,
+      outputTokens: { writing: 12288, finalReview: 24576 },
+    };
+    if (provider === "hyperspace") config.hyperspace.model = "gpt-6.1-sol";
+    for (const finalReview of [false, true]) {
+      let request: Record<string, unknown> = {};
+      const run = async () =>
+        writingCompletion(config, [{ role: "user", content: "Public budget fixture" }], {
+          finalReview,
+          transport: async (_url, options) => {
+            request = options?.body as Record<string, unknown>;
+            return reply({ summary: "Complete", issues: [] });
+          },
+        });
+      await run();
+      const key = provider === "local" ? "max_tokens" : "max_completion_tokens";
+      assert.equal(request[key], finalReview ? 24576 : 12288);
+      config.outputTokens = {
+        writing: null,
+        finalReview: null,
+      };
+      await run();
+      assert.equal(Object.hasOwn(request, "max_tokens"), false);
+      assert.equal(Object.hasOwn(request, "max_completion_tokens"), false);
+      config.outputTokens = { writing: 12288, finalReview: 24576 };
+    }
+  }
+});
+
+test("final review pins its chosen response budget for the admitted job", async (t) => {
+  const f = await fixture(t, async () =>
+    reply({ summary: "No major text issues flagged.", issues: [] }),
+  );
+  const config = settings();
+  config.outputTokens.finalReview = null;
+  await f.manager.configure({ settings: config });
+  const input = await f.input("final-review");
+  const job = await waitFor(f.manager, (await f.manager.start(input)).id);
+  assert.equal(job.state, "SUCCEEDED");
+  assert.equal(job.outputTokenLimit, null);
+  const call = f.requests.find((entry) => entry.url.endsWith("/chat/completions"));
+  assert.ok(call);
+  assert.equal(Object.hasOwn(call.options?.body ?? {}, "max_tokens"), false);
+  config.outputTokens.finalReview = 24576;
+  await f.manager.configure({ settings: config });
+  assert.equal(
+    (await f.manager.get(job.id))?.outputTokenLimit,
+    null,
+    "settings changes never rewrite completed receipt budgets",
+  );
+});
+
+test("local final reviews request schema-constrained JSON while remote models keep their supported transport", async (t) => {
+  const f = await fixture(t, async () =>
+    reply({ summary: "No issues in the supplied text.", issues: [] }),
+  );
+  await f.manager.configure({ settings: structuredClone(defaultWritingSettings) });
+  const input = await f.input("final-review");
+  const job = await waitFor(f.manager, (await f.manager.start(input)).id);
+  assert.equal(job.state, "SUCCEEDED");
+  const call = f.requests.find((entry) => entry.url.endsWith("/chat/completions"));
+  assert.ok(call);
+  const body = call.options?.body as {
+    response_format: {
+      type: string;
+      json_schema: {
+        strict: boolean;
+        schema: {
+          properties: { issues: { items: { properties: { sceneId: { enum: string[] } } } } };
+        };
+      };
+    };
+  };
+  assert.equal(body.response_format.type, "json_schema");
+  assert.equal(body.response_format.json_schema.strict, true);
+  assert.deepEqual(
+    body.response_format.json_schema.schema.properties.issues.items.properties.sceneId.enum,
+    ["overall", ...f.episode().scenes.map((scene) => scene.id)],
+  );
+  assert.equal(call.options?.timeoutMs, 300000);
 });

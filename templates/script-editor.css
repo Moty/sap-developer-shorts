@@ -1159,3 +1159,63 @@ footer {
   border: 0;
   margin: 0;
 }
+
+/* Keep step and scene navigation together; measure the shared height for jumps. */
+.editor-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: #f5f7ef;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #d5decf;
+}
+.editor-navigation .editor-steps {
+  position: static;
+  margin-bottom: 0;
+  padding-bottom: 10px;
+}
+.editor-scene-jump {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.editor-scene-jump label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.editor-scene-jump select {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 9px 12px;
+}
+.editor-scene-jump button {
+  padding: 9px 18px;
+}
+.guided-editor .scene-heading h2,
+#editor-script-start,
+#presentation,
+#voice-heading,
+#companion-post-heading,
+#final-review-heading {
+  scroll-margin-top: var(--editor-nav-offset, 150px);
+}
+.audition-player[hidden] {
+  display: none;
+}
+@media (max-width: 620px) {
+  .editor-scene-jump {
+    gap: 7px;
+  }
+  .editor-scene-jump label {
+    font-size: 12px;
+  }
+  .editor-scene-jump select {
+    font-size: 13px;
+  }
+  .editor-scene-jump button {
+    padding: 9px 12px;
+  }
+}

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { readContentEpisode, validateEpisode } from "../contracts.js";
+import { readContentEpisode, validateEpisode, words } from "../contracts.js";
 import { hash } from "../digest.js";
 import { isNewsEpisode } from "../domain.js";
 import { withModelLock } from "../media/model-lock.js";
@@ -11,6 +11,12 @@ import { sourceFile } from "../paths.js";
 import { createPresentationDeck } from "../presentation-deck.js";
 import { parsePresentationDesign } from "../presentation-design.js";
 import { assertPresentationDesignFits } from "../video/frames.js";
+import {
+  applyFinalReviewFixes,
+  type FinalReview,
+  finalReviewOutcome,
+  finalReviewResponseSchema,
+} from "./final-review.js";
 import { writingJobLease } from "./job-lock.js";
 import {
   type ChatResult,
@@ -31,6 +37,8 @@ import {
 } from "./settings.js";
 import {
   applyWritingProposal,
+  episodeWithWritingSnapshot,
+  finalReviewFingerprint,
   parseWritingInput,
   parseWritingResult,
   validateWritingSnapshot,
@@ -71,6 +79,8 @@ export interface WritingJob {
   result?: WritingResult;
   warning?: string;
   errorCode?: string;
+  finalReviewHash?: string;
+  outputTokenLimit?: number | null;
 }
 export interface WritingManagerOptions {
   directory?: string;
@@ -193,6 +203,7 @@ export class WritingManager {
         rewrite: true,
         presentation: true,
         scriptReview: true,
+        finalReview: true,
         proxySpeech: false,
       },
     };
@@ -235,6 +246,82 @@ export class WritingManager {
     await this.initialize();
     await this.refreshJobs();
     return this.jobs.get(id);
+  }
+  private async reviewedInput(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new Error("Use the current editor content.");
+    const body = value as Record<string, unknown>;
+    if (Object.keys(body).some((key) => !["selector", "sourceHash", "snapshot"].includes(key)))
+      throw new Error("Use the current editor content.");
+    const input = parseWritingInput({
+      ...body,
+      requestId: randomUUID(),
+      settingsHash: "0".repeat(64),
+      action: "final-review",
+      style: "conversational",
+      instruction: "",
+      allowRemote: false,
+    });
+    const episode = await (this.options.readEpisode ?? readContentEpisode)(input.selector);
+    validateWritingSnapshot(input, episode);
+    return { input, episode, fingerprint: finalReviewFingerprint(episode, input.snapshot) };
+  }
+  async finalReviewStatus(value: unknown) {
+    await this.initialize();
+    await this.refreshJobs();
+    const { input, fingerprint } = await this.reviewedInput(value);
+    const jobs = [...this.jobs.values()]
+      .filter(
+        (job) =>
+          job.action === "final-review" &&
+          job.state === "SUCCEEDED" &&
+          job.result &&
+          job.finalReviewHash,
+      )
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    const matching = jobs.find((job) => job.finalReviewHash === fingerprint);
+    const previous = jobs.find(
+      (job) => job.selector.split("@")[0] === input.selector.split("@")[0],
+    );
+    const job = matching ?? previous;
+    return {
+      state: matching ? "current" : previous ? "outdated" : "not-reviewed",
+      fingerprint,
+      ...(job
+        ? { job: structuredClone(job), outcome: finalReviewOutcome(job.result as FinalReview) }
+        : {}),
+    };
+  }
+  async finalReviewFixes(id: string, value: unknown) {
+    await this.initialize();
+    await this.refreshJobs();
+    const job = this.jobs.get(id);
+    if (
+      job?.state !== "SUCCEEDED" ||
+      job.action !== "final-review" ||
+      !job.result ||
+      !job.finalReviewHash
+    )
+      throw new Error("No completed final review is available for these edits.");
+    const { input, episode, fingerprint } = await this.reviewedInput(value);
+    if (job.finalReviewHash !== fingerprint)
+      throw new WritingError(
+        "CONFLICT",
+        "Reviewed content changed. Run final review again before applying fixes.",
+      );
+    const fixes = (job.result as FinalReview).issues.flatMap((issue) =>
+      issue.fix ? [issue.fix] : [],
+    );
+    const snapshot = applyFinalReviewFixes(input.snapshot, fixes);
+    const copy = episodeWithWritingSnapshot(episode, snapshot);
+    if (words(copy.scenes.map((scene) => scene.narration).join(" ")) > 270)
+      throw new Error(
+        "The proposed fixes exceed the short's 270-word draft budget. Shorten the wording before applying.",
+      );
+    if (isNewsEpisode(copy)) validateNewsEpisode(copy);
+    else validateEpisode(copy);
+    await assertPresentationDesignFits(copy);
+    return { fixes: structuredClone(fixes), snapshot };
   }
   async proposal(id: string, value: unknown) {
     await this.initialize();
@@ -423,6 +510,8 @@ export class WritingManager {
       model: settings[settings.provider].model,
       action: input.action,
       promptVersion: writingPromptVersion,
+      outputTokenLimit:
+        settings.outputTokens[input.action === "final-review" ? "finalReview" : "writing"],
       state: "RUNNING",
       message: "Checking the selected writing engine…",
       startedAt: new Date().toISOString(),
@@ -470,6 +559,10 @@ export class WritingManager {
     try {
       const episode = await (this.options.readEpisode ?? readContentEpisode)(input.selector);
       validateWritingSnapshot(input, episode);
+      if (input.action === "final-review") {
+        job.finalReviewHash = finalReviewFingerprint(episode, input.snapshot);
+        await this.persist(job);
+      }
       const apiKey = settings.provider === "hyperspace" ? await this.secrets.get() : undefined;
       const catalog = await writingCatalog(
         settings,
@@ -505,7 +598,7 @@ export class WritingManager {
           job.message =
             name === "correction"
               ? "Refining the spoken story with the same model…"
-              : `Generating ${input.action === "ideas" ? "three story angles" : input.action === "review" ? "editorial feedback" : input.action === "presentation" ? "a presentation design" : "a conversational script"}…`;
+              : `Generating ${input.action === "ideas" ? "three story angles" : input.action === "final-review" ? "the final script, companion and slide review" : input.action === "review" ? "editorial feedback" : input.action === "presentation" ? "a presentation design" : "a conversational script"}…`;
           const started = performance.now();
           const receipt: WritingJob["stages"][number] = {
             name,
@@ -520,7 +613,16 @@ export class WritingManager {
           try {
             await checkCanceled();
             receipt.submitted = true;
+            await this.persist(job);
             const response = await writingCompletion(settings, history, {
+              ...(input.action === "final-review"
+                ? {
+                    finalReview: true,
+                    ...(settings.provider === "local"
+                      ? { responseSchema: finalReviewResponseSchema(episode) }
+                      : {}),
+                  }
+                : {}),
               ...(apiKey ? { apiKey } : {}),
               signal,
               ...(this.options.transport ? { transport: this.options.transport } : {}),
@@ -622,9 +724,11 @@ export class WritingManager {
           ? "Proposal ready. Review the wording and sources before applying it; nothing was saved or rendered."
           : input.action === "presentation"
             ? "Presentation proposal ready. Preview it before applying; narration, sources and media stay unchanged."
-            : input.action === "review"
-              ? "Editorial feedback ready. This reviews text, not audio/video or verified product availability."
-              : "Three story angles ready. Choose one to guide a rewrite of these existing scenes.";
+            : input.action === "final-review"
+              ? "Final text review saved. Review the suggestions; audio, rendered frames and live sources were not assessed."
+              : input.action === "review"
+                ? "Editorial feedback ready. This reviews text, not audio/video or verified product availability."
+                : "Three story angles ready. Choose one to guide a rewrite of these existing scenes.";
     } catch (error) {
       if (signal.aborted) {
         job.state = "CANCELED";

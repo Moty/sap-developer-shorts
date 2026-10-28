@@ -226,31 +226,54 @@ export interface ChatResult {
 export async function writingCompletion(
   settings: WritingSettings,
   messages: ChatMessage[],
-  options: { apiKey?: string; signal?: AbortSignal; transport?: JsonTransport } = {},
+  options: {
+    apiKey?: string;
+    signal?: AbortSignal;
+    transport?: JsonTransport;
+    finalReview?: boolean;
+    responseSchema?: Record<string, unknown>;
+  } = {},
 ): Promise<ChatResult> {
   const provider = settings.provider;
   const selected = settings[provider];
   const started = performance.now();
+  const budget = settings.outputTokens[options.finalReview ? "finalReview" : "writing"];
+  const outputLimit =
+    budget === null
+      ? {}
+      : /^(?:gpt-[56]|o[134])/u.test(selected.model) && provider === "hyperspace"
+        ? { max_completion_tokens: budget }
+        : { max_tokens: budget };
   const data = (await (options.transport ?? writingHttp)(
     `${writingBaseUrl(selected.baseUrl, provider)}/chat/completions`,
     {
       ...(provider === "hyperspace" && options.apiKey ? { apiKey: options.apiKey } : {}),
       ...(options.signal ? { signal: options.signal } : {}),
-      timeoutMs: 180_000,
+      timeoutMs: options.finalReview && provider === "local" ? 300_000 : 180_000,
       body: {
         model: selected.model,
         messages,
         stream: false,
+        ...outputLimit,
+        ...(provider === "local" && options.responseSchema
+          ? {
+              response_format: {
+                type: "json_schema",
+                json_schema: {
+                  name: "sap_shorts_final_review",
+                  strict: true,
+                  schema: options.responseSchema,
+                },
+              },
+            }
+          : {}),
         ...(provider === "local"
           ? {
-              max_tokens: 3072,
               ...(/gemma/iu.test(selected.model)
                 ? { temperature: 1.0, top_p: 0.95, top_k: 64, reasoning_effort: "none" }
                 : {}),
             }
-          : /^(?:gpt-[56]|o[134])/u.test(selected.model)
-            ? { max_completion_tokens: 4096 }
-            : { max_tokens: 3072 }),
+          : {}),
       },
     },
   )) as {

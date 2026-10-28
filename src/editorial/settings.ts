@@ -12,12 +12,14 @@ export interface WritingSettings {
   provider: WritingProvider;
   local: { baseUrl: string; model: string };
   hyperspace: { baseUrl: string; model: string };
+  outputTokens: { writing: number | null; finalReview: number | null };
 }
 export const defaultWritingSettings: WritingSettings = {
   schemaVersion: 1,
   provider: "local",
   local: { baseUrl: "http://127.0.0.1:1234/v1", model: "gemma-4-31b-it" },
   hyperspace: { baseUrl: "http://127.0.0.1:6655/litellm/v1", model: "" },
+  outputTokens: { writing: 8192, finalReview: 16384 },
 };
 export const editorialRoot = resolve(projectRoot, ".state/editorial");
 
@@ -49,7 +51,7 @@ export function parseWritingSettings(value: unknown): WritingSettings {
   const input = value as Record<string, unknown>;
   if (
     Object.keys(input).some(
-      (key) => !["schemaVersion", "provider", "local", "hyperspace"].includes(key),
+      (key) => !["schemaVersion", "provider", "local", "hyperspace", "outputTokens"].includes(key),
     ) ||
     input.schemaVersion !== 1 ||
     !["local", "hyperspace"].includes(input.provider as string)
@@ -57,6 +59,29 @@ export function parseWritingSettings(value: unknown): WritingSettings {
     throw new Error("Choose a supported writing provider.");
   const result = structuredClone(defaultWritingSettings);
   result.provider = input.provider as WritingProvider;
+  // Older saved settings inherit the new defaults until explicitly saved.
+  if (input.outputTokens !== undefined) {
+    const budgets = input.outputTokens as Record<string, unknown> | null;
+    if (
+      !budgets ||
+      typeof budgets !== "object" ||
+      Array.isArray(budgets) ||
+      Object.keys(budgets).some((key) => !["writing", "finalReview"].includes(key))
+    )
+      throw new Error("Choose writing and final-review response budgets.");
+    for (const task of ["writing", "finalReview"] as const) {
+      const budget = budgets[task];
+      if (
+        budget !== null &&
+        (typeof budget !== "number" ||
+          !Number.isSafeInteger(budget) ||
+          budget < 256 ||
+          budget > 131072)
+      )
+        throw new Error("Response budgets must be 256–131,072 tokens, or provider default.");
+      result.outputTokens[task] = budget as number | null;
+    }
+  }
   for (const provider of ["local", "hyperspace"] as const) {
     const item = input[provider] as Record<string, unknown> | undefined;
     if (

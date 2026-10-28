@@ -44,6 +44,10 @@
     value.local.baseUrl = el("local-base").value.trim();
     value.hyperspace.baseUrl = el("hyperspace-base").value.trim();
     value[value.provider].model = el("model").value;
+    value.outputTokens = {
+      writing: el("default-writing").checked ? null : Number(el("output-writing").value),
+      finalReview: el("default-review").checked ? null : Number(el("output-review").value),
+    };
     return value;
   }
   function controls() {
@@ -66,6 +70,10 @@
     if (editor) el("cancel").hidden = !runningJobId;
     for (const name of ["provider", "model", "local-base", "hyperspace-base"])
       el(name).disabled = starting;
+    for (const kind of ["writing", "review"]) {
+      el(`default-${kind}`).disabled = starting;
+      el(`output-${kind}`).disabled = starting || el(`default-${kind}`).checked;
+    }
     el("save").disabled = !settings || starting;
     el("connect").disabled = !settings || starting;
     el("refresh").disabled = !settings || starting;
@@ -175,7 +183,7 @@
     const completed = job.stages.filter((stage) => stage.state === "complete").length;
     const attempts = job.stages.filter((stage) => stage.submitted).length;
     el("usage").textContent =
-      `${attempts} text ${attempts === 1 ? "attempt" : "attempts"} · ${completed} completed · ${duration.toFixed(1)}s recorded generation · ${tokenCount("inputTokens", "input tokens")} · ${tokenCount("outputTokens", "output tokens")} · ${tokenCount("totalTokens", "total tokens")}${job.provider === "hyperspace" ? " · actual charges are determined by SAP Hyperspace; dollar cost is not reported here" : " · local inference"}.`;
+      `${job.outputTokenLimit === null ? "Provider default token budget" : job.outputTokenLimit ? `${job.outputTokenLimit.toLocaleString()}-token budget` : "Token budget not recorded"} · ${attempts} text ${attempts === 1 ? "attempt" : "attempts"} · ${completed} completed · ${duration.toFixed(1)}s recorded generation · ${tokenCount("inputTokens", "input tokens")} · ${tokenCount("outputTokens", "output tokens")} · ${tokenCount("totalTokens", "total tokens")}${job.provider === "hyperspace" ? " · actual charges are determined by SAP Hyperspace; dollar cost is not reported here" : " · local inference"}.`;
     const result = el("result");
     result.replaceChildren();
     result.hidden = !job.result || job.state !== "SUCCEEDED";
@@ -202,6 +210,18 @@
         }
         result.append(card);
       }
+    } else if (job.action === "final-review") {
+      para(result, "Final text review", "h3");
+      para(result, job.result.summary);
+      para(
+        result,
+        "Open Review & produce for current/outdated status, individual issues and proposed fixes.",
+      );
+      const open = document.createElement("button");
+      open.type = "button";
+      open.textContent = "Open final review";
+      open.addEventListener("click", () => globalThis.shortsWritingEditor?.openReview());
+      result.append(open);
     } else if (job.action === "review") {
       para(result, "AI editorial feedback · verify against sources", "h3");
       para(result, job.result.summary);
@@ -451,6 +471,8 @@
     void catalog();
   });
   el("model").addEventListener("change", controls);
+  for (const kind of ["writing", "review"])
+    el(`default-${kind}`).addEventListener("change", controls);
   if (editor) {
     el("allow-remote").addEventListener("change", controls);
     el("cancel").addEventListener("click", async () => {
@@ -515,6 +537,10 @@
       if (data.settingsIssue) status(data.settingsIssue);
       keyStatus(data);
       history(data.jobs);
+      el("default-writing").checked = settings.outputTokens.writing === null;
+      el("default-review").checked = settings.outputTokens.finalReview === null;
+      el("output-writing").value = String(settings.outputTokens.writing ?? 8192);
+      el("output-review").value = String(settings.outputTokens.finalReview ?? 16384);
       el("provider").value = settings.provider;
       el("local-base").value = settings.local.baseUrl;
       el("hyperspace-base").value = settings.hyperspace.baseUrl;

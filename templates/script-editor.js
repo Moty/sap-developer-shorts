@@ -31,6 +31,7 @@
   function showStep(step, scroll = false) {
     if (!guided) return;
     editorStep = step;
+    if (step === "review") globalThis.shortsFinalReview?.refresh();
     document.body.dataset.editorStep = step;
     for (const pane of document.querySelectorAll("[data-editor-pane]"))
       pane.hidden = pane.dataset.editorPane !== step;
@@ -45,9 +46,32 @@
           ? "Next: Review & produce"
           : "Back to script";
     if (scroll)
-      document
-        .querySelector(".editor-steps")
-        .scrollIntoView({ block: "start", behavior: "instant" });
+      jumpTo(
+        step === "script"
+          ? "editor-script-start"
+          : step === "voice"
+            ? "voice-heading"
+            : "companion-post-heading",
+      );
+  }
+  function updateNavigationOffset() {
+    if (!guided) return;
+    const navigation = document.querySelector(".editor-navigation");
+    const height = Math.ceil(navigation?.getBoundingClientRect().height ?? 90);
+    document.documentElement.style.setProperty("--editor-nav-offset", `${height + 12}px`);
+  }
+  function jumpTo(id) {
+    if (!guided) return;
+    const target = byId(id);
+    if (!target) return;
+    if (id === "presentation") target.open = true;
+    updateNavigationOffset();
+    target.setAttribute("tabindex", "-1");
+    target.scrollIntoView({ block: "start", behavior: "instant" });
+    target.focus({ preventScroll: true });
+    const select = byId("editor-jump-target");
+    if (select && Array.from(select.options).some((option) => option.value === id))
+      select.value = id;
   }
   const recoveryLimit = 128 * 1024;
   const fieldIds = ["variant-name", "draft-title", "publication-text", "presentation-design"];
@@ -110,6 +134,7 @@
   const writingSnapshot = () => ({
     ...(currentDesign() ? { design: currentDesign() } : {}),
     title: byId("draft-title").value.trim(),
+    publicationText: byId("publication-text").value.trim(),
     scenes: seed.scenes.map((scene, index) => ({
       id: scene.id,
       overlay: byId(`overlay-${index}`).value.trim(),
@@ -127,6 +152,31 @@
   let editorEnabled = false;
   globalThis.shortsWritingEditor = {
     context: JSON.parse(document.getElementById("editor-data").textContent).writingContext,
+    openWritingSetup() {
+      showStep("script", true);
+      const disclosure = document.querySelector?.(".writing-editor-disclosure");
+      if (disclosure) {
+        disclosure.open = true;
+        jumpTo("presentation");
+      }
+    },
+    openReview() {
+      showStep("review");
+      jumpTo("final-review-heading");
+    },
+    applyFinal(snapshot, expected) {
+      if (
+        typeof snapshot.publicationText !== "string" ||
+        !snapshot.publicationText.trim() ||
+        snapshot.publicationText.length > 3000
+      )
+        throw new Error("The proposed companion post needs 1–3,000 characters.");
+      const design = snapshot.design ? cleanDesign(snapshot.design) : undefined;
+      this.apply(snapshot, expected);
+      byId("publication-text").value = snapshot.publicationText;
+      byId("presentation-design").value = design ? JSON.stringify(design) : "";
+      update();
+    },
     snapshot() {
       if (!editorEnabled || pendingRecovery || saving)
         throw new Error("Finish draft recovery or saving before using the writing assistant.");
@@ -774,6 +824,7 @@
     if (pendingRecovery) return;
     status.textContent = "";
     readDraft();
+    globalThis.shortsFinalReview?.changed();
   };
   byId("editor-fields").addEventListener("input", update);
   byId("presentation-design-reset").addEventListener("click", () => {
@@ -856,6 +907,20 @@
     }
   }
   if (guided) {
+    byId("editor-jump-go").addEventListener("click", () =>
+      jumpTo(byId("editor-jump-target").value),
+    );
+    for (const link of document.querySelectorAll(".editor-scene-index a"))
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        jumpTo(link.hash.slice(1));
+      });
+    addEventListener("resize", updateNavigationOffset);
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(updateNavigationOffset);
+      observer.observe(document.querySelector(".editor-navigation"));
+    }
+    updateNavigationOffset();
     for (const button of document.querySelectorAll("[data-editor-step]"))
       button.addEventListener("click", () => showStep(button.dataset.editorStep, true));
     byId("editor-next").addEventListener("click", () =>
@@ -1014,7 +1079,16 @@
                     : "voice",
                   true,
                 );
-                byId(seed.scenes[0]?.dialogue ? "turn-0-0" : "narration-0").focus();
+                const scriptIssue = [
+                  "TIMING_REVIEW_REQUIRED",
+                  "VIDEO_LAYOUT_REVIEW_REQUIRED",
+                ].includes(report.issue?.code);
+                if (scriptIssue) {
+                  jumpTo("scene-0-heading");
+                  byId(seed.scenes[0]?.dialogue ? "turn-0-0" : "narration-0").focus({
+                    preventScroll: true,
+                  });
+                } else jumpTo("voice-heading");
               });
               const saved = element("a", "", "Open saved version ↗");
               saved.href = `../../episodes/${encodeURIComponent(selector)}/edit.html`;

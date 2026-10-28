@@ -338,6 +338,7 @@ async function workshop(
         shortsWritingEditor: {
           snapshot(): WritingSnapshot;
           apply(proposal: WritingProposal, expected: WritingSnapshot): void;
+          applyFinal(snapshot: WritingSnapshot, expected: WritingSnapshot): void;
           applyDesign(proposal: PresentationDesign, expected: WritingSnapshot): void;
         };
       }
@@ -1221,10 +1222,8 @@ test("AI wording applies through the actual editor while retaining version, comp
     ui.get("speaker-avatar-image-0").value = "private-headshot.png";
     ui.get("speaker-avatar-mouth-y-0").value = "0.63";
     const current = ui.writingEditor.snapshot();
-    assert.doesNotMatch(
-      JSON.stringify(current),
-      /private-headshot|am_michael|publication|voice|avatar/u,
-    );
+    assert.doesNotMatch(JSON.stringify(current), /private-headshot|am_michael|voice|avatar/u);
+    assert.equal(current.publicationText, "My companion post stays here.");
     const proposal = structuredClone(current);
     proposal.title = "A clearer story";
     const opening = proposal.scenes[0];
@@ -1293,4 +1292,30 @@ test("presentation proposals survive recovery/download/import while keeping voic
   assert.throws(() => reload.writingEditor.applyDesign(design, snapshot), /changed/);
   reload.restore("Restore presentation design");
   assert.equal(reload.writingEditor.snapshot().design, undefined);
+});
+
+test("final-review edits apply through the real editor atomically and invalidate on companion changes", async () => {
+  const ui = await workshop("CAP-01@casual-v2");
+  ui.get("speaker-voice-0").value = "am_michael";
+  ui.get("speaker-avatar-mode-0").value = "photo";
+  ui.get("speaker-avatar-image-0").value = "private-headshot.png";
+  const expected = ui.writingEditor.snapshot();
+  const proposed = structuredClone(expected);
+  proposed.title = "A better title";
+  proposed.publicationText = "A matching companion post with complete sentences.";
+  ui.writingEditor.applyFinal(proposed, expected);
+  assert.equal(ui.get("draft-title").value, proposed.title);
+  assert.equal(ui.get("publication-text").value, proposed.publicationText);
+  assert.equal(ui.get("speaker-voice-0").value, "am_michael");
+  assert.equal(ui.get("speaker-avatar-image-0").value, "private-headshot.png");
+  const before = ui.writingEditor.snapshot();
+  ui.get("publication-text").value += " My newer edit.";
+  assert.throws(() => ui.writingEditor.applyFinal(proposed, before), /script changed/u);
+  assert.ok(ui.get("publication-text").value.endsWith("My newer edit."));
+  const current = ui.writingEditor.snapshot();
+  assert.throws(
+    () => ui.writingEditor.applyFinal({ ...proposed, publicationText: "" }, current),
+    /companion post/u,
+  );
+  assert.equal(ui.get("draft-title").value, proposed.title);
 });

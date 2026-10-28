@@ -189,3 +189,75 @@
     padding: 18px;
   }
 }
+
+.final-review-panel {
+  margin: 20px 0;
+  padding: 24px;
+  border: 1px solid #ccdcd0;
+  border-radius: 14px;
+  background: #f3f7ef;
+}
+.final-review-panel h2 {
+  margin-top: 0;
+}
+.final-review-status {
+  font-weight: 650;
+}
+.final-review-panel[data-review-state="outdated"] .final-review-status,
+.final-review-panel[data-review-state="unavailable"] .final-review-status {
+  color: #88541b;
+}
+.final-review-issue {
+  border-top: 1px solid #d0dccb;
+  margin: 12px 0;
+  padding: 12px 0;
+}
+.final-review-issue summary {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.final-review-issue p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.final-review-panel small {
+  display: block;
+  color: #52685b;
+  margin: 8px 0;
+}
+@media (max-width: 620px) {
+  .final-review-panel {
+    padding: 18px;
+  }
+  .final-review-panel .writing-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+.writing-panel .writing-ack[hidden],
+.final-review-panel [hidden] {
+  display: none;
+}
+.writing-panel .writing-budget-default {
+  display: block;
+  font-weight: 500;
+  padding-top: 8px;
+}
+.final-review-panel .writing-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff4df;
+  font-weight: 500;
+}
+.final-review-panel .writing-ack input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 5px 0 0;
+}
+.final-review-panel .writing-ack[hidden] {
+  display: none;
+}

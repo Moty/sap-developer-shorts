@@ -30,6 +30,65 @@ to select a provider, switch models, replace/remove a proxy key, or run a writin
 request. The underlying LM Studio or Hyperspace application must already be
 installed and running on the same Mac as the studio server.
 
+## Response length and token budgets
+
+In **Writing engine** (or the editor's writing assistant), expand **Response
+length & model budgets**. Set separate maximum output-token budgets for ordinary
+writing and final review, then **Save writing preference**. New defaults are
+8,192 and 16,384 respectively. Older saved settings inherit those defaults until
+saved; their provider, model, endpoints and credentials are retained.
+
+Select **Provider default · no app token cap** for either task to omit both
+`max_tokens` and `max_completion_tokens` from that request. The underlying model
+or service still controls its own context and output limits. Custom budgets
+accept whole numbers from 256 through 131,072; the selected provider may support
+a smaller maximum. Reasoning tokens may consume the same output budget, depending
+on the model. A larger maximum permits a longer response; it does not require the
+model to use every token. Larger remote responses may cost more.
+
+The saved budget is frozen when a job starts and appears in its receipt/history.
+Changing a setting cannot alter a running request; cancel and explicitly start
+again when needed. Ordinary and remote requests have a three-minute transport
+timeout; local final reviews allow five minutes and remain cancelable. Provider
+errors, incomplete output and timeouts are reported without an automatic retry.
+
+## Final AI review before rendering
+
+Open an episode's editor, choose **Review & produce**, and use **Final AI review
+→ Review all content**. It uses the saved writing provider/model; **Choose writing
+engine** opens the existing setup panel. Every Hyperspace review requires its own
+cost checkbox. No review or provider fallback starts automatically when opening
+the page, saving a draft, checking status, or producing a video.
+
+The review receives the current title, complete narration/turns, companion post,
+actual presentation headlines/design, and saved source/claim evidence. It looks
+for contradictions across these items, incomplete or malformed copy, unsupported
+promises, product/geography/roadmap scope, repetition, clarity, and natural speech.
+Private voice profiles, photos, geometry and credentials are excluded. This is a
+text review: it does not fetch live sources, hear narration, inspect rendered
+pixels, or approve factual accuracy. Rendering retains its existing technical
+checks; AI review is optional and advisory.
+
+Each completed review records its provider/model, duration, usage when reported,
+and a fingerprint of the reviewed text and evidence. The card shows **Current
+text review**, **Outdated review**, or **Not reviewed yet**, with severity counts.
+Saving identical content under a new version keeps the match. Changing the
+script, post, presentation design/headlines, or saved evidence invalidates it.
+Returning to the exact reviewed content restores the match. Voice/photo changes
+do not invalidate this text-only review. Existing reviews survive studio restarts.
+
+Expand an issue to compare **Current** and **Proposed** text. **Apply proposed
+fixes to this draft** applies only validated title, narration, overlay, visual
+headline, and companion-post edits after rechecking the full content binding.
+Source records, claims, speaker assignments, voices, photos, and other media
+metadata cannot be edited by the model. Source issues require human review.
+Applying fixes marks the review outdated; review the resulting draft again and
+save or produce when ready. Nothing is automatically saved, rendered, or posted.
+
+One final review makes one completion request. Invalid/truncated output, an
+unloaded model, interruption, cancellation, or connection failure leaves the
+draft intact. Status checks and retries never silently resubmit inference.
+
 ## Local option
 
 The default provider is local. **Gemma 4 31B IT** is the provisional recommendation

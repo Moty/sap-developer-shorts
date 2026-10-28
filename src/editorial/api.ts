@@ -32,6 +32,8 @@ export async function handleWritingApi(
     const path = url.pathname;
     if (path === "/api/editorial/status" && request.method === "GET")
       send(200, await manager.status());
+    else if (path === "/api/editorial/final-review" && request.method === "POST")
+      send(200, await manager.finalReviewStatus(await options.readBody(request, 128 * 1024)));
     else if (path === "/api/editorial/settings" && request.method === "POST")
       send(200, await manager.configure(await options.readBody(request, 16 * 1024)));
     else if (path === "/api/editorial/catalog" && request.method === "POST") {
@@ -53,10 +55,20 @@ export async function handleWritingApi(
       );
     else {
       const match =
-        /^\/api\/editorial\/jobs\/([a-f0-9-]{36})(\/(?:cancel|proposal|preview))?$/u.exec(path);
+        /^\/api\/editorial\/jobs\/([a-f0-9-]{36})(\/(?:cancel|proposal|preview|fixes))?$/u.exec(
+          path,
+        );
       if (!match) send(404, { error: "Writing action not found." });
       else if (match[2] === "/cancel" && request.method === "POST")
         send(200, await manager.cancel(match[1] as string));
+      else if (match[2] === "/fixes" && request.method === "POST")
+        send(
+          200,
+          await manager.finalReviewFixes(
+            match[1] as string,
+            await options.readBody(request, 128 * 1024),
+          ),
+        );
       else if (["/proposal", "/preview"].includes(match[2] ?? "") && request.method === "POST") {
         const body = (await options.readBody(request, 128 * 1024)) as { snapshot?: unknown };
         if (
