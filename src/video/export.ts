@@ -27,7 +27,12 @@ import {
   releaseVideoLock,
   videoCacheDirectory,
 } from "./cache.js";
-import { drawVideoFrame, type VideoFrameInput, videoFontFiles } from "./frames.js";
+import {
+  assertVideoTextFits,
+  drawVideoFrame,
+  type VideoFrameInput,
+  videoFontFiles,
+} from "./frames.js";
 import { assertVideoQuality, readVideoReceipt } from "./receipt.js";
 import { publishedDemoCommit } from "./source.js";
 import { concatTimeline, videoFps, videoTimeline } from "./timeline.js";
@@ -369,6 +374,10 @@ export async function renderVideo(
         ...(evidence ? { evidence } : {}),
       };
       const moments = videoTimeline(timing, { animateAvatar: true });
+      // Validate all distinct text before expensive portrait inference. Without a
+      // neural sequence drawVideoFrame uses the local photo, without generation.
+      report("Checking every scene and caption for readable text before portrait rendering.");
+      await assertVideoTextFits(input);
       const totalVideoFrames = Math.max(moments.length, moments.at(-1)?.endFrame ?? moments.length);
       const talkingHeadSequences: NonNullable<VideoFrameInput["talkingHeadSequences"]> = {};
       for (const speaker of episode.presentation?.speakers ?? []) {

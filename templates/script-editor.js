@@ -998,14 +998,20 @@
               const edit = element(
                 "button",
                 "secondary-btn",
-                report.issue?.code === "TIMING_REVIEW_REQUIRED"
-                  ? "Edit opening & narration"
-                  : "Review voice & portrait",
+                report.issue?.code === "VIDEO_LAYOUT_REVIEW_REQUIRED"
+                  ? "Review script & visuals"
+                  : report.issue?.code === "TIMING_REVIEW_REQUIRED"
+                    ? "Edit opening & narration"
+                    : "Review voice & portrait",
               );
               edit.type = "button";
               edit.addEventListener("click", () => {
                 showStep(
-                  report.issue?.code === "TIMING_REVIEW_REQUIRED" ? "script" : "voice",
+                  ["TIMING_REVIEW_REQUIRED", "VIDEO_LAYOUT_REVIEW_REQUIRED"].includes(
+                    report.issue?.code,
+                  )
+                    ? "script"
+                    : "voice",
                   true,
                 );
                 byId(seed.scenes[0]?.dialogue ? "turn-0-0" : "narration-0").focus();

@@ -408,3 +408,22 @@ test("production accepts flexible openings and scene lengths across the short du
     assert.equal(rendered, true);
   }
 });
+
+test("text layout failures point to the script and preserve the completed narration", async (t) => {
+  const { root, job } = await fixture(t);
+  const report = await produce("CAP-01", {
+    artifactRoot: root,
+    stages: {
+      preflight: async () => {},
+      narration: async () => ({ job, durationSeconds: 53.4, hookSeconds: 4.48, reused: true }),
+      render: async () => {
+        throw new Error("Video closing question does not fit its readable text bounds at 48px.");
+      },
+    },
+  });
+  assert.equal(report.issue?.code, "VIDEO_LAYOUT_REVIEW_REQUIRED");
+  assert.match(report.issue.nextAction, /on-screen text or closing question/);
+  assert.equal(report.mediaJobId, job.id);
+  assert.equal(report.narrationDirectory, job.outputDirectory);
+  assert.equal(report.reusedAudio, true);
+});

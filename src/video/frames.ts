@@ -9,7 +9,7 @@ import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
 import { cueIdentifiers, feedSceneDesign } from "./feed-design.js";
 import { sceneMotion, storySteps } from "./motion.js";
-import { type VideoMoment, videoFps } from "./timeline.js";
+import { type VideoMoment, videoFps, videoTimeline } from "./timeline.js";
 
 export const videoFontFiles = [
   "assets/fonts/DejaVuSans.ttf",
@@ -145,6 +145,26 @@ function text(
   return lines.length * lineHeight;
 }
 
+/** Fit prose without clipping, truncating, or changing the spoken script. */
+export function fitVideoProse(
+  context: SKRSContext2D,
+  value: string,
+  box: { width: number; height: number },
+  preferredSize: number,
+  minimumSize = 48,
+  label = "text",
+) {
+  for (let size = preferredSize; ; size = Math.max(minimumSize, size - 2)) {
+    context.font = `${size}px "Shorts Heading"`;
+    const lines = wrapVideoText(context, value, box.width);
+    if (lines.length * size * 1.22 <= box.height + 1) return size;
+    if (size <= minimumSize)
+      throw new Error(
+        `Video ${label} does not fit its readable text bounds at ${minimumSize}px. Use a shorter visual cue.`,
+      );
+  }
+}
+
 // Match complete identifiers mentioned by the current caption; never rewrite,
 // reveal, or move source code to create visual emphasis.
 export function codeHighlights(line: string, narration: string) {
@@ -243,6 +263,20 @@ export interface VideoFrameInput {
   code: Record<string, string>;
   evidence?: DemoEvidence;
   talkingHeadSequences?: Record<string, TalkingHeadSequence>;
+}
+
+/** Render distinct text states without neural sequences before costly inference. */
+export async function assertVideoTextFits(input: VideoFrameInput) {
+  const checked = new Set<string>();
+  const preview = { ...input, talkingHeadSequences: {} };
+  for (const moment of videoTimeline(input.timing)) {
+    const signature = `${moment.sceneIndex}:${moment.cueIndex}`;
+    if (checked.has(signature)) continue;
+    await drawVideoFrame(preview, moment);
+    if (moment.endFrame - moment.startFrame > 1)
+      await drawVideoFrame(preview, { ...moment, startFrame: moment.endFrame - 1 });
+    checked.add(signature);
+  }
 }
 
 const motionTracks = new WeakMap<
@@ -691,11 +725,12 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       }
     }
   } else if (design.kind === "closing") {
+    const questionBox = { x: 72, y: 640, width: 864, height: 450 };
     text(
       ctx,
       design.question,
-      { x: 72, y: 640, width: 864, height: 450 },
-      78,
+      questionBox,
+      fitVideoProse(ctx, design.question, questionBox, 78, 48, "closing question"),
       "#f7f8ff",
       "Shorts Heading",
       "closing question",

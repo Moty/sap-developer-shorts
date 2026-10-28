@@ -377,13 +377,21 @@ export async function produce(
     generationTiming.completedAt ??= new Date().toISOString();
     report.failedAt = current;
     report.stage = error instanceof ProductionBlocked ? "BLOCKED" : "FAILED";
+    const textLayoutIssue =
+      (current as Stage) === "RENDER" &&
+      error instanceof Error &&
+      /does not fit its readable text bounds|headline is too wide|overflow the video panel/u.test(
+        error.message,
+      );
     report.issue =
       error instanceof ProductionBlocked
         ? { code: error.code, message: error.message, nextAction: error.nextAction }
         : {
-            code: `${current}_FAILED`,
+            code: textLayoutIssue ? "VIDEO_LAYOUT_REVIEW_REQUIRED" : `${current}_FAILED`,
             message: error instanceof Error ? error.message : "Production failed",
-            nextAction: `Restore the reported prerequisite or inspect the saved logs, then run: npm run shorts -- produce ${selector}`,
+            nextAction: textLayoutIssue
+              ? "Review the on-screen text or closing question in Script, then produce again. Your voice, photo and saved narration remain available."
+              : `Restore the reported prerequisite or inspect the saved logs, then run: npm run shorts -- produce ${selector}`,
           };
     await save();
   }

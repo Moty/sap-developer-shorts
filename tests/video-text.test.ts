@@ -7,8 +7,10 @@ import { readLayout } from "../src/layout.js";
 import type { NarrationTiming } from "../src/media/model.js";
 import { sourceFile } from "../src/paths.js";
 import {
+  assertVideoTextFits,
   codeHighlights,
   drawVideoFrame,
+  fitVideoProse,
   loadVideoFonts,
   wrapVideoText,
 } from "../src/video/frames.js";
@@ -25,6 +27,56 @@ test("code emphasis matches complete spoken identifiers, preserves columns, and 
   assert.deepEqual(codeHighlights("InventoryService Products", "service product"), []);
   assert.deepEqual(codeHighlights(line, ""), []);
   assert.deepEqual(codeHighlights("Products", "products"), [{ start: 0, end: 8 }]);
+});
+
+test("closing questions fit by adjusting typography while narration and captions stay intact", async () => {
+  const episode = await readContentEpisode("NEWS-01");
+  const closing = episode.scenes.at(-1);
+  assert.ok(closing);
+  const question = "What awkward non-SAP systems would your balance sheet need to invite?";
+  closing.narration = `Take a peek at the announcement below. ${question}`;
+  closing.overlay = "What's in your stack?";
+  const { layout } = await readLayout();
+  await loadVideoFonts();
+  const ctx = createCanvas(1080, 1920).getContext("2d");
+  const size = fitVideoProse(ctx, question, { width: 864, height: 450 }, 78);
+  assert.ok(size >= 48 && size < 78);
+  ctx.font = `${size}px "Shorts Heading"`;
+  const lines = wrapVideoText(ctx, question, 864);
+  assert.equal(lines.join(" "), question);
+  assert.ok(lines.length * size * 1.22 <= 451);
+  const original = structuredClone(episode);
+  const timing: NarrationTiming = {
+    schemaVersion: 1,
+    mode: "local-preview",
+    voice: "test",
+    rate: 180,
+    sampleRate: 22050,
+    durationSeconds: episode.targetDurationSeconds,
+    scenes: episode.scenes.map((scene) => ({
+      id: scene.id,
+      startSeconds: scene.startSeconds,
+      endSeconds: scene.endSeconds,
+      speechSeconds: 1,
+    })),
+    cues: [],
+  };
+  await assertVideoTextFits({ episode, timing, layout, code: {} });
+  await drawVideoFrame(
+    { episode, timing, layout, code: {} },
+    {
+      startFrame: Math.ceil(closing.startSeconds * 30),
+      endFrame: Math.ceil(closing.startSeconds * 30) + 1,
+      sceneIndex: 6,
+      cueIndex: null,
+    },
+  );
+  assert.deepEqual(episode, original, "Fitting must not rewrite the episode");
+  closing.narration = `${"An exceptionally detailed closing question ".repeat(30)}?`;
+  await assert.rejects(
+    assertVideoTextFits({ episode, timing, layout, code: {} }),
+    /closing question does not fit/,
+  );
 });
 
 async function codeContext() {

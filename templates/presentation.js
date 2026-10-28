@@ -260,15 +260,23 @@
     });
   }
   function fitVisualHeadline(slide) {
-    if (!plan.design || !slide) return;
-    const heading = slide.querySelector("h2");
-    const limit =
-      slide.classList.contains("feed-hook") || slide.classList.contains("feed-closing") ? 360 : 200;
-    let size = Number.parseFloat(getComputedStyle(heading).fontSize);
-    while (heading.scrollHeight > limit && size > 48) {
-      size = Math.max(48, size - 2);
-      heading.style.fontSize = `${size}px`;
+    if (!slide) return;
+    const fit = (node, limit) => {
+      if (!node) return;
+      let size = Number.parseFloat(getComputedStyle(node).fontSize);
+      while (node.scrollHeight > limit && size > 48) {
+        size = Math.max(48, size - 2);
+        node.style.fontSize = `${size}px`;
+      }
+    };
+    if (plan.design) {
+      const limit =
+        slide.classList.contains("feed-hook") || slide.classList.contains("feed-closing")
+          ? 360
+          : 200;
+      fit(slide.querySelector("h2"), limit);
     }
+    fit(slide.querySelector(".closing-question"), 450);
   }
   deck.on("slidechanged", (event) => {
     fitVisualHeadline(slides[event.indexh]);

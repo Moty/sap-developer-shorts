@@ -19,6 +19,19 @@ The command prints a standalone review page and MP4 path under ignored `artifact
 
 ## Composition and timing
 
+Closing questions fit their available space by adjusting heading size from 78px
+down to a readable 48px minimum. The full question, narration and captions are
+preserved. Before preparing realistic portrait frames, export renders each
+distinct scene/caption state at its first and last frame to check text layout.
+An unfit layout fails early and directs the editor to **Review script & visuals**,
+rather than suggesting a voice or photo setup problem.
+
+Regression verification: the saved personal-voice news episode that previously
+failed on a five-line closing question completed as a 53.380-second 1080×1920 MP4.
+Its existing narration job and portrait frames were reused; full decode/audio
+checks passed. The exported closing frame was visually inspected. The source fix
+passed 326 tests, typecheck and build; no installer release was created.
+
 Frames are drawn from registered, hash-matching source code and saved demo evidence. News cards retain the recorded availability category, timing, and scope. Tutorial frames never invent product output. The renderer uses the saved validated pixel layout; it wraps text using bundled font metrics and fails rather than clipping code, captions, or results. Long headlines can reduce to 56 pixels in the default layout. Other main text retains its configured readable size.
 
 Code wraps at whitespace where possible, keeping paths and identifiers together
