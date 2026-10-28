@@ -1,5 +1,35 @@
 # Implementation progress
 
+## Focused episode editor — October 27, 2026
+
+Replaced the long stacked script form and dropdown/Go navigation with a creator
+workspace: a dark scene outline, one active scene card, previous/next controls,
+desktop text cue preview and sticky top save/status actions. Episode details,
+writing/presentation tools, voice/portrait and review have explicit destinations.
+The review area has pinned companion, optional AI review and production tabs.
+Phones use a compact outline drawer; saved sources open in a separate drawer.
+
+Navigation keeps existing inputs, photo canvases and audio players mounted.
+Recovery, version naming, personal voice references, Ditto options, saved
+artifacts, engine settings and remote cost acknowledgement retain their existing
+contracts. Validation failures reveal the production panel. Section fragments
+work on initial load and within the current tab; focus skips the sticky bar and
+Escape closes drawers with focus returned to their trigger.
+
+Verification: **341 tests**, **12 desktop tests**, **five live CAP checks**,
+TypeScript/build and content validation passed on Node 22. Scoped Biome checks
+passed for all changed code. Whole-repository lint still reports existing
+formatting/lint issues in local content and unrelated files. Browser checks at
+1280 × 720 and 437 × 805 covered scene switching, temporary unsaved narration
+and restoration, preserved personal voice/portrait selections, review tabs,
+writing-engine routing, source drawer dismissal and fragment navigation.
+The local library was rebuilt; no new installer release was created.
+
+See [editing and saving](CREATOR_STUDIO.md#editing-and-saving) and the regressions
+in `tests/editor-workspace.test.ts`.
+
+---
+
 Updated October 15, 2026. Local branch: `codex/project-foundation`.
 
 ## Milestone 1: runnable foundation delivered

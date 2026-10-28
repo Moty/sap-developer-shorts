@@ -138,6 +138,8 @@ export async function readRuntimeFiles(): Promise<Record<string, Buffer>> {
   for (const file of await runtimeFiles()) result[file] = await readFile(await sourceFile(file));
   for (const file of [
     "templates/final-review.js",
+    "templates/editor-workspace.js",
+    "templates/editor-workspace.css",
     "src/media/kokoro-runner.py",
     "src/media/qwen-runner.py",
     "config/qwen-voice.json",

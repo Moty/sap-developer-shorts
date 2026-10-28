@@ -28,15 +28,30 @@ reviews and interrupted/failed production remain visible beside the next action.
 
 ## Editing and saving
 
-1. **Script:** edit the title, version name, scene headlines and narration. The
-   scene outline provides shortcuts on desktop. Sources stay in a disclosure.
+1. **Script:** choose a scene in the left outline, then edit its headline and
+   narration in a focused card. **Previous / Next scene** moves through the story
+   without showing seven stacked forms. **Episode details** holds the title and
+   version name; **Writing & visuals** opens the writing/presentation assistant.
+   On desktop, an on-screen text cue previews the current headline and narration.
+   It is a text preview, not the rendered deck; **Open saved deck** shows that deck.
 2. **Voice & portrait:** choose local voices and a presenter. Mouth calibration
    and pronunciation tools are optional disclosures. The existing local portrait
    renderer, face calibration, auditions and recovery behavior are preserved.
-3. **Review & produce:** edit the companion post, check validation and compare
-   changes with the starting script, then produce the video.
+3. **Review & produce:** use the pinned **Companion post**, **AI content review**,
+   and **Produce video** tabs. AI review is optional; its provider, cost consent
+   and exact-content validity checks are unchanged. Production validation and
+   **Review changes** live in Produce video.
 
-The fixed action bar offers **Save draft** in every step. Saving validates the
+The sticky top bar offers **Save draft**, current save/validation status and a
+continue action in every view. The left outline remains available on desktop;
+on phones, **Episode sections** opens a drawer. Choosing an entry closes it;
+Escape dismisses it. **Sources** opens a separate evidence drawer with the saved
+source dates and claims. Navigation changes visibility only: fields, personal
+voice selections, portrait canvases, auditions and unsaved edits stay mounted.
+Scene/review links are addressable by fragment. Invalid saves reveal production
+validation instead of leaving the problem in a hidden panel.
+
+Saving validates the
 script, writes a new presentation JSON under `content/presentations/`, and
 refreshes the served library without starting narration or rendering. An unchanged
 second save reuses that snapshot. Further edits create the next named revision;

@@ -31,6 +31,10 @@
   function showStep(step, scroll = false) {
     if (!guided) return;
     editorStep = step;
+    if (globalThis.shortsWorkspace) {
+      globalThis.shortsWorkspace.showStep(step, scroll);
+      return;
+    }
     if (step === "review") globalThis.shortsFinalReview?.refresh();
     document.body.dataset.editorStep = step;
     for (const pane of document.querySelectorAll("[data-editor-pane]"))
@@ -61,6 +65,10 @@
     document.documentElement.style.setProperty("--editor-nav-offset", `${height + 12}px`);
   }
   function jumpTo(id) {
+    if (globalThis.shortsWorkspace) {
+      globalThis.shortsWorkspace.jumpTo(id);
+      return;
+    }
     if (!guided) return;
     const target = byId(id);
     if (!target) return;
@@ -152,7 +160,14 @@
   let editorEnabled = false;
   globalThis.shortsWritingEditor = {
     context: JSON.parse(document.getElementById("editor-data").textContent).writingContext,
+    syncStep(step) {
+      editorStep = step;
+    },
     openWritingSetup() {
+      if (globalThis.shortsWorkspace) {
+        globalThis.shortsWorkspace.activate("writing");
+        return;
+      }
       showStep("script", true);
       const disclosure = document.querySelector?.(".writing-editor-disclosure");
       if (disclosure) {
@@ -161,6 +176,10 @@
       }
     },
     openReview() {
+      if (globalThis.shortsWorkspace) {
+        globalThis.shortsWorkspace.activate("ai-review");
+        return;
+      }
       showStep("review");
       jumpTo("final-review-heading");
     },
@@ -809,15 +828,20 @@
     if (guided) {
       byId("editor-validation-state").textContent = errors.length
         ? `${errors.length} ${errors.length === 1 ? "item" : "items"} to fix · see Review & produce`
-        : "Draft checked · timing measured during production";
+        : globalThis.shortsWorkspace
+          ? "Draft checked"
+          : "Draft checked · timing measured during production";
       if (!saving)
         byId("editor-save-state").textContent =
           savedSnapshot && savedSnapshot.signature === JSON.stringify(draft)
             ? `Saved on this Mac · ${savedSnapshot.selector}`
-            : "Unsaved changes · Save draft to keep this version";
+            : globalThis.shortsWorkspace
+              ? "Unsaved changes"
+              : "Unsaved changes · Save draft to keep this version";
     }
     reviewChanges(draft);
     saveRecovery();
+    globalThis.shortsWorkspace?.refresh();
     return { draft, errors };
   }
   const update = () => {
@@ -907,33 +931,36 @@
     }
   }
   if (guided) {
-    byId("editor-jump-go").addEventListener("click", () =>
-      jumpTo(byId("editor-jump-target").value),
-    );
-    for (const link of document.querySelectorAll(".editor-scene-index a"))
-      link.addEventListener("click", (event) => {
-        event.preventDefault();
-        jumpTo(link.hash.slice(1));
-      });
-    addEventListener("resize", updateNavigationOffset);
-    if (typeof ResizeObserver === "function") {
-      const observer = new ResizeObserver(updateNavigationOffset);
-      observer.observe(document.querySelector(".editor-navigation"));
+    if (!document.querySelector("[data-editor-workspace]")) {
+      byId("editor-jump-go").addEventListener("click", () =>
+        jumpTo(byId("editor-jump-target").value),
+      );
+      for (const link of document.querySelectorAll(".editor-scene-index a"))
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          jumpTo(link.hash.slice(1));
+        });
+      addEventListener("resize", updateNavigationOffset);
+      if (typeof ResizeObserver === "function") {
+        const observer = new ResizeObserver(updateNavigationOffset);
+        observer.observe(document.querySelector(".editor-navigation"));
+      }
+      updateNavigationOffset();
+      for (const button of document.querySelectorAll("[data-editor-step]"))
+        button.addEventListener("click", () => showStep(button.dataset.editorStep, true));
+      byId("editor-next").addEventListener("click", () =>
+        showStep(
+          editorStep === "script" ? "voice" : editorStep === "voice" ? "review" : "script",
+          true,
+        ),
+      );
     }
-    updateNavigationOffset();
-    for (const button of document.querySelectorAll("[data-editor-step]"))
-      button.addEventListener("click", () => showStep(button.dataset.editorStep, true));
-    byId("editor-next").addEventListener("click", () =>
-      showStep(
-        editorStep === "script" ? "voice" : editorStep === "voice" ? "review" : "script",
-        true,
-      ),
-    );
     byId("save-draft").addEventListener("click", async () => {
       if (pendingRecovery || saving) return;
       const { draft, errors } = nextSnapshot();
       if (errors.length) {
         showStep("review", true);
+        jumpTo("draft-errors");
         return;
       }
       if (savedSnapshot?.signature === JSON.stringify(draft)) return;
@@ -986,6 +1013,7 @@
       const { draft, errors } = nextSnapshot();
       if (errors.length) {
         showStep("review", true);
+        jumpTo("draft-errors");
         return;
       }
       const selector = `${draft.baseEpisodeId}@${draft.presentation.variant}`;

@@ -7,6 +7,13 @@ draft on this Mac or download JSON for `script-import`; produce when ready.
 Source/claim/demo inputs and source-review dates stay fixed. Existing versions
 and recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
 
+The episode editor now uses a focused workspace: a persistent desktop scene
+outline, a compact phone drawer, one scene card at a time and a sticky top save
+bar. Episode details, writing tools, voice/portrait and three review views have
+separate destinations. See [editing and saving](CREATOR_STUDIO.md#editing-and-saving).
+Rebuild the studio to update existing generated editor pages; saved scripts and
+media are preserved. This UI change does not require a new installer release.
+
 Where browser storage is available, unfinished edits can be recovered after
 reloading the same tab at the same address. Choose **Resume saved draft** or
 **Start with original** before editing or downloading again. Recovery restores
