@@ -61,6 +61,36 @@ News stages are `VALIDATED → VERIFYING → SOURCES_CHECKED → PREVIEW_READY`,
 
 Both formats then use the same durable media worker, local speech adapter, measured WAV/caption validation, narration player, and recovery mechanisms. Editing content creates a new request; packaging an existing completed narration reuses its audio. The saved stock presenter and pilot spending preference are unchanged. No paid provider or publishing adapter is enabled.
 
+## Import and companion-copy quality
+
+Article extraction decodes decimal/hexadecimal HTML punctuation and common named
+entities before generating prose. Publication metadata supplies the source date;
+an absent date stays unknown rather than becoming the day of import. The full
+article title remains in the evidence and companion post. A shorter display title
+uses a word boundary and an explicit ellipsis.
+
+Imported cards use complete source sentences of 40–180 characters. They never
+silently cut a claim, narration, or companion sentence at a character/word limit.
+If fewer than three suitable sentences are available, drafting stops with an
+editorial-review message. Imported availability defaults to **Announced** with
+instructions to check the product, geography, and access conditions; extraction
+does not establish general availability or invent a global rollout. An editor
+must still review context and assign product-specific status and support notes.
+
+Script rewrites preserve the companion post for manual review. In **Review &
+produce**, align its headline, claims, discussion question, and source dates with
+the final narration before sharing it. A successful render is not approval to
+publish the copy.
+
+[NEWS-10](../content/episodes/NEWS-10.json) is a corrected finance example reviewed
+against the [October 12 SAP announcement](https://news.sap.com/2026/10/sap-advances-finance-operations-embedded-payments-new-consolidation-capabilities-expanded-ai/).
+It distinguishes SAP Pay's available countries from the Enterprise Financial
+Consolidation early-adopter plan and keeps complete, readable companion copy.
+It is a separate episode so earlier local NEWS-09 variants and videos remain
+available. Personal voice/photo selections belong to local variants and are not
+distributed with this public source-backed example. See the [output repair and
+validation record](OUTPUT_QUALITY_FIX.md) for the completed local render evidence.
+
 ## Initial source pack
 
 The initial roundup and six-item editorial backlog were prepared from the [SAP Connect 2026 Innovation News Guide](https://www.sap.com/topics/events/connect/innovation-news-guide-2026) and the [October 6 press release](https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/), read October 14, 2026. This is event coverage, not a claim to include every current SAP announcement. NEWS-02 now provides the Joule Work follow-up, reviewed October 15, 2026; four other follow-ups remain research candidates.

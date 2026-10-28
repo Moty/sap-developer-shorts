@@ -2,13 +2,82 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { readContentEpisode } from "../src/contracts.js";
 import { readNewsEpisode, validateNewsEpisode } from "../src/news/contracts.js";
-import { fetchStoryDetail, type SapStoryDetail } from "../src/news/fetcher.js";
+import {
+  cleanHtml,
+  fetchStoryDetail,
+  parseStoryHtml,
+  type SapStoryDetail,
+} from "../src/news/fetcher.js";
 import { buildNewsEpisodeFromStory, getNextNewsId } from "../src/news/generator.js";
 
 test("news discovery rejects non-SAP domains", async () => {
   await assert.rejects(
     () => fetchStoryDetail("https://example.com/not-sap-story"),
     /must be an official SAP domain/u,
+  );
+});
+
+test("article import decodes punctuation and keeps the publication date separate from retrieval", () => {
+  const story = parseStoryHtml(
+    `<meta content="2026-10-12T12:00:00Z" property="article:published_time">
+    <h1>A complete title about payments, consolidation, and expanded AI</h1>
+    <p>Unrelated navigation text should not become an article paragraph in the imported script.</p>
+    <article id="post-123"><div class="entry-content">
+    <p>Mixed systems&#8211;some SAP, some non-SAP&#x2014;need clear ownership &amp; scope.</p>
+    </div></article>`,
+    "https://news.sap.com/test/",
+  );
+  assert.equal(story.publishedIso, "2026-10-12");
+  assert.equal(story.paragraphs.length, 1);
+  assert.equal(
+    story.paragraphs[0],
+    "Mixed systems–some SAP, some non-SAP—need clear ownership & scope.",
+  );
+  assert.equal(cleanHtml("A&nbsp;B &ldquo;C&rdquo; &#x1f44b; &#99999999;"), "A B “C” 👋 �");
+  assert.equal(parseStoryHtml("<h1>No date supplied</h1>", story.link).publishedIso, "");
+});
+
+test("news draft keeps complete evidence and companion sentences without invented release scope", () => {
+  const quotes = [
+    "Embedded payments are generally available in the United States and United Kingdom.",
+    "Mixed environments&#8211;some SAP, some non-SAP&#8211;can supply consolidation data.",
+    "The early adopter program is planned for the first quarter of 2027.",
+  ];
+  const story: SapStoryDetail = {
+    id: "complete-evidence",
+    title:
+      "SAP Advances Finance Operations with Embedded Payments, New Consolidation Capabilities, and Expanded AI",
+    link: "https://news.sap.com/test/",
+    pubDate: "2026-10-12",
+    publishedIso: "2026-10-12",
+    categories: [],
+    relevanceScore: 1,
+    angleSuggestion: "Check product scope.",
+    paragraphs: quotes,
+    keyQuotes: quotes,
+    fullText: quotes.join(" "),
+  };
+  const episode = buildNewsEpisodeFromStory(story, "NEWS-99");
+  assert.equal(episode.sources[0]?.title, story.title);
+  assert.ok(episode.title.endsWith("…"));
+  for (const [index, claim] of episode.claims.entries()) {
+    assert.equal(claim.text, cleanHtml(quotes[index] ?? ""));
+    assert.ok(episode.publication.text.includes(claim.text));
+    assert.equal(episode.scenes[index + 2]?.narration, claim.text);
+    assert.equal(claim.availability.status, "announced");
+    assert.match(claim.availability.timing, /Source published 2026-10-12/u);
+  }
+  assert.doesNotMatch(
+    episode.publication.text,
+    /&#|current architecture release|Global SAP customer/u,
+  );
+  assert.throws(
+    () =>
+      buildNewsEpisodeFromStory(
+        { ...story, keyQuotes: ["A long incomplete sentence ".repeat(20)], paragraphs: [] },
+        "NEWS-99",
+      ),
+    /editorial review/u,
   );
 });
 

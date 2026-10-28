@@ -71,6 +71,14 @@ export together when backing up. The standalone review page provides downloads
 and a transcript. When the verified CAP demo matches a Git commit, its companion
 draft replaces the pending code link with a commit-specific project URL.
 
+News cards stack measured regions for status, claim, timing, and scope. The
+entire 84-pixel status pill is reserved before placing the claim, with visible
+gutters between every region. Claim typography fits the remaining space at a
+minimum 40 pixels without dropping words; content that still cannot fit fails
+the preflight before portrait inference. Scene numbering stays in the top
+brand row, outside the headline, instead of appearing behind the text. These
+rules apply to every newly exported video; existing MP4 bytes are preserved.
+
 That lookup can use an older published demo snapshot after newer source changes.
 It searches up to 64 recent commits touching the registered demo inputs, newest
 first, within a ten-second total budget. Every registered file must match the

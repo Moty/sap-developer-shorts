@@ -64,5 +64,16 @@
       "https://news.sap.com/2026/10/sap-connect-sap-puts-autonomous-enterprise-to-work/",
       "https://www.sap.com/topics/events/connect/innovation-news-guide-2026"
     ]
+  },
+  {
+    "id": "NEWS-10",
+    "title": "SAP finance: follow the money",
+    "event": "SAP Connect 2026 · finance",
+    "angle": "Separate embedded payment availability from the consolidation roadmap, with a practical integration question.",
+    "priority": 9,
+    "status": "draft-ready",
+    "sourceUrls": [
+      "https://news.sap.com/2026/10/sap-advances-finance-operations-embedded-payments-new-consolidation-capabilities-expanded-ai/"
+    ]
   }
 ]

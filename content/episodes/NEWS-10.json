@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "format": "news",
+  "id": "NEWS-10",
+  "version": 1,
+  "title": "SAP finance: follow the money",
+  "audience": "SAP developers, architects, and business technology teams",
+  "language": "en",
+  "targetDurationSeconds": 55,
+  "news": {
+    "event": "SAP Connect 2026 · finance",
+    "asOf": "2026-10-28",
+    "maxAgeDays": 7,
+    "editorialStatus": "draft",
+    "selection": "editorial",
+    "angle": "Separate embedded payment availability from the consolidation roadmap, with a practical integration question."
+  },
+  "sources": [
+    {
+      "id": "sap-official",
+      "title": "SAP Advances Finance Operations with Embedded Payments, New Consolidation Capabilities, and Expanded AI",
+      "url": "https://news.sap.com/2026/10/sap-advances-finance-operations-embedded-payments-new-consolidation-capabilities-expanded-ai/",
+      "retrievedOn": "2026-10-28",
+      "publisher": "SAP",
+      "publishedOn": "2026-10-12"
+    }
+  ],
+  "claims": [
+    {
+      "id": "announcement-core",
+      "text": "SAP Pay embeds payment execution in SAP Cloud ERP and is generally available in the United States and United Kingdom.",
+      "sourceIds": ["sap-official"],
+      "checkedOn": "2026-10-28",
+      "availability": {
+        "status": "generally-available",
+        "timing": "Generally available · October 2026 announcement",
+        "scope": "SAP Pay · United States and United Kingdom"
+      },
+      "support": [
+        {
+          "sourceId": "sap-official",
+          "locator": "SAP Pay: Payments without Friction",
+          "summary": "The SAP Pay section describes embedded payment execution and names the two available countries."
+        }
+      ]
+    },
+    {
+      "id": "technical-impact",
+      "text": "SAP Enterprise Financial Consolidation supports SAP and non-SAP data on SAP Business Data Cloud.",
+      "sourceIds": ["sap-official"],
+      "checkedOn": "2026-10-28",
+      "availability": {
+        "status": "announced",
+        "timing": "Introduced at SAP Connect 2026",
+        "scope": "Enterprise Financial Consolidation · mixed-source data"
+      },
+      "support": [
+        {
+          "sourceId": "sap-official",
+          "locator": "SAP Enterprise Financial Consolidation: From Close to Confidence",
+          "summary": "This section describes the Business Data Cloud foundation and support for data from SAP and non-SAP environments."
+        }
+      ]
+    },
+    {
+      "id": "rollout-availability",
+      "text": "Early Adopter Care for SAP Enterprise Financial Consolidation is planned for Q1 2027.",
+      "sourceIds": ["sap-official"],
+      "checkedOn": "2026-10-28",
+      "availability": {
+        "status": "planned",
+        "timing": "Q1 2027 · planned early adopter program",
+        "scope": "Enterprise Financial Consolidation · general availability not stated"
+      },
+      "support": [
+        {
+          "sourceId": "sap-official",
+          "locator": "SAP Enterprise Financial Consolidation: From Close to Confidence, closing paragraph",
+          "summary": "The planned first-quarter 2027 Early Adopter Care date belongs to Enterprise Financial Consolidation."
+        }
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "hook",
+      "phase": "hook",
+      "startSeconds": 0,
+      "endSeconds": 3,
+      "narration": "Who moves money while chatbots write poetry?",
+      "overlay": "Follow the money",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Opening hook"
+      }
+    },
+    {
+      "id": "context",
+      "phase": "context",
+      "startSeconds": 3,
+      "endSeconds": 10,
+      "narration": "SAP’s October announcement has plenty of AI buzz. But look at the transactional plumbing underneath.",
+      "overlay": "Under the AI buzz",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Source reviewed 2026-10-28"
+      }
+    },
+    {
+      "id": "headline-1",
+      "phase": "headline",
+      "startSeconds": 10,
+      "endSeconds": 21,
+      "narration": "SAP Pay embeds payments into Cloud ERP. It's generally available in the US and UK. Less copy-paste, more cash flow.",
+      "overlay": "Payments inside ERP",
+      "claimIds": ["announcement-core"],
+      "visual": {
+        "kind": "news-card",
+        "label": "SAP Pay · available countries"
+      }
+    },
+    {
+      "id": "headline-2",
+      "phase": "headline",
+      "startSeconds": 21,
+      "endSeconds": 31,
+      "narration": "And financial consolidation accepts SAP and non-SAP data. Because let's face it: nobody’s architecture is totally spotless.",
+      "overlay": "Mixed systems welcome",
+      "claimIds": ["technical-impact"],
+      "visual": {
+        "kind": "news-card",
+        "label": "Financial consolidation · data sources"
+      }
+    },
+    {
+      "id": "headline-3",
+      "phase": "headline",
+      "startSeconds": 31,
+      "endSeconds": 43,
+      "narration": "For that consolidation product, Early Adopter Care is planned for Q1 2027. That's a roadmap date, not general availability.",
+      "overlay": "Early adopter: Q1 2027",
+      "claimIds": ["rollout-availability"],
+      "visual": {
+        "kind": "news-card",
+        "label": "Consolidation · early adopter roadmap"
+      }
+    },
+    {
+      "id": "payoff",
+      "phase": "payoff",
+      "startSeconds": 43,
+      "endSeconds": 49,
+      "narration": "My takeaway? Check the plumbing and the rollout dates before you buy the demo’s fireworks.",
+      "overlay": "Check scope. Then plan.",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Editorial takeaway"
+      }
+    },
+    {
+      "id": "cta",
+      "phase": "cta",
+      "startSeconds": 49,
+      "endSeconds": 55,
+      "narration": "Which awkward system would your balance sheet need to invite? Read the announcement below.",
+      "overlay": "What would you connect?",
+      "claimIds": [],
+      "visual": {
+        "kind": "presenter",
+        "label": "Discussion & CTA"
+      }
+    }
+  ],
+  "pronunciation": {
+    "AI": "ay eye",
+    "ERP": "E R P",
+    "SAP": "sap"
+  },
+  "publication": {
+    "channel": "linkedin",
+    "text": "Everyone notices the AI fireworks. I’m watching the finance plumbing.\n\nThree distinct details from SAP’s October 12 announcement:\n\n• SAP Pay embeds payment execution in SAP Cloud ERP. It is generally available in the United States and United Kingdom.\n\n• SAP Enterprise Financial Consolidation is built on SAP Business Data Cloud and supports data from SAP and non-SAP systems. Mixed landscapes are part of the story.\n\n• Early Adopter Care for that consolidation product is planned for Q1 2027. That date is not a general-availability promise for every finance feature.\n\nMy take: check the product, the geography, and the rollout status before planning around a headline.\n\nWhich awkward system would your balance sheet need to invite?\n\nOfficial SAP announcement (October 12, 2026):\nhttps://news.sap.com/2026/10/sap-advances-finance-operations-embedded-payments-new-consolidation-capabilities-expanded-ai/\n\n#SAP #CloudERP #Finance #EnterpriseArchitecture"
+  }
+}

@@ -3,67 +3,47 @@ import { resolve } from "node:path";
 import type { NewsEpisode } from "../domain.js";
 import { projectRoot } from "../paths.js";
 import { validateNewsEpisode } from "./contracts.js";
-import { fetchStoryDetail, type SapStoryDetail } from "./fetcher.js";
+import { cleanHtml, fetchStoryDetail, type SapStoryDetail } from "./fetcher.js";
 
 const COMMON_PRONUNCIATIONS: Record<string, string> = {
-  "AI": "ay eye",
-  "LLM": "L L M",
-  "LLMs": "L L Ms",
-  "ERP": "E R P",
-  "BTP": "B T P",
-  "CAP": "cap",
-  "SAP": "sap",
-  "Joule": "jool",
-  "HANA": "hah-nuh",
+  AI: "ay eye",
+  LLM: "L L M",
+  LLMs: "L L Ms",
+  ERP: "E R P",
+  BTP: "B T P",
+  CAP: "cap",
+  SAP: "sap",
+  Joule: "jool",
+  HANA: "hah-nuh",
   "S/4HANA": "S four hah-nuh",
-  "SCM": "S C M",
-  "CRM": "C R M",
-  "API": "A P I",
-  "APIs": "A P Is",
-  "SDK": "S D K",
+  SCM: "S C M",
+  CRM: "C R M",
+  API: "A P I",
+  APIs: "A P Is",
+  SDK: "S D K",
 };
 
-/** Trims text to fit within a maximum word count, keeping full sentence punctuation. */
-function trimWords(text: string, maxWords: number): string {
-  const clean = text.replace(/[\r\n\t]+/gu, " ").replace(/\s+/gu, " ").trim();
-  const words = clean.split(/\s+/u).filter(Boolean);
-  if (words.length <= maxWords) return clean;
-  const cut = words.slice(0, maxWords).join(" ").replace(/[,;:\s]+$/u, "");
-  return /[.!?]$/u.test(cut) ? cut : `${cut}.`;
+/** Display titles may be abbreviated; evidence and source titles remain complete. */
+function displayTitle(value: string): string {
+  if (value.length <= 60) return value;
+  return `${value
+    .slice(0, 59)
+    .replace(/\s+\S*$/u, "")
+    .replace(/[,;:]$/u, "")}…`;
 }
 
-/** Generates a punchy hook guaranteed to fit <= 3 seconds and <= 7 words. */
-function generateHook(title: string): { hookText: string; hookOverlay: string } {
-  const lower = title.toLowerCase();
-  if (lower.includes("autonomous")) {
-    return { hookText: "Autonomous enterprise is finally here.", hookOverlay: "Autonomous enterprise arrives" };
-  }
-  if (lower.includes("joule") && lower.includes("agent")) {
-    return { hookText: "Joule brings agents into enterprise.", hookOverlay: "Joule agents enter enterprise" };
-  }
-  if (lower.includes("joule")) {
-    return { hookText: "Joule transforms enterprise work.", hookOverlay: "Joule transforms work" };
-  }
-  if (lower.includes("supply chain") || lower.includes("scm")) {
-    return { hookText: "AI agents take on supply chains.", hookOverlay: "AI in supply chains" };
-  }
-  if (lower.includes("payment") || lower.includes("finance")) {
-    return { hookText: "Embedded payments arrive in ERP.", hookOverlay: "Payments inside ERP" };
-  }
-  if (lower.includes("btp") || lower.includes("cloud")) {
-    return { hookText: "Cloud ERP enters the next phase.", hookOverlay: "Next-gen Cloud ERP" };
-  }
-  if (lower.includes("relational") || lower.includes("table") || lower.includes("database")) {
-    return { hookText: "Enterprise data needs relational models.", hookOverlay: "Relational data in AI" };
-  }
-
-  // Fallback: take first 5 words from title
-  const words = title.replace(/[^\w\s]/gu, "").split(/\s+/u).filter(Boolean);
-  const selected = words.slice(0, 5);
-  return {
-    hookText: `${selected.join(" ")}.`,
-    hookOverlay: selected.slice(0, 4).join(" "),
-  };
+/** Keep complete source sentences. Never turn an arbitrary word cut into a claim. */
+function sourceSentences(story: SapStoryDetail): string[] {
+  return [
+    ...new Set(
+      [...story.keyQuotes, ...story.paragraphs]
+        .flatMap((value) => cleanHtml(value).split(/(?<=[.!?])\s+/u))
+        .filter(
+          (sentence) =>
+            sentence.length >= 40 && sentence.length <= 180 && /[.!?][”"']?$/u.test(sentence),
+        ),
+    ),
+  ];
 }
 
 /** Finds the next available NEWS-XX episode ID in content/episodes and content/drafts */
@@ -92,107 +72,47 @@ export async function getNextNewsId(): Promise<string> {
 /** Formulates a valid 7-scene NewsEpisode from a fetched SAP story */
 export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: string): NewsEpisode {
   const today = new Date().toISOString().slice(0, 10);
-  const cleanTitle = story.title.replace(/[\r\n\t]+/gu, " ").trim().slice(0, 60);
-
-  const { hookText, hookOverlay } = generateHook(story.title);
-
-  // Extract quotes or paragraph sentences
-  const rawQ1 = story.keyQuotes[0] || story.paragraphs[1] || story.paragraphs[0] || "SAP announced new enterprise architecture capabilities.";
-  const rawQ2 = story.keyQuotes[1] || story.paragraphs[2] || "Enterprise applications require deep process knowledge and relational models.";
-  const rawQ3 = story.keyQuotes[2] || story.paragraphs[3] || "Capabilities are rolling out across cloud environments.";
-
-  const cleanQ1 = rawQ1.replace(/^["“]|["”]$/gu, "").trim();
-  const cleanQ2 = rawQ2.replace(/^["“]|["”]$/gu, "").trim();
-  const cleanQ3 = rawQ3.replace(/^["“]|["”]$/gu, "").trim();
-
-  // Word limits strictly satisfying <= 180 words/min (3 words/sec):
-  // Hook (3s): max 7 words (schema limit)
-  // Context (7s): max 20 words
-  // Headline 1 (11s): max 30 words
-  // Headline 2 (10s): max 28 words
-  // Headline 3 (12s): max 32 words
-  // Payoff (6s): max 16 words
-  // CTA (6s): max 16 words
-
-  const contextNarration = trimWords(
-    `Checked today from official SAP news. ${story.paragraphs[0] ? story.paragraphs[0].slice(0, 90) : "Here is the technical shift and what it means for your stack."}`,
-    20,
-  );
-
-  const headline1Narration = trimWords(`First, ${cleanQ1}`, 30);
-  const headline2Narration = trimWords(`Second, ${cleanQ2}`, 28);
-  const headline3Narration = trimWords(`Third, ${cleanQ3}`, 32);
-
-  const claim1Text = trimWords(cleanQ1, 8).slice(0, 75);
-  const claim2Text = trimWords(cleanQ2, 8).slice(0, 75);
-  const claim3Text = trimWords(cleanQ3, 8).slice(0, 75);
-
-  const payoffNarration = trimWords(
-    `My takeaway: ${story.angleSuggestion || "Connect AI models directly to trusted enterprise data semantics."}`,
-    16,
-  );
-
-  const ctaNarration = trimWords(
-    "Read the official announcement in the link below. How will this impact your architecture?",
-    16,
-  );
-
-  const claims = [
-    {
-      id: "announcement-core",
-      text: claim1Text,
-      sourceIds: ["sap-official"],
-      checkedOn: today,
-      availability: {
-        status: "announced" as const,
-        timing: `Published ${story.pubDate || "October 2026"}`,
-        scope: "Official SAP news announcement.",
-      },
-      support: [
-        {
-          sourceId: "sap-official",
-          locator: "Opening announcement and core capabilities",
-          summary: "Cites official SAP release details.",
-        },
-      ],
+  const fullTitle = cleanHtml(story.title);
+  const cleanTitle = displayTitle(fullTitle);
+  const hookText = "What's changed, and what's actually available?";
+  const hookOverlay = "Beyond the headline";
+  const sentences = sourceSentences(story).slice(0, 3);
+  if (sentences.length < 3)
+    throw new Error(
+      "Source needs editorial review: provide three complete source sentences of 40–180 characters. No claims were truncated or invented.",
+    );
+  const [cleanQ1, cleanQ2, cleanQ3] = sentences as [string, string, string];
+  const contextNarration =
+    "Here are three details from SAP’s announcement. Product scope and access matter as much as the headline.";
+  const headline1Narration = cleanQ1;
+  const headline2Narration = cleanQ2;
+  const headline3Narration = cleanQ3;
+  const payoffNarration =
+    "Before planning an implementation, check which product each detail describes, its availability, and your own requirements.";
+  const ctaNarration = "Read the full announcement below. Which detail matters most for your team?";
+  const ids = ["announcement-core", "technical-impact", "rollout-availability"];
+  const claims = sentences.map((sentence, index) => ({
+    id: ids[index] as string,
+    text: sentence,
+    sourceIds: ["sap-official"],
+    checkedOn: today,
+    // Imported snippets need an editor to assign product-specific access, dates
+    // and geography; do not infer global availability from unrelated sentences.
+    availability: {
+      status: "announced" as const,
+      timing: story.publishedIso
+        ? `Source published ${story.publishedIso}`
+        : "Publication date not supplied",
+      scope: "Confirm product-specific access and eligibility in the full source.",
     },
-    {
-      id: "technical-impact",
-      text: claim2Text,
-      sourceIds: ["sap-official"],
-      checkedOn: today,
-      availability: {
-        status: "announced" as const,
-        timing: "Available in current architecture release",
-        scope: "Enterprise platform and data structures.",
+    support: [
+      {
+        sourceId: "sap-official",
+        locator: `Source sentence: ${sentence}`,
+        summary: "Complete source excerpt; availability scope needs editorial review.",
       },
-      support: [
-        {
-          sourceId: "sap-official",
-          locator: "Technical impact and architectural considerations",
-          summary: "Explains enterprise process and integration benefits.",
-        },
-      ],
-    },
-    {
-      id: "rollout-availability",
-      text: claim3Text,
-      sourceIds: ["sap-official"],
-      checkedOn: today,
-      availability: {
-        status: "announced" as const,
-        timing: "Ongoing platform rollout",
-        scope: "Global SAP customer and cloud deployments.",
-      },
-      support: [
-        {
-          sourceId: "sap-official",
-          locator: "Availability and roadmap details",
-          summary: "Details the rollout schedule and prerequisites.",
-        },
-      ],
-    },
-  ];
+    ],
+  }));
 
   // 7 Scenes adhering strictly to: hook,context,headline,headline,headline,payoff,cta
   const scenes: NewsEpisode["scenes"] = [
@@ -215,11 +135,11 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
       startSeconds: 3,
       endSeconds: 10,
       narration: contextNarration,
-      overlay: "What changed today",
+      overlay: "What the source says",
       claimIds: [],
       visual: {
         kind: "presenter",
-        label: `As of ${today}`,
+        label: `Source reviewed ${today}`,
       },
     },
     {
@@ -241,11 +161,11 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
       startSeconds: 21,
       endSeconds: 31,
       narration: headline2Narration,
-      overlay: "2. Why it matters",
+      overlay: "2. From the source",
       claimIds: ["technical-impact"],
       visual: {
         kind: "news-card",
-        label: "Architecture & impact",
+        label: "Source detail",
       },
     },
     {
@@ -254,11 +174,11 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
       startSeconds: 31,
       endSeconds: 43,
       narration: headline3Narration,
-      overlay: "3. When it ships",
+      overlay: "3. Check the details",
       claimIds: ["rollout-availability"],
       visual: {
         kind: "news-card",
-        label: "Rollout & availability",
+        label: "Source detail & scope",
       },
     },
     {
@@ -290,7 +210,7 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
   ];
 
   // Companion LinkedIn Post
-  const publicationText = `${cleanTitle}\n\n${story.paragraphs[0] || "SAP has announced key updates to its enterprise technology platform."}\n\nKey takeaways from the official announcement:\n1. Core capability: ${cleanQ1.slice(0, 100)}\n2. Architecture impact: ${cleanQ2.slice(0, 100)}\n3. Availability: ${cleanQ3.slice(0, 100)}\n\nRead the official source: ${story.link}\n\nHow is your organization preparing for this in your enterprise architecture?\n\n#SAP #BusinessAI #EnterpriseArchitecture #CloudERP #SAPBTP`;
+  const publicationText = `${fullTitle}\n\nThree details from SAP’s announcement:\n1. ${cleanQ1}\n2. ${cleanQ2}\n3. ${cleanQ3}\n\nThese are source excerpts, not a statement of availability for every product. Check the full source for access, geography, and roadmap dates.\n\nOfficial source${story.publishedIso ? ` (published ${story.publishedIso})` : ""}: ${story.link}\n\nWhich detail matters most for your team?\n\n#SAP #EnterpriseArchitecture`;
 
   // Filter pronunciation entries relevant to this text
   const fullContent = `${cleanTitle} ${scenes.map((s) => s.narration).join(" ")}`;
@@ -301,8 +221,8 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
     }
   }
   // Ensure basic entries
-  pronunciation["SAP"] = "sap";
-  pronunciation["AI"] = "ay eye";
+  pronunciation.SAP = "sap";
+  pronunciation.AI = "ay eye";
 
   const episode: NewsEpisode = {
     schemaVersion: 1,
@@ -314,21 +234,21 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
     language: "en",
     targetDurationSeconds: 55,
     news: {
-      event: "SAP Technology Insights 2026",
+      event: "SAP News",
       asOf: today,
       maxAgeDays: 7,
       editorialStatus: "draft",
       selection: "editorial",
-      angle: story.angleSuggestion,
+      angle: cleanHtml(story.angleSuggestion),
     },
     sources: [
       {
         id: "sap-official",
-        title: cleanTitle,
+        title: fullTitle,
         url: story.link,
         retrievedOn: today,
         publisher: "SAP",
-        publishedOn: story.publishedIso,
+        publishedOn: story.publishedIso || null,
       },
     ],
     claims,
@@ -411,7 +331,9 @@ async function updateNewsBacklog(episode: NewsEpisode, sourceUrl: string): Promi
 }
 
 /** Promotes an existing draft from content/drafts into content/episodes and marks it draft-ready */
-export async function promoteNewsDraft(draftIdOrPath: string): Promise<{ episode: NewsEpisode; path: string }> {
+export async function promoteNewsDraft(
+  draftIdOrPath: string,
+): Promise<{ episode: NewsEpisode; path: string }> {
   const idMatch = draftIdOrPath.match(/(NEWS-\d{2})/u);
   if (!idMatch?.[1]) throw new Error(`Could not determine episode ID from: ${draftIdOrPath}`);
   const id = idMatch[1];

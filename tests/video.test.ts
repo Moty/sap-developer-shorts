@@ -10,7 +10,12 @@ import { isNewsEpisode } from "../src/domain.js";
 import { readLayout } from "../src/layout.js";
 import type { NarrationTiming } from "../src/media/model.js";
 import { loudnessResult, type VideoProbe, validateVideoProbe } from "../src/video/export.js";
-import { drawVideoFrame, loadVideoFonts, wrapVideoText } from "../src/video/frames.js";
+import {
+  drawVideoFrame,
+  loadVideoFonts,
+  newsCardLayout,
+  wrapVideoText,
+} from "../src/video/frames.js";
 import { readVideoReceipt } from "../src/video/receipt.js";
 import { concatTimeline, videoFps, videoTimeline } from "../src/video/timeline.js";
 
@@ -238,6 +243,31 @@ test("every news card and its availability text fits the vertical export without
       assert.equal(png.readUInt32BE(16), 1080);
       assert.equal(png.readUInt32BE(20), 1920);
     }
+});
+
+test("news cards reserve the full badge and separate every text block with a visible gutter", async () => {
+  await loadVideoFonts();
+  const episode = await readContentEpisode("NEWS-02");
+  assert.ok(isNewsEpisode(episode));
+  const source = episode.claims[0];
+  assert.ok(source);
+  const claim = {
+    ...source,
+    text: "Financial consolidation supports data from SAP and non-SAP systems while keeping the close process on a governed foundation. Check the announced product scope before planning.",
+    availability: {
+      ...source.availability,
+      timing: "Early adopter program planned for the first quarter of 2027; dates may change.",
+      scope:
+        "Enterprise financial consolidation across mixed landscapes. Confirm eligibility and availability in the official announcement before planning.",
+    },
+  };
+  const body = { x: 104, y: 548, width: 800, height: 730 };
+  const card = newsCardLayout(createCanvas(1080, 1920).getContext("2d"), claim, body);
+  assert.ok(card.headline.y >= card.badge.y + card.badge.height + 28);
+  assert.ok(card.timing.y >= card.headline.y + card.headline.height + 28);
+  assert.ok(card.scope.y >= card.timing.y + card.timing.height + 20);
+  assert.ok(card.scope.y + card.scope.height <= body.y + body.height + 1);
+  assert.ok(card.size >= 40, "fit within mobile-readable typography without cutting the claim");
 });
 
 test("source-review dates remain visible on announcement frames outside the introduction", async () => {

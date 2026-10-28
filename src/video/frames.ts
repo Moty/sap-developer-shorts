@@ -194,6 +194,35 @@ function panel(
   context.fill();
 }
 
+/** Stack measured news text with real gutters, including the entire status pill. */
+export function newsCardLayout(
+  ctx: SKRSContext2D,
+  claim: import("../domain.js").NewsEpisode["claims"][number],
+  box: { x: number; y: number; width: number; height: number },
+) {
+  const measure = (value: string, size: number, family: string) => {
+    ctx.font = `${size}px "${family}"`;
+    return wrapVideoText(ctx, value, box.width).length * size * 1.22;
+  };
+  const badge = { ...box, height: 84 };
+  const timingHeight = measure(claim.availability.timing, 32, "Shorts Body");
+  const scopeHeight = measure(claim.availability.scope, 30, "Shorts Body");
+  const claimTop = box.y + badge.height + 28;
+  const claimBudget = box.y + box.height - claimTop - 28 - timingHeight - 20 - scopeHeight;
+  const size = fitVideoProse(
+    ctx,
+    claim.text,
+    { width: box.width, height: claimBudget },
+    52,
+    40,
+    "news claim",
+  );
+  const headline = { ...box, y: claimTop, height: measure(claim.text, size, "Shorts Heading") };
+  const timing = { ...box, y: headline.y + headline.height + 28, height: timingHeight };
+  const scope = { ...box, y: timing.y + timing.height + 20, height: scopeHeight };
+  return { badge, headline, timing, scope, size };
+}
+
 function headlineTypography(
   ctx: SKRSContext2D,
   design: ReturnType<typeof feedSceneDesign>,
@@ -353,7 +382,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   text(
     ctx,
     "SAP / DEVELOPER SHORTS",
-    { x: 72, y: 90, width: 864, height: 40 },
+    { x: 72, y: 90, width: 700, height: 40 },
     28,
     accent,
     "Shorts Heading",
@@ -372,20 +401,15 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     "headline",
   );
   ctx.restore();
-  if (!hero) {
-    ctx.save();
-    ctx.globalAlpha = 0.09;
-    text(
-      ctx,
-      String(moment.sceneIndex + 1).padStart(2, "0"),
-      { x: 760, y: 260, width: 240, height: 180 },
-      130,
-      accent,
-      "Shorts Heading",
-      "scene marker",
-    );
-    ctx.restore();
-  }
+  text(
+    ctx,
+    `${String(moment.sceneIndex + 1).padStart(2, "0")} / ${String(episode.scenes.length).padStart(2, "0")}`,
+    { x: 796, y: 90, width: 160, height: 40 },
+    28,
+    accent,
+    "Shorts Heading",
+    "scene marker",
+  );
   const box =
     !hero && design.emphasis === "evidence" ? { ...layout.demo, y: 400, height: 910 } : layout.demo;
   if (!hero) {
@@ -593,44 +617,27 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   } else if (isNewsEpisode(episode) && scene.visual.kind === "news-card" && "claimIds" in scene) {
     const claim = episode.claims.find((item) => item.id === scene.claimIds[0]);
     if (!claim) throw new Error("Missing sourced news card");
+    const card = newsCardLayout(ctx, claim, { ...body, height: box.y + box.height - 32 - body.y });
     panel(
       ctx,
       body.x,
-      y,
+      card.badge.y,
       body.width,
-      84,
+      card.badge.height,
       claim.availability.status === "generally-available" ? "#bfe96d" : "#ffcb77",
       12,
     );
-    y +=
-      text(
-        ctx,
-        availabilityLabels[claim.availability.status],
-        { ...body, x: body.x + 20, width: body.width - 40, y: y + 16, height: 64 },
-        40,
-        "#101a33",
-        "Shorts Heading",
-      ) + 36;
-    y +=
-      text(
-        ctx,
-        claim.text,
-        { ...body, y, height: 270 },
-        52,
-        "#f5f8ee",
-        "Shorts Heading",
-        "news headline",
-      ) + 36;
-    y += text(ctx, claim.availability.timing, { ...body, y, height: 150 }, 36, "#bdd2c9") + 24;
     text(
       ctx,
-      claim.availability.scope,
-      { ...body, y, height: box.y + box.height - 32 - y },
-      34,
-      "#bdd2c9",
-      "Shorts Body",
-      "news scope",
+      availabilityLabels[claim.availability.status],
+      { ...card.badge, x: body.x + 20, width: body.width - 40, y: card.badge.y + 16, height: 64 },
+      40,
+      "#101a33",
+      "Shorts Heading",
     );
+    text(ctx, claim.text, card.headline, card.size, "#f5f8ee", "Shorts Heading", "news headline");
+    text(ctx, claim.availability.timing, card.timing, 32, "#bdd2c9");
+    text(ctx, claim.availability.scope, card.scope, 30, "#bdd2c9", "Shorts Body", "news scope");
   } else if (design.kind === "hook") {
     text(
       ctx,
