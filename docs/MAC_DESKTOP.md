@@ -422,7 +422,7 @@ replacing it from this DMG; application data is retained by the update workflow.
 
 
 The draft was saved on GitHub at
-[0.1.2 installer draft](https://github.com/Moty/sap-developer-shorts/releases/edit/untagged-d5198d0869bf5321f22e)
+[0.1.2 installer draft](https://github.com/Moty/sap-developer-shorts/releases)
 (owner access required). DMG/checksum upload is currently pending: the Edge
 ChatGPT extension blocks file upload until its “Allow access to file URLs” setting
 is enabled. No extension permission was changed. Both verified local files are
