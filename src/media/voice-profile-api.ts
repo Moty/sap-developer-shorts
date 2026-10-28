@@ -32,15 +32,34 @@ function isLocalRequest(request: IncomingMessage) {
     (!origin || new URL(origin).host === request.headers.host)
   );
 }
-export function assertPrivateVoiceRequest(request: IncomingMessage, token?: string) {
+export function assertLocalStudioRequest(
+  request: IncomingMessage,
+  token?: string,
+  message = "Open this studio on localhost to use its local setup controls.",
+) {
   if (
     !token ||
     !isLocalRequest(request) ||
     !request.headers.cookie
       ?.split(";")
-      .some((cookie) => cookie.trim() === `shorts_voice_session=${token}`)
+      .some(
+        (cookie) =>
+          cookie.trim() === `${localSessionCookie(token)}=${token}` ||
+          cookie.trim() === `shorts_voice_session=${token}`,
+      )
   )
-    throw new Error("Open this studio on localhost to use a private voice profile.");
+    throw new Error(message);
+}
+function localSessionCookie(token: string) {
+  // Browser cookies are not port-scoped. Separate preview servers must coexist.
+  return `shorts_voice_session_${token.slice(0, 8)}`;
+}
+export function assertPrivateVoiceRequest(request: IncomingMessage, token?: string) {
+  assertLocalStudioRequest(
+    request,
+    token,
+    "Open this studio on localhost to use a private voice profile.",
+  );
   if (request.method === "POST" && !request.headers["content-type"]?.startsWith("application/json"))
     throw new Error("Use the local studio's JSON voice controls.");
 }
@@ -57,7 +76,7 @@ export async function handleVoiceProfileApi(
         throw new Error("My voice is available in the localhost studio.");
       response.setHeader(
         "set-cookie",
-        `shorts_voice_session=${options.token}; HttpOnly; SameSite=Strict; Path=/api/`,
+        `${localSessionCookie(options.token)}=${options.token}; HttpOnly; SameSite=Strict; Path=/api/`,
       );
       options.send(response, 200, { local: true });
       return true;

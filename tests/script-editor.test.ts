@@ -7,6 +7,7 @@ import { runInNewContext } from "node:vm";
 import { readContentEpisode } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
 import { isNewsEpisode } from "../src/domain.js";
+import type { WritingProposal, WritingSnapshot } from "../src/editorial/workflow.js";
 import { createLibraryPages } from "../src/library-review.js";
 import type { MediaRequest } from "../src/media/model.js";
 import { narrationIdentity } from "../src/media/reuse.js";
@@ -325,6 +326,14 @@ async function workshop(
     button.click();
   };
   return {
+    writingEditor: (
+      context as unknown as {
+        shortsWritingEditor: {
+          snapshot(): WritingSnapshot;
+          apply(proposal: WritingProposal, expected: WritingSnapshot): void;
+        };
+      }
+    ).shortsWritingEditor,
     get,
     update,
     download,
@@ -1191,4 +1200,56 @@ test("personal voice references survive recovery before the asynchronous profile
     "12345678-1234-4234-8234-123456789abc",
   );
   await validatePresentationDefinition(definition);
+});
+
+test("AI wording applies through the actual editor while retaining version, companion post, voices and portrait controls", async () => {
+  for (const selector of ["CAP-01@casual-v2", "CAP-01@duo"]) {
+    const ui = await workshop(selector);
+    ui.get("variant-name").value = "keep-my-new-version";
+    ui.get("publication-text").value = "My companion post stays here.";
+    ui.get("speaker-voice-0").value = "am_michael";
+    if (ui.seed.presentation.speakers.length > 1) ui.get("speaker-voice-1").value = "af_heart";
+    ui.get("speaker-avatar-mode-0").value = "photo";
+    ui.get("speaker-avatar-image-0").value = "private-headshot.png";
+    ui.get("speaker-avatar-mouth-y-0").value = "0.63";
+    const current = ui.writingEditor.snapshot();
+    assert.doesNotMatch(
+      JSON.stringify(current),
+      /private-headshot|am_michael|publication|voice|avatar/u,
+    );
+    const proposal = structuredClone(current);
+    proposal.title = "A clearer story";
+    const opening = proposal.scenes[0];
+    assert.ok(opening);
+    opening.texts[0] = "Where did the API go?";
+    opening.overlay = "Find the service";
+    ui.writingEditor.apply(proposal, current);
+    assert.equal(ui.get("draft-title").value, proposal.title);
+    assert.equal(ui.get("variant-name").value, "keep-my-new-version");
+    assert.equal(ui.get("publication-text").value, "My companion post stays here.");
+    assert.equal(ui.get("speaker-voice-0").value, "am_michael");
+    assert.equal(ui.get("speaker-avatar-image-0").value, "private-headshot.png");
+    assert.equal(ui.get("speaker-avatar-mouth-y-0").value, "0.63");
+    assert.equal(ui.get("overlay-0").value, "Find the service");
+    const field = ui.seed.scenes[0].dialogue ? "turn-0-0" : "narration-0";
+    assert.equal(ui.get(field).value, "Where did the API go?");
+  }
+});
+
+test("AI Apply rejects stale or malformed proposals atomically rather than overwriting newer editor text", async () => {
+  const ui = await workshop("CAP-01@casual-v2");
+  const before = ui.writingEditor.snapshot();
+  const proposal = structuredClone(before);
+  proposal.title = "An older proposal";
+  ui.get("narration-0").value = "My newer opening.";
+  assert.throws(() => ui.writingEditor.apply(proposal, before), /script changed/u);
+  assert.equal(ui.get("narration-0").value, "My newer opening.");
+  assert.equal(ui.get("draft-title").value, before.title);
+  const current = ui.writingEditor.snapshot();
+  const broken = structuredClone(current);
+  const last = broken.scenes.at(-1);
+  assert.ok(last);
+  last.texts.push("An extra speaker slot");
+  assert.throws(() => ui.writingEditor.apply(broken, current), /speaker turns/u);
+  assert.equal(ui.get("draft-title").value, current.title);
 });

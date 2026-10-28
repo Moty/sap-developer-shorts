@@ -1,5 +1,11 @@
 # Local writing models for SAP Shorts
 
+Update: the [Writing engine integration](WRITING_ENGINES.md) now connects the local
+studio to an already loaded LM Studio model, with Gemma as the provisional local
+recommendation and an explicit optional SAP Hyperspace provider. The managed
+model installation/lifecycle described below remains proposed. The research
+inventory and comparisons below record the earlier investigation.
+
 Researched October 27, 2026. Preferred architecture: local inference for ideation,
 writing, revision and editorial review. Status: six installed models have now
 been screened; application integration remains proposed. See the

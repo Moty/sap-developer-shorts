@@ -67,16 +67,20 @@ with local Reveal.js playback, code inspection, captured-result charts and filte
 or source-backed news cards. New MP4 productions include the refreshed motion
 design and an interactive deck in the episode package.
 
-For the next content-generation milestone, see the
-[content quality audit and editorial engine proposal](docs/CONTENT_QUALITY_REVIEW.md)
-and [conversational script/storyboard example](samples/editorial_quality_pilot.md).
-The existing news URL drafter uses paragraph extraction and templates; a writing
-LLM and its editorial review workflow are proposed, not yet connected.
-The preferred implementation is a [managed local writing model](docs/LOCAL_EDITORIAL_MODELS.md),
-with Qwen and Gemma candidates, local review and no automatic cloud fallback.
-See the [follow-up local writing comparison](docs/LOCAL_MODEL_WORKFLOW_RESULTS.md)
-for Gemma 31B, Qwen3.8 and Muse outputs, measured workflow times and remaining
-editorial limitations. This experiment does not connect an LLM to production yet.
+An optional [writing assistant](docs/WRITING_ENGINES.md) now suggests angles,
+rewrites existing scripts and provides editorial feedback. Configure **Writing
+engine** in the sidebar, then open **Writing assistant** in a script's editor.
+Use local Gemma through LM Studio, or explicitly select SAP Hyperspace AI through
+its local LiteLLM proxy. Models, connection and secure key storage are managed in
+the UI. Each Hyperspace request requires acknowledgment of possible usage costs;
+there is no automatic remote fallback. Voice samples and portraits stay local.
+Review proposals before applying and saving them.
+
+The [local comparison](docs/LOCAL_MODEL_WORKFLOW_RESULTS.md) explains the Gemma
+recommendation and remaining editorial limits. The [content quality audit](docs/CONTENT_QUALITY_REVIEW.md)
+and [conversational example](samples/editorial_quality_pilot.md) describe the
+creative direction. The news URL drafter still uses paragraph extraction and
+templates; automatic source research and managed writer installation remain future work.
 
 This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 

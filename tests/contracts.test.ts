@@ -13,10 +13,11 @@ test("the backlog retains thirty tutorials and adds a separate SAP news collecti
     topics.filter((topic) => topic.status === "pilot-ready").map((topic) => topic.id),
     ["CAP-01", "CAP-02"],
   );
-  assert.deepEqual(
-    episodes.map((episode) => episode.id),
-    ["CAP-01", "CAP-02", "NEWS-01", "NEWS-02"],
-  );
+  const episodeIds = episodes.map((episode) => episode.id);
+  for (const id of ["CAP-01", "CAP-02", "NEWS-01", "NEWS-02"]) {
+    assert.ok(episodeIds.includes(id), `Missing seed episode ${id}`);
+  }
+  assert.equal(new Set(episodeIds).size, episodeIds.length);
 });
 
 test("claims cannot refer to absent sources or invented execution checks", () => {

@@ -72,6 +72,18 @@
     else fieldIds.push(`narration-${index}`);
   }
   const rawFields = () => Object.fromEntries(fieldIds.map((id) => [id, byId(id).value]));
+  // The writer receives only these wording fields; media selections and private
+  // profile metadata never enter its snapshot or its provider prompts.
+  const writingSnapshot = () => ({
+    title: byId("draft-title").value.trim(),
+    scenes: seed.scenes.map((scene, index) => ({
+      id: scene.id,
+      overlay: byId(`overlay-${index}`).value.trim(),
+      texts: scene.dialogue
+        ? scene.dialogue.map((_turn, position) => byId(`turn-${index}-${position}`).value.trim())
+        : [byId(`narration-${index}`).value.trim()],
+    })),
+  });
   const startingFields = rawFields();
   const startingSignature = JSON.stringify(startingFields);
   let storage;
@@ -79,6 +91,57 @@
   let pendingRecovery = null;
   let recoveredDraft = false;
   let editorEnabled = false;
+  globalThis.shortsWritingEditor = {
+    context: JSON.parse(document.getElementById("editor-data").textContent).writingContext,
+    snapshot() {
+      if (!editorEnabled || pendingRecovery || saving)
+        throw new Error("Finish draft recovery or saving before using the writing assistant.");
+      return writingSnapshot();
+    },
+    apply(proposal, expected) {
+      if (
+        !editorEnabled ||
+        pendingRecovery ||
+        saving ||
+        JSON.stringify(writingSnapshot()) !== JSON.stringify(expected)
+      )
+        throw new Error(
+          "Your script changed while applying this proposal. Keep your edits and generate again.",
+        );
+      if (
+        !proposal ||
+        typeof proposal.title !== "string" ||
+        !proposal.title.trim() ||
+        proposal.title.length > 60 ||
+        !Array.isArray(proposal.scenes) ||
+        proposal.scenes.length !== seed.scenes.length
+      )
+        throw new Error("Proposal does not match this editor.");
+      for (const [index, scene] of proposal.scenes.entries()) {
+        const original = seed.scenes[index];
+        if (
+          scene.id !== original.id ||
+          typeof scene.overlay !== "string" ||
+          !scene.overlay.trim() ||
+          scene.overlay.length > 48 ||
+          !Array.isArray(scene.texts) ||
+          scene.texts.length !== (original.dialogue?.length ?? 1) ||
+          scene.texts.some((value) => typeof value !== "string" || !value.trim())
+        )
+          throw new Error("Proposal does not match this editor's scene and speaker turns.");
+      }
+      byId("draft-title").value = proposal.title;
+      for (const [index, scene] of proposal.scenes.entries()) {
+        byId(`overlay-${index}`).value = scene.overlay;
+        if (seed.scenes[index].dialogue)
+          for (const [position, value] of scene.texts.entries())
+            byId(`turn-${index}-${position}`).value = value;
+        else byId(`narration-${index}`).value = scene.texts[0];
+      }
+      reviewedDraft = "";
+      update();
+    },
+  };
   let lastSavedFields = startingSignature;
   let hasSavedDraft = false;
   const recoveryMessage = (message) => {

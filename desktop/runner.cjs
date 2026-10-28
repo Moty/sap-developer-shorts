@@ -110,6 +110,7 @@ async function busy() {
     if (!port) continue;
     const origin = `http://127.0.0.1:${port}`;
     const job = await (await fetch(`${origin}/api/status`)).json();
+    if (job.writingJob?.local) return true;
     if (job.activeJob && !["READY", "FAILED", "BLOCKED"].includes(job.activeJob.stage)) return true;
     const session = await fetch(`${origin}/api/local-voices/session`);
     const cookie = session.headers.get("set-cookie")?.split(";")[0];

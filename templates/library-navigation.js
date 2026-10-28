@@ -29,6 +29,10 @@
     ],
     styles: ["Delivery styles", "Explore storytelling formats and compare prepared examples."],
     voices: ["Voice library", "Manage your personal recordings and compare stock narrators."],
+    writing: [
+      "Writing engine",
+      "Choose Gemma locally or an SAP Hyperspace model for ideas, rewriting and script review.",
+    ],
   };
   let activeView;
   const anchors = {
@@ -55,13 +59,17 @@
             ? "tutorials"
             : "stories";
     const view =
-      hash === "#voices" || hash === "#my-voice-panel"
-        ? "voices"
-        : hash === "#styles" || hash === "#formats" || hash.startsWith("#compare-")
-          ? "styles"
-          : hash === "#ideas" || Object.values(anchors).includes(hash) || hash.startsWith("#draft-")
-            ? "ideas"
-            : "episodes";
+      hash === "#writing"
+        ? "writing"
+        : hash === "#voices" || hash === "#my-voice-panel"
+          ? "voices"
+          : hash === "#styles" || hash === "#formats" || hash.startsWith("#compare-")
+            ? "styles"
+            : hash === "#ideas" ||
+                Object.values(anchors).includes(hash) ||
+                hash.startsWith("#draft-")
+              ? "ideas"
+              : "episodes";
     if (activeView) collections.save(`shorts:scroll:${activeView}`, { y: window.scrollY ?? 0 });
     if (activeView === "voices" && view !== "voices")
       window.dispatchEvent(new Event("shorts:voice-panel-hidden"));
@@ -111,9 +119,15 @@
     if (
       !link.hasAttribute("data-workspace-link") &&
       !link.hasAttribute("data-idea-tab") &&
-      !["#ideas", "#episodes", "#formats", "#styles", "#voices", "#studio-produce-banner"].includes(
-        link.hash,
-      )
+      ![
+        "#ideas",
+        "#episodes",
+        "#formats",
+        "#styles",
+        "#voices",
+        "#writing",
+        "#studio-produce-banner",
+      ].includes(link.hash)
     )
       return;
     event.preventDefault();
@@ -144,9 +158,15 @@
   if (Number.isFinite(remembered.y) && remembered.y > 0)
     requestAnimationFrame(() => window.scrollTo(0, remembered.y));
   else if (
-    ["", "#episodes", "#ideas", "#styles", "#voices", ...Object.values(anchors)].includes(
-      window.location.hash,
-    )
+    [
+      "",
+      "#episodes",
+      "#ideas",
+      "#styles",
+      "#voices",
+      "#writing",
+      ...Object.values(anchors),
+    ].includes(window.location.hash)
   )
     requestAnimationFrame(() => window.scrollTo(0, 0));
 })();

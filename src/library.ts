@@ -382,6 +382,8 @@ export async function buildLibrary(
     "templates/script-editor.css",
     "templates/script-editor.js",
     "templates/voice-profiles.js",
+    "templates/writing-assistant.css",
+    "templates/writing-assistant.js",
     "config/production.json",
     "content/topics/backlog.json",
     "content/news/backlog.json",

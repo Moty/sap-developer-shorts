@@ -4,6 +4,7 @@ import { realpath, stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname } from "node:path";
 import { type ApiOptions, handleApiRequest } from "./api.js";
+import { sharedWritingManager } from "./editorial/manager.js";
 import { buildLibrary } from "./library.js";
 import { LocalActionManager, runLocalAction } from "./local-actions.js";
 import { inside } from "./paths.js";
@@ -26,6 +27,7 @@ export async function startPreviewServer(
   apiOptions: Omit<ApiOptions, "onLibraryUpdated"> = {},
 ) {
   let root = await realpath(directory);
+  const editorial = apiOptions.editorial ?? sharedWritingManager();
   const privateVoiceToken = ["127.0.0.1", "localhost", "::1"].includes(host)
     ? randomUUID()
     : undefined;
@@ -53,6 +55,7 @@ export async function startPreviewServer(
     if (url.pathname.startsWith("/api/")) {
       const handled = await handleApiRequest(request, response, url, {
         ...apiOptions,
+        editorial,
         localActions,
         ...(privateVoiceToken ? { privateVoiceToken } : {}),
         libraryDirectory: () => root,

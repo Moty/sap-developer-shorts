@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { isNewsEpisode, type NewsEpisode } from "./domain.js";
+import { writingPanel } from "./editorial/panel.js";
 import { formatGenerationTime, generationTimingHtml } from "./generation-timing.js";
 import type { LibraryContent, LibraryEntry } from "./library.js";
 import { localActionButton, localActionFeedback } from "./local-action-controls.js";
@@ -164,6 +165,8 @@ export async function createLibraryPages(
     browserCss,
     collectionsScript,
     navigationScript,
+    writingCss,
+    writingScript,
   ] = await Promise.all([
     readFile(resolve(projectRoot, "templates/library.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/library.js"), "utf8"),
@@ -173,6 +176,8 @@ export async function createLibraryPages(
     readFile(resolve(projectRoot, "templates/library-browser.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/library-collections.js"), "utf8"),
     readFile(resolve(projectRoot, "templates/library-navigation.js"), "utf8"),
+    readFile(resolve(projectRoot, "templates/writing-assistant.css"), "utf8"),
+    readFile(resolve(projectRoot, "templates/writing-assistant.js"), "utf8"),
   ]);
   const videos = entries.filter((entry) => entry.video).length;
   const newsCount = entries.filter((entry) => isNewsEpisode(entry.episode)).length;
@@ -208,9 +213,9 @@ export async function createLibraryPages(
   } catch {}
 
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self'; img-src 'self'; media-src 'self' blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">`;
-  const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Workspace</title><style>${css}\n${voicePanelCss}\n${browserCss}</style></head><body class="workflow-studio">
+  const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Workspace</title><style>${css}\n${voicePanelCss}\n${browserCss}\n${writingCss}</style></head><body class="workflow-studio">
 <a class="skip-link" href="#episodes">Skip to workspace</a>
-<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${entries.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#styles">Delivery styles</a><a data-workspace-link="voices" href="#voices">Voice library</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
+<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${entries.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#styles">Delivery styles</a><a data-workspace-link="voices" href="#voices">Voice library</a><a data-workspace-link="writing" href="#writing">Writing engine</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
 <main class="studio-main"><header class="workspace-heading"><div><p class="eyebrow">YOUR CONTENT, FROM IDEA TO PUBLISHED</p><h1 id="workspace-title">My shorts</h1><p id="workspace-description">Pick up a draft, review a video, or get your next short out into the world.</p></div><a class="secondary-action" href="#ideas">Explore ideas ↗</a></header>
 <aside id="studio-produce-banner" class="studio-produce-banner" hidden aria-live="polite"><div class="banner-content"><strong id="studio-produce-title">Producing video…</strong><p id="studio-produce-message"></p><div class="studio-progress-bar"><div id="studio-produce-progress" class="studio-progress-fill"></div></div><a id="studio-job-link" href="#episodes">Open working version</a></div></aside>
 <section id="episodes" class="episodes-section" data-workspace-view="episodes"><div class="pipeline-tabs" role="group" aria-label="Filter by stage"><button type="button" data-stage-filter="all" aria-pressed="true">All shorts <b>${entries.length}</b></button>${[
@@ -279,7 +284,7 @@ ${collectionTools(
       ["title", "Title A–Z"],
     ],
   )}<div class="tutorial-idea-grid" id="tutorial-list">${tutorialIdeas.map((topic) => `<article><span>${esc(topic.pillar)}</span><h3>${esc(topic.title)}</h3><p>Research and environment verification needed.</p></article>`).join("")}</div>${collectionEnd("tutorials", "tutorial ideas")}</section></section>
-${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}</div><footer class="studio-footer"><span>SAP Shorts / Local creator studio</span><span>Produced videos need review. Publication is recorded with a post link.</span></footer></main></div><script>${collectionsScript}\n${localActionsScript}\n${voiceProfilesScript}\n${script}\n${navigationScript}</script></body></html>`;
+${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="writing" data-workspace-view="writing">${writingPanel()}</section></div><footer class="studio-footer"><span>SAP Shorts / Local creator studio</span><span>Produced videos need review. Publication is recorded with a post link.</span></footer></main></div><script>${collectionsScript}\n${localActionsScript}\n${voiceProfilesScript}\n${script}\n${navigationScript}\n${writingScript}</script></body></html>`;
   const files: Record<string, string | Buffer> = { "review.html": enhanceNewsReviewHtml(html) };
   for (const sample of content.voiceCatalog?.samples ?? [])
     files[`voices/${sample.key}/sample.wav`] = sample.audio;

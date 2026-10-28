@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readContentEpisode } from "./contracts.js";
 import { hash } from "./digest.js";
+import { handleWritingApi } from "./editorial/api.js";
+import type { WritingManager } from "./editorial/manager.js";
 import { buildLibrary } from "./library.js";
 import { type LocalActionManager, parseLocalAction } from "./local-actions.js";
 import { pronounce } from "./media/audio.js";
@@ -33,6 +35,7 @@ export interface ProductionJobState {
 }
 
 export interface ApiOptions {
+  editorial?: WritingManager;
   localActions?: LocalActionManager;
   privateVoiceToken?: string;
   onLibraryUpdated?: (newDirectory: string) => void | Promise<void>;
@@ -137,6 +140,21 @@ export async function handleApiRequest(
     sendJson(response, 403, { error: "Save changes from this local studio using JSON." });
     return true;
   }
+  if (
+    await handleWritingApi(request, response, url, {
+      ...(options.editorial ? { manager: options.editorial } : {}),
+      ...(options.privateVoiceToken ? { token: options.privateVoiceToken } : {}),
+      deviceBusy: () =>
+        Boolean(
+          options.localActions?.busy ||
+            productionStarting ||
+            (activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)),
+        ),
+      readBody: readJsonBody,
+      send: sendJson,
+    })
+  )
+    return true;
   if (path === "/api/local-actions" || path.startsWith("/api/local-actions/")) {
     try {
       assertPrivateVoiceRequest(request, options.privateVoiceToken);
@@ -157,6 +175,7 @@ export async function handleApiRequest(
       try {
         const input = parseLocalAction(await readJsonBody(request, 4096));
         if (
+          options.editorial?.localBusy ||
           productionStarting ||
           (activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage))
         ) {
@@ -199,6 +218,7 @@ export async function handleApiRequest(
     await handleVoiceProfileApi(request, response, url, {
       ...(options.privateVoiceToken ? { token: options.privateVoiceToken } : {}),
       busy:
+        options.editorial?.localBusy ||
         options.localActions?.busy ||
         productionStarting ||
         (!!activeJob && !["READY", "FAILED", "BLOCKED"].includes(activeJob.stage)),
@@ -297,6 +317,7 @@ export async function handleApiRequest(
   // GET /api/status
   if (request.method === "GET" && path === "/api/status") {
     sendJson(response, 200, {
+      writingJob: options.editorial?.active ?? null,
       activeJob: activeJob
         ? {
             id: activeJob.id,
@@ -428,7 +449,7 @@ export async function handleApiRequest(
 
   // POST /api/audition
   if (request.method === "POST" && path === "/api/audition") {
-    if (options.localActions?.busy) {
+    if (options.localActions?.busy || options.editorial?.localBusy) {
       sendJson(response, 409, {
         error: "Wait for the current studio action to finish before auditioning another voice.",
       });
@@ -512,7 +533,7 @@ export async function handleApiRequest(
 
   // POST /api/produce
   if (request.method === "POST" && path === "/api/produce") {
-    if (options.localActions?.busy) {
+    if (options.localActions?.busy || options.editorial?.localBusy) {
       sendJson(response, 409, {
         error: "Wait for the current studio action to finish before producing a video.",
       });

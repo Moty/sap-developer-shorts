@@ -1142,3 +1142,20 @@ footer {
   font-size: 19px;
   line-height: 1.65;
 }
+
+.writing-editor-disclosure {
+  margin: 0 0 22px;
+  border: 1px solid #d3dfd6;
+  border-radius: 12px;
+  background: #fff;
+}
+.writing-editor-disclosure > summary {
+  cursor: pointer;
+  padding: 18px 22px;
+  font-weight: 700;
+  color: #245a47;
+}
+.writing-editor-disclosure .writing-panel {
+  border: 0;
+  margin: 0;
+}
