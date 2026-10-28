@@ -419,3 +419,12 @@ The signed preview remains labeled `notarized-preview` with
 pending confirmation of the public redistribution review. The running installed
 0.1.1 app and its workspace were left unchanged. Save edits and quit it before
 replacing it from this DMG; application data is retained by the update workflow.
+
+
+The draft was saved on GitHub at
+[0.1.2 installer draft](https://github.com/Moty/sap-developer-shorts/releases/edit/untagged-d5198d0869bf5321f22e)
+(owner access required). DMG/checksum upload is currently pending: the Edge
+ChatGPT extension blocks file upload until its “Allow access to file URLs” setting
+is enabled. No extension permission was changed. Both verified local files are
+under `desktop/out/`; the draft currently contains only automatic source archives.
+Public publishing remains pending the separate redistribution-review confirmation.
