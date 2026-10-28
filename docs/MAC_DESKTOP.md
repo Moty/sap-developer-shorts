@@ -103,8 +103,8 @@ Output:
 
 ```
 desktop/out/SAP Shorts-darwin-arm64/SAP Shorts.app
-desktop/out/SAP-Shorts-0.1.1-arm64-local-test.dmg
-desktop/out/SAP-Shorts-0.1.1-arm64-local-test.dmg.sha256
+desktop/out/SAP-Shorts-0.1.2-arm64-local-test.dmg
+desktop/out/SAP-Shorts-0.1.2-arm64-local-test.dmg.sha256
 desktop/out/build-report.json
 ```
 
@@ -130,7 +130,7 @@ DESKTOP_NOTARY_PROFILE="sap-shorts-notary" \
 npm run desktop:build -- --signed-preview
 ```
 
-This creates `SAP-Shorts-0.1.1-arm64-signed-preview.dmg` with Apple's signature and
+This creates `SAP-Shorts-0.1.2-arm64-signed-preview.dmg` with Apple's signature and
 notarization checks. Its manifest and build report retain `notarized-preview` and
 `redistributionReviewed: false`. Apple notarization does not grant redistribution
 rights for the bundled dependencies. In particular, the CAP demo currently bundles
@@ -369,3 +369,23 @@ Signed preview: `desktop/out/SAP-Shorts-0.1.1-arm64-signed-preview.dmg`
 Quit the installed app after saving current edits, replace it from the DMG, then
 reopen. Tests used separate workspaces; the currently running installed app is not
 silently replaced or restarted. Public redistribution review remains pending.
+
+
+## Desktop 0.1.2 — creator workspace facelift
+
+This release batches the source improvements since 0.1.1: story/version grouping,
+focused scene editing, shared episode navigation, a production checklist with
+actual progress and reload recovery, New short creation, voice/presenter libraries,
+and refreshed launcher/private-studio layouts. It also includes the accumulated
+writing/presentation assistance and flexible measured-audio timing policy.
+
+The packaged studio supports optional local Kokoro, personal Qwen narration and
+realistic Ditto portraits through the existing setup actions. Models remain
+separate downloads. Updating application code preserves saved scripts, model
+files, voice profiles, photos and produced videos in the desktop workspace.
+
+The source milestone passed 403 workflow tests, 14 desktop tests, five CAP demo
+checks, typecheck/build, content validation and verified studio ZIP packaging.
+Repository-wide CI is still blocked by pre-existing formatting issues documented
+in the UX handoff. Installer-specific signature, notarization and isolated-startup
+results are recorded with the final artifact after packaging.
