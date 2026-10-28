@@ -389,3 +389,33 @@ checks, typecheck/build, content validation and verified studio ZIP packaging.
 Repository-wide CI is still blocked by pre-existing formatting issues documented
 in the UX handoff. Installer-specific signature, notarization and isolated-startup
 results are recorded with the final artifact after packaging.
+
+
+### 0.1.2 signed preview verification — October 28, 2026
+
+The installer was built from source commit `1ee4ad5` (`v0.1.2-preview`). Apple
+accepted the app notarization (`24e818ec-d603-417e-b982-72fee33d5cff`) and DMG
+notarization (`c4933884-d3b7-47c6-9432-4ec9fec39a46`). Both tickets validated;
+Gatekeeper accepted both as **Notarized Developer ID**.
+
+The final DMG was mounted read-only and its app copied to a separate temporary
+folder. That copy started with an empty data directory and served the creator
+studio with HTTP 200. All 20 native binaries passed signature, secure timestamp,
+team and Hardened Runtime checks. The signer matched the selected newer Developer
+ID certificate. All 412 packaged seed/runtime files passed their checksums; the
+news seed matched committed content and excluded local drafts/private media.
+The bundled signed Node loaded Canvas, executed SQLite and passed all five CAP
+checks in the isolated managed workspace. No optional model install, voice/photo
+enrollment, actual episode render or online worker pairing was triggered.
+
+File: `SAP-Shorts-0.1.2-arm64-signed-preview.dmg` (346,876,010 bytes).
+
+```text
+916b96b9c552ed8b895927a12ebbaedd6ebcb4b41ad621f8d2f6abb47e0abcef
+```
+
+The signed preview remains labeled `notarized-preview` with
+`redistributionReviewed: false`. The GitHub release is prepared as a private draft
+pending confirmation of the public redistribution review. The running installed
+0.1.1 app and its workspace were left unchanged. Save edits and quit it before
+replacing it from this DMG; application data is retained by the update workflow.
