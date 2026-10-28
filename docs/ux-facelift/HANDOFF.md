@@ -4,6 +4,9 @@ Completed October 28, 2026 on `ux-facelift`. Read [BRIEF.md](BRIEF.md) for const
 and [ASTRA_COMPARISON.md](ASTRA_COMPARISON.md) for the independent baseline comparison.
 The user authorized continuing the remaining phases and opening a PR to `main`.
 No main merge or installer release is part of this continuation.
+PR: https://github.com/Moty/sap-developer-shorts/pull/1 (open). GitHub CLI's SAP
+Enterprise Managed User cannot create it; it was created through the user's
+existing personal GitHub browser session. No auth settings were changed.
 
 ## Delivered
 
@@ -43,6 +46,11 @@ and [PHASE3B.md](PHASE3B.md).
 - Typecheck and TypeScript build pass; content validate passes.
 - Scoped Biome checks all 39 changed source/test/UI files with no errors (one
   pre-existing private-app `noExplicitAny` warning). `git diff --check` passes.
+- GitHub's full `npm run check` is blocked at repository-wide lint by four
+  **pre-existing formatting errors**: `src/cli.ts` and `content/drafts/NEWS-03.json`,
+  `NEWS-04.json`, `NEWS-05.json`. These paths have no diff from `pre-ux-facelift`.
+  No failures are waived in the test suite; this is a separate baseline lint issue.
+  Content remains untouched under the brief's explicit data boundary.
 - Fresh local library build and verified portable ZIP pass. Evidence paths are in
   `.state/ux-facelift/audit/` (gitignored); no personal photos are committed.
 - Read-only CUA checks use **1440×1000** and **390×844**. Workspace, New short,
