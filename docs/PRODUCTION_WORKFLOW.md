@@ -30,7 +30,10 @@ configured with realistic rendering uses the installed [local portrait engine](L
 2. The normal verification stage creates a frozen technical/news source run.
 3. A matching local media job resumes or reuses completed output. New visual-only
    revisions can copy compatible verified speech into a separate package.
-4. Measured audio must last 45–60 seconds, with an opening at most three seconds.
+4. Measured audio must last **15–90 seconds**. The 45–60-second target,
+   three-second opening and individual scene budgets are guidance. Small overruns
+   do not block production; the timeline follows actual speech. For example,
+   55.5s total with a 3.04s opening is accepted. Audio/caption alignment remains strict.
 5. The selected narration is rendered to MP4 and checked for format, complete
    decoding, duration, and loudness.
 6. The refreshed studio must contain that same narration and matching MP4.

@@ -52,18 +52,24 @@ export async function handleWritingApi(
         await manager.start(await options.readBody(request, 128 * 1024), options.deviceBusy),
       );
     else {
-      const match = /^\/api\/editorial\/jobs\/([a-f0-9-]{36})(\/(?:cancel|proposal))?$/u.exec(path);
+      const match =
+        /^\/api\/editorial\/jobs\/([a-f0-9-]{36})(\/(?:cancel|proposal|preview))?$/u.exec(path);
       if (!match) send(404, { error: "Writing action not found." });
       else if (match[2] === "/cancel" && request.method === "POST")
         send(200, await manager.cancel(match[1] as string));
-      else if (match[2] === "/proposal" && request.method === "POST") {
+      else if (["/proposal", "/preview"].includes(match[2] ?? "") && request.method === "POST") {
         const body = (await options.readBody(request, 128 * 1024)) as { snapshot?: unknown };
         if (
           !body ||
           Object.keys(body).some((key) => !["snapshot", "selector", "sourceHash"].includes(key))
         )
           throw new Error("Use the current editor snapshot to apply a proposal.");
-        send(200, await manager.proposal(match[1] as string, body));
+        send(
+          200,
+          await (match[2] === "/preview"
+            ? manager.preview(match[1] as string, body)
+            : manager.proposal(match[1] as string, body)),
+        );
       } else if (!match[2] && request.method === "GET") {
         const job = await manager.get(match[1] as string);
         send(job ? 200 : 404, job ?? { error: "Writing request not found." });

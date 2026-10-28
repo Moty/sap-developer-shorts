@@ -30,6 +30,7 @@ import {
   writingContext,
   writingMessages,
 } from "../src/editorial/workflow.js";
+import { type PresentationDesign, parsePresentationDesign } from "../src/presentation-design.js";
 import { scriptEditorSeed } from "../src/script-editor.js";
 import { startPreviewServer } from "../src/serve.js";
 import { validatePresentationDefinition } from "../src/variants.js";
@@ -621,4 +622,64 @@ test("active requests retain their exact model when preferences are changed and 
   );
   const repaired = await f.manager.configure({ settings: settings() });
   assert.equal(repaired.settingsIssue, undefined);
+});
+
+test("presentation generation uses one completion, previews safely, and binds both wording and design before apply", async (t) => {
+  const episode = await readContentEpisode("CAP-01@casual-v2");
+  const design: PresentationDesign = {
+    schemaVersion: 1,
+    theme: "ocean",
+    motion: "snappy",
+    scenes: episode.scenes.map((scene) => ({
+      id: scene.id,
+      headline: scene.overlay,
+      emphasis: "evidence",
+    })),
+  };
+  const f = await fixture(t, async () => reply(design));
+  const input = await f.input("presentation");
+  const completed = await waitFor(f.manager, (await f.manager.start(input)).id);
+  assert.equal(completed.state, "SUCCEEDED");
+  assert.equal(completed.stages.length, 1);
+  assert.deepEqual(completed.result, design);
+  const context = {
+    selector: input.selector,
+    sourceHash: input.sourceHash,
+    snapshot: input.snapshot,
+  };
+  assert.deepEqual((await f.manager.proposal(completed.id, context)).proposal, design);
+  const preview = await f.manager.preview(completed.id, context);
+  assert.match(preview.html, /custom-design/);
+  assert.match(preview.html, /emphasis-evidence/);
+  assert.match(preview.html, /connect-src 'none'/);
+  assert.doesNotMatch(preview.html, new RegExp(fixtureKey));
+  assert.equal(
+    f.requests.filter((item) => item.url.endsWith("/chat/completions")).length,
+    1,
+    "preview never infers again",
+  );
+  await assert.rejects(
+    f.manager.proposal(completed.id, { ...context, snapshot: { ...input.snapshot, design } }),
+    /wording changed/,
+  );
+  const changed = structuredClone(input.snapshot);
+  const opening = changed.scenes[0];
+  assert.ok(opening);
+  opening.texts = ["A different opening question?"];
+  await assert.rejects(
+    f.manager.preview(completed.id, { ...context, snapshot: changed }),
+    /wording changed/,
+  );
+  for (const invalid of [
+    { ...design, html: "<script>bad()</script>" },
+    { ...design, theme: "external-url" },
+    { ...design, scenes: design.scenes.toReversed() },
+    { ...design, scenes: design.scenes.map((scene) => ({ ...scene, headline: "<img src=x>" })) },
+  ])
+    assert.throws(() =>
+      parsePresentationDesign(
+        invalid,
+        episode.scenes.map((scene) => scene.id),
+      ),
+    );
 });

@@ -28,6 +28,7 @@ import {
 import { validateNewsEpisode } from "./news/contracts.js";
 import { inside, projectRoot } from "./paths.js";
 import { episodeSelector, presentationLabel } from "./presentation.js";
+import { shortDurationAllowed } from "./timing-policy.js";
 import { renderVideo } from "./video/export.js";
 
 const exec = promisify(execFile);
@@ -349,16 +350,14 @@ export async function produce(
     await save();
     if (
       !Number.isFinite(narration.durationSeconds) ||
-      narration.durationSeconds < 45 ||
-      narration.durationSeconds > 60 ||
+      !shortDurationAllowed(narration.durationSeconds) ||
       !Number.isFinite(narration.hookSeconds) ||
-      narration.hookSeconds <= 0 ||
-      narration.hookSeconds > 3
+      narration.hookSeconds <= 0
     )
       throw new ProductionBlocked(
         "TIMING_REVIEW_REQUIRED",
-        `Video not produced: narration ${narration.durationSeconds.toFixed(1)}s; opening ${narration.hookSeconds.toFixed(2)}s. The video needs 45–60 seconds total and an opening of at most 3 seconds.`,
-        "Edit the opening or narration in this saved version, then produce again. Your voice, photo and recording remain saved.",
+        `Video not produced: narration ${narration.durationSeconds.toFixed(1)}s; opening ${narration.hookSeconds.toFixed(2)}s. The studio accepts 15–90 seconds total with valid measured audio. Opening and section lengths are flexible.`,
+        "Adjust the total narration length in this saved version, then produce again. Your voice, photo and recording remain saved.",
       );
     await enter("RENDER");
     const video = await stages.render(job.id);

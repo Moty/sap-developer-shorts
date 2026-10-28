@@ -212,6 +212,96 @@
         para(card, issue.suggestion);
         result.append(card);
       }
+    } else if (job.action === "presentation") {
+      para(result, "Presentation proposal · preview before applying", "h3");
+      para(
+        result,
+        `Theme: ${job.result.theme} · motion: ${job.result.motion}. Narration and evidence are retained.`,
+      );
+      const bridge = globalThis.shortsWritingEditor;
+      const matching =
+        editor &&
+        bridge?.context?.selector === job.selector &&
+        bridge?.context?.sourceHash === job.sourceHash;
+      let current;
+      try {
+        if (matching) current = bridge.snapshot();
+      } catch {
+        /* Recovery may still be pending. */
+      }
+      const currentDesignLabel = para(
+        result,
+        `Current design: ${current?.design ? `${current.design.theme} · ${current.design.motion}` : "automatic"}`,
+      );
+      const comparison = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = "Compare seven visual headlines";
+      comparison.append(summary);
+      for (const [index, scene] of job.result.scenes.entries()) {
+        const card = document.createElement("article");
+        para(card, `${index + 1}. ${scene.id} · ${scene.emphasis}`, "h3");
+        para(
+          card,
+          `Current: ${current?.design?.scenes[index]?.headline ?? current?.scenes[index]?.overlay ?? "Open the matching editor"}`,
+        );
+        para(card, `Proposed: ${scene.headline}`);
+        comparison.append(card);
+      }
+      result.append(comparison);
+      para(
+        result,
+        "Check visual headlines against the sources. Preview uses planned timing, with no new audio or captured result generated.",
+      );
+      if (matching) {
+        const preview = document.createElement("button");
+        preview.type = "button";
+        preview.textContent = "Preview proposed presentation";
+        const previewBox = document.createElement("div");
+        preview.addEventListener("click", async () => {
+          preview.disabled = true;
+          try {
+            const data = await request(`jobs/${job.id}/preview`, {
+              ...bridge.context,
+              snapshot: bridge.snapshot(),
+            });
+            const frame = document.createElement("iframe");
+            frame.title = "Proposed interactive presentation · planned timing";
+            frame.className = "writing-deck-preview";
+            frame.setAttribute("sandbox", "allow-scripts");
+            frame.srcdoc = data.html;
+            previewBox.replaceChildren(frame);
+          } catch (error) {
+            status(error.message);
+          } finally {
+            preview.disabled = applied;
+          }
+        });
+        const apply = document.createElement("button");
+        let applied = false;
+        apply.type = "button";
+        apply.textContent = "Apply presentation design";
+        apply.addEventListener("click", async () => {
+          apply.disabled = true;
+          try {
+            const snapshot = bridge.snapshot();
+            const data = await request(`jobs/${job.id}/proposal`, { ...bridge.context, snapshot });
+            bridge.applyDesign(data.proposal, snapshot);
+            applied = true;
+            currentDesignLabel.textContent = `Applied design: ${data.proposal.theme} · ${data.proposal.motion}`;
+            apply.textContent = "Design applied · save draft";
+            preview.disabled = true;
+            preview.textContent = "Save draft to keep this presentation";
+            status(
+              "Presentation design applied. Narration, voices, photos and sources retained. Use Save draft, then produce to include it in the video.",
+            );
+          } catch (error) {
+            status(error.message);
+          } finally {
+            apply.disabled = applied;
+          }
+        });
+        result.append(preview, apply, previewBox);
+      } else para(result, "Open this proposal’s matching script to preview or apply it.");
     } else {
       para(result, "Proposed wording · nothing applied yet", "h3");
       para(result, job.result.title);

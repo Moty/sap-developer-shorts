@@ -85,9 +85,6 @@ export function validateEpisode(value: unknown): Episode {
   for (const scene of value.scenes) {
     if (scene.startSeconds !== end) errors.push(`Scene ${scene.id} has a gap or overlap`);
     if (scene.endSeconds <= scene.startSeconds) errors.push(`Scene ${scene.id} has no duration`);
-    if (words(scene.narration) / (scene.endSeconds - scene.startSeconds) > 3) {
-      errors.push(`Scene ${scene.id} exceeds the draft limit of 180 spoken words/minute`);
-    }
     if (
       scene.visual.codePath &&
       !demos[value.demo.id].files.some((file) => file === scene.visual.codePath)
@@ -102,8 +99,6 @@ export function validateEpisode(value: unknown): Episode {
   ) {
     errors.push("Expected hook, context, three demo steps, payoff, and CTA in order");
   }
-  if ((value.scenes[0]?.endSeconds ?? 0) > 3) errors.push("Hook must finish within three seconds");
-  if (words(value.scenes[0]?.narration ?? "") > 7) errors.push("Hook must use at most seven words");
   for (const source of value.sources) {
     if (Date.parse(source.retrievedOn) > Date.now())
       errors.push(`Future source date: ${source.id}`);
@@ -148,7 +143,12 @@ export async function readEpisode(id: string): Promise<Episode> {
 export async function readContentEpisode(id: string): Promise<ContentEpisode> {
   if (id.endsWith(".json")) {
     const raw: unknown = JSON.parse(await readFile(resolve(projectRoot, id), "utf8"));
-    if (typeof raw === "object" && raw !== null && "format" in raw && (raw as { format: unknown }).format === "news") {
+    if (
+      typeof raw === "object" &&
+      raw !== null &&
+      "format" in raw &&
+      (raw as { format: unknown }).format === "news"
+    ) {
       const { validateNewsEpisode } = await import("./news/contracts.js");
       return validateNewsEpisode(raw);
     }

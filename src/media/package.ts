@@ -5,6 +5,7 @@ import { hash } from "../digest.js";
 import type { ContentEpisode } from "../domain.js";
 import { inside, sourceFile } from "../paths.js";
 import { readRuntimeFiles } from "../provenance.js";
+import { shortDurationAllowed, timingGuidance } from "../timing-policy.js";
 import { buildVtt, pronounce, readPcmWav, sampleRate, splitNarration } from "./audio.js";
 import { timingSpeakers } from "./local-voices.js";
 import type { MediaJob, NarrationTiming } from "./model.js";
@@ -165,8 +166,9 @@ export async function packageNarration(job: MediaJob): Promise<string> {
   const quality = {
     durationSeconds: duration,
     hookSeconds,
-    durationInRange: duration >= 45 && duration <= 60,
+    durationInRange: shortDurationAllowed(duration),
     hookWithinThreeSeconds: hookSeconds <= 3,
+    timingGuidance: timingGuidance(duration, hookSeconds),
     captions: timing.alignment ?? "measured-phrase-boundaries",
     narrator: {
       engine: timing.engine ?? "system",
@@ -236,10 +238,9 @@ export async function packageNarration(job: MediaJob): Promise<string> {
         "Captions follow measured phrase boundaries.",
         "Qwen captions use forced alignment; stock turns use model timing estimates.",
       );
-  const assessment =
-    quality.durationInRange && quality.hookWithinThreeSeconds
-      ? "Timing checks passed"
-      : "Timing needs editorial revision";
+  const assessment = quality.durationInRange
+    ? "Timing checks passed · opening and scene pacing are advisory"
+    : "Timing needs editorial revision";
   html = html.replace(
     '<div class="eyebrow">Scene by scene</div>',
     `<div class="eyebrow">${assessment} · local voice</div><p class="note">Stock presenter selected · $${(job.request.settings.pilotBudgetCents / 100).toFixed(2)} pilot limit · $0 spent on this local preview</p><div class="eyebrow">Scene by scene</div>`,

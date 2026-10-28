@@ -11,6 +11,78 @@ Save a revised script before opening its presentation. Unsaved editor text does
 not replace the saved version's deck. Existing MP4 files keep their original
 appearance until a new production runs.
 
+## Generate or enhance a presentation with a prompt
+
+In the local script editor, open **Writing & presentation assistant**. Choose the
+configured local Gemma/LM Studio or SAP Hyperspace model, describe the desired
+change, and choose **Generate / enhance presentation**. For example:
+
+> Use ocean colors and snappy motion. Make the opening headline curious, keep
+> middle scenes focused on code and evidence, and finish with a clear question.
+
+The model authors short visual headlines and chooses from three palettes
+(`electric`, `ocean`, `sunset`), three motion presets (`snappy`, `smooth`,
+`minimal`) and per-scene emphasis (`balanced`, `headline`, `evidence`). This is a
+bounded design system: the LLM does not generate executable HTML/CSS/JavaScript,
+invent charts, replace code, or author numeric results. Existing source cards,
+availability/scope labels and data interactions remain grounded in saved inputs.
+It complements the narration rather than replacing it with slide text.
+
+Use **Preview proposed presentation**, expand the seven-headline comparison, and
+choose **Apply presentation design** after review. The preview is an isolated,
+interactive planned deck, with no new speech, portrait animation or demo run.
+It does not claim to contain captured results that were never supplied. Preview
+does not make another LLM request. Apply changes editor state only; **Save draft**
+creates the version whose library deck and next MP4 use the design.
+
+A saved library deck also links back to **Enhance presentation with a prompt**.
+Further requests include the current design, so a user can ask for refinements.
+Applying a result checks the source, current wording and current design to avoid
+overwriting later edits. Voices, photos, pronunciation, companion posts, scene
+order and speaker turns remain intact. Design state participates in browser
+recovery, change review, download/import and version saving. **Use automatic
+presentation design** removes the override; old versions without a design retain
+the automatic renderer.
+
+The optional `presentation.design` contract is versioned independently of cloned
+voice schema versions. `feedSceneDesign()` resolves it for both renderers; visual
+headlines, palette, emphasis and entrance pace share that compiled direction.
+Motion follows scene-relative measured time when narration exists. Render hashes
+bind the complete episode, compiler and renderer sources. A new design gets a
+new video identity; compatible unchanged speech can be reused. Generated visual
+headlines are checked with export fonts and safe-area bounds before a proposal
+is offered or applied. Browser headings also fit their bounded area; code and
+evidence fonts remain unchanged.
+
+Hyperspace design generation uses one completion and requires the same explicit
+cost acknowledgment as other writing requests. Local writing does not fall back
+to Hyperspace. See [writing setup and privacy](WRITING_ENGINES.md). This UI is in
+the local studio; the Firebase hosted editor does not yet dispatch LLM design jobs.
+
+## Flexible short timing
+
+The studio accepts **15–90 seconds of measured audio**, with **45–60 seconds** as
+the preferred writing target. Individual scene budgets, a three-second opening,
+and seven hook words are recommendations. A 55.5-second episode with a
+3.04-second opening can proceed; production does not stretch or truncate speech
+to force each original slot. Audio samples, caption coverage, positive contiguous
+scene timing and MP4 frame/codec/decoding checks remain strict. Encoding has the
+existing 0.1-second tolerance.
+
+This is the application's editorial range, not a universal platform upload limit.
+LinkedIn's [sharing guide](https://content.linkedin.com/content/dam/help/linkedin/en-us/LinkedIn-Sharing-Guide.pdf)
+suggests 30 seconds to two minutes; [YouTube documents Shorts up to three minutes](https://support.google.com/youtube/answer/15424877?hl=en).
+The narrower studio range keeps these tutorials concise while accommodating real
+speech. Older blocked attempts within the new range are labeled ready to retry;
+restart an old rendering worker with updated source before retrying.
+
+Validation for this update: 324 Node 22 tests, 12 desktop tests, typecheck/build
+and the private UI build passed. Live local Gemma generated a valid design in
+27.3s (1,576 reported tokens); the original Flint instance was restored afterward.
+Live Hyperspace Gemini generated a valid design in 6.7s (2,062 reported tokens).
+These are integration observations, not an editorial-quality or pricing ranking.
+No installer was built or released for this source update.
+
 ## Renderer choice
 
 | Option | Role in this project |

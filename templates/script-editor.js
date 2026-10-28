@@ -50,7 +50,7 @@
         .scrollIntoView({ block: "start", behavior: "instant" });
   }
   const recoveryLimit = 128 * 1024;
-  const fieldIds = ["variant-name", "draft-title", "publication-text"];
+  const fieldIds = ["variant-name", "draft-title", "publication-text", "presentation-design"];
   for (const [index] of seed.presentation.speakers.entries())
     fieldIds.push(
       `speaker-voice-${index}`,
@@ -72,9 +72,43 @@
     else fieldIds.push(`narration-${index}`);
   }
   const rawFields = () => Object.fromEntries(fieldIds.map((id) => [id, byId(id).value]));
+  function cleanDesign(value) {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some(
+        (key) => !["schemaVersion", "theme", "motion", "scenes"].includes(key),
+      ) ||
+      value.schemaVersion !== 1 ||
+      !["electric", "ocean", "sunset"].includes(value.theme) ||
+      !["snappy", "smooth", "minimal"].includes(value.motion) ||
+      !Array.isArray(value.scenes) ||
+      value.scenes.length !== seed.scenes.length
+    )
+      throw new Error("Presentation design does not match this editor.");
+    for (const [index, scene] of value.scenes.entries())
+      if (
+        !scene ||
+        scene.id !== seed.scenes[index].id ||
+        Object.keys(scene).some((key) => !["id", "headline", "emphasis"].includes(key)) ||
+        typeof scene.headline !== "string" ||
+        !scene.headline.trim() ||
+        scene.headline.length > 48 ||
+        /[<>\p{Cc}]/u.test(scene.headline) ||
+        !["balanced", "headline", "evidence"].includes(scene.emphasis)
+      )
+        throw new Error("Presentation design has invalid scene content.");
+    return structuredClone(value);
+  }
+  const currentDesign = () =>
+    byId("presentation-design").value
+      ? cleanDesign(JSON.parse(byId("presentation-design").value))
+      : undefined;
   // The writer receives only these wording fields; media selections and private
   // profile metadata never enter its snapshot or its provider prompts.
   const writingSnapshot = () => ({
+    ...(currentDesign() ? { design: currentDesign() } : {}),
     title: byId("draft-title").value.trim(),
     scenes: seed.scenes.map((scene, index) => ({
       id: scene.id,
@@ -97,6 +131,19 @@
       if (!editorEnabled || pendingRecovery || saving)
         throw new Error("Finish draft recovery or saving before using the writing assistant.");
       return writingSnapshot();
+    },
+    applyDesign(proposal, expected) {
+      if (
+        !editorEnabled ||
+        pendingRecovery ||
+        saving ||
+        JSON.stringify(writingSnapshot()) !== JSON.stringify(expected)
+      )
+        throw new Error("Your script or design changed. Generate a new presentation proposal.");
+      const design = cleanDesign(proposal);
+      byId("presentation-design").value = JSON.stringify(design);
+      reviewedDraft = "";
+      update();
     },
     apply(proposal, expected) {
       if (
@@ -159,6 +206,14 @@
     text.length <= recoveryLimit && new TextEncoder().encode(text).byteLength <= recoveryLimit;
   function validFields(fields) {
     if (!fields || typeof fields !== "object" || Array.isArray(fields)) return false;
+    // Older text-only recovery records remain usable after adding presentation editing.
+    if (
+      !Object.hasOwn(fields, "presentation-design") &&
+      Object.keys(fields).length === fieldIds.length - 1
+    )
+      fields["presentation-design"] = seed.presentation.design
+        ? JSON.stringify(seed.presentation.design)
+        : "";
     if (Object.keys(fields).length !== fieldIds.length) return false;
     if (fieldIds.some((id) => !Object.hasOwn(fields, id) || typeof fields[id] !== "string"))
       return false;
@@ -307,6 +362,23 @@
         byId("draft-title").value = seed.title;
       },
       "draft-title",
+    );
+    section(
+      "Presentation design",
+      [
+        {
+          label: "Theme, motion and visual headlines",
+          before: JSON.stringify(seed.presentation.design ?? "Automatic", null, 2),
+          after: JSON.stringify(draft.presentation.design ?? "Automatic", null, 2),
+        },
+      ],
+      "Restore presentation design",
+      () => {
+        byId("presentation-design").value = seed.presentation.design
+          ? JSON.stringify(seed.presentation.design)
+          : "";
+      },
+      "presentation-design-reset",
     );
     const voiceLabel = (index, voice) =>
       Array.from(byId(`speaker-voice-${index}`).options).find(
@@ -536,6 +608,19 @@
     draft.title = byId("draft-title").value.trim();
     draft.publicationText = byId("publication-text").value.trim();
     const errors = [];
+    try {
+      const design = currentDesign();
+      if (design) draft.presentation.design = design;
+      else delete draft.presentation.design;
+      byId("presentation-design-status").textContent = design
+        ? `Custom presentation · ${design.theme} · ${design.motion} motion · ${design.scenes.length} visual headlines. Save draft to use this design in the deck and next video.`
+        : "Automatic presentation design. Use the Writing assistant to generate or enhance it with a prompt.";
+      byId("presentation-design-reset").disabled = !design;
+    } catch {
+      errors.push(
+        "Presentation design is invalid. Restore the automatic design or generate a new proposal.",
+      );
+    }
     for (const [index, speaker] of draft.presentation.speakers.entries()) {
       const original = voiceKey(seed.presentation.speakers[index].voice);
       const selected = byId(`speaker-voice-${index}`).value;
@@ -625,14 +710,15 @@
         problems.push("Use a headline of 1–48 characters.");
       if (!scene.narration || scene.dialogue?.some((turn) => !turn.text))
         problems.push("Every narration or speaker turn needs text.");
-      if (index === 0 && count > 7) problems.push("Keep the opening to seven words or fewer.");
+      const pacing = [];
+      if (index === 0 && count > 7) pacing.push("A shorter opening may land faster.");
       if (count > seconds * 3)
-        problems.push(
-          "Shorten this scene to stay within the draft pacing limit of 180 words per minute.",
+        pacing.push(
+          "This section may run longer than planned; production follows the actual speech.",
         );
       const warning = byId(`scene-${index}-warning`);
-      warning.textContent = problems.join(" ");
-      warning.hidden = !problems.length;
+      warning.textContent = [...problems, ...pacing].join(" ");
+      warning.hidden = !problems.length && !pacing.length;
       if (problems.length) errors.push(`Scene ${index + 1}: ${problems.join(" ")}`);
     }
     for (const [term, spoken] of Object.entries(activePronunciation)) {
@@ -655,7 +741,7 @@
       `${total} spoken words · ${scenes.at(-1).endSeconds}s planned · not yet recorded`;
     byId("draft-errors").textContent = errors.length
       ? errors.join(" ")
-      : "Ready to save a draft or produce a video.";
+      : "Ready to save or produce. Target 45–60s; measured totals of 15–90s are accepted. Section pacing is flexible.";
     const voiceSummary = byId("production-voice-summary");
     if (voiceSummary)
       voiceSummary.textContent = `Voices for this video: ${draft.presentation.speakers
@@ -690,6 +776,14 @@
     readDraft();
   };
   byId("editor-fields").addEventListener("input", update);
+  byId("presentation-design-reset").addEventListener("click", () => {
+    byId("presentation-design").value = "";
+    update();
+  });
+  if (location.hash === "#presentation") {
+    const assistant = document.querySelector?.(".writing-editor-disclosure");
+    if (assistant) assistant.open = true;
+  }
   byId("editor-fields").addEventListener("change", update);
   document.addEventListener?.("shorts:voices-ready", update);
   addEventListener("shorts-local-action-complete", (event) => {

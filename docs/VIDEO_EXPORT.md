@@ -51,7 +51,7 @@ and refuses redirected cache directories. See [SQLite transaction behavior](http
 
 The work directory retains frames and diagnostic logs for inspection. Saved
 caption files must exactly match the validated narration timing. Ready receipts
-require actual successful decode/audio flags, a finite 45–60.1-second video, and
+require actual successful decode/audio flags, a finite 15–90.1-second video (including encoding tolerance), and
 duration within 0.1 seconds of the selected narration. Invalid media is excluded
 from studio/package readiness. Preserve the source run, narration package, and
 export together when backing up. The standalone review page provides downloads

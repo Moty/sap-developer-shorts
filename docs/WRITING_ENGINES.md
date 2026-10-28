@@ -1,10 +1,10 @@
 # Writing engines: local Gemma and SAP Hyperspace AI
 
 Implemented October 27, 2026 for the **local studio and desktop source build**.
-This is an optional writing assistant for existing source-backed scripts. It
-suggests three angles, proposes revised narration/headlines, and reviews wording
-and source alignment. It does not automatically research new sources, change
-the visual plan, generate speech, render a video, or publish anything.
+This is an optional writing and presentation assistant for existing source-backed
+scripts. It suggests angles, proposes narration/headlines, reviews wording/source
+alignment, and creates or enhances a visual design from a user prompt. It does
+not automatically research new sources, generate speech, render a video, or publish anything.
 
 ## Configure it in the UI
 
@@ -16,9 +16,11 @@ the visual plan, generate speech, render a video, or publish anything.
 4. Use **Check connection & refresh models**, choose an advertised chat model,
    and **Save writing preference**. Model IDs are preserved exactly, including
    suffixes such as `[1m]`. Embedding/speech models cannot be used as writers.
-5. Open a short's editor, choose **Script**, and expand **Writing assistant**.
+5. Open a short's editor, choose **Script**, and expand **Writing & presentation assistant**.
    Select a wording style and, optionally, a concrete direction. Choose
-   **Suggest 3 angles**, **Draft / rewrite script**, or **Review current script**.
+   **Suggest 3 angles**, **Draft / rewrite script**, **Review current script**, or
+   **Generate / enhance presentation**. For a design, enter a visual direction,
+   preview the proposal, compare its headlines, and **Apply presentation design**.
 6. Compare a rewrite with the current title, headlines and narration, then choose
    **Apply wording to this editor**. Review it and use the existing **Save draft**
    action when ready. Applying wording alone does not save or produce an episode.
@@ -62,7 +64,7 @@ maintain a copied model list or choose an expensive model automatically.
 
 The UI explains that the local gateway forwards text to a downstream service.
 **Every Hyperspace writing request requires an explicit cost acknowledgment**;
-the checkbox resets after submission. Ideas and reviews make one completion
+the checkbox resets after submission. Ideas, reviews and presentation designs make one completion
 request. Rewriting makes a draft and one correction request, so it can incur
 charges for two completions. There are no hidden inference retries or provider
 switches. The selected provider/model is frozen for each admitted job.
@@ -103,13 +105,15 @@ not evidence of speech-generation capability.
 ## Preservation and failure behavior
 
 - Proposals retain the seven existing scene IDs, order, timings and speaker-turn
-  slots. The model can author only a title, headlines and spoken words. Voices,
+  slots. Wording actions author only title/headlines/spoken words; presentation
+  actions author a validated design of visual headlines, palette, emphasis and motion. Voices,
   portraits, pronunciation, visual/code assets, claims, dates, version name and
   companion post stay intact. Rewrites undergo output checks and full episode
   validation before they can be applied.
-- Hooks, narration length and per-scene word budgets are writing checks, not
-  measured audio guarantees. Production still measures the selected voice and
-  can request a timing edit. Sources and technical scope still need human review.
+- Hooks and per-scene word budgets are advisory. Aim for 45–60 seconds, with
+  measured totals of **15–90 seconds** accepted. A 55.5-second narration with a
+  3.04-second opening passes this policy. Captions/scenes follow measured speech,
+  not the original scene budget. Invalid total duration still requires an edit. Sources and technical scope still need human review.
 - If correction fails validation or transport but the first draft was valid, the
   first proposal is kept with a visible warning. Explicit cancellation does not
   publish that intermediate result as a completed proposal.
@@ -176,7 +180,7 @@ These are integration checks, not a comparative quality ranking or pricing
 benchmark. Provider-reported token counts are retained as reported. No episode
 was saved, rendered or published by these live checks.
 
-Validation: all 318 Node 22 tests, 12 desktop tests, five live CAP checks,
+Validation: all 324 Node 22 tests, 12 desktop tests, five live CAP checks,
 TypeScript checking/build and content validation passed. Scoped Biome checks for
 all changed code passed. The repository-wide `npm run check` stops at pre-existing
 formatting/lint errors in news code/content and additional local user content;

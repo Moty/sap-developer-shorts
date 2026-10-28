@@ -13,6 +13,7 @@ import type { MediaRequest } from "../src/media/model.js";
 import { narrationIdentity } from "../src/media/reuse.js";
 import { productionSettings } from "../src/media/worker.js";
 import { projectRoot } from "../src/paths.js";
+import type { PresentationDesign } from "../src/presentation-design.js";
 import { createScriptEditor, scriptEditorSeed } from "../src/script-editor.js";
 import { importScript } from "../src/script-import.js";
 import { validatePresentationDefinition } from "../src/variants.js";
@@ -217,6 +218,12 @@ async function workshop(
   node("variant-name", payload.seed.presentation.variant);
   node("draft-title", payload.seed.title);
   node("publication-text", payload.seed.publicationText);
+  node(
+    "presentation-design",
+    payload.seed.presentation.design ? JSON.stringify(payload.seed.presentation.design) : "",
+  );
+  node("presentation-design-status");
+  node("presentation-design-reset");
   for (const [index, speaker] of payload.seed.presentation.speakers.entries()) {
     const select = node(`speaker-voice-${index}`, speaker.voice);
     const options = html.match(
@@ -331,6 +338,7 @@ async function workshop(
         shortsWritingEditor: {
           snapshot(): WritingSnapshot;
           apply(proposal: WritingProposal, expected: WritingSnapshot): void;
+          applyDesign(proposal: PresentationDesign, expected: WritingSnapshot): void;
         };
       }
     ).shortsWritingEditor,
@@ -387,7 +395,7 @@ test("the actual workshop script downloads validated solo/dialogue revisions and
   }
 });
 
-test("the actual workshop blocks duplicate/invalid names and overlong openings before download", async () => {
+test("the workshop blocks invalid names but allows an opening beyond its pacing guide", async () => {
   const ui = await workshop("CAP-02@quiz");
   for (const name of ["taken", "../../outside", "UpperCase"]) {
     ui.get("variant-name").value = name;
@@ -400,9 +408,9 @@ test("the actual workshop blocks duplicate/invalid names and overlong openings b
   ui.get("narration-0").value = "This opening has far too many words for the short.";
   ui.update();
   ui.download();
-  assert.equal(ui.get("download-script").disabled, true);
-  assert.match(ui.get("scene-0-warning").textContent, /seven words/u);
-  assert.equal(ui.downloads.length, 0);
+  assert.equal(ui.get("download-script").disabled, false);
+  assert.match(ui.get("scene-0-warning").textContent, /shorter opening/u);
+  assert.equal(ui.downloads.length, 1);
 });
 
 test("prepared scripts with no recording still get a workshop without claiming media readiness", async () => {
@@ -1252,4 +1260,37 @@ test("AI Apply rejects stale or malformed proposals atomically rather than overw
   last.texts.push("An extra speaker slot");
   assert.throws(() => ui.writingEditor.apply(broken, current), /speaker turns/u);
   assert.equal(ui.get("draft-title").value, current.title);
+});
+
+test("presentation proposals survive recovery/download/import while keeping voice, portrait and spoken script intact", async () => {
+  const storage = recoveryStorage();
+  const ui = await workshop("CAP-01@casual-v2", undefined, { storage });
+  ui.get("variant-name").value = "design-check";
+  ui.get("speaker-avatar-mode-0").value = "photo";
+  ui.get("speaker-avatar-image-0").value = "private-headshot.png";
+  const snapshot = ui.writingEditor.snapshot();
+  const design: PresentationDesign = {
+    schemaVersion: 1,
+    theme: "ocean",
+    motion: "smooth",
+    scenes: Array.from(snapshot.scenes, (scene) => ({
+      id: scene.id,
+      headline: scene.overlay,
+      emphasis: "headline",
+    })),
+  };
+  ui.writingEditor.applyDesign(design, snapshot);
+  assert.equal(ui.get("narration-1").value, snapshot.scenes[1]?.texts[0]);
+  assert.equal(ui.get("speaker-avatar-image-0").value, "private-headshot.png");
+  const reload = await workshop("CAP-01@casual-v2", undefined, { storage });
+  assert.deepEqual(JSON.parse(JSON.stringify(reload.writingEditor.snapshot().design)), design);
+  reload.download();
+  const draft = JSON.parse(reload.downloads.at(-1)?.parts.join("") ?? "null");
+  const checked = await validatePresentationDefinition(draft);
+  assert.deepEqual(checked.episode.presentation?.design, design);
+  assert.equal(checked.episode.presentation?.speakers[0]?.avatar?.imageId, "private-headshot.png");
+  assert.deepEqual(checked.episode.scenes, (await readContentEpisode("CAP-01@casual-v2")).scenes);
+  assert.throws(() => reload.writingEditor.applyDesign(design, snapshot), /changed/);
+  reload.restore("Restore presentation design");
+  assert.equal(reload.writingEditor.snapshot().design, undefined);
 });

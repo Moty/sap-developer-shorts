@@ -1109,3 +1109,70 @@ body.focus-presentation .playback-note {
 .scene-progress i {
   background: var(--scene-accent);
 }
+
+/* Custom text fits the same bounded headline area as the video compositor. */
+.custom-design h2 {
+  position: absolute;
+  left: 72px;
+  top: 180px;
+  width: 864px;
+  max-height: 200px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.custom-design.feed-hook h2,
+.custom-design.feed-closing h2 {
+  max-height: 360px;
+}
+.custom-design .flow-step {
+  padding: 18px;
+  grid-template-columns: 70px 1fr;
+  gap: 20px;
+}
+.custom-design .flow-step strong {
+  font-size: 34px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+/* Shared design presets; evidence content and mobile safe areas remain intact. */
+.reveal .slides > section.custom-design {
+  background: linear-gradient(150deg, var(--scene-surface), #081126 65%, #030715);
+}
+.custom-design.emphasis-headline h2 {
+  font-size: 98px;
+}
+.custom-design.emphasis-evidence h2 {
+  font-size: 68px;
+}
+.custom-design.emphasis-evidence:not(.feed-hook):not(.feed-closing) .slide-main {
+  top: 400px;
+  height: 920px;
+}
+.custom-design .transition-all {
+  transition-duration: var(--motion-duration);
+}
+.custom-design.present .flow-step {
+  animation-duration: var(--motion-duration);
+}
+
+.custom-design.feed-hook.emphasis-headline h2 {
+  font-size: 140px;
+}
+.custom-design.feed-hook.emphasis-evidence h2 {
+  font-size: 96px;
+}
+
+body.design-preview .presentation-workspace {
+  padding: 16px;
+}
+body.design-preview .presentation-heading,
+body.design-preview .presentation-inspector {
+  display: none;
+}
+body.design-preview .presentation-layout {
+  display: block;
+}
+body.design-preview .phone-stage {
+  height: min(560px, 72svh);
+}

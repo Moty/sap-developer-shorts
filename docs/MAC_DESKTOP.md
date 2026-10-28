@@ -324,8 +324,9 @@ link opens the version that owns the chosen voice and photo.
 A blocked job is labeled **Needs script edit** or **Setup needed**, and the editor
 explicitly says **Video not produced**. Timing results include measured total and
 opening duration, with a button to return to the opening. Narration completion is
-not treated as MP4 completion. The video still requires 45–60 seconds total and an
-opening of at most three seconds; a five-word title can take longer when it contains
+not treated as MP4 completion. Current source builds accept 15–90 seconds total; 45–60 seconds and a
+three-second opening are recommendations. Older installers may retain stricter
+rules. A five-word title can take longer when it contains
 dates and numbers. Shorten only the opening in a new revision when appropriate.
 
 Managed Python launchers are installed inside the desktop data directory rather

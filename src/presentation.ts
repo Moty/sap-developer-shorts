@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import type { ContentEpisode } from "./domain.js";
 import { assertVoiceReference, isClonedVoice, voiceIdentity } from "./media/voice-reference.js";
 import { projectRoot } from "./paths.js";
+import { parsePresentationDesign } from "./presentation-design.js";
 
 export const presentationFormats = [
   {
@@ -80,6 +81,11 @@ export function assertPresentation(episode: ContentEpisode): void {
     return;
   }
   const count = value.format === "dialogue" ? 2 : 1;
+  if (value.design !== undefined)
+    parsePresentationDesign(
+      value.design,
+      episode.scenes.map((scene) => scene.id),
+    );
   if (
     value.speakers.length !== count ||
     new Set(value.speakers.map((speaker) => speaker.id)).size !== count

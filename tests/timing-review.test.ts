@@ -10,12 +10,14 @@ test("existing narration diagnostics distinguish an overlong opening from overal
     hookSeconds: 3.4,
     hookTooLong: true,
     totalWithinRange: true,
+    canRetryWithoutEdit: true,
   });
   assert.deepEqual(narrationTimingReview(diagnostic("43.6", "1.0")), {
     durationSeconds: 43.6,
     hookSeconds: 1,
     hookTooLong: false,
-    totalWithinRange: false,
+    totalWithinRange: true,
+    canRetryWithoutEdit: true,
   });
 });
 test("unrelated failures and incomplete or invalid diagnostics keep normal retry behavior", () => {

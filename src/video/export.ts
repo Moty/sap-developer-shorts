@@ -20,6 +20,7 @@ import { inside, projectRoot, sourceFile } from "../paths.js";
 import { createPresentationDeck, presentationAssets } from "../presentation-deck.js";
 import { readRuntimeFiles } from "../provenance.js";
 import { escapeHtml as esc } from "../review.js";
+import { shortDurationAllowed } from "../timing-policy.js";
 import {
   acquireVideoGate,
   recoverVideoCache,
@@ -87,8 +88,7 @@ export function validateVideoProbe(probe: VideoProbe, expectedSeconds: number) {
     !Number.isFinite(duration) ||
     !Number.isFinite(videoDuration) ||
     !Number.isFinite(audioDuration) ||
-    duration < 45 ||
-    duration > 60.1 ||
+    !shortDurationAllowed(duration, 0.1) ||
     Math.abs(duration - expectedSeconds) > 0.1 ||
     Math.abs(Number(v.duration) - expectedSeconds) > 0.1 ||
     Math.abs(Number(a.duration) - expectedSeconds) > 0.1 ||
@@ -175,7 +175,7 @@ export async function renderVideo(
   const preview = entries[0]?.preview;
   if (preview?.kind !== "narrated" || !preview.timingReady || !preview.mediaJobId)
     throw new Error(
-      "Render needs a matching narrated preview that passes duration and opening checks. Run narrate first.",
+      "Render needs a matching narrated preview with 15–90 seconds of valid measured audio. Run narrate first.",
     );
   const sourceDirectory = inside(artifactRoot, preview.sourceRunId);
   const source = await loadVerifiedRun(sourceDirectory);

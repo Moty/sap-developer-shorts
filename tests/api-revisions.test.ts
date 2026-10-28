@@ -180,7 +180,7 @@ if (process.env.SHORTS_REVISION_TEST_CHILD !== "1") {
     };
     const entry = workflow.episodes.find((entry) => entry.selector === selector);
     assert.equal(entry?.stage, "editing");
-    assert.equal(entry?.label, "Needs script edit");
+    assert.equal(entry?.label, "Ready to retry");
     assert.equal(entry?.productionStage, "BLOCKED");
     assert.match(entry?.issue ?? "", /4.48s/);
     assert.deepEqual(JSON.parse(await readFile(file, "utf8")), persisted);

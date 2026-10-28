@@ -158,7 +158,7 @@ exports and checks the MP4, builds a studio, and serves it on an available port.
 Use **Casual revised → Watch MP4 → Download MP4** for the Gemini review.
 
 The earlier revision measured 47.7 seconds on the original Mac. New production
-must pass the measured 45–60-second duration and at-most-three-second hook checks;
+must have valid measured audio lasting 15–90 seconds; 45–60 seconds and a three-second hook are recommendations, with flexible scene lengths;
 tool versions and hardware can change the generated file. Listen to SAP terms,
 the command, and the transition to all three products. Captions retain normal
 API/npm/URL spelling; this revision has its own pronunciation overrides.

@@ -1,6 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { hash } from "../digest.js";
 import { inside } from "../paths.js";
+import { shortDurationAllowed } from "../timing-policy.js";
 
 export function assertVideoQuality(
   quality: unknown,
@@ -16,8 +17,7 @@ export function assertVideoQuality(
     value.audioChecked !== true ||
     typeof value.durationSeconds !== "number" ||
     !Number.isFinite(value.durationSeconds) ||
-    value.durationSeconds < 45 ||
-    value.durationSeconds > 60.1 ||
+    !shortDurationAllowed(value.durationSeconds, 0.1) ||
     (expectedDurationSeconds !== undefined &&
       (!Number.isFinite(expectedDurationSeconds) ||
         expectedDurationSeconds <= 0 ||

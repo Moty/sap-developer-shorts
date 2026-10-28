@@ -1287,9 +1287,7 @@ function editTimingReview(job: Data) {
   const timing = job.timingReview;
   const note = node(
     "p",
-    timing.hookTooLong
-      ? `This version's opening recorded at ${Number(timing.hookSeconds).toFixed(1)}s; the limit is 3s. Shorten the first spoken line, save, then produce the new version.`
-      : `The failed version recorded at ${Number(timing.durationSeconds).toFixed(1)}s; the target is 45–60s. Adjust the spoken narration, save, then produce the new version.`,
+    `This version recorded at ${Number(timing.durationSeconds).toFixed(1)}s. The accepted total is 15–90s, with 45–60s recommended. Opening and section pacing are flexible. Adjust the total narration if necessary, save, then produce.`,
     "voice-warning",
   );
   if (record.revision !== job.episodeRevision)
@@ -1311,7 +1309,15 @@ async function renderJobs(jobs: Data[]) {
         "span",
         job.title ?? (job.kind === "audition" ? "Voice audition" : "Episode production"),
       ),
-      node("span", job.timingReview ? "Needs script edit" : job.state, "badge"),
+      node(
+        "span",
+        job.timingReview
+          ? job.timingReview.canRetryWithoutEdit
+            ? "Ready to retry"
+            : "Needs script edit"
+          : job.state,
+        "badge",
+      ),
     );
     item.append(heading);
     item.append(
@@ -1340,25 +1346,25 @@ async function renderJobs(jobs: Data[]) {
       item.append(
         node(
           "p",
-          `Opening: ${Number(timing.hookSeconds).toFixed(1)}s (maximum 3s). Total: ${Number(timing.durationSeconds).toFixed(1)}s (${timing.totalWithinRange ? "within the 45–60s target" : "outside the 45–60s target"}).`,
+          `Opening: ${Number(timing.hookSeconds).toFixed(1)}s (three seconds is a guide). Total: ${Number(timing.durationSeconds).toFixed(1)}s (${timing.totalWithinRange ? "within the accepted 15–90s range" : "outside the accepted 15–90s range"}).`,
         ),
       );
       item.append(
         node(
           "p",
-          "Revise the spoken script, save, and produce the new version. Retrying unchanged wording can repeat this result.",
+          timing.canRetryWithoutEdit
+            ? "This earlier attempt used stricter timing rules. Retry with the updated rendering engine; no script edit is required."
+            : "Adjust total narration length, save, and produce the new version.",
           "muted",
         ),
       );
-      item.append(
-        action(
-          timing.hookTooLong ? "Edit opening" : "Edit narration",
-          () => editTimingReview(job),
-          "",
-        ),
-      );
+      if (!timing.canRetryWithoutEdit)
+        item.append(action("Edit narration", () => editTimingReview(job), ""));
     } else if (job.issue) item.append(node("p", job.issue));
-    if (!job.timingReview && ["FAILED", "CANCELLED"].includes(job.state))
+    if (
+      (!job.timingReview || job.timingReview.canRetryWithoutEdit) &&
+      ["FAILED", "CANCELLED"].includes(job.state)
+    )
       item.append(
         action("Retry with selected engine", async () => {
           await api(workspace(`jobs/${job.id}/retry`), { target: target() }, "POST", {

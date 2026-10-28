@@ -2,7 +2,7 @@
 export function narrationTimingReview(issue: unknown) {
   if (typeof issue !== "string") return null;
   const match =
-    /^Narration measured (\d+(?:\.\d+)?)s; opening (\d+(?:\.\d+)?)s\. Aim for 45–60s total and at most 3s for the opening\./u.exec(
+    /^Narration measured (\d+(?:\.\d+)?)s; opening (\d+(?:\.\d+)?)s\. (?:Aim for 45–60s total and at most 3s for the opening\.|The studio accepts 15–90s total\.)/u.exec(
       issue,
     );
   if (!match) return null;
@@ -13,6 +13,9 @@ export function narrationTimingReview(issue: unknown) {
     durationSeconds,
     hookSeconds,
     hookTooLong: hookSeconds > 3,
-    totalWithinRange: durationSeconds >= 45 && durationSeconds <= 60,
+    totalWithinRange: shortDurationAllowed(durationSeconds),
+    canRetryWithoutEdit: shortDurationAllowed(durationSeconds) && hookSeconds > 0,
   };
 }
+
+import { shortDurationAllowed } from "../timing-policy.js";

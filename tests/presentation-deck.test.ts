@@ -225,3 +225,95 @@ test("the feed comparison keeps the public CAP script and voice; the deck uses r
   assert.ok(files["presentation.html"].includes(episode.sources[0]?.url ?? "missing"));
   assert.match(files["presentation.html"], /<details class="code-interaction">/);
 });
+
+test("stored presentation designs drive matching deck/video headlines and preserve factual content", async () => {
+  const value = await input();
+  const base = await createPresentationDeck(value);
+  const { layout } = await readLayout();
+  const timing = { durationSeconds: 55, scenes: [], cues: [] } as unknown as NarrationTiming;
+  const moment = { startFrame: 20, endFrame: 21, sceneIndex: 2, cueIndex: null };
+  const before = await drawVideoFrame({ ...value, timing, layout }, moment);
+  value.episode.presentation ??= {
+    tone: "professional",
+    format: "explainer",
+    humor: "none",
+    speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+  };
+  value.episode.presentation.design = {
+    schemaVersion: 1,
+    theme: "sunset",
+    motion: "minimal",
+    scenes: value.episode.scenes.map((scene) => ({
+      id: scene.id,
+      headline: `Focus: ${scene.overlay}`.slice(0, 48),
+      emphasis: "evidence",
+    })),
+  };
+  const plan = presentationPlan(value);
+  assert.equal(plan.scenes[2]?.title, value.episode.presentation.design.scenes[2]?.headline);
+  assert.equal(feedSceneDesign(value.episode, 2).headline, plan.scenes[2]?.title);
+  assert.deepEqual(plan.scenes[2]?.code, JSON.parse(base["presentation.json"]).scenes[2].code);
+  const deck = await createPresentationDeck(value);
+  assert.match(deck["presentation.html"], /custom-design/);
+  assert.equal(sceneMotion(value.episode, timing, 2, 300).enter, 1);
+  assert.notEqual(hash(before), hash(await drawVideoFrame({ ...value, timing, layout }, moment)));
+  assert.deepEqual(plan.sources, value.episode.sources);
+});
+
+test("wide accepted visual headlines fit export and repeated story cards at readable sizes", async () => {
+  const { assertPresentationDesignFits } = await import("../src/video/frames.js");
+  const value = await input();
+  value.episode.presentation = {
+    tone: "professional",
+    format: "explainer",
+    humor: "none",
+    speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+    design: {
+      schemaVersion: 1,
+      theme: "ocean",
+      motion: "minimal",
+      scenes: value.episode.scenes.map((scene) => ({
+        id: scene.id,
+        headline: "WWW integration: WWW modules meet WWW middleware",
+        emphasis: "headline",
+      })),
+    },
+  };
+  await assertPresentationDesignFits(value.episode);
+  const { layout } = await readLayout();
+  const timing = { durationSeconds: 55, scenes: [], cues: [] } as unknown as NarrationTiming;
+  for (const index of [0, 2])
+    await drawVideoFrame(
+      { ...value, timing, layout },
+      { startFrame: 20, endFrame: 21, sceneIndex: index, cueIndex: null },
+    );
+  // Exercise the hook's repeated story cards as well as the CAP diagram.
+  assert.ok(!isNewsEpisode(value.episode));
+  value.episode.claims = value.episode.claims.filter((claim) => claim.id !== "explicit-service");
+  await drawVideoFrame(
+    { ...value, timing, layout },
+    { startFrame: 20, endFrame: 21, sceneIndex: 0, cueIndex: null },
+  );
+});
+
+test("presentation fit guards reject text that would overflow smaller numbered story cards", async () => {
+  const { assertPresentationDesignFits } = await import("../src/video/frames.js");
+  const episode = await readContentEpisode("NEWS-01");
+  episode.presentation = {
+    tone: "professional",
+    format: "explainer",
+    humor: "none",
+    speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+    design: {
+      schemaVersion: 1,
+      theme: "ocean",
+      motion: "minimal",
+      scenes: episode.scenes.map((scene) => ({
+        id: scene.id,
+        headline: "W".repeat(48),
+        emphasis: "headline",
+      })),
+    },
+  };
+  await assert.rejects(assertPresentationDesignFits(episode), /story headline is too wide/);
+});

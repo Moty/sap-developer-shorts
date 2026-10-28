@@ -8,7 +8,8 @@ const pilot = await readEpisode("CAP-01");
 test("the backlog retains thirty tutorials and adds a separate SAP news collection", async () => {
   const { topics, newsTopics, episodes } = await validateContent();
   assert.equal(topics.length, 30);
-  assert.equal(newsTopics.length, 6);
+  assert.ok(newsTopics.length >= 6);
+  assert.equal(new Set(newsTopics.map((topic) => topic.id)).size, newsTopics.length);
   assert.deepEqual(
     topics.filter((topic) => topic.status === "pilot-ready").map((topic) => topic.id),
     ["CAP-01", "CAP-02"],
@@ -37,7 +38,7 @@ test("a script cannot drop a required verification check", () => {
   assert.throws(() => validateEpisode(episode), /Missing demo check/);
 });
 
-test("timeline gaps, long hooks, and unspoken pauses are distinct from measured audio", () => {
+test("timeline gaps remain invalid while hook and per-scene pacing are advisory", () => {
   const episode = structuredClone(pilot);
   const context = episode.scenes[1];
   const hook = episode.scenes[0];
@@ -46,10 +47,10 @@ test("timeline gaps, long hooks, and unspoken pauses are distinct from measured 
   assert.throws(() => validateEpisode(episode), /gap or overlap/);
   context.startSeconds = 3;
   hook.narration = "This opening has far too many words for three seconds.";
-  assert.throws(() => validateEpisode(episode), /Hook must use at most seven words/);
+  assert.doesNotThrow(() => validateEpisode(episode));
   hook.narration = "Build an API.";
   context.narration = "This is a very long line that cannot fit in seven seconds. ".repeat(4);
-  assert.throws(() => validateEpisode(episode), /180 spoken words/);
+  assert.doesNotThrow(() => validateEpisode(episode));
 });
 
 test("code panels require a registered file and complete scene data", () => {

@@ -6,6 +6,7 @@ import { zipSync } from "fflate";
 import { hash } from "./digest.js";
 import { supportsKokoroVoice } from "./media/voices.js";
 import { projectRoot } from "./paths.js";
+import { shortTiming } from "./timing-policy.js";
 
 const maximumManifestBytes = 1024 * 1024;
 const maximumArtifacts = 4096;
@@ -229,7 +230,11 @@ function validateManifest(value: unknown) {
     if (Object.hasOwn(episode, "video")) {
       const video = shape(episode.video, ["renderKey", "durationSeconds"]);
       entry.renderKey = string(video.renderKey, digestPattern, "render key");
-      const videoDuration = number(video.durationSeconds, 45, 60.1);
+      const videoDuration = number(
+        video.durationSeconds,
+        shortTiming.minimum,
+        shortTiming.maximum + 0.1,
+      );
       check(
         preview.kind === "narrated" &&
           preview.timingReady === true &&

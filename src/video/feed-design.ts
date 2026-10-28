@@ -18,7 +18,7 @@ export function feedSceneDesign(episode: ContentEpisode, sceneIndex: number) {
               : isNewsEpisode(episode)
                 ? "news"
                 : "story";
-  const palette = {
+  const automaticPalette = {
     hook: { accent: "#dcff66", secondary: "#9c82ff", surface: "#1c2f70" },
     code: { accent: "#58e7ff", secondary: "#9c82ff", surface: "#102247" },
     result: { accent: "#dcff66", secondary: "#58e7ff", surface: "#143a39" },
@@ -26,6 +26,15 @@ export function feedSceneDesign(episode: ContentEpisode, sceneIndex: number) {
     closing: { accent: "#b7a4ff", secondary: "#58e7ff", surface: "#30265e" },
     story: { accent: "#58e7ff", secondary: "#dcff66", surface: "#102247" },
   }[kind];
+  const custom = episode.presentation?.design;
+  const direction = custom?.scenes[sceneIndex];
+  const palette = !custom
+    ? automaticPalette
+    : {
+        electric: { accent: "#dcff66", secondary: "#9c82ff", surface: "#1c2f70" },
+        ocean: { accent: "#58e7ff", secondary: "#5ef0ba", surface: "#103d50" },
+        sunset: { accent: "#ffcb77", secondary: "#ff8e9e", surface: "#502542" },
+      }[custom.theme];
   const question = scene.narration
     .match(/[^.!?]*\?/gu)
     ?.at(-1)
@@ -35,6 +44,18 @@ export function feedSceneDesign(episode: ContentEpisode, sceneIndex: number) {
   return {
     kind,
     ...palette,
+    compilerVersion: "feed-design-v2",
+    custom: !!custom,
+    headline: direction?.headline ?? scene.overlay,
+    emphasis: direction?.emphasis ?? "balanced",
+    motion: custom?.motion ?? "smooth",
+    entranceSeconds: !custom
+      ? 0.5
+      : custom.motion === "snappy"
+        ? 0.3
+        : custom.motion === "minimal"
+          ? 0
+          : 0.8,
     topic: episode.id.split("-")[0] ?? "SAP",
     question: question ?? scene.overlay,
     serviceBridge: bridge,

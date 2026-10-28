@@ -1,5 +1,6 @@
 import type { ContentEpisode } from "../domain.js";
 import type { NarrationTiming } from "../media/model.js";
+import { feedSceneDesign } from "./feed-design.js";
 import { videoFps } from "./timeline.js";
 
 export function sceneMotion(
@@ -12,7 +13,8 @@ export function sceneMotion(
   if (!scene) throw new Error("Missing motion scene");
   const elapsed = Math.max(0, (frame + 0.5) / videoFps - scene.startSeconds);
   const duration = scene.endSeconds - scene.startSeconds;
-  const linear = Math.max(0, Math.min(1, elapsed / 0.5));
+  const entrance = feedSceneDesign(episode, sceneIndex).entranceSeconds;
+  const linear = entrance === 0 ? 1 : Math.max(0, Math.min(1, elapsed / entrance));
   const enter = 1 - (1 - linear) ** 3;
   return {
     elapsed,
@@ -24,7 +26,11 @@ export function sceneMotion(
 }
 export function storySteps(episode: ContentEpisode) {
   return episode.scenes
-    .map((scene, index) => ({ index, label: scene.overlay, phase: scene.phase }))
+    .map((scene, index) => ({
+      index,
+      label: feedSceneDesign(episode, index).headline,
+      phase: scene.phase,
+    }))
     .filter((scene) => ["demo", "headline", "payoff"].includes(scene.phase))
     .slice(0, 3);
 }

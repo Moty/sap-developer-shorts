@@ -45,6 +45,7 @@
   font-weight: 650;
 }
 .writing-panel select,
+.writing-panel textarea,
 .writing-panel input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
@@ -55,6 +56,14 @@
   font: inherit;
   color: inherit;
   box-sizing: border-box;
+}
+.writing-deck-preview {
+  width: 100%;
+  height: 800px;
+  border: 1px solid #b8cbc1;
+  border-radius: 12px;
+  margin-top: 18px;
+  background: #050914;
 }
 .writing-panel input[type="checkbox"] {
   width: auto;

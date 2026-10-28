@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { createCanvas, GlobalFonts, type SKRSContext2D } from "@napi-rs/canvas";
 import { hash } from "../digest.js";
 import { type ContentEpisode, type DemoEvidence, isNewsEpisode } from "../domain.js";
-import type { VideoLayout } from "../layout.js";
+import { readLayout, type VideoLayout } from "../layout.js";
 import { drawAvatarBadge, loadAvatarImage, resolveCueAnimation } from "../media/avatar.js";
 import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
@@ -174,6 +174,65 @@ function panel(
   context.fill();
 }
 
+function headlineTypography(
+  ctx: SKRSContext2D,
+  design: ReturnType<typeof feedSceneDesign>,
+  layout: VideoLayout,
+) {
+  const hero = design.kind === "hook" || design.kind === "closing";
+  const box = hero
+    ? { ...layout.headline, height: 360 }
+    : design.custom
+      ? { ...layout.headline, height: Math.min(200, layout.demo.y - layout.headline.y - 20) }
+      : layout.headline;
+  let size = hero
+    ? design.emphasis === "headline"
+      ? 140
+      : design.emphasis === "evidence"
+        ? 96
+        : 128
+    : design.emphasis === "headline"
+      ? 96
+      : design.emphasis === "evidence"
+        ? 68
+        : Math.max(80, layout.headline.fontSize);
+  const minimum = design.custom ? 48 : 56;
+  for (;;) {
+    ctx.font = `${size}px "Shorts Heading"`;
+    if (wrapVideoText(ctx, design.headline, box.width).length * size * 1.22 <= box.height)
+      return { box, size };
+    if (size <= minimum)
+      throw new Error(
+        "Presentation headline is too wide for readable video text. Use a shorter visual headline.",
+      );
+    size = Math.max(minimum, size - 2);
+  }
+}
+
+/** Check every model-authored headline using the exact export fonts and bounds. */
+export async function assertPresentationDesignFits(episode: ContentEpisode) {
+  if (!episode.presentation?.design) return;
+  await loadVideoFonts();
+  const { layout } = await readLayout();
+  const ctx = createCanvas(1080, 1920).getContext("2d");
+  episode.scenes.forEach((_, index) => {
+    headlineTypography(ctx, feedSceneDesign(episode, index), layout);
+  });
+  ctx.font = '34px "Shorts Heading"';
+  for (const step of storySteps(episode))
+    if (wrapVideoText(ctx, step.label, 680).length * 34 * 1.22 > 128)
+      throw new Error("Presentation step headline is too wide. Use a shorter visual headline.");
+  ctx.font = '30px "Shorts Heading"';
+  for (const [index, step] of storySteps(episode).entries())
+    if (
+      wrapVideoText(ctx, `${index + 1}. ${step.label}`, layout.demo.width - 104).length *
+        30 *
+        1.22 >
+      80
+    )
+      throw new Error("Presentation story headline is too wide. Use a shorter visual headline.");
+}
+
 import { createMotionTrack, sampleMotionTrack } from "../media/portrait-motion.js";
 import type { TalkingHeadSequence } from "../media/talking-head.js";
 
@@ -219,7 +278,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   const comic = episode.presentation?.tone === "comic";
   const design = feedSceneDesign(episode, moment.sceneIndex);
   const hero = design.kind === "hook" || design.kind === "closing";
-  const accent = comic ? "#ffd166" : design.accent;
+  const accent = comic && !design.custom ? "#ffd166" : design.accent;
   const gradient = ctx.createLinearGradient(0, 0, 1080, 1920);
   gradient.addColorStop(0, design.surface);
   gradient.addColorStop(0.58, "#081126");
@@ -228,7 +287,10 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   ctx.fillRect(0, 0, 1080, 1920);
   if (hero) {
     const band = ctx.createLinearGradient(0, 0, 1080, 1250);
-    band.addColorStop(0, design.kind === "hook" ? "#4738cd" : "#5a36aa");
+    band.addColorStop(
+      0,
+      design.custom ? design.surface : design.kind === "hook" ? "#4738cd" : "#5a36aa",
+    );
     band.addColorStop(1, "#12357b");
     ctx.fillStyle = band;
     ctx.beginPath();
@@ -239,7 +301,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     ctx.closePath();
     ctx.fill();
   }
-  const glowX = 850 + Math.sin(motion.elapsed * 0.35) * 75;
+  const glowX = 850 + (design.motion === "minimal" ? 0 : Math.sin(motion.elapsed * 0.35) * 75);
   const glow = ctx.createRadialGradient(glowX, 560, 10, glowX, 560, 650);
   glow.addColorStop(0, "#0e749030");
   glow.addColorStop(1, "#0e749000");
@@ -263,24 +325,12 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     "Shorts Heading",
     "brand",
   );
-  const headline = hero ? { ...layout.headline, height: 360 } : layout.headline;
-  let headlineSize = hero ? 128 : Math.max(80, layout.headline.fontSize);
-  const minimumHeadlineSize = 56;
-  for (;;) {
-    ctx.font = `${headlineSize}px "Shorts Heading"`;
-    if (
-      wrapVideoText(ctx, scene.overlay, headline.width).length * headlineSize * 1.22 <=
-        headline.height ||
-      headlineSize <= minimumHeadlineSize
-    )
-      break;
-    headlineSize -= 2;
-  }
+  const { box: headline, size: headlineSize } = headlineTypography(ctx, design, layout);
   ctx.save();
   ctx.globalAlpha = hero ? 0.9 + 0.1 * motion.enter : motion.opacity;
   text(
     ctx,
-    scene.overlay,
+    design.headline,
     { ...headline, y: headline.y + motion.offsetY },
     headlineSize,
     "#f8fafc",
@@ -302,7 +352,8 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     );
     ctx.restore();
   }
-  const box = layout.demo;
+  const box =
+    !hero && design.emphasis === "evidence" ? { ...layout.demo, y: 400, height: 910 } : layout.demo;
   if (!hero) {
     panel(ctx, box.x, box.y, box.width, box.height, "#0b1222");
     ctx.strokeStyle = "#25344c";
@@ -416,7 +467,12 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       if (spacious) {
         text(
           ctx,
-          String(Math.round(capture.value.length * Math.min(1, motion.elapsed / 0.65))),
+          String(
+            Math.round(
+              capture.value.length *
+                (design.motion === "minimal" ? 1 : Math.min(1, motion.elapsed / 0.65)),
+            ),
+          ),
           { x: body.x, y: y - 12, width: 230, height: 235 },
           188,
           accent,
@@ -608,7 +664,7 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     } else {
       let rowY = 735;
       for (const [index, step] of storySteps(episode).entries()) {
-        panel(ctx, 72, rowY, 864, 130, index % 2 ? "#393072" : "#173c75", 20);
+        panel(ctx, 72, rowY, 864, design.custom ? 156 : 130, index % 2 ? "#393072" : "#173c75", 20);
         text(
           ctx,
           String(index + 1).padStart(2, "0"),
@@ -620,13 +676,18 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
         text(
           ctx,
           step.label,
-          { x: 220, y: rowY + 26, width: 680, height: 90 },
+          {
+            x: 220,
+            y: rowY + (design.custom ? 10 : 26),
+            width: 680,
+            height: design.custom ? 128 : 90,
+          },
           34,
           "#f5f8ff",
           "Shorts Heading",
           "hook step",
         );
-        rowY += 156;
+        rowY += design.custom ? 170 : 156;
       }
     }
   } else if (design.kind === "closing") {

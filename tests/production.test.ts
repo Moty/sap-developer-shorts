@@ -102,6 +102,30 @@ test("visual-only production updates copy verified speech into an independent pa
   const planned = await createMediaJob(store, run.directory, provider, settings);
   assert.notEqual(planned.id, job.id);
   assert.equal(narrationIdentity(planned.request), narrationIdentity(job.request));
+  const styled = structuredClone(planned.request);
+  styled.episode.presentation = {
+    tone: "professional",
+    format: "explainer",
+    humor: "none",
+    speakers: [{ id: "narrator", name: "Narrator", voice: settings.localPreview.voice }],
+  };
+  const beforeDesign = narrationIdentity(styled);
+  styled.episode.presentation.design = {
+    schemaVersion: 1,
+    theme: "ocean",
+    motion: "snappy",
+    scenes: styled.episode.scenes.map((scene) => ({
+      id: scene.id,
+      headline: scene.overlay,
+      emphasis: "evidence",
+    })),
+  };
+  assert.equal(
+    narrationIdentity(styled),
+    beforeDesign,
+    "Design changes retain the identity of the spoken audio",
+  );
+
   const reused = await reuseCompletedNarration(store, planned.id, resolve(root, "copied"));
   assert.equal(reused.phase, "PACKAGE_PENDING");
   assert.equal(reused.audioReuse?.jobId, job.id);
@@ -262,7 +286,7 @@ test("production persists blocked preflight and timing outcomes without invoking
       preflight: async () => {},
       narration: async (checkpoint) => {
         await checkpoint(job);
-        return { job, durationSeconds: 62, hookSeconds: 2 };
+        return { job, durationSeconds: 91, hookSeconds: 2 };
       },
       render: async () => {
         throw new Error("Invalid timing must not be rendered");
@@ -273,7 +297,7 @@ test("production persists blocked preflight and timing outcomes without invoking
   assert.equal(timing.issue?.code, "TIMING_REVIEW_REQUIRED");
   assert.equal(timing.mediaJobId, job.id);
   assert.equal(timing.narrationDirectory, job.outputDirectory);
-  assert.equal(timing.durationSeconds, 62);
+  assert.equal(timing.durationSeconds, 91);
   assert.equal(timing.videoDirectory, null);
 });
 
@@ -362,4 +386,25 @@ test("ready production carries one explicit narration through MP4 and studio and
     JSON.parse(await readFile(resolve(report.directory, "production.json"), "utf8")),
     report,
   );
+});
+
+test("production accepts flexible openings and scene lengths across the short duration range", async (t) => {
+  const { root, job } = await fixture(t);
+  for (const durationSeconds of [15, 55.5, 62, 90]) {
+    let rendered = false;
+    const report = await produce("CAP-01", {
+      artifactRoot: root,
+      stages: {
+        preflight: async () => {},
+        narration: async () => ({ job, durationSeconds, hookSeconds: 3.04, reused: true }),
+        render: async (id) => {
+          rendered = true;
+          return { directory: "test-video", mediaJobId: id, reused: false };
+        },
+        library: async (id) => ({ directory: "test-library", mediaJobId: id }),
+      },
+    });
+    assert.equal(report.stage, "READY", report.issue?.message);
+    assert.equal(rendered, true);
+  }
 });

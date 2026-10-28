@@ -69,12 +69,18 @@ design and an interactive deck in the episode package.
 
 An optional [writing assistant](docs/WRITING_ENGINES.md) now suggests angles,
 rewrites existing scripts and provides editorial feedback. Configure **Writing
-engine** in the sidebar, then open **Writing assistant** in a script's editor.
+engine** in the sidebar, then open **Writing & presentation assistant** in a script's editor.
+It also generates or enhances presentation designs from a user prompt, with a
+preview before applying. Saved designs drive both the interactive deck and next MP4.
 Use local Gemma through LM Studio, or explicitly select SAP Hyperspace AI through
 its local LiteLLM proxy. Models, connection and secure key storage are managed in
 the UI. Each Hyperspace request requires acknowledgment of possible usage costs;
 there is no automatic remote fallback. Voice samples and portraits stay local.
 Review proposals before applying and saving them.
+
+Production accepts 15–90 seconds of measured audio. The 45–60-second target,
+three-second opening and individual scene timings are guidance; small overruns
+do not block a valid short. Captions and scenes follow actual speech.
 
 The [local comparison](docs/LOCAL_MODEL_WORKFLOW_RESULTS.md) explains the Gemma
 recommendation and remaining editorial limits. The [content quality audit](docs/CONTENT_QUALITY_REVIEW.md)

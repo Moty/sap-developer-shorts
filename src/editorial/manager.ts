@@ -7,6 +7,10 @@ import { hash } from "../digest.js";
 import { isNewsEpisode } from "../domain.js";
 import { withModelLock } from "../media/model-lock.js";
 import { validateNewsEpisode } from "../news/contracts.js";
+import { sourceFile } from "../paths.js";
+import { createPresentationDeck } from "../presentation-deck.js";
+import { parsePresentationDesign } from "../presentation-design.js";
+import { assertPresentationDesignFits } from "../video/frames.js";
 import { writingJobLease } from "./job-lock.js";
 import {
   type ChatResult,
@@ -184,7 +188,13 @@ export class WritingManager {
       jobs: [...this.jobs.values()]
         .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
         .slice(0, 12),
-      capabilities: { ideas: true, rewrite: true, scriptReview: true, proxySpeech: false },
+      capabilities: {
+        ideas: true,
+        rewrite: true,
+        presentation: true,
+        scriptReview: true,
+        proxySpeech: false,
+      },
     };
   }
   async configure(value: unknown) {
@@ -232,11 +242,11 @@ export class WritingManager {
     const job = this.jobs.get(id);
     if (
       job?.state !== "SUCCEEDED" ||
-      job.action !== "rewrite" ||
+      !["rewrite", "presentation"].includes(job.action) ||
       !job.result ||
       !("scenes" in job.result)
     )
-      throw new Error("This request has no ready rewrite proposal.");
+      throw new Error("This request has no ready proposal.");
     if (!value || typeof value !== "object" || Array.isArray(value))
       throw new Error("Use this script's editor to apply a proposal.");
     const body = value as { selector?: unknown; sourceHash?: unknown; snapshot?: unknown };
@@ -265,7 +275,57 @@ export class WritingManager {
       );
     const episode = await (this.options.readEpisode ?? readContentEpisode)(job.selector);
     validateWritingSnapshot(input, episode);
+    if (job.action === "presentation") {
+      const copy = structuredClone(episode);
+      copy.presentation = {
+        ...(copy.presentation ?? {
+          tone: "professional",
+          format: "explainer",
+          humor: "none",
+          speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+        }),
+        design: parsePresentationDesign(
+          job.result,
+          copy.scenes.map((scene) => scene.id),
+        ),
+      };
+      await assertPresentationDesignFits(copy);
+    }
     return { proposal: structuredClone(job.result) };
+  }
+  async preview(id: string, value: unknown) {
+    const { proposal } = await this.proposal(id, value);
+    const job = await this.get(id);
+    if (job?.action !== "presentation")
+      throw new Error("Choose a presentation proposal to preview.");
+    const body = value as { snapshot: WritingInput["snapshot"] };
+    const original = await (this.options.readEpisode ?? readContentEpisode)(job.selector);
+    // Recheck the source after the await above; proposal may have been checked before a file changed.
+    if (hash(JSON.stringify(original)) !== job.sourceHash)
+      throw new Error("The saved source changed. Reopen the editor.");
+    const episode = applyWritingProposal(original, { ...body.snapshot });
+    const design = parsePresentationDesign(
+      proposal,
+      episode.scenes.map((scene) => scene.id),
+    );
+    episode.presentation = {
+      ...(episode.presentation ?? {
+        tone: "professional",
+        format: "explainer",
+        humor: "none",
+        speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+      }),
+      design,
+    };
+    const code: Record<string, string> = {};
+    for (const scene of episode.scenes)
+      if ("codePath" in scene.visual && scene.visual.codePath)
+        code[scene.visual.codePath] = await readFile(
+          await sourceFile(scene.visual.codePath),
+          "utf8",
+        );
+    const files = await createPresentationDeck({ episode, code, previewOnly: true });
+    return { html: files["presentation.html"] };
   }
   async cancel(id: string) {
     await this.initialize();
@@ -445,7 +505,7 @@ export class WritingManager {
           job.message =
             name === "correction"
               ? "Refining the spoken story with the same model…"
-              : `Generating ${input.action === "ideas" ? "three story angles" : input.action === "review" ? "editorial feedback" : "a conversational script"}…`;
+              : `Generating ${input.action === "ideas" ? "three story angles" : input.action === "review" ? "editorial feedback" : input.action === "presentation" ? "a presentation design" : "a conversational script"}…`;
           const started = performance.now();
           const receipt: WritingJob["stages"][number] = {
             name,
@@ -475,6 +535,25 @@ export class WritingManager {
                 const copy = applyWritingProposal(episode, result as WritingProposal);
                 if (isNewsEpisode(copy)) validateNewsEpisode(copy);
                 else validateEpisode(copy);
+                await assertPresentationDesignFits(copy);
+              }
+              if (input.action === "presentation") {
+                const copy = structuredClone(episode);
+                copy.presentation = {
+                  ...(copy.presentation ?? {
+                    tone: "professional",
+                    format: "explainer",
+                    humor: "none",
+                    speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+                  }),
+                  design: parsePresentationDesign(
+                    result,
+                    copy.scenes.map((scene) => scene.id),
+                  ),
+                };
+                if (isNewsEpisode(copy)) validateNewsEpisode(copy);
+                else validateEpisode(copy);
+                await assertPresentationDesignFits(copy);
               }
               receipt.checks =
                 "Structure and wording limits passed; factual/editorial approval still required.";
@@ -541,9 +620,11 @@ export class WritingManager {
       job.message =
         input.action === "rewrite"
           ? "Proposal ready. Review the wording and sources before applying it; nothing was saved or rendered."
-          : input.action === "review"
-            ? "Editorial feedback ready. This reviews text, not audio/video or verified product availability."
-            : "Three story angles ready. Choose one to guide a rewrite of these existing scenes.";
+          : input.action === "presentation"
+            ? "Presentation proposal ready. Preview it before applying; narration, sources and media stay unchanged."
+            : input.action === "review"
+              ? "Editorial feedback ready. This reviews text, not audio/video or verified product availability."
+              : "Three story angles ready. Choose one to guide a rewrite of these existing scenes.";
     } catch (error) {
       if (signal.aborted) {
         job.state = "CANCELED";

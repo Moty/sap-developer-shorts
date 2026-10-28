@@ -769,6 +769,7 @@ test("timing failures link to the frozen script revision without changing its na
     hookSeconds: 3.4,
     hookTooLong: true,
     totalWithinRange: true,
+    canRetryWithoutEdit: true,
   });
   const current = (await f.service.list(f.context, "episodes")).find(
     (item) => item.id === draft.id,

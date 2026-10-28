@@ -102,7 +102,7 @@ export async function executeAssignment(
               Number.isFinite(item.durationSeconds) &&
               Number.isFinite(item.hookSeconds)
             )
-              timingIssue = `Narration measured ${Number(item.durationSeconds).toFixed(1)}s; opening ${Number(item.hookSeconds).toFixed(1)}s. Aim for 45–60s total and at most 3s for the opening. Revise the spoken script, save, and produce again.`;
+              timingIssue = `Narration measured ${Number(item.durationSeconds).toFixed(1)}s; opening ${Number(item.hookSeconds).toFixed(1)}s. The studio accepts 15–90s total. Adjust total narration length, save, and produce again. Opening and section lengths are flexible.`;
           } catch {}
         }
       });

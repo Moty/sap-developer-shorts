@@ -197,12 +197,12 @@
           "startSeconds": {
             "type": "number",
             "minimum": 0,
-            "maximum": 60
+            "maximum": 90
           },
           "endSeconds": {
             "type": "number",
             "exclusiveMinimum": 0,
-            "maximum": 60
+            "maximum": 90
           },
           "narration": {
             "type": "string",

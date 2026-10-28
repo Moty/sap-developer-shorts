@@ -1,6 +1,7 @@
 (() => {
   const plan = JSON.parse(document.getElementById("presentation-data").textContent);
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduced =
+    matchMedia("(prefers-reduced-motion: reduce)").matches || plan.design?.motion === "minimal";
   document.documentElement.dataset.reducedMotion = String(reduced);
   const deck = new Reveal(document.querySelector(".reveal"), {
     view: "slide",
@@ -16,8 +17,19 @@
     progress: false,
     hash: false,
     transition: reduced ? "none" : "fade",
-    transitionSpeed: "default",
-    autoAnimateDuration: reduced ? 0 : 0.5,
+    transitionSpeed:
+      plan.design?.motion === "snappy"
+        ? "fast"
+        : plan.design?.motion === "smooth"
+          ? "slow"
+          : "default",
+    autoAnimateDuration: reduced
+      ? 0
+      : plan.design?.motion === "snappy"
+        ? 0.3
+        : plan.design?.motion === "smooth"
+          ? 0.8
+          : 0.5,
     autoAnimateEasing: "ease-out",
     keyboard: true,
     touch: true,
@@ -247,7 +259,19 @@
       slide.querySelector("[data-counter]").textContent = String(visible);
     });
   }
+  function fitVisualHeadline(slide) {
+    if (!plan.design || !slide) return;
+    const heading = slide.querySelector("h2");
+    const limit =
+      slide.classList.contains("feed-hook") || slide.classList.contains("feed-closing") ? 360 : 200;
+    let size = Number.parseFloat(getComputedStyle(heading).fontSize);
+    while (heading.scrollHeight > limit && size > 48) {
+      size = Math.max(48, size - 2);
+      heading.style.fontSize = `${size}px`;
+    }
+  }
   deck.on("slidechanged", (event) => {
+    fitVisualHeadline(slides[event.indexh]);
     if (!automaticNavigation) {
       stop();
       const scene = plan.scenes[event.indexh];
@@ -261,7 +285,10 @@
   window.addEventListener("pagehide", stop);
   deck
     .initialize()
-    .then(() => update(0))
+    .then(() => {
+      fitVisualHeadline(slides[0]);
+      update(0);
+    })
     .catch(() => {
       status.textContent =
         "The presentation could not initialize. Read the script and sources, or reload the local studio.";

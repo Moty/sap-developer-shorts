@@ -34,6 +34,7 @@ import { inside, projectRoot, sourceFile } from "./paths.js";
 import { episodeSelector, episodeSourceFiles } from "./presentation.js";
 import { createPresentationDeck, presentationAssets } from "./presentation-deck.js";
 import { readRuntimeFiles } from "./provenance.js";
+import { shortDurationAllowed } from "./timing-policy.js";
 import { assertVideoQuality, readVideoReceipt } from "./video/receipt.js";
 
 export interface LibraryPreview {
@@ -190,7 +191,8 @@ export async function collectLibrary(
           previews.push({
             kind: "narrated",
             durationSeconds: timing.durationSeconds,
-            timingReady: timing.durationSeconds >= 45 && timing.durationSeconds <= 60 && hook <= 3,
+            timingReady:
+              shortDurationAllowed(timing.durationSeconds) && Number.isFinite(hook) && hook > 0,
             sourceRunId: candidate.name,
             sourceManifestHash: run.manifestHash,
             mediaJobId: job.name,

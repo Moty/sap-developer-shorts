@@ -14,6 +14,7 @@ import { hasClonedVoices, isClonedVoice } from "./media/voice-reference.js";
 import { kokoroVoices } from "./media/voices.js";
 import { latestProduction, type ProductionReport, produce } from "./production.js";
 import { savePresentation } from "./script-import.js";
+import { shortDurationAllowed } from "./timing-policy.js";
 import {
   readWorkflowManifest,
   updateWorkflow,
@@ -263,7 +264,9 @@ export async function handleApiRequest(
                   : report?.issue?.code === "TIMING_REVIEW_REQUIRED" &&
                       typeof report.durationSeconds === "number" &&
                       typeof report.hookSeconds === "number"
-                    ? `Video not produced: narration ${report.durationSeconds.toFixed(1)}s; opening ${report.hookSeconds.toFixed(2)}s. Aim for 45–60 seconds total and an opening of at most 3 seconds.`
+                    ? shortDurationAllowed(report.durationSeconds) && report.hookSeconds > 0
+                      ? `This earlier attempt stopped on the old timing limits. ${report.durationSeconds.toFixed(1)}s total and a ${report.hookSeconds.toFixed(2)}s opening are accepted now. Produce again to retry.`
+                      : `Video not produced: narration ${report.durationSeconds.toFixed(1)}s. Accepted total: 15–90 seconds. Opening and section lengths are flexible.`
                     : report?.issue?.message;
             return {
               selector: entry.selector,
@@ -273,7 +276,10 @@ export async function handleApiRequest(
                 ? {
                     label:
                       report.issue?.code === "TIMING_REVIEW_REQUIRED"
-                        ? "Needs script edit"
+                        ? typeof report.durationSeconds === "number" &&
+                          shortDurationAllowed(report.durationSeconds)
+                          ? "Ready to retry"
+                          : "Needs script edit"
                         : "Setup needed",
                   }
                 : {}),

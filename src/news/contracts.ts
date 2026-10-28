@@ -91,8 +91,6 @@ export function validateNewsEpisode(
     const duration = scene.endSeconds - scene.startSeconds;
     if (scene.startSeconds !== end || duration <= 0)
       errors.push(`Scene ${scene.id} has a gap, overlap, or no duration`);
-    if (scene.narration.trim().split(/\s+/u).length / duration > 3)
-      errors.push(`Scene ${scene.id} exceeds 180 spoken words/minute`);
     for (const id of scene.claimIds) {
       if (!claimIds.has(id)) errors.push(`Scene ${scene.id} references unknown claim ${id}`);
     }
@@ -119,11 +117,6 @@ export function validateNewsEpisode(
     "hook,context,headline,headline,headline,payoff,cta"
   )
     errors.push("News needs hook, context, three headlines, takeaway, and CTA");
-  if (
-    (value.scenes[0]?.endSeconds ?? Infinity) > 3 ||
-    (value.scenes[0]?.narration.trim().split(/\s+/u).length ?? Infinity) > 7
-  )
-    errors.push("News hook must fit three seconds and seven words");
   if (errors.length) throw new Error(errors.join("\n"));
   return value;
 }

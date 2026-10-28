@@ -1,4 +1,5 @@
 import type { VoiceReference } from "./media/voice-reference.js";
+import type { PresentationDesign } from "./presentation-design.js";
 export interface Source {
   id: string;
   title: string;
@@ -36,6 +37,7 @@ export interface SpeakerAvatarConfig {
 }
 
 export interface Presentation {
+  design?: PresentationDesign;
   variant?: string;
   tone: "professional" | "casual" | "comic";
   format: "explainer" | "dialogue" | "myth-fact" | "countdown" | "story" | "quiz";

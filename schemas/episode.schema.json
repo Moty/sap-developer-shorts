@@ -27,8 +27,8 @@
     },
     "targetDurationSeconds": {
       "type": "number",
-      "minimum": 45,
-      "maximum": 60
+      "minimum": 15,
+      "maximum": 90
     },
     "environment": {
       "type": "object",
@@ -149,12 +149,12 @@
           "startSeconds": {
             "type": "number",
             "minimum": 0,
-            "maximum": 60
+            "maximum": 90
           },
           "endSeconds": {
             "type": "number",
             "exclusiveMinimum": 0,
-            "maximum": 60
+            "maximum": 90
           },
           "narration": {
             "type": "string",
@@ -290,6 +290,31 @@
         "variant": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9-]{0,31}$"
+        },
+        "design": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "theme", "motion", "scenes"],
+          "properties": {
+            "schemaVersion": { "const": 1 },
+            "theme": { "enum": ["electric", "ocean", "sunset"] },
+            "motion": { "enum": ["snappy", "smooth", "minimal"] },
+            "scenes": {
+              "type": "array",
+              "minItems": 7,
+              "maxItems": 7,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "headline", "emphasis"],
+                "properties": {
+                  "id": { "type": "string", "minLength": 1 },
+                  "headline": { "type": "string", "minLength": 1, "maxLength": 48 },
+                  "emphasis": { "enum": ["balanced", "headline", "evidence"] }
+                }
+              }
+            }
+          }
         },
         "tone": {
           "enum": ["professional", "casual", "comic"]
