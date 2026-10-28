@@ -42,8 +42,13 @@ reviews and interrupted/failed production remain visible beside the next action.
    and exact-content validity checks are unchanged. Production validation and
    **Review changes** live in Produce video.
 
-The sticky top bar offers **Save draft**, current save/validation status and a
-continue action in every view. The left outline remains available on desktop;
+The sticky top bar offers **Save draft**, a single status line (a dot for the
+saved/unsaved state plus the draft check) and a **Next:** action that is labelled
+with the pane it opens (**Voice & portrait**, **Review & produce**, **AI content
+review**, **Produce**) and reads **Back to script** on the last view. It only
+navigates; producing a video is still done with the button in **Produce video**.
+Saved portraits appear by a readable name (for example **Moty headshot 2026**, or
+**Uploaded photo 1** for generated file names); the stored image is unchanged. The left outline remains available on desktop;
 on phones, **Episode sections** opens a drawer. Choosing an entry closes it;
 Escape dismisses it. **Sources** opens a separate evidence drawer with the saved
 source dates and claims. Navigation changes visibility only: fields, personal
@@ -198,6 +203,9 @@ unmodified files; validation logs and screenshots are saved locally under
 
 ## Browse a growing workspace
 
+A **New short** button tops the sidebar (top right of the header strip on phones). For now it
+opens Ideas → Official stories and focuses the article URL field.
+
 The sidebar switches between **My shorts**, **Ideas**, **Delivery styles**, and
 **Voice library**. Only the selected section is shown. Existing comparison,
 editor return and voice-library links still open their matching section; browser
@@ -214,7 +222,10 @@ page, use Previous/Next, or jump directly to a page at either end of the list.
 Result counts distinguish filtered matches from the complete library.
 
 Ideas separates official stories, staged drafts, the news backlog and tutorial
-ideas. Each collection has its own search, sort and page controls. New drafts
+ideas. Story cards show a five-step **fit** meter (High, Good or Low; the numeric
+score is in the tooltip). A story that already has a saved short or staged draft
+shows **Already a short · NEWS-06 · 8 versions** with an **Open** link and a
+secondary **New angle** button; only stories without one get **Start short**. Each collection has its own search, sort and page controls. New drafts
 open in the staged view even if its previous search would hide them. Story
 refreshes update the existing collection. Both the saved stock samples and the
 complete stock voice catalog are paged and searchable; personal recordings have

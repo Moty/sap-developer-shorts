@@ -397,9 +397,9 @@
   background: #fff;
 }
 .workspace-editor .narration-actions .audition-btn {
-  padding: 6px 9px;
+  padding: 7px 11px;
   margin: 8px 0 0;
-  font-size: 10px;
+  font-size: 12px;
   border-color: #dbe5d9;
   background: #f3f7f0;
 }
@@ -820,5 +820,51 @@
   .workspace-editor *,
   .workspace-editor *::after {
     transition-duration: 0s;
+  }
+}
+
+/* One status line: a dot for the save state, then the label and draft check. */
+.workspace-editor .studio-save-state {
+  display: flex;
+  flex: 0 1 300px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 6px;
+}
+.workspace-editor .studio-save-state::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9aa9a1;
+}
+.workspace-editor .studio-save-state[data-save-state="saved"]::before {
+  background: #2f9e6f;
+}
+.workspace-editor .studio-save-state[data-save-state="unsaved"]::before {
+  background: #d99a1e;
+}
+.workspace-editor .studio-save-state[data-save-state="saving"]::before {
+  background: #4f86c6;
+}
+.workspace-editor .studio-save-state small {
+  display: inline;
+  margin: 0;
+  font-size: 11px;
+  color: #6c7c75;
+}
+.workspace-editor .studio-save-state small:not(:empty)::before {
+  content: "·";
+  margin-right: 6px;
+}
+@media (max-width: 700px) {
+  .workspace-editor .studio-save-state {
+    justify-content: flex-start;
+    font-size: 10px;
+  }
+  .workspace-editor .studio-save-state small {
+    font-size: 10px;
   }
 }

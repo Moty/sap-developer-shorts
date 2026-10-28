@@ -264,6 +264,15 @@ test("expired news remains viewable with a recheck label while new media product
   assert.ok(String(files["review.html"]).includes("Saved preview · sources need rechecking"));
   assert.ok(String(files["review.html"]).includes("Saved media remains available."));
   assert.ok(String(files["episodes/NEWS-01/watch.html"]).includes("source recheck needed"));
+  const noticeCount = (html: string) =>
+    (html.match(/<section[^>]*data-news-review-notice/gu) ?? []).length;
+  // watch.html frames review.html, so only the framed page carries the dated notice.
+  assert.equal(noticeCount(String(files["episodes/NEWS-01/watch.html"])), 0);
+  assert.equal(noticeCount(String(files["episodes/NEWS-01/review.html"])), 1);
+  const workspace = String(files["review.html"]);
+  assert.match(workspace, /<a class="new-short-button" data-new-short href="#ideas">/u);
+  assert.doesNotMatch(workspace, /Explore ideas|Ideas &amp; SAP News Hub|Ideas & SAP News Hub/u);
+  assert.doesNotMatch(workspace, /YOUR CONTENT, FROM IDEA TO PUBLISHED/u);
 });
 
 test("a library is a portable hashed copy of validated previews and escapes titles", async (t) => {

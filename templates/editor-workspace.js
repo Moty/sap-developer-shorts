@@ -107,13 +107,13 @@
     const next = byId("editor-next");
     const label =
       state.step === "script"
-        ? "Continue to voice →"
+        ? "Next: Voice & portrait"
         : state.step === "voice"
-          ? "Review & produce →"
+          ? "Next: Review & produce"
           : state.view === "companion"
-            ? "Review the content →"
+            ? "Next: AI content review"
             : state.view === "ai-review"
-              ? "Ready to produce →"
+              ? "Next: Produce"
               : "Back to script";
     next.textContent = label;
     next.dataset.shortLabel =
@@ -126,7 +126,7 @@
             : state.view === "ai-review"
               ? "Produce"
               : "Script";
-    next.setAttribute("aria-label", label.replace(" →", ""));
+    next.setAttribute("aria-label", label);
     byId("editor-outline-toggle").setAttribute("aria-expanded", String(state.outline));
     byId("editor-evidence").hidden = !state.evidence;
     byId("editor-evidence-toggle").setAttribute("aria-expanded", String(state.evidence));
@@ -263,6 +263,26 @@
   const validation = byId("editor-validation-state");
   if (validation.textContent === "Draft checked · timing measured during production")
     validation.textContent = "Draft checked";
+  // The dot beside the status text mirrors the saved/unsaved state without changing the text.
+  const statusLine = saveState.parentElement;
+  function syncStatusDot() {
+    if (!statusLine?.dataset) return;
+    const text = saveState.textContent.trim();
+    statusLine.dataset.saveState = /^Saved/u.test(text)
+      ? "saved"
+      : /^Unsaved/u.test(text)
+        ? "unsaved"
+        : /^Saving/u.test(text)
+          ? "saving"
+          : "other";
+  }
+  syncStatusDot();
+  if (typeof MutationObserver === "function")
+    new MutationObserver(syncStatusDot).observe(saveState, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
   function navigateFragment() {
     let hash;
     try {

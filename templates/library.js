@@ -520,29 +520,92 @@
       }
     }
 
+    const escapeHtml = (value) =>
+      String(value ?? "").replace(
+        /[&<>"']/g,
+        (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+      );
+    // Keep in step with src/news/story-fit.ts.
+    const normalizeUrl = (url) => {
+      try {
+        const parsed = new URL(url);
+        return `${parsed.hostname.replace(/^www\./, "").toLowerCase()}${parsed.pathname.replace(/\/+$/, "")}`;
+      } catch {
+        return String(url).trim().toLowerCase();
+      }
+    };
+    const normalizeTitle = (title) =>
+      String(title)
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim();
+    const fitFor = (score) => {
+      const steps =
+        [
+          [160, 5],
+          [125, 4],
+          [90, 3],
+          [50, 2],
+        ].find(([minimum]) => score >= minimum)?.[1] ?? 1;
+      return { steps, label: steps >= 5 ? "High" : steps >= 3 ? "Good" : "Low" };
+    };
+    let existingShorts = [];
+    try {
+      const parsed = JSON.parse(newsGrid?.dataset?.existingShorts || "");
+      if (Array.isArray(parsed?.shorts)) existingShorts = parsed.shorts;
+    } catch {}
+    const svgIcon = (path) =>
+      `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${path}</svg>`;
+
     function renderStoryCard(story) {
       const card = document.createElement("article");
       card.className = "news-story-card";
       card.dataset.url = story.link;
       card.dataset.updated = story.publishedIso || "";
       card.dataset.score = String(story.relevanceScore || 0);
-      const scoreClass = story.relevanceScore >= 120 ? "high-score" : "med-score";
+      const score = Number(story.relevanceScore) || 0;
+      const fit = fitFor(score);
+      const fitText = `${fit.label} fit`;
+      const title = normalizeTitle(story.title || "");
+      const url = normalizeUrl(story.link);
+      const titleMatches = (item) =>
+        (!item.url || item.url === url) &&
+        (item.title === title ||
+          (item.truncated && title.startsWith(`${item.title} `)) ||
+          (item.truncated && item.title.length >= 58 && title.startsWith(item.title)));
+      const lookup = (items) => items.find(titleMatches) || items.find((item) => item.url === url);
+      const existing =
+        lookup(existingShorts.filter((item) => item.kind === "short")) ||
+        lookup(existingShorts.filter((item) => item.kind === "draft"));
       const tagsHtml = (story.categories || [])
         .slice(0, 3)
-        .map((c) => `<span class="tag-chip">${c}</span>`)
+        .map((c) => `<span class="tag-chip">${escapeHtml(c)}</span>`)
         .join("");
+      const pips = [1, 2, 3, 4, 5]
+        .map((step) => `<i${step <= fit.steps ? ' class="on"' : ""}></i>`)
+        .join("");
+      const existingLabel = existing
+        ? existing.kind === "draft"
+          ? `Already a short · ${existing.id} · staged draft`
+          : `Already a short · ${existing.id} · ${existing.versions} ${existing.versions === 1 ? "version" : "versions"}`
+        : "";
+      const badge = existing
+        ? `<div class="story-existing">${svgIcon('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>')}<span>${escapeHtml(existingLabel)}</span><a href="${escapeHtml(existing.href)}">Open</a></div>`
+        : "";
+      const action = existing
+        ? `<button type="button" class="create-short-from-news-btn secondary-action" data-url="${escapeHtml(story.link)}">New angle</button>`
+        : `<button type="button" class="create-short-from-news-btn primary-action" data-url="${escapeHtml(story.link)}">${svgIcon('<path d="M12 5v14M5 12h14"/>')}Start short</button>`;
 
       card.innerHTML = `
         <div class="story-meta">
-          <span class="score-badge ${scoreClass}">Score: ${story.relevanceScore}</span>
-          <span class="story-date">${story.publishedIso || ""}</span>
+          <span class="fit-meter" role="img" title="Fit score ${score}" aria-label="${fitText} for a short (score ${score})"><span class="fit-pips" aria-hidden="true">${pips}</span><span class="fit-label" aria-hidden="true">${fitText}</span></span>
+          <span class="story-date">${escapeHtml(story.publishedIso || "")}</span>
           <div class="story-tags">${tagsHtml}</div>
         </div>
-        <h4 class="story-title"><a href="${story.link}" target="_blank" rel="noreferrer">${story.title} ↗</a></h4>
-        <p class="story-angle"><strong>Suggested Angle:</strong> ${story.angleSuggestion || ""}</p>
-        <div class="story-card-actions">
-          <button type="button" class="create-short-from-news-btn primary-action" data-url="${story.link}">+ Create 55s Short Draft</button>
-        </div>
+        <h4 class="story-title"><a href="${escapeHtml(story.link)}" target="_blank" rel="noreferrer">${escapeHtml(story.title)} ↗</a></h4>
+        <p class="story-angle"><strong>Suggested angle:</strong> ${escapeHtml(story.angleSuggestion || "")}</p>
+        ${badge}
+        <div class="story-card-actions">${action}</div>
       `;
       return card;
     }
@@ -581,7 +644,7 @@
 
     async function createShortDraft(url, btn) {
       if (!url) return;
-      const originalText = btn ? btn.textContent : "";
+      const originalHtml = btn ? btn.innerHTML : "";
       if (btn) {
         btn.disabled = true;
         btn.textContent = "Synthesizing draft…";
@@ -632,10 +695,15 @@
       } finally {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = originalText;
+          btn.innerHTML = originalHtml;
         }
       }
     }
+
+    document.querySelector("[data-new-short]")?.addEventListener?.("click", () => {
+      // The workspace router shows Ideas → Official stories; focus once it has rendered.
+      setTimeout(() => customNewsUrl?.focus?.(), 0);
+    });
 
     scanNewsBtn?.addEventListener("click", refreshNewsStories);
 

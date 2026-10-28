@@ -1620,7 +1620,7 @@ button.produce-card-btn:disabled {
 }
 /* Workflow workspace: status, version and next action stay together. */
 .workflow-studio .studio-main {
-  padding: 40px 40px 24px;
+  padding: 28px 40px 24px;
   min-width: 0;
 }
 .workspace-heading {
@@ -1628,17 +1628,19 @@ button.produce-card-btn:disabled {
   justify-content: space-between;
   align-items: center;
   gap: 24px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 .workspace-heading h1 {
-  font-size: clamp(30px, 3vw, 42px);
-  letter-spacing: -1.4px;
-  margin: 8px 0;
+  font-size: clamp(24px, 2.2vw, 30px);
+  letter-spacing: -0.9px;
+  line-height: 1.15;
+  margin: 0 0 4px;
 }
 .workflow-studio .workspace-heading p:not(.eyebrow) {
   color: #53645c;
-  max-width: 580px;
-  line-height: 1.6;
+  max-width: 620px;
+  line-height: 1.5;
+  margin: 0;
 }
 .workflow-studio .episodes-section {
   margin-top: 0;
@@ -2107,10 +2109,7 @@ button.produce-card-btn:disabled {
   }
   .workspace-heading {
     display: block;
-    margin-bottom: 24px;
-  }
-  .workspace-heading .secondary-action {
-    margin-top: 8px;
+    margin-bottom: 16px;
   }
   .workflow-studio .workspace-heading p:not(.eyebrow) {
     font-size: 14px;
@@ -2355,20 +2354,26 @@ button.produce-card-btn:disabled {
   gap: 8px;
   margin-bottom: 10px;
 }
-.score-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-family: ui-monospace, monospace;
+.fit-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  color: #53645c;
 }
-.score-badge.high-score {
-  background: #d4f3e2;
-  color: #0d4a2b;
+.fit-pips {
+  display: inline-flex;
+  gap: 2px;
 }
-.score-badge.med-score {
-  background: #fef3c7;
-  color: #92400e;
+.fit-pips i {
+  width: 5px;
+  height: 12px;
+  border-radius: 2px;
+  background: #dce2d7;
+}
+.fit-pips i.on {
+  background: #285242;
 }
 .story-date {
   font-size: 11px;
@@ -2411,11 +2416,81 @@ button.produce-card-btn:disabled {
 .story-card-actions {
   margin-top: auto;
 }
+.story-existing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 0 14px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #e1e9d9;
+  color: #174233;
+  font-size: 12px;
+  font-weight: 650;
+}
+.story-existing span {
+  flex: 1;
+  min-width: 0;
+}
+.story-existing a {
+  color: #174233;
+  white-space: nowrap;
+}
 .story-card-actions button {
   width: 100%;
-  font-size: 12px;
+  min-height: 38px;
+  font-size: 13px;
   padding: 8px 12px;
   cursor: pointer;
+  gap: 6px;
+}
+.story-card-actions button.secondary-action {
+  background: #fff;
+  color: #244b3c;
+  border: 1px solid #c8d5c6;
+  border-radius: 7px;
+  font-weight: 650;
+}
+.story-card-actions button.secondary-action:hover {
+  background: #f2f3eb;
+}
+.new-short-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 22px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #285242;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.new-short-button:hover {
+  background: #1c4032;
+}
+.new-short-button:focus-visible {
+  outline: 2px solid #285242;
+  outline-offset: 2px;
+}
+.new-short-button + .nav-caption {
+  margin-top: 28px;
+}
+@media (max-width: 700px) {
+  .workflow-studio .studio-nav {
+    position: relative;
+  }
+  .workflow-studio .new-short-button {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    margin: 0;
+    min-height: 40px;
+    padding: 8px 14px;
+  }
 }
 
 /* Staged Drafts Section */

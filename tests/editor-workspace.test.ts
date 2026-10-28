@@ -217,15 +217,21 @@ test("focused navigation retains every field and DOM node across scenes, tools, 
     );
   }
   assert.equal(ui.id("presentation").open, true);
+  assert.equal(ui.id("editor-next").textContent, "Next: Voice & portrait");
   ui.id("step-voice").click();
   assert.equal(ui.id("voice-pane").hidden, false);
   assert.equal(ui.status().step, "voice");
+  assert.equal(ui.id("editor-next").textContent, "Next: Review & produce");
   ui.id("editor-next").click();
   assert.equal(ui.id("view-companion").hidden, false);
+  assert.equal(ui.id("editor-next").textContent, "Next: AI content review");
   ui.id("editor-next").click();
   assert.equal(ui.id("view-ai-review").hidden, false);
+  assert.equal(ui.id("editor-next").textContent, "Next: Produce");
   ui.id("editor-next").click();
   assert.equal(ui.id("view-produce").hidden, false);
+  assert.equal(ui.id("editor-next").textContent, "Back to script");
+  assert.equal(ui.id("editor-next").attributes.get("aria-label"), "Back to script");
   assert.equal(ui.id("view-companion").hidden, true);
   assert.ok(ui.status().reviews > 0);
   ui.id("step-script").click();
@@ -286,4 +292,20 @@ test("generated editor wires mounted scene cards, exclusive review views and a t
   assert.doesNotMatch(html, /id="editor-jump-target"/u);
   assert.match(html, /id="speaker-avatar-mode-0"/u);
   assert.match(html, /id="speaker-voice-1"/u);
+});
+
+test("editor actions use SVG icons and plain labels, and explain the disabled design reset", async () => {
+  const html = await createScriptEditor(await readContentEpisode("CAP-01@duo"));
+  assert.doesNotMatch(html, /🔊|▶ Preview/u);
+  assert.match(
+    html,
+    /class="audition-btn"[^>]*><svg class="action-icon"[^>]*>.*?<span>Hear this line<\/span>/su,
+  );
+  assert.match(html, /id="editor-next"[^>]*>Next: Voice &amp; portrait<\/button>/u);
+  assert.match(
+    html,
+    /id="presentation-design-reset" class="secondary-btn" aria-describedby="presentation-design-reset-hint"/u,
+  );
+  assert.match(html, /id="presentation-design-reset-hint" class="design-reset-hint"/u);
+  assert.match(html, /<div class="studio-save-state"><span id="editor-save-state" role="status">/u);
 });

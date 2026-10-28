@@ -12,6 +12,12 @@ import {
   enhanceNewsReviewHtml,
   newsReviewNotice,
 } from "./news/freshness.js";
+import {
+  findExistingShort,
+  indexExistingShorts,
+  type ShortSummary,
+  storyCardHtml,
+} from "./news/story-fit.js";
 import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationFormats, presentationLabel } from "./presentation.js";
 import { publishReview } from "./publish-review.js";
@@ -212,11 +218,47 @@ export async function createLibraryPages(
     initialStories = await fetchTopSapStories({ limit: 6 });
   } catch {}
 
+  const latestByEpisode = new Map<string, { entry: LibraryEntry; versions: number }>();
+  for (const entry of entries) {
+    if (!isNewsEpisode(entry.episode)) continue;
+    const known = latestByEpisode.get(entry.episode.id);
+    const stamp = (item: LibraryEntry) => item.updatedAt ?? item.preview?.updatedAt ?? "";
+    latestByEpisode.set(entry.episode.id, {
+      entry: known && stamp(known.entry) > stamp(entry) ? known.entry : entry,
+      versions: (known?.versions ?? 0) + 1,
+    });
+  }
+  const existingShorts = indexExistingShorts([
+    ...[...latestByEpisode.values()]
+      .sort((a, b) => a.entry.episode.id.localeCompare(b.entry.episode.id, "en", { numeric: true }))
+      .map(({ entry, versions }): ShortSummary => {
+        const prefix = `episodes/${encodeURIComponent(episodeSelector(entry.episode))}`;
+        return {
+          id: entry.episode.id,
+          title: entry.episode.title,
+          sourceUrls: entry.episode.sources.map((source) => source.url),
+          versions,
+          href: `${prefix}/${entry.video ? "publish.html" : "edit.html"}`,
+          kind: "short",
+        };
+      }),
+    ...stagedDrafts.map(
+      (draft): ShortSummary => ({
+        id: draft.id,
+        title: draft.title,
+        sourceUrls: draft.sources.map((source) => source.url),
+        versions: 1,
+        href: `#draft-${draft.id}`,
+        kind: "draft",
+      }),
+    ),
+  ]);
+
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self'; img-src 'self'; media-src 'self' blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">`;
   const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Workspace</title><style>${css}\n${voicePanelCss}\n${browserCss}\n${writingCss}</style></head><body class="workflow-studio">
 <a class="skip-link" href="#episodes">Skip to workspace</a>
-<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${entries.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#styles">Delivery styles</a><a data-workspace-link="voices" href="#voices">Voice library</a><a data-workspace-link="writing" href="#writing">Writing engine</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
-<main class="studio-main"><header class="workspace-heading"><div><p class="eyebrow">YOUR CONTENT, FROM IDEA TO PUBLISHED</p><h1 id="workspace-title">My shorts</h1><p id="workspace-description">Pick up a draft, review a video, or get your next short out into the world.</p></div><a class="secondary-action" href="#ideas">Explore ideas ↗</a></header>
+<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><a class="new-short-button" data-new-short href="#ideas"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>New short</span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${entries.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#styles">Delivery styles</a><a data-workspace-link="voices" href="#voices">Voice library</a><a data-workspace-link="writing" href="#writing">Writing engine</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
+<main class="studio-main"><header class="workspace-heading"><div><h1 id="workspace-title">My shorts</h1><p id="workspace-description">Find a draft, review a video, or pick up where you left off.</p></div></header>
 <aside id="studio-produce-banner" class="studio-produce-banner" hidden aria-live="polite"><div class="banner-content"><strong id="studio-produce-title">Producing video…</strong><p id="studio-produce-message"></p><div class="studio-progress-bar"><div id="studio-produce-progress" class="studio-progress-fill"></div></div><a id="studio-job-link" href="#episodes">Open working version</a></div></aside>
 <section id="episodes" class="episodes-section" data-workspace-view="episodes"><div class="pipeline-tabs" role="group" aria-label="Filter by stage"><button type="button" data-stage-filter="all" aria-pressed="true">All shorts <b>${entries.length}</b></button>${[
     ["editing", "Editing", entries.length - videos],
@@ -242,7 +284,7 @@ ${collectionTools(
   ],
   { search: false, size: 8 },
 )}<div class="list-caption"><p id="filter-status" role="status">${new Set(entries.map((entry) => entry.episode.id)).size} topics · ${entries.length} versions</p><span id="workflow-sync" role="status">Saved library · connecting to live status…</span></div><div class="episode-grid" id="shorts-list">${entries.map(card).join("")}</div><div id="no-episodes" class="empty-library" ${entries.length ? "hidden" : ""}><h3>No shorts in this view</h3><p>Choose another stage or clear your filters. Open Ideas in the sidebar to explore the backlog.</p><button type="button" id="reset-filters">Show all shorts</button></div>${collectionPages("shorts", "shorts", "bottom")}</section>
-<div class="workspace-resources"><section id="formats" class="formats-section" data-workspace-view="styles"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Storytelling formats</h2></div></div><p class="styles-intro">Set the tone to professional, casual, or comic. Explore prepared examples below; new deliveries start with a reviewed script.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section" data-workspace-view="ideas"><div class="section-heading"><div><p class="eyebrow">THE NEXT CONVERSATION</p><h2>Ideas & SAP News Hub</h2></div><span class="section-note">Live SAP intelligence & editorial backlog</span></div><nav class="idea-tabs" aria-label="Idea collections"><a href="#ideas" data-idea-tab="stories">Official stories</a><a href="#staged-drafts-section" data-idea-tab="drafts">Staged drafts <span id="drafts-count">${stagedDrafts.length}</span></a><a href="#curated-ideas" data-idea-tab="curated">News backlog</a><a href="#tutorial-ideas" data-idea-tab="tutorials">Tutorial ideas</a></nav><div class="news-hub-card" data-idea-panel="stories"><div class="news-hub-header"><div><div class="news-live-tag"><span class="live-pulse"></span> LIVE SAP SCANNER</div><h3>Official SAP News Stories (news.sap.com)</h3><p class="news-hub-sub">Scored for short-video suitability (Business AI, Joule, BTP, Cloud ERP). Click any story to draft a 55-second Short with 7 scenes, dated claims, and companion LinkedIn post copy.</p></div><div class="news-hub-actions"><button type="button" id="scan-news-btn" class="secondary-action">↻ Refresh Top Stories</button></div></div><form id="custom-news-form" class="custom-news-bar" action="javascript:void(0);"><label for="custom-news-url" class="sr-only">SAP article URL</label><input type="url" id="custom-news-url" placeholder="Paste any official SAP article URL (e.g. https://news.sap.com/2026/10/...)" required /><button type="submit" id="custom-news-submit" class="primary-action">Draft Short from URL</button></form><div id="news-status-msg" class="news-status-banner" hidden></div>${collectionTools(
+<div class="workspace-resources"><section id="formats" class="formats-section" data-workspace-view="styles"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Storytelling formats</h2></div></div><p class="styles-intro">Set the tone to professional, casual, or comic. Explore prepared examples below; new deliveries start with a reviewed script.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section" data-workspace-view="ideas"><nav class="idea-tabs" aria-label="Idea collections"><a href="#ideas" data-idea-tab="stories">Official stories</a><a href="#staged-drafts-section" data-idea-tab="drafts">Staged drafts <span id="drafts-count">${stagedDrafts.length}</span></a><a href="#curated-ideas" data-idea-tab="curated">News backlog</a><a href="#tutorial-ideas" data-idea-tab="tutorials">Tutorial ideas</a></nav><div class="news-hub-card" data-idea-panel="stories"><div class="news-hub-header"><div><div class="news-live-tag"><span class="live-pulse"></span> LIVE SAP SCANNER</div><p class="news-hub-sub">Stories from news.sap.com, scored for short-video fit. Starting a short drafts 7 scenes with dated claims and companion LinkedIn copy.</p></div><div class="news-hub-actions"><button type="button" id="scan-news-btn" class="secondary-action">↻ Refresh Top Stories</button></div></div><form id="custom-news-form" class="custom-news-bar" action="javascript:void(0);"><label for="custom-news-url" class="sr-only">SAP article URL</label><input type="url" id="custom-news-url" placeholder="Paste any official SAP article URL (e.g. https://news.sap.com/2026/10/...)" required /><button type="submit" id="custom-news-submit" class="primary-action">Draft Short from URL</button></form><div id="news-status-msg" class="news-status-banner" hidden></div>${collectionTools(
     "stories",
     "stories",
     [
@@ -250,16 +292,8 @@ ${collectionTools(
       ["recent", "Newest first"],
       ["title", "Title A–Z"],
     ],
-  )}<div id="live-news-grid" class="live-news-grid">${initialStories
-    .map(
-      (story) =>
-        `<article class="news-story-card" data-updated="${esc(story.publishedIso)}" data-score="${story.relevanceScore}" data-url="${esc(story.link)}"><div class="story-meta"><span class="score-badge ${story.relevanceScore >= 120 ? "high-score" : "med-score"}">Score: ${story.relevanceScore}</span><span class="story-date">${esc(story.publishedIso)}</span><div class="story-tags">${story.categories
-          .slice(0, 3)
-          .map((c) => `<span class="tag-chip">${esc(c)}</span>`)
-          .join(
-            "",
-          )}</div></div><h4 class="story-title"><a href="${esc(story.link)}" target="_blank" rel="noreferrer">${esc(story.title)} ↗</a></h4><p class="story-angle"><strong>Suggested Angle:</strong> ${esc(story.angleSuggestion)}</p><div class="story-card-actions"><button type="button" class="create-short-from-news-btn primary-action" data-url="${esc(story.link)}">+ Create 55s Short Draft</button></div></article>`,
-    )
+  )}<div id="live-news-grid" class="live-news-grid" data-existing-shorts="${esc(JSON.stringify(existingShorts))}">${initialStories
+    .map((story) => storyCardHtml(story, findExistingShort(existingShorts, story)))
     .join(
       "",
     )}</div>${collectionEnd("stories", "stories")}</div><div id="staged-drafts-section" class="staged-drafts-section" data-idea-panel="drafts"><div class="section-heading"><div><p class="eyebrow">READY TO PRODUCE</p><h2>Staged News Drafts</h2></div><span class="section-note">Drafts in content/drafts/ ready for review, LinkedIn copy, or production</span></div>${collectionTools(
@@ -337,14 +371,9 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="w
             : copied;
       }
     }
+    // The framed review.html already carries the dated source notice; do not repeat it here.
     files[`${prefix}/watch.html`] =
       `<!doctype html><html lang="en"><head>${head}<title>${esc(entry.episode.title)} · SAP Shorts</title><style>${css}</style></head><body class="watch-page"><header class="watch-header"><a href="../../review.html${studioReturnFragment(entry)}" class="back-link">← All episodes</a><div><strong>${esc(entry.episode.title)}</strong><span>${esc(presentationLabel(entry.episode))} · ${isNewsEpisode(entry.episode) ? `News · sources checked ${dateLabel(entry.episode.news.asOf)}` : "Tutorial · local demo evidence"}${entry.sourceReviewExpired ? " · source recheck needed" : ""}</span><span class="watch-narrator">${esc(recordedNarrator(entry))}${entry.preview.kind === "narrated" ? ` · ${entry.preview.durationSeconds.toFixed(1)}s` : ""}</span></div>${entry.video ? '<a class="watch-video-link" href="video/review.html">Watch MP4</a>' : ""}<a class="full-preview" href="review.html" target="_blank" rel="noreferrer">Open full preview ↗</a></header><iframe class="episode-frame" src="review.html" title="${esc(entry.episode.title)} episode review"></iframe></body></html>`;
-    if (isNewsEpisode(entry.episode))
-      files[`${prefix}/watch.html`] = decorateNewsReviewHtml(
-        String(files[`${prefix}/watch.html`]),
-        entry.episode.news,
-        entry.sourceReviewExpired,
-      );
   }
   return files;
 }

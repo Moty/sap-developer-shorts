@@ -25,7 +25,7 @@
     episodes: ["My shorts", "Find a draft, review a video, or pick up where you left off."],
     ideas: [
       "Ideas & SAP news",
-      "Explore official stories, staged drafts, and your editorial backlog.",
+      "Official SAP stories ranked for a short, plus your staged drafts and backlog.",
     ],
     styles: ["Delivery styles", "Explore storytelling formats and compare prepared examples."],
     voices: ["Voice library", "Manage your personal recordings and compare stock narrators."],

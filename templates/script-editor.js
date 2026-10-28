@@ -20,6 +20,35 @@
   let renderGlossaryUi = null;
   let refreshAvatarUi = () => {};
   const byId = (id) => document.getElementById(id);
+  const portraitLabels = (ids) => {
+    const labels = new Map();
+    const taken = new Set();
+    let uploads = 0;
+    for (const id of ids) {
+      const base = id.replace(/\.[a-z0-9]+$/iu, "");
+      let label;
+      if (/^(?:portrait-)?(?:[0-9a-f]{8}-[0-9a-f]{4}-|[0-9a-f]{12,}$)/iu.test(base))
+        label = `Uploaded photo ${++uploads}`;
+      else {
+        const cleaned = base.replace(/[-_.\s]+/gu, " ").trim();
+        label = cleaned ? cleaned[0].toUpperCase() + cleaned.slice(1) : id;
+      }
+      let unique = label;
+      for (let copy = 2; taken.has(unique); copy++) unique = `${label} (${copy})`;
+      taken.add(unique);
+      labels.set(id, unique);
+    }
+    return labels;
+  };
+  // Option values stay the stored file names; only the visible text is friendlier.
+  function labelPortraitOptions(select) {
+    const options = Array.from(select?.options ?? []).filter((option) => option.value);
+    const labels = portraitLabels(options.map((option) => option.value));
+    for (const option of options) {
+      option.textContent = labels.get(option.value);
+      option.title = option.value;
+    }
+  }
   const words = (text) => text.trim().split(/\s+/u).filter(Boolean).length;
   const download = byId("download-script");
   const status = byId("download-status");
@@ -388,6 +417,12 @@
     if (text !== undefined) node.textContent = text;
     return node;
   };
+  const iconSvg = (path) =>
+    `<svg class="action-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${path}</svg>`;
+  const speakerSvg = iconSvg(
+    '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
+  );
+  const closeSvg = iconSvg('<path d="M6 6l12 12M18 6 6 18"/>');
   function reviewChanges(draft) {
     const signature = JSON.stringify(draft);
     if (signature === reviewedDraft) return;
@@ -1248,7 +1283,9 @@
             if (val) activePronunciation[term] = val;
             update();
           });
-          const auditionBtn = element("button", "audition-term-btn", "🔊");
+          const auditionBtn = element("button", "audition-term-btn");
+          auditionBtn.innerHTML = speakerSvg;
+          auditionBtn.setAttribute("aria-label", `Audition ${term}`);
           auditionBtn.type = "button";
           auditionBtn.title = `Audition ${term}`;
           auditionBtn.addEventListener("click", () => {
@@ -1257,7 +1294,9 @@
             const sandboxPlayer = byId("sandbox-player");
             runAudition(spokenVal, 0, sandboxStatus, sandboxPlayer, auditionBtn);
           });
-          const removeBtn = element("button", "remove-term-btn", "✕");
+          const removeBtn = element("button", "remove-term-btn");
+          removeBtn.innerHTML = closeSvg;
+          removeBtn.setAttribute("aria-label", `Remove ${term}`);
           removeBtn.type = "button";
           removeBtn.title = `Remove ${term}`;
           removeBtn.addEventListener("click", () => {
@@ -1634,6 +1673,7 @@
           opts.push(opt);
         }
         selectEl.replaceChildren(...opts);
+        labelPortraitOptions(selectEl);
         selectEl.value = current;
       }
 
@@ -1656,6 +1696,9 @@
                 "Open through the local studio server to check the portrait renderer.";
           }
         });
+
+      for (const [index] of seed.presentation.speakers.entries())
+        labelPortraitOptions(byId(`speaker-avatar-image-${index}`));
 
       fetch("/api/avatars")
         .then((res) => (res.ok ? res.json() : { avatars: [] }))
@@ -1762,6 +1805,7 @@
                     const opt = element("option", "", avatarId);
                     opt.value = avatarId;
                     selectEl.append(opt);
+                    labelPortraitOptions(selectEl);
                   }
                   selectEl.value = avatarId;
                   loadedImages.delete(avatarId);
@@ -1865,6 +1909,7 @@
         const option = element("option", "", value);
         option.value = value;
         select.append(option);
+        labelPortraitOptions(select);
       }
     }
     for (const [index] of seed.presentation.speakers.entries()) {

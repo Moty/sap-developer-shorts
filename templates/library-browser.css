@@ -115,6 +115,28 @@
 .workflow-studio .workspace-resources {
   margin-top: 0;
 }
+.workflow-studio .workspace-resources > section {
+  padding-top: 0;
+  border-top: 0;
+}
+.workflow-studio .idea-tabs {
+  margin-top: 0;
+}
+@media (max-width: 700px) {
+  .workflow-studio .news-hub-card {
+    padding: 16px;
+  }
+  .workflow-studio .news-hub-header,
+  .workflow-studio .custom-news-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .workflow-studio .custom-news-bar input {
+    min-width: 0;
+    font-size: 16px;
+  }
+}
 .workflow-studio [data-workspace-view] {
   scroll-margin-top: 20px;
 }
