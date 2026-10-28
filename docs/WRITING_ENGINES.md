@@ -8,8 +8,10 @@ not automatically research new sources, generate speech, render a video, or publ
 
 ## Configure it in the UI
 
-1. Start the rebuilt local studio and open **Writing engine** in the sidebar.
-2. Choose **Local · LM Studio** or **SAP Hyperspace AI · LiteLLM**.
+1. Start the rebuilt local studio and open **Settings** in the sidebar (`review.html#settings`; the older `#writing`
+   link still works).
+2. Choose the **Local · LM Studio** card (Free) or the **SAP Hyperspace AI ·
+   LiteLLM** card (May incur cost).
 3. Expand **Connection & API key** to change the local service address. For
    Hyperspace, paste its proxy key and choose **Save setup & test connection**.
    The form clears the key after saving; it never reads the saved value back.
@@ -17,7 +19,10 @@ not automatically research new sources, generate speech, render a video, or publ
    and **Save writing preference**. Model IDs are preserved exactly, including
    suffixes such as `[1m]`. Embedding/speech models cannot be used as writers.
 5. Open a short's editor, choose **Script**, and expand **Writing & presentation assistant**.
-   Select a wording style and, optionally, a concrete direction. Choose
+   A status chip shows the saved engine and whether it is connected; use
+   **Change in Settings ↗** to switch. Request buttons stay disabled, with the
+   reason shown beneath them, until the engine is connected and, for Hyperspace,
+   you tick the per-request cost consent. Select a wording style and, optionally, a concrete direction. Choose
    **Suggest 3 angles**, **Draft / rewrite script**, **Review current script**, or
    **Generate / enhance presentation**. For a design, enter a visual direction,
    preview the proposal, compare its headlines, and **Apply presentation design**.
@@ -32,8 +37,7 @@ installed and running on the same Mac as the studio server.
 
 ## Response length and token budgets
 
-In **Writing engine** (or the editor's writing assistant), expand **Response
-length & model budgets**. Set separate maximum output-token budgets for ordinary
+In **Settings → Writing engine**, expand **Response length & model budgets**. Set separate maximum output-token budgets for ordinary
 writing and final review, then **Save writing preference**. New defaults are
 8,192 and 16,384 respectively. Older saved settings inherit those defaults until
 saved; their provider, model, endpoints and credentials are retained.

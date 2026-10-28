@@ -40,23 +40,44 @@
   function controls() {
     const remote = settings?.provider === "hyperspace";
     el("cost-row").hidden = !remote;
-    el("start").disabled =
-      !settings ||
-      busy ||
-      starting ||
-      !settings[settings.provider].model ||
-      (remote && !el("remote").checked);
+    const reason = !settings
+      ? "Connect a writing engine in Settings."
+      : !settings[settings.provider].model
+        ? "Choose a writing model in Settings."
+        : busy || starting
+          ? "A writing request is running. Wait for it to finish."
+          : remote && !el("remote").checked
+            ? "Tick the cost consent to use Hyperspace."
+            : "";
+    el("start").disabled = Boolean(reason);
+    el("hint").textContent = reason;
+    el("hint").hidden = !reason;
     el("cancel").hidden = !runningId;
     el("refresh").disabled = starting;
     const apply = document.getElementById("final-review-apply");
     if (apply) apply.disabled = !current || busy || starting;
   }
+  function paintEngine() {
+    const shared = globalThis.shortsWritingEngine;
+    if (!shared) return;
+    if (!settings) {
+      const { state, message } = shared.connection;
+      if (state !== "checking") shared.paint(el("engine"), { settings: null, state, message });
+      return;
+    }
+    const known = shared.connection.key === settingsHash;
+    shared.paint(el("engine"), {
+      settings,
+      state: known ? shared.connection.state : "unknown",
+      message: known ? shared.connection.message : "",
+    });
+  }
+  globalThis.shortsWritingEngine?.subscribe(paintEngine);
   function engine(data) {
     if (settingsHash !== data.settingsHash) el("remote").checked = false;
     settings = data.settings;
     settingsHash = data.settingsHash;
-    el("engine").textContent =
-      `${settings.provider === "local" ? "Local · LM Studio" : "SAP Hyperspace · possible usage cost"} · ${settings[settings.provider].model || "choose a model"}. Final-review budget: ${settings.outputTokens.finalReview === null ? "provider default · no app token cap" : `${settings.outputTokens.finalReview.toLocaleString()} tokens`}. Uses your saved writing preference.`;
+    paintEngine();
     controls();
   }
   function para(parent, value, tag = "p") {
@@ -260,7 +281,6 @@
     }
   });
   el("remote").addEventListener("change", controls);
-  el("settings").addEventListener("click", () => bridge().openWritingSetup());
   el("refresh").addEventListener("click", () => void refresh());
   el("cancel").addEventListener("click", async () => {
     if (!runningId) return;

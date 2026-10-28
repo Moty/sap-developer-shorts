@@ -53,7 +53,11 @@ reviews and interrupted/failed production remain visible beside the next action.
 1. **Script:** choose a scene in the left outline, then edit its headline and
    narration in a focused card. **Previous / Next scene** moves through the story
    without showing seven stacked forms. **Episode details** holds the title and
-   version name; **Writing & visuals** opens the writing/presentation assistant.
+   version name; **Writing & visuals** opens the writing/presentation assistant. It shows a status
+   chip for the saved engine (model · provider · Free or May incur cost ·
+   Connected) with a **Change in Settings ↗** link; engine, budgets and API key
+   are configured once in the workspace **Settings** (`review.html#settings`,
+   the older `#writing` link still works).
    On desktop, an on-screen text cue previews the current headline and narration.
    It is a text preview, not the rendered deck; **Open saved deck** shows that deck.
 2. **Voice & portrait:** choose local voices and a presenter. Mouth calibration

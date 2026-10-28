@@ -3,8 +3,12 @@
   if (!panel) return;
   const el = (id) => panel.querySelector(`#writing-${id}`);
   const editor = panel.dataset.writingMode === "editor";
+  // The editor only shows a status chip; engine choices live in the workspace Settings.
+  const setup = !editor;
   let settings = null;
+  let settingsHash = "";
   let connected = false;
+  let connection = { state: "checking", message: "Checking your writing engine…", key: "" };
   let running = false;
   let starting = false;
   let runningJobId = null;
@@ -18,6 +22,55 @@
   const status = (message) => {
     el("status").textContent = message;
   };
+  const providerName = (provider) =>
+    provider === "hyperspace" ? "SAP Hyperspace" : "Local · LM Studio";
+  const stateLabels = { connected: "Connected", offline: "Not connected", checking: "Checking…" };
+  function paintEngine(node, info) {
+    const items = node.querySelector("[data-engine-items]");
+    const note = node.querySelector("[data-engine-note]");
+    if (!items || !note) return;
+    const chip = (text, tone) => {
+      const item = document.createElement("span");
+      item.className = `writing-chip ${tone}`;
+      item.textContent = text;
+      return item;
+    };
+    node.dataset.state = info.state;
+    if (!info.settings)
+      items.replaceChildren(chip(info.message || "No writing engine yet", "is-muted"));
+    else {
+      const remote = info.settings.provider === "hyperspace";
+      const parts = [
+        chip(info.settings[info.settings.provider].model || "No model chosen", "is-model"),
+        chip(providerName(info.settings.provider), "is-provider"),
+        chip(remote ? "May incur cost" : "Free", remote ? "is-warn" : "is-free"),
+      ];
+      if (stateLabels[info.state]) parts.push(chip(stateLabels[info.state], `is-${info.state}`));
+      items.replaceChildren(...parts);
+    }
+    note.textContent = info.state === "connected" ? "" : info.message || "";
+  }
+  const listeners = new Set();
+  globalThis.shortsWritingEngine = {
+    paint: paintEngine,
+    get connection() {
+      return connection;
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+    },
+  };
+  function setConnection(state, message) {
+    connection = { state, message, key: settingsHash };
+    if (setup) el("connection").textContent = message;
+    for (const node of panel.querySelectorAll("[data-engine-chip], [data-engine-badge]")) {
+      if (node.hasAttribute("data-engine-badge")) {
+        node.textContent = stateLabels[state] ?? "Not available";
+        node.dataset.state = state;
+      } else paintEngine(node, { settings: settings ? choice() : null, state, message });
+    }
+    for (const listener of listeners) listener(connection);
+  }
   async function request(path, body) {
     const response = await fetch(
       `/api/editorial/${path}`,
@@ -40,6 +93,7 @@
   }
   function choice() {
     const value = structuredClone(settings);
+    if (!setup) return value;
     value.provider = el("provider").value;
     value.local.baseUrl = el("local-base").value.trim();
     value.hyperspace.baseUrl = el("hyperspace-base").value.trim();
@@ -51,34 +105,59 @@
     return value;
   }
   function controls() {
-    const remote = el("provider").value === "hyperspace";
-    el("cost").hidden = !remote;
-    if (editor) el("ack-row").hidden = !remote;
-    const selected = knownModels.get(el("model").value);
+    const provider = setup ? el("provider").value : settings?.provider;
+    const remote = provider === "hyperspace";
+    const modelId = setup ? el("model").value : (settings?.[provider]?.model ?? "");
+    if (setup) {
+      el("cost").hidden = !remote;
+      for (const radio of panel.querySelectorAll('input[name="writing-provider-choice"]')) {
+        radio.checked = radio.value === provider;
+        radio.disabled = starting;
+      }
+    } else el("ack-row").hidden = !remote;
+    const selected = knownModels.get(modelId);
     const current = settings ? choice() : null;
     const catalogMatches =
       current &&
       catalogContext === JSON.stringify([current.provider, current[current.provider].baseUrl]);
-    for (const button of actionButtons)
-      button.disabled =
-        !connected ||
-        !catalogMatches ||
-        running ||
-        !selected?.chat ||
-        (el("provider").value === "local" && !selected.loaded) ||
-        (remote && !el("allow-remote").checked);
-    if (editor) el("cancel").hidden = !runningJobId;
-    for (const name of ["provider", "model", "local-base", "hyperspace-base"])
-      el(name).disabled = starting;
-    for (const kind of ["writing", "review"]) {
-      el(`default-${kind}`).disabled = starting;
-      el(`output-${kind}`).disabled = starting || el(`default-${kind}`).checked;
+    const reason =
+      !settings || !connected
+        ? connection.state === "checking"
+          ? "Checking your writing engine…"
+          : settings
+            ? "Connect a writing engine in Settings."
+            : connection.message
+        : !catalogMatches
+          ? "Checking the writing service…"
+          : running
+            ? "A writing request is running. Wait for it or cancel it."
+            : !selected?.chat
+              ? "Choose a chat model in Settings."
+              : provider === "local" && !selected.loaded
+                ? "Load this model in LM Studio, then check the connection again."
+                : remote && !el("allow-remote")?.checked
+                  ? "Tick the cost consent to use Hyperspace."
+                  : "";
+    for (const button of actionButtons) button.disabled = Boolean(reason);
+    if (editor) {
+      el("cancel").hidden = !runningJobId;
+      el("hint").textContent = reason;
+      el("hint").hidden = !reason;
     }
-    el("save").disabled = !settings || starting;
-    el("connect").disabled = !settings || starting;
-    el("refresh").disabled = !settings || starting;
+    if (setup) {
+      for (const name of ["provider", "model", "local-base", "hyperspace-base"])
+        el(name).disabled = starting;
+      for (const kind of ["writing", "review"]) {
+        el(`default-${kind}`).disabled = starting;
+        el(`output-${kind}`).disabled = starting || el(`default-${kind}`).checked;
+      }
+      el("save").disabled = !settings || starting;
+      el("connect").disabled = !settings || starting;
+      el("refresh").disabled = !settings || starting;
+    }
   }
   function keyStatus(data) {
+    if (!setup) return;
     el("key-status").textContent = data.credentialFromEnvironment
       ? "Configured through the server environment. Remove that override to change the key here."
       : data.keyConfigured
@@ -92,15 +171,16 @@
     const sequence = ++catalogSequence;
     const selected = choice();
     connected = false;
+    setConnection("checking", "Checking the writing service…");
     controls();
-    el("connection").textContent = "Checking the writing service…";
     try {
       const data = await request("catalog", { provider: selected.provider, settings: selected });
       if (sequence !== catalogSequence) return;
       knownModels.clear();
-      el("model").replaceChildren();
+      if (setup) el("model").replaceChildren();
       for (const model of data.models) {
         knownModels.set(model.id, model);
+        if (!setup) continue;
         const option = document.createElement("option");
         option.value = model.id;
         option.textContent = `${model.id}${model.recommended ? " · recommended" : ""}${!model.chat ? " · not a chat model" : selected.provider === "local" && !model.loaded ? " · load in LM Studio" : ""}`;
@@ -108,29 +188,35 @@
         el("model").append(option);
       }
       const wanted = selected[selected.provider].model;
-      if (!knownModels.has(wanted)) {
-        const option = document.createElement("option");
-        option.value = wanted;
-        option.textContent = wanted
-          ? `${wanted} · saved choice unavailable`
-          : "Choose a chat model";
-        el("model").prepend(option);
+      if (setup) {
+        if (!knownModels.has(wanted)) {
+          const option = document.createElement("option");
+          option.value = wanted;
+          option.textContent = wanted
+            ? `${wanted} · saved choice unavailable`
+            : "Choose a chat model";
+          el("model").prepend(option);
+        }
+        el("model").value = wanted;
       }
-      el("model").value = wanted;
       connected = data.status === "ready";
       catalogContext = JSON.stringify([selected.provider, selected[selected.provider].baseUrl]);
-      el("connection").textContent = data.message;
+      setConnection(connected ? "connected" : "offline", data.message);
     } catch (error) {
-      if (sequence === catalogSequence) el("connection").textContent = error.message;
+      if (sequence === catalogSequence) setConnection("offline", error.message);
     }
     if (sequence === catalogSequence) controls();
+  }
+  function adopt(data) {
+    settings = data.settings;
+    settingsHash = data.settingsHash;
   }
   async function save(includeKey = false, forget = false) {
     const body = { settings: choice() };
     if (includeKey && el("api-key").value.trim()) body.apiKey = el("api-key").value.trim();
     if (forget) body.forgetKey = true;
     const data = await request("settings", body);
-    settings = data.settings;
+    adopt(data);
     keyStatus(data);
     history(data.jobs);
     if (includeKey || forget) el("api-key").value = "";
@@ -438,7 +524,15 @@
         const bridge = globalThis.shortsWritingEditor;
         const snapshot = bridge.snapshot();
         const acceptedCost = el("allow-remote").checked;
-        const saved = await save();
+        const saved = await request("status");
+        if (saved.settingsHash !== settingsHash) {
+          adopt(saved);
+          el("allow-remote").checked = false;
+          void catalog();
+          throw new Error(
+            "Writing settings changed in Settings. Check the engine shown above, then start again.",
+          );
+        }
         const job = await request("jobs", {
           requestId: crypto.randomUUID(),
           ...bridge.context,
@@ -459,20 +553,6 @@
         controls();
       }
     });
-  el("provider").addEventListener("change", () => {
-    if (!settings) return;
-    el("model").replaceChildren();
-    const option = document.createElement("option");
-    option.value = settings[el("provider").value].model;
-    option.textContent = option.value || "Choose a chat model";
-    el("model").append(option);
-    if (editor) el("allow-remote").checked = false;
-    controls();
-    void catalog();
-  });
-  el("model").addEventListener("change", controls);
-  for (const kind of ["writing", "review"])
-    el(`default-${kind}`).addEventListener("change", controls);
   if (editor) {
     el("allow-remote").addEventListener("change", controls);
     el("cancel").addEventListener("click", async () => {
@@ -484,42 +564,66 @@
       }
     });
   }
-  for (const name of ["local-base", "hyperspace-base"])
-    el(name).addEventListener("input", () => {
-      ++catalogSequence;
-      connected = false;
-      catalogContext = "";
-      el("connection").textContent =
-        "Connection address changed. Test the connection again before writing.";
+  if (setup) {
+    const chooseProvider = () => {
+      if (!settings) return;
+      el("model").replaceChildren();
+      const option = document.createElement("option");
+      option.value = settings[el("provider").value].model;
+      option.textContent = option.value || "Choose a chat model";
+      el("model").append(option);
       controls();
+      void catalog();
+    };
+    el("provider").addEventListener("change", chooseProvider);
+    for (const radio of panel.querySelectorAll('input[name="writing-provider-choice"]'))
+      radio.addEventListener("change", () => {
+        if (!radio.checked || el("provider").value === radio.value) return;
+        el("provider").value = radio.value;
+        chooseProvider();
+      });
+    el("model").addEventListener("change", controls);
+    for (const kind of ["writing", "review"])
+      el(`default-${kind}`).addEventListener("change", controls);
+    for (const name of ["local-base", "hyperspace-base"])
+      el(name).addEventListener("input", () => {
+        ++catalogSequence;
+        connected = false;
+        catalogContext = "";
+        setConnection(
+          "offline",
+          "Connection address changed. Test the connection again before writing.",
+        );
+        controls();
+      });
+    el("refresh").addEventListener("click", () => void catalog());
+    el("save").addEventListener("click", async () => {
+      try {
+        await save();
+        status("Writing preference saved on this Mac.");
+      } catch (error) {
+        status(error.message);
+      }
     });
-  el("refresh").addEventListener("click", () => void catalog());
-  el("save").addEventListener("click", async () => {
-    try {
-      await save();
-      status("Writing preference saved on this Mac.");
-    } catch (error) {
-      status(error.message);
-    }
-  });
-  el("connect").addEventListener("click", async () => {
-    try {
-      await save(true);
-      status("Writing setup saved. Testing connection…");
-      await catalog();
-    } catch (error) {
-      status(error.message);
-    }
-  });
-  el("forget-key").addEventListener("click", async () => {
-    try {
-      await save(false, true);
-      status("Saved proxy key removed from this Mac’s Keychain.");
-      await catalog();
-    } catch (error) {
-      status(error.message);
-    }
-  });
+    el("connect").addEventListener("click", async () => {
+      try {
+        await save(true);
+        status("Writing setup saved. Testing connection…");
+        await catalog();
+      } catch (error) {
+        status(error.message);
+      }
+    });
+    el("forget-key").addEventListener("click", async () => {
+      try {
+        await save(false, true);
+        status("Saved proxy key removed from this Mac’s Keychain.");
+        await catalog();
+      } catch (error) {
+        status(error.message);
+      }
+    });
+  }
   addEventListener("pagehide", () => {
     leaving = true;
     ++pollSequence;
@@ -533,26 +637,28 @@
           "Writing setup needs the running localhost studio. Manual editing remains available.",
         );
       const data = await request("status");
-      settings = data.settings;
+      adopt(data);
       if (data.settingsIssue) status(data.settingsIssue);
       keyStatus(data);
       history(data.jobs);
-      el("default-writing").checked = settings.outputTokens.writing === null;
-      el("default-review").checked = settings.outputTokens.finalReview === null;
-      el("output-writing").value = String(settings.outputTokens.writing ?? 8192);
-      el("output-review").value = String(settings.outputTokens.finalReview ?? 16384);
-      el("provider").value = settings.provider;
-      el("local-base").value = settings.local.baseUrl;
-      el("hyperspace-base").value = settings.hyperspace.baseUrl;
-      const option = document.createElement("option");
-      option.value = settings[settings.provider].model;
-      option.textContent = option.value || "Choose a chat model";
-      el("model").replaceChildren(option);
+      if (setup) {
+        el("default-writing").checked = settings.outputTokens.writing === null;
+        el("default-review").checked = settings.outputTokens.finalReview === null;
+        el("output-writing").value = String(settings.outputTokens.writing ?? 8192);
+        el("output-review").value = String(settings.outputTokens.finalReview ?? 16384);
+        el("provider").value = settings.provider;
+        el("local-base").value = settings.local.baseUrl;
+        el("hyperspace-base").value = settings.hyperspace.baseUrl;
+        const option = document.createElement("option");
+        option.value = settings[settings.provider].model;
+        option.textContent = option.value || "Choose a chat model";
+        el("model").replaceChildren(option);
+      }
       await catalog();
       const current = data.jobs.find((job) => job.state === "RUNNING");
       if (current) await watch(current);
     } catch (error) {
-      el("connection").textContent = error.message;
+      setConnection("unavailable", error.message);
       controls();
     }
   })();

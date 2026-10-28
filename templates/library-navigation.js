@@ -30,8 +30,8 @@
     styles: ["Delivery styles", "Explore storytelling formats and compare prepared examples."],
     voices: ["Voice library", "Manage your personal recordings and compare stock narrators."],
     writing: [
-      "Writing engine",
-      "Choose Gemma locally or an SAP Hyperspace model for ideas, rewriting and script review.",
+      "Settings",
+      "Choose the writing engine: Gemma locally for free, or an SAP Hyperspace model that may incur cost.",
     ],
   };
   let activeView;
@@ -59,7 +59,7 @@
             ? "tutorials"
             : "stories";
     const view =
-      hash === "#writing"
+      hash === "#writing" || hash === "#settings"
         ? "writing"
         : hash === "#voices" || hash === "#my-voice-panel"
           ? "voices"
@@ -131,6 +131,7 @@
         "#styles",
         "#voices",
         "#writing",
+        "#settings",
         "#studio-produce-banner",
       ].includes(link.hash)
     )
@@ -170,6 +171,7 @@
       "#styles",
       "#voices",
       "#writing",
+      "#settings",
       ...Object.values(anchors),
     ].includes(window.location.hash)
   )
