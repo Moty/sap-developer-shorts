@@ -7,6 +7,7 @@ import { hash } from "./digest.js";
 import { supportsKokoroVoice } from "./media/voices.js";
 import { projectRoot } from "./paths.js";
 import { shortTiming } from "./timing-policy.js";
+import { validateVersionOrder } from "./version-order.js";
 
 const maximumManifestBytes = 1024 * 1024;
 const maximumArtifacts = 4096;
@@ -103,8 +104,9 @@ function validateManifest(value: unknown) {
       "voiceSamples",
       "episodes",
     ],
-    ["localOnly"],
+    ["localOnly", "versionOrder"],
   );
+  if (Object.hasOwn(manifest, "versionOrder")) validateVersionOrder(manifest.versionOrder);
   if (Object.hasOwn(manifest, "localOnly"))
     check(manifest.localOnly === true, "invalid local-only marker");
   check(

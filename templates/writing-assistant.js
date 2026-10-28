@@ -628,6 +628,27 @@
     leaving = true;
     ++pollSequence;
   });
+  addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+    leaving = false;
+    if (setup) return; // Preserve unsaved Settings fields; the editor refreshes its saved choice.
+    void (async () => {
+      try {
+        const data = await request("status");
+        if (data.settingsHash !== settingsHash) el("allow-remote").checked = false;
+        adopt(data);
+        running = false;
+        runningJobId = null;
+        history(data.jobs);
+        await catalog();
+        const current = data.jobs.find((job) => job.state === "RUNNING");
+        if (current) await watch(current);
+      } catch (error) {
+        setConnection("unavailable", error.message);
+        controls();
+      }
+    })();
+  });
   controls();
   void (async () => {
     try {

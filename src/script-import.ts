@@ -1,13 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { constants } from "node:fs";
+import { constants, existsSync } from "node:fs";
 import { link, lstat, open, realpath, unlink, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { inside, projectRoot } from "./paths.js";
 import { validatePresentationDefinition } from "./variants.js";
+import { allocateVersionOrder } from "./version-order.js";
 
 const maximumScriptBytes = 1024 * 1024;
 
-export async function importScript(path: string, options: { presentationDirectory?: string } = {}) {
+export async function importScript(
+  path: string,
+  options: { presentationDirectory?: string; artifactRoot?: string | undefined } = {},
+) {
   const inputPath = resolve(path);
   if (!(await lstat(inputPath)).isFile())
     throw new Error("A script must be a regular JSON file, not a symlink");
@@ -37,7 +41,7 @@ export async function importScript(path: string, options: { presentationDirector
 
 export async function savePresentation(
   value: unknown,
-  options: { presentationDirectory?: string } = {},
+  options: { presentationDirectory?: string; artifactRoot?: string | undefined } = {},
 ) {
   const validated = await validatePresentationDefinition(value);
   const requestedDirectory = resolve(
@@ -54,6 +58,18 @@ export async function savePresentation(
   }
   const file = inside(directory, resolve(directory, basename(validated.file)));
   const temporary = resolve(directory, `.${basename(file)}-${randomUUID()}.tmp`);
+  const artifacts = resolve(
+    projectRoot,
+    options.artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
+  );
+  // Once migrated, allocate at save time, before any renderer can change activity timestamps.
+  if (
+    options.presentationDirectory === undefined &&
+    existsSync(resolve(artifacts, ".studio-versions/order.sqlite"))
+  )
+    await allocateVersionOrder(artifacts, [
+      { selector: validated.selector, updatedAt: new Date().toISOString() },
+    ]);
   try {
     await writeFile(temporary, `${JSON.stringify(validated.definition, null, 2)}\n`, {
       flag: "wx",

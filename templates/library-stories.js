@@ -18,21 +18,29 @@
   };
   const chronological = (versions) =>
     [...versions].sort(
-      (a, b) => stamp(a.updatedAt) - stamp(b.updatedAt) || natural(a.selector, b.selector),
+      (a, b) =>
+        (a.ordinal && b.ordinal
+          ? a.ordinal - b.ordinal
+          : stamp(a.updatedAt) - stamp(b.updatedAt)) || natural(a.selector, b.selector),
     );
   const versionLabels = (versions) =>
-    new Map(chronological(versions).map((version, index) => [version.selector, `v${index + 1}`]));
+    new Map(
+      chronological(versions).map((version, index) => [
+        version.selector,
+        `v${version.ordinal ?? index + 1}`,
+      ]),
+    );
   // A video awaiting review is superseded once a newer version is approved or published.
   function activeVersions(versions) {
+    const ordered = versions.every((version) => version.ordinal);
+    const sequence = (version) => (ordered ? version.ordinal : stamp(version.updatedAt));
     const settled = Math.max(
       Number.NEGATIVE_INFINITY,
       ...versions
         .filter((version) => version.stage === "publish" || version.stage === "published")
-        .map((version) => stamp(version.updatedAt)),
+        .map(sequence),
     );
-    return versions.filter(
-      (version) => version.stage !== "review" || stamp(version.updatedAt) >= settled,
-    );
+    return versions.filter((version) => version.stage !== "review" || sequence(version) >= settled);
   }
   function pickRepresentative(versions) {
     const ordered = chronological(activeVersions(versions));
@@ -71,6 +79,7 @@
       selector: data.selector,
       stage: data.stage,
       updatedAt: data.updated || "",
+      ordinal: Number(data.versionOrdinal) || undefined,
       attention: data.attention === "true",
       label: data.label || "",
       next: data.next || "",
@@ -131,11 +140,15 @@
   }
 
   // Updates the story row from its versions: stage pill, hint, primary action and More menu.
-  function syncStory(story) {
+  function syncStory(story, stage = "all") {
     const rows = [...story.querySelectorAll("[data-version]")];
     if (!rows.length) return null;
     const versions = rows.map(readVersion);
-    const representative = pickRepresentative(versions);
+    const matching =
+      stage === "all"
+        ? versions
+        : activeVersions(versions).filter((version) => version.stage === stage);
+    const representative = pickRepresentative(matching.length ? matching : versions);
     const repRow = rows.find((row) => row.dataset.selector === representative.selector);
     story.dataset.stages = order
       .filter((stage) => activeVersions(versions).some((v) => v.stage === stage))
@@ -234,7 +247,9 @@
         versions.some(
           (version) =>
             ["publish", "published"].includes(version.stage) &&
-            stamp(version.updatedAt) > stamp(waiting.updatedAt),
+            (version.ordinal && waiting.ordinal
+              ? version.ordinal > waiting.ordinal
+              : stamp(version.updatedAt) > stamp(waiting.updatedAt)),
         );
       if (waiting && !superseded && !expiry(waiting).expired)
         reviews.push({

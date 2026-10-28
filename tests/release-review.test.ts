@@ -39,6 +39,10 @@ class Node {
     return true;
   }
   focus() {}
+  scrollIntoView() {}
+  querySelector() {
+    return null;
+  }
   select() {}
   replaceChildren() {}
 }
@@ -123,7 +127,9 @@ test("Approve video stays disabled until all four checks are ticked and sends th
   for (const check of page.checks.slice(0, 3)) {
     check.tick();
     assert.equal(page.node("approve-video").disabled, true, "every check is required");
-    assert.equal(page.node("mbar-approve").disabled, true);
+    assert.equal(page.node("mbar-approve").disabled, false, "phone action reaches the checks");
+    page.node("mbar-approve").click();
+    assert.equal(page.requests.filter((request) => request.method === "POST").length, 0);
   }
   assert.equal(page.node("release-post-step").dataset.stepState, "locked");
   assert.equal(page.node("release-publication").dataset.stepState, "locked");

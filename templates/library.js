@@ -31,7 +31,11 @@
       }
       node("approve-video").disabled = busy || state.reviewBlocked || !reviewed() || reviewedAt;
       const mobileApprove = node("mbar-approve");
-      if (mobileApprove) mobileApprove.disabled = node("approve-video").disabled;
+      if (mobileApprove) {
+        mobileApprove.disabled = busy || state.reviewBlocked || reviewedAt;
+        const label = mobileApprove.querySelector(".ep-label");
+        if (label) label.textContent = reviewed() ? "Approve" : "Review 4 checks";
+      }
       node("record-publication").disabled = busy || state.reviewBlocked || !reviewedAt;
       node("reopen-review").hidden = !reviewedAt;
       node("reopen-review").disabled = busy;
@@ -100,7 +104,13 @@
         if (current) render(current);
       });
     node("approve-video").addEventListener("click", () => change("approve"));
-    node("mbar-approve")?.addEventListener("click", () => node("approve-video").click());
+    node("mbar-approve")?.addEventListener("click", () => {
+      if (reviewed()) node("approve-video").click();
+      else {
+        node("release-approval").scrollIntoView({ block: "start", behavior: "instant" });
+        checks.find((check) => !check.checked)?.focus({ preventScroll: true });
+      }
+    });
     node("record-publication").addEventListener("click", () => {
       if (!node("publication-url").value.trim() || !node("publication-url").reportValidity()) {
         node("release-message").textContent =
@@ -294,7 +304,10 @@
     for (const story of stories) {
       let matched = 0;
       for (const row of versionRows(story)) {
-        const match = terms.length > 0 && terms.every((term) => row.dataset.search.includes(term));
+        const match =
+          terms.length > 0 &&
+          terms.every((term) => row.dataset.search.includes(term)) &&
+          (stage === "all" || row.dataset.stage === stage);
         row.classList.toggle("is-match", match);
         if (match) matched++;
       }
@@ -356,6 +369,8 @@
     });
   }
   function update(reset = false) {
+    if (lib) for (const story of stories) lib.syncStory(story, stage);
+    applySearch();
     for (const button of buttons)
       button.setAttribute("aria-pressed", String(button.dataset.format === format));
     for (const button of stageButtons)

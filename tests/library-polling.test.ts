@@ -13,6 +13,7 @@ class El {
   href = "";
   value = "";
   attributes = new Map<string, string>();
+  listeners = new Map<string, () => void>();
   classes = new Set<string>();
   childNodes: unknown[] = [];
   classList = {
@@ -34,7 +35,9 @@ class El {
   setAttribute(name: string, value: string) {
     this.attributes.set(name, value);
   }
-  addEventListener() {}
+  addEventListener(name: string, callback: () => void) {
+    this.listeners.set(name, callback);
+  }
   focus() {}
   replaceChildren() {}
 }
@@ -123,6 +126,7 @@ test("a workflow poll updates story rows, versions, stages and stage counts, hon
     ].map((selector) => [selector, new El()]),
   );
   const all = [old, fresh, busy, quiet].map((item) => item.row);
+  const stageButtons = ["all", "editing", "publish"].map((stage) => new El({ stageFilter: stage }));
   const context: Record<string, unknown> = {
     document: {
       hidden: true,
@@ -134,10 +138,17 @@ test("a workflow poll updates story rows, versions, stages and stage counts, hon
             ? all
             : selector === "[data-stage-count]"
               ? Object.values(counts)
-              : [],
+              : selector === "[data-stage-filter]"
+                ? stageButtons
+                : [],
       addEventListener() {},
     },
-    window: { location: { hash: "" }, addEventListener() {} },
+    window: {
+      location: { hash: "", href: "http://localhost/review.html" },
+      history: { replaceState() {} },
+      addEventListener() {},
+    },
+    URL,
     fetch: async () => ({
       ok: true,
       json: async () => ({
@@ -209,4 +220,43 @@ test("a workflow poll updates story rows, versions, stages and stage counts, hon
     { all: "3", editing: "1", producing: "1", review: "0", publish: "1", published: "0" },
   );
   assert.equal(single.get("#workflow-sync")?.textContent, "Live status · saved on this Mac");
+  stageButtons[1]?.listeners.get("click")?.();
+  assert.equal(other.story.dataset.open, "false", "stage filters keep large version lists compact");
+  assert.equal(other.action.href, "episodes/NEWS-02/edit.html");
+  assert.equal(news.story.dataset.open, "false");
+});
+
+test("a stage filter chooses a matching primary action without opening every version drawer", async () => {
+  const old = versionRow("CAP-01", "v1", "review", "2026-10-01");
+  const draft = versionRow("CAP-01@next", "v2", "editing", "2026-10-02");
+  const story = storyRow("CAP-01", [old, draft]);
+  const context = {} as {
+    shortsStories: {
+      applyWorkflowState(row: El, state: object): void;
+      syncStory(row: El, stage?: string): unknown;
+    };
+  };
+  runInNewContext(
+    await readFile(resolve(projectRoot, "templates/library-stories.js"), "utf8"),
+    context,
+  );
+  context.shortsStories.applyWorkflowState(old.row, {
+    selector: "CAP-01",
+    stage: "review",
+    label: "To review",
+    attention: false,
+  });
+  context.shortsStories.applyWorkflowState(draft.row, {
+    selector: "CAP-01@next",
+    stage: "editing",
+    label: "Editing",
+    attention: false,
+  });
+  context.shortsStories.syncStory(story.story, "editing");
+  assert.equal(story.action.textContent, "Continue editing");
+  assert.equal(story.action.href, "episodes/CAP-01%40next/edit.html");
+  assert.equal(story.badge.textContent, "Editing");
+  context.shortsStories.syncStory(story.story, "all");
+  assert.equal(story.action.textContent, "Review video");
+  assert.equal(story.action.href, "episodes/CAP-01/publish.html");
 });

@@ -1,4 +1,4 @@
-# UX facelift — handoff (paused after Phase 2a)
+# UX facelift — handoff (resumed after Phase 2a)
 
 Self-contained: everything needed to resume is here plus `BRIEF.md` (rules every implementation agent must follow).
 
@@ -9,7 +9,7 @@ The prototype is the target look/structure, not code to paste: adapt it to the e
 Prototype screen ids: setup, signin, shorts, new, ideas, formats, voices, addvoice, settings, script, voice, produce, review, deck.
 
 ## Repo state
-- Repo `sap-developer-shorts`, branch `ux-facelift` (tracks `origin/ux-facelift`), HEAD = `2045edb` (Phase 2a), pushed.
+- Repo `sap-developer-shorts`, branch `ux-facelift` (tracks `origin/ux-facelift`), Phase 2a plus reviewed stabilization; use `git log -1` for the current commit.
 - Uncommitted by design: `content/**`, `assets/avatars/**` (the user's own drafts and personal photos — **never commit, edit or delete**; also never `config/private/**`, `artifacts/.studio-workflow/**`).
 - `docs/ux-facelift/` and the `biome.json` lint exclusion are committed with this handoff.
 - `.state/ux-facelift/<phase>/` holds local screenshot evidence (gitignored; not available on another machine).
@@ -44,7 +44,12 @@ Review prompt:
 - **Phase 1b** (Sonnet + Opus review): Writing engine moved to Settings (`#settings`, legacy `#writing` still works); editor and final review show a status chip + "Change in Settings"; preference-hash recheck before requests; per-request Hyperspace consent unchanged.
 - **Phase 2a** (Opus + Opus review): shared episode shell (`src/episode-shell.ts`, `templates/episode-shell.*`) on edit/publish/watch/video-review/presentation pages; 4 steps **Script · Voice & presenter · Produce · Review & publish**; `publish.html` rewritten (chapters, Transcript/Sources/Details, four approval checks gating the unchanged approve request, locked steps); live stage labels where CSP allows; deck phone fixes; fixed a pre-existing portable-ZIP allowlist gap (writing-assistant, final-review, editor-workspace templates).
 
-## NEXT (nothing started — the Phase 2b agent was stopped before editing anything)
+## NEXT
+
+Stabilization completed: stable version ordinals and portable ledger recovery,
+stage filters choose matching version actions, phone review shortcuts, Settings history
+refresh and explicit TAP reporter for Node 26. See [independent comparison](ASTRA_COMPARISON.md).
+Phase 2b is next; user authorized continuing the remaining phases and a final PR.
 ### Phase 2b — Produce step (Opus 5.5; high risk) · prototype screen `produce`
 - Pre-flight checklist replacing the Companion post / AI review / Produce tabs. Rows: Script, Voice, Presenter, Sources, Companion post, optional AI review. **Derive state from existing validation; don't re-implement it.**
 - ETA from generation history; "Save & produce vN" reusing the existing produce action.
@@ -68,7 +73,7 @@ Board view, Compare versions, archive old versions (Shorts); Ideas cards don't r
 
 ## Baseline / validation
 - `npm run typecheck` clean.
-- `npm test`: currently 375/376. The **only** allowed failure is pre-existing `tests/api-revisions.test.ts` "a produced revision stays visible…" (Node 26 prints `ℹ pass 1`, test expects `# pass 1`). BRIEF.md still quotes the older 340/341 baseline; the failing test is the same.
+- `npm test`: baseline 376/376 on Node 22. The Node 26 reporter assertion has been fixed by requesting TAP explicitly; no test failures are waived. Stabilization adds regression coverage.
 - Biome: run on changed files only (`npx biome check <files>`). Repo baseline has errors in `content/**` JSON formatting (user data), `src/cli.ts`, `src/web/private/app.ts`, `templates/library.css`. `npx biome check docs/ux-facelift biome.json` must stay clean (prototype/ is excluded; `.md` isn't linted).
 - Generated pages carry a strict CSP (`default-src 'none'`, inline script/style only, no external resources; `review.html` has no `data:` images). Keep inline SVG, system fonts, no-JS fallbacks, same-origin APIs, `prefers-reduced-motion`.
 - Visual check: `npm run shorts -- library` (prints the dir) → `npm run shorts -- serve <dir>` (port 4173, async; stop afterwards) → `node docs/ux-facelift/tools/shot.mjs <url> <out.png> <w> <h> [full] [clickSel]` at 1440×1000 and 390×844. Output must show no overflow or console errors. Setup for the tool and Chromium path adaptation: see BRIEF.md (`npm i --no-save playwright-core@1.56`; Chromium expected at `~/Library/Caches/ms-playwright/chromium-1248/...`, otherwise edit `exe` in `shot.mjs`).

@@ -431,3 +431,38 @@ test("a review that a newer approved or published version supersedes no longer w
     "X-02@live",
   );
 });
+
+test("saved ordinals keep labels, latest and review supersession stable in the browser mirror", async () => {
+  const mirror = await browserModule();
+  const rows = [
+    { ...version("CAP-01", "CAP-01", "publish", "2026-10-28T00:00:00Z"), ordinal: 1 },
+    { ...version("CAP-01", "CAP-01@newer", "review", "2026-10-21T00:00:00Z"), ordinal: 2 },
+  ];
+  assert.deepEqual(Object.fromEntries(mirror.versionLabels(rows)), {
+    "CAP-01": "v1",
+    "CAP-01@newer": "v2",
+  });
+  assert.equal(mirror.pickRepresentative(rows).selector, "CAP-01@newer");
+  assert.deepEqual(
+    Array.from(mirror.activeVersions(rows), (v) => v.selector),
+    rows.map((v) => v.selector),
+  );
+});
+
+test("story activity stays current when an older stable version is rendered again", async () => {
+  const items = (await entries()).slice(0, 2);
+  assert.ok(items[0] && items[1]);
+  items[0].ordinal = 1;
+  items[1].ordinal = 2;
+  items[0].updatedAt = "2026-10-28T10:00:00.000Z";
+  items[1].updatedAt = "2026-10-20T10:00:00.000Z";
+  const pages = await createLibraryPages({
+    entries: items,
+    topics: [],
+    newsTopics: [],
+    budgetCents: 500,
+  });
+  const html = String(pages["review.html"]);
+  assert.match(html, /data-story="CAP-01"[^>]*data-updated="2026-10-28T10:00:00.000Z"/u);
+  assert.match(html, /<b>v2<\/b><span class="latest-chip">Latest<\/span>/u);
+});

@@ -312,3 +312,14 @@ Focus view enlarges the canvas. New MP4 exports use the refreshed motion design
 and include the interactive deck in their portable package. See
 [Interactive portrait presentations](PRESENTATIONS.md) for the renderer choice,
 data boundaries, local setup and export behavior.
+
+### Stable version history
+
+Version numbers are assigned once in `ARTIFACT_ROOT/.studio-versions/order.sqlite`;
+rendering or touching an older file updates activity without changing its number
+or superseding a newer review. Removed versions leave gaps. Library manifests
+carry the ledger, so keeping a recent library snapshot can restore a lost local
+index. Keep the ledger or a recent snapshot when moving a working studio between
+Macs. The first migration preserves the existing display order; it cannot infer
+historical creation dates that were never recorded. Stage filters choose the primary action from a matching version without expanding
+long drawers; searching still opens and highlights matching versions.

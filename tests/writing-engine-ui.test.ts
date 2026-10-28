@@ -96,7 +96,11 @@ class Fake {
   }
 }
 
-async function editorHarness(settings: Record<string, unknown>) {
+async function editorHarness(
+  settings: Record<string, unknown>,
+  offline = false,
+  runningAtStart = false,
+) {
   const panel = new Fake();
   panel.dataset.writingMode = "editor";
   const named = new Map<string, Fake>();
@@ -120,7 +124,15 @@ async function editorHarness(settings: Record<string, unknown>) {
   chip.byId.set("[data-engine-note]", note);
   for (const [id, item] of named) panel.byId.set(`#writing-${id}`, item);
   const posts: Array<{ path: string; body: Record<string, unknown> }> = [];
-  const server = { settings, hash: "a".repeat(64) };
+  const server = {
+    settings,
+    hash: "a".repeat(64),
+    online: !offline,
+    jobs: runningAtStart
+      ? [{ id: "running-job", state: "RUNNING", stages: [], action: "ideas", model: "m" }]
+      : [],
+  };
+  const pageEvents = new Map<string, (event: { persisted?: boolean }) => unknown>();
   const fetchMock = async (url: string, init?: { method?: string; body?: string }) => {
     const path = url.replace("/api/editorial/", "");
     const reply = (body: unknown, ok = true) => ({ ok, json: async () => body });
@@ -130,7 +142,7 @@ async function editorHarness(settings: Record<string, unknown>) {
       return reply({
         settings: server.settings,
         settingsHash: server.hash,
-        jobs: [],
+        jobs: server.jobs,
         keyConfigured: true,
       });
     if (path === "catalog") {
@@ -139,7 +151,7 @@ async function editorHarness(settings: Record<string, unknown>) {
       };
       const model = current[current.provider]?.model ?? "";
       return reply({
-        status: "ready",
+        status: server.online ? "ready" : "offline",
         message: "Ready",
         models: [{ id: model, chat: true, loaded: true }],
       });
@@ -156,8 +168,9 @@ async function editorHarness(settings: Record<string, unknown>) {
     fetch: fetchMock,
     crypto: { randomUUID: () => "11111111-1111-4111-8111-111111111111" },
     structuredClone,
-    setTimeout,
-    addEventListener() {},
+    setTimeout: runningAtStart ? () => 0 : setTimeout,
+    addEventListener: (name: string, callback: (event: { persisted?: boolean }) => unknown) =>
+      pageEvents.set(name, callback),
     shortsWritingEditor: {
       context: { selector: "NEWS-06@draft", sourceHash: "b".repeat(64) },
       snapshot: () => ({ title: "x", scenes: [] }),
@@ -177,7 +190,7 @@ async function editorHarness(settings: Record<string, unknown>) {
     for (let index = 0; index < 20; index++) await new Promise((done) => setImmediate(done));
   };
   await settle();
-  return { named, buttons, items, note, posts, hash: server.hash, server, settle };
+  return { named, buttons, items, note, posts, hash: server.hash, server, settle, pageEvents };
 }
 
 const hyperspace = {
@@ -292,4 +305,28 @@ test("consent ticked for one Hyperspace model is cleared when the saved model ch
   assert.ok(!ui.posts.some((post) => post.path === "jobs"));
   assert.equal(consent.checked, false);
   assert.equal(ui.items.children[0]?.textContent, "other-model");
+});
+
+test("returning from Settings refreshes an offline editor without submitting a model job", async () => {
+  const ui = await editorHarness({ ...hyperspace, provider: "local" }, true);
+  assert.ok(ui.buttons.every((button) => button.disabled));
+  ui.pageEvents.get("pagehide")?.({});
+  ui.server.online = true;
+  ui.server.hash = "b".repeat(64);
+  ui.pageEvents.get("pageshow")?.({ persisted: true });
+  await ui.settle();
+  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.equal(ui.named.get("hint")?.hidden, true);
+  assert.equal(ui.posts.filter((post) => post.path === "jobs").length, 0);
+});
+
+test("a writing job completed while away does not leave restored editor actions disabled", async () => {
+  const ui = await editorHarness({ ...hyperspace, provider: "local" }, false, true);
+  assert.ok(ui.buttons.every((button) => button.disabled));
+  ui.pageEvents.get("pagehide")?.({});
+  ui.server.jobs = [];
+  ui.pageEvents.get("pageshow")?.({ persisted: true });
+  await ui.settle();
+  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.equal(ui.posts.filter((post) => post.path === "jobs").length, 0);
 });

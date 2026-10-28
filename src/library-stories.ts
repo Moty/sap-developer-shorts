@@ -24,6 +24,7 @@ export interface StoryVersion {
   stage: WorkStage;
   updatedAt: string;
   attention: boolean;
+  ordinal?: number | undefined;
 }
 
 export interface Story<T extends StoryVersion> {
@@ -55,20 +56,25 @@ const naturalSelector = (a: string, b: string) => {
   );
 };
 
-/** Oldest first by update time; ties keep the unvarianted original first, then selector order. */
-export function chronologicalVersions<T extends Pick<StoryVersion, "selector" | "updatedAt">>(
-  versions: readonly T[],
-): T[] {
+/** Stable saved order; timestamp ordering is only for legacy inputs without a ledger. */
+export function chronologicalVersions<
+  T extends Pick<StoryVersion, "selector" | "updatedAt" | "ordinal">,
+>(versions: readonly T[]): T[] {
   return [...versions].sort(
-    (a, b) => stamp(a.updatedAt) - stamp(b.updatedAt) || naturalSelector(a.selector, b.selector),
+    (a, b) =>
+      (a.ordinal && b.ordinal ? a.ordinal - b.ordinal : stamp(a.updatedAt) - stamp(b.updatedAt)) ||
+      naturalSelector(a.selector, b.selector),
   );
 }
 
-export function versionLabels<T extends Pick<StoryVersion, "selector" | "updatedAt">>(
+export function versionLabels<T extends Pick<StoryVersion, "selector" | "updatedAt" | "ordinal">>(
   versions: readonly T[],
 ): Map<string, string> {
   return new Map(
-    chronologicalVersions(versions).map((version, index) => [version.selector, `v${index + 1}`]),
+    chronologicalVersions(versions).map((version, index) => [
+      version.selector,
+      `v${version.ordinal ?? index + 1}`,
+    ]),
   );
 }
 
@@ -77,15 +83,16 @@ export function versionLabels<T extends Pick<StoryVersion, "selector" | "updated
  * (and dropped) once a newer version has been approved or published.
  */
 export function activeVersions<T extends StoryVersion>(versions: readonly T[]): T[] {
+  const ordered = versions.every((version) => version.ordinal);
+  const sequence = (version: T) =>
+    ordered ? (version.ordinal as number) : stamp(version.updatedAt);
   const settled = Math.max(
     Number.NEGATIVE_INFINITY,
     ...versions
       .filter((version) => version.stage === "publish" || version.stage === "published")
-      .map((version) => stamp(version.updatedAt)),
+      .map(sequence),
   );
-  return versions.filter(
-    (version) => version.stage !== "review" || stamp(version.updatedAt) >= settled,
-  );
+  return versions.filter((version) => version.stage !== "review" || sequence(version) >= settled);
 }
 
 export function pickRepresentative<T extends StoryVersion>(versions: readonly T[]): T {

@@ -524,7 +524,7 @@ export async function handleApiRequest(
       };
       if (definition.presentation?.speakers?.some((speaker) => isClonedVoice(speaker.voice)))
         assertPrivateVoiceRequest(request, options.privateVoiceToken);
-      const saved = await savePresentation(definition);
+      const saved = await savePresentation(definition, { artifactRoot: options.artifactRoot });
       const libraryUpdated = await refreshSavedLibrary(options);
       sendJson(response, 201, {
         selector: saved.selector,
@@ -574,7 +574,9 @@ export async function handleApiRequest(
         };
         if (definition.presentation?.speakers?.some((speaker) => isClonedVoice(speaker.voice)))
           assertPrivateVoiceRequest(request, options.privateVoiceToken);
-        const saved = await savePresentation(body.definition);
+        const saved = await savePresentation(body.definition, {
+          artifactRoot: options.artifactRoot,
+        });
         selector = saved.selector;
         // A saved version must remain discoverable even if narration or video fails.
         libraryUpdated = await refreshSavedLibrary(options);

@@ -318,6 +318,11 @@
     ++sequence;
     clearTimeout(timer);
   });
+  addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+    leaving = false;
+    void refresh();
+  });
   void (async () => {
     try {
       const session = await fetch("/api/local-voices/session");

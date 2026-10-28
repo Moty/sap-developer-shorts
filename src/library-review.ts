@@ -116,6 +116,7 @@ const workVersion = (entry: LibraryEntry): WorkVersion => ({
   stage: entry.video ? "review" : "editing",
   updatedAt: entry.updatedAt ?? entry.preview?.updatedAt ?? "",
   attention: studioReadiness(entry).attention,
+  ordinal: entry.ordinal,
   entry,
 });
 
@@ -173,7 +174,7 @@ function versionRow(version: WorkVersion, label: string, latest: boolean) {
   ]
     .join(" ")
     .toLowerCase();
-  return `<div class="vrow" role="row" data-version data-selector="${esc(selector)}" data-stage="${version.stage}" data-attention="${version.attention}" data-updated="${esc(version.updatedAt)}" data-label="${stageLabel(version.stage)}" data-next="${esc(stageHint(entry))}" data-issue="${esc(version.attention ? status.label : "")}" data-production-stage="" data-action-label="${esc(action.label)}" data-short-label="${esc(action.shortLabel)}" data-action-href="${esc(action.href)}" data-valid-through="${validThrough(episode)}" data-sources-expired="${entry.sourceReviewExpired}" data-version-label="${label}" data-title="${esc(episode.title)}" data-news="${isNewsEpisode(episode)}" data-search="${esc(search)}">
+  return `<div class="vrow" role="row" data-version data-selector="${esc(selector)}" data-stage="${version.stage}" data-attention="${version.attention}" data-updated="${esc(version.updatedAt)}" data-label="${stageLabel(version.stage)}" data-next="${esc(stageHint(entry))}" data-issue="${esc(version.attention ? status.label : "")}" data-production-stage="" data-action-label="${esc(action.label)}" data-short-label="${esc(action.shortLabel)}" data-action-href="${esc(action.href)}" data-valid-through="${validThrough(episode)}" data-sources-expired="${entry.sourceReviewExpired}" data-version-label="${label}" data-version-ordinal="${version.ordinal ?? ""}" data-title="${esc(episode.title)}" data-news="${isNewsEpisode(episode)}" data-search="${esc(search)}">
 <span class="vn" role="cell"><b>${label}</b>${latest ? '<span class="latest-chip">Latest</span>' : ""}</span>
 <span class="vdetail" role="cell"><span class="vtitle">${esc(episode.title)}</span><span class="vsub"><code class="vsel" title="${esc(selector)}">${esc(selector)}</code><span>${esc(presentationLabel(episode))}</span></span><small class="work-issue" data-version-issue ${version.attention ? "" : "hidden"}>${version.attention ? esc(status.label) : ""}</small>${entry.generation ? `<small class="vgen">Generated in ${formatGenerationTime(entry.generation.totalMs)}${entry.generation.reusedAudio || entry.generation.reusedVideo ? " · reused media" : ""}</small>` : ""}</span>
 <span class="vstage" role="cell"><span class="stage-badge" data-version-stage data-badge="${version.stage}">${stageLabel(version.stage)}</span></span>
@@ -187,6 +188,10 @@ function versionRow(version: WorkVersion, label: string, latest: boolean) {
 function storyRow(story: Story<WorkVersion>) {
   const { latest, representative } = story;
   const { episode } = latest.entry;
+  const activity = story.versions.reduce(
+    (newest, version) => (version.updatedAt > newest ? version.updatedAt : newest),
+    "",
+  );
   const news = isNewsEpisode(episode);
   const withVideo = story.versions.find((version) => version.entry.video);
   const thumbnail = withVideo
@@ -196,12 +201,12 @@ function storyRow(story: Story<WorkVersion>) {
   const flagged = story.versions.find((version) => version.attention);
   const drawer = `versions-${story.id}`;
   const count = plural(story.versions.length, "version");
-  return `<article class="story" data-story="${esc(story.id)}" data-title="${esc(episode.title)}" data-updated="${esc(latest.updatedAt)}" data-selector="${esc(story.id)}" data-kind="${news ? "news" : "tutorial"}" data-stages="${story.stages.join(" ")}" data-attention="${story.attention}" data-rep="${esc(representative.selector)}" data-versions="${story.versions.length}">
+  return `<article class="story" data-story="${esc(story.id)}" data-title="${esc(episode.title)}" data-updated="${esc(activity)}" data-selector="${esc(story.id)}" data-kind="${news ? "news" : "tutorial"}" data-stages="${story.stages.join(" ")}" data-attention="${story.attention}" data-rep="${esc(representative.selector)}" data-versions="${story.versions.length}">
 <div class="story-main">
 <div class="work-thumbnail">${thumbnail}</div>
 <div class="work-title"><h3>${esc(episode.title)}</h3><div class="work-meta"><code class="chip">${esc(episode.id)}</code><span>${news ? "News" : "Tutorial"}</span><span class="sep" aria-hidden="true">·</span><span>${esc(lengthLabel(latest.entry))}</span><span class="sep" aria-hidden="true">·</span><span class="ver-static">${count}</span><button type="button" class="ver-btn" data-versions-toggle aria-expanded="true" aria-controls="${esc(drawer)}" hidden>${count} ${chevron}</button></div><p class="work-issue" data-work-issue ${flagged ? "" : "hidden"}>${flagged ? `${story.versions.length > 1 ? `${story.labels.get(flagged.selector)}: ` : ""}${esc(studioReadiness(flagged.entry).label)}` : ""}</p></div>
 <div class="work-state"><span class="stage-badge" data-work-stage data-badge="${representative.stage}">${stageLabel(representative.stage)}</span><small data-work-next>${esc(stageHint(representative.entry))}</small></div>
-${timeTag(latest.updatedAt, "story-updated")}
+${timeTag(activity, "story-updated")}
 <div class="work-actions"><a class="primary-action" data-work-action href="${esc(action.href)}">${esc(action.label)}</a><span class="row-extras" data-story-extras>${workExtras(representative.entry)}</span></div>
 </div>
 <div class="versions" id="${esc(drawer)}" role="table" aria-label="Versions of ${esc(story.id)}, newest first">
