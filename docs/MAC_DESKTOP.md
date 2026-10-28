@@ -416,7 +416,8 @@ File: `SAP-Shorts-0.1.2-arm64-signed-preview.dmg` (346,876,010 bytes).
 
 The signed preview remains labeled `notarized-preview` with
 `redistributionReviewed: false`. The GitHub release is prepared as a private draft
-pending confirmation of the public redistribution review. The running installed
+for the user-selected signed-preview testing workflow. Public release was not
+selected and the redistribution-review flag remains false. The running installed
 0.1.1 app and its workspace were left unchanged. Save edits and quit it before
 replacing it from this DMG; application data is retained by the update workflow.
 
@@ -427,4 +428,8 @@ The draft was saved on GitHub at
 ChatGPT extension blocks file upload until its “Allow access to file URLs” setting
 is enabled. No extension permission was changed. Both verified local files are
 under `desktop/out/`; the draft currently contains only automatic source archives.
-Public publishing remains pending the separate redistribution-review confirmation.
+The user approved temporary file-URL access for uploading, but automatic browser
+approval rejected opening Edge's internal extension settings (only HTTP/HTTPS
+navigation is allowed). No permission was changed. The safe continuation is to
+open the draft's Edit page, attach the DMG and `.sha256` file manually, and choose
+**Save draft**. Keep the release private for testing.
