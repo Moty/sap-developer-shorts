@@ -80,8 +80,13 @@
     }
     for (const link of links) {
       link.classList.toggle("nav-current", link.dataset.workspaceLink === view);
-      if (link.dataset.workspaceLink === view) link.setAttribute("aria-current", "page");
-      else link.removeAttribute("aria-current");
+      if (link.dataset.workspaceLink === view) {
+        link.setAttribute("aria-current", "page");
+        // Keep the active tab visible when the phone strip scrolls horizontally.
+        const strip = link.parentElement;
+        if (strip && strip.scrollWidth > strip.clientWidth)
+          strip.scrollLeft = Math.max(0, link.offsetLeft - 24);
+      } else link.removeAttribute("aria-current");
     }
     document.getElementById("workspace-title").textContent = headings[view][0];
     document.getElementById("workspace-description").textContent = headings[view][1];

@@ -4,6 +4,14 @@ import { isNewsEpisode, type NewsEpisode } from "./domain.js";
 import { writingPanel } from "./editorial/panel.js";
 import { formatGenerationTime, generationTimingHtml } from "./generation-timing.js";
 import type { LibraryContent, LibraryEntry } from "./library.js";
+import {
+  groupStories,
+  type Story,
+  type StoryVersion,
+  stageCounts,
+  type WorkStage,
+  workAction,
+} from "./library-stories.js";
 import { localActionButton, localActionFeedback } from "./local-action-controls.js";
 import { auditionText, voiceSampleCard } from "./media/voice-audition.js";
 import { kokoroVoice, kokoroVoices } from "./media/voices.js";
@@ -90,12 +98,64 @@ function formatOption(format: (typeof presentationFormats)[number], entries: Lib
   return `<article class="style-option" data-story-format="${esc(format.id)}"><span class="style-icon" aria-hidden="true">${format.id === "dialogue" ? "↔" : format.id === "quiz" ? "?" : "✦"}</span><h3>${esc(format.name)}</h3><p>${esc(format.description)}</p><small>${esc(status)}</small>${action}${additional}</article>`;
 }
 
-function card(entry: LibraryEntry) {
+interface WorkVersion extends StoryVersion {
+  entry: LibraryEntry;
+}
+
+const workVersion = (entry: LibraryEntry): WorkVersion => ({
+  id: entry.episode.id,
+  selector: episodeSelector(entry.episode),
+  stage: entry.video ? "review" : "editing",
+  updatedAt: entry.updatedAt ?? entry.preview?.updatedAt ?? "",
+  attention: studioReadiness(entry).attention,
+  entry,
+});
+
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
+const stageLabel = (stage: WorkStage) => (stage === "review" ? "To review" : "Editing");
+const stageHint = (entry: LibraryEntry) =>
+  entry.video ? "Video produced · awaiting your review" : "Script saved · video not produced";
+const lengthLabel = (entry: LibraryEntry) =>
+  entry.preview?.kind === "narrated"
+    ? `${entry.preview.durationSeconds.toFixed(1)}s recorded`
+    : `${entry.episode.targetDurationSeconds}s planned`;
+const shortDate = (iso: string) => {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return "";
+  const sameYear = date.getUTCFullYear() === new Date().getUTCFullYear();
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+    timeZone: "UTC",
+  }).format(date);
+};
+const timeTag = (iso: string, className: string) =>
+  `<time class="${className}" datetime="${esc(iso)}" title="${esc(iso)}">${esc(shortDate(iso))}</time>`;
+const validThrough = (episode: LibraryEntry["episode"]) => {
+  if (!isNewsEpisode(episode)) return "";
+  const through = new Date(
+    Date.parse(`${episode.news.asOf}T00:00:00Z`) + episode.news.maxAgeDays * 86400000,
+  );
+  return Number.isFinite(through.getTime()) ? through.toISOString().slice(0, 10) : "";
+};
+const chevron =
+  '<svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6"/></svg>';
+
+/** Presentation link and More menu for one saved version. */
+function workExtras(entry: LibraryEntry) {
   const { episode, preview } = entry;
   const selector = episodeSelector(episode);
-  const news = isNewsEpisode(episode);
-  const version = episode.presentation?.variant ?? "Original";
-  const attention = studioReadiness(entry).attention;
+  const prefix = `episodes/${encodeURIComponent(selector)}`;
+  return `${entry.deck ? `<a class="presentation-action" href="${prefix}/presentation.html">Presentation ↗</a>` : ""}<details class="work-more"><summary aria-label="More actions for ${esc(selector)}">More</summary><div>${entry.deck ? `<a href="${prefix}/presentation.html">Interactive presentation</a>` : ""}<a href="${prefix}/edit.html">Edit a new version</a>${entry.video ? `<a href="${videoLinkFor(entry)}">Watch MP4</a>` : ""}${preview ? `<a href="${linkFor(entry)}">Review preview</a>` : ""}<button type="button" class="produce-card-btn" data-selector="${esc(selector)}">${entry.video ? "Re-render MP4" : "Produce saved script"}</button>${entry.download ? `<a href="${prefix}/episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}<span>${esc(recordedNarrator(entry))}</span>${!preview ? "<span>No matching preview yet · No recording yet</span>" : ""}${isNewsEpisode(episode) ? newsReviewNotice(episode.news, entry.sourceReviewExpired) : ""}</div></details>`;
+}
+
+function versionRow(version: WorkVersion, label: string, latest: boolean) {
+  const { entry } = version;
+  const { episode, preview } = entry;
+  const selector = version.selector;
+  const action = workAction(version.stage, selector);
+  const status = studioReadiness(entry);
   const search = [
     selector,
     episode.title,
@@ -105,12 +165,41 @@ function card(entry: LibraryEntry) {
   ]
     .join(" ")
     .toLowerCase();
-  const prefix = `episodes/${encodeURIComponent(selector)}`;
-  return `<article class="episode-card work-row" data-title="${esc(episode.title)}" data-updated="${esc(entry.updatedAt ?? preview?.updatedAt ?? "")}" data-selector="${esc(selector)}" data-kind="${news ? "news" : "tutorial"}" data-stage="${entry.video ? "review" : "editing"}" data-attention="${attention}" data-search="${esc(search)}">
-  <div class="work-thumbnail">${entry.video ? `<img src="${prefix}/video/poster.png" alt="" width="54" height="96" loading="lazy">` : `<span>${esc(episode.id.split("-")[0] ?? "SAP")}</span>`}</div>
-  <div class="work-title"><div class="work-meta"><span>${esc(episode.id)} · ${news ? "News" : "Tutorial"}</span><span class="version-name">${esc(version)}</span></div><h3>${esc(episode.title)}</h3><p>${esc(presentationLabel(episode))} · ${preview?.kind === "narrated" ? `${preview.durationSeconds.toFixed(1)}s recorded` : `${episode.targetDurationSeconds}s planned`}</p><p class="work-issue" data-work-issue ${attention ? "" : "hidden"}>${attention ? esc(studioReadiness(entry).label) : ""}</p></div>
-  <div class="work-state"><span class="stage-badge" data-work-stage>${entry.video ? "To review" : "Editing"}</span><small data-work-next>${entry.video ? "Video produced · awaiting your review" : "Script saved · video not produced"}</small>${entry.generation ? `<small>Generated in ${formatGenerationTime(entry.generation.totalMs)}${entry.generation.reusedAudio || entry.generation.reusedVideo ? " · reused media" : ""}</small>` : ""}</div>
-  <div class="work-actions"><a class="primary-action" data-work-action href="${prefix}/${entry.video ? "publish.html" : "edit.html"}">${entry.video ? "Review video" : "Continue editing"}</a>${entry.deck ? `<a class="presentation-action" href="${prefix}/presentation.html">Presentation ↗</a>` : ""}<details class="work-more"><summary aria-label="More actions for ${esc(selector)}">More</summary><div>${entry.deck ? `<a href="${prefix}/presentation.html">Interactive presentation</a>` : ""}<a href="${prefix}/edit.html">Edit a new version</a>${entry.video ? `<a href="${videoLinkFor(entry)}">Watch MP4</a>` : ""}${preview ? `<a href="${linkFor(entry)}">Review preview</a>` : ""}<button type="button" class="produce-card-btn" data-selector="${esc(selector)}">${entry.video ? "Re-render MP4" : "Produce saved script"}</button>${entry.download ? `<a href="${prefix}/episode-package.zip" download="${esc(entry.download.filename)}">Download ${entry.download.savedNews ? "saved package" : "episode package"} · ZIP</a>` : ""}<span>${esc(recordedNarrator(entry))}</span>${!preview ? "<span>No matching preview yet · No recording yet</span>" : ""}${news ? newsReviewNotice(episode.news, entry.sourceReviewExpired) : ""}</div></details></div></article>`;
+  return `<div class="vrow" role="row" data-version data-selector="${esc(selector)}" data-stage="${version.stage}" data-attention="${version.attention}" data-updated="${esc(version.updatedAt)}" data-label="${stageLabel(version.stage)}" data-next="${esc(stageHint(entry))}" data-issue="${esc(version.attention ? status.label : "")}" data-production-stage="" data-action-label="${esc(action.label)}" data-short-label="${esc(action.shortLabel)}" data-action-href="${esc(action.href)}" data-valid-through="${validThrough(episode)}" data-sources-expired="${entry.sourceReviewExpired}" data-version-label="${label}" data-title="${esc(episode.title)}" data-news="${isNewsEpisode(episode)}" data-search="${esc(search)}">
+<span class="vn" role="cell"><b>${label}</b>${latest ? '<span class="latest-chip">Latest</span>' : ""}</span>
+<span class="vdetail" role="cell"><span class="vtitle">${esc(episode.title)}</span><span class="vsub"><code class="vsel" title="${esc(selector)}">${esc(selector)}</code><span>${esc(presentationLabel(episode))}</span></span><small class="work-issue" data-version-issue ${version.attention ? "" : "hidden"}>${version.attention ? esc(status.label) : ""}</small>${entry.generation ? `<small class="vgen">Generated in ${formatGenerationTime(entry.generation.totalMs)}${entry.generation.reusedAudio || entry.generation.reusedVideo ? " · reused media" : ""}</small>` : ""}</span>
+<span class="vstage" role="cell"><span class="stage-badge" data-version-stage data-badge="${version.stage}">${stageLabel(version.stage)}</span></span>
+<span class="vlen" role="cell" title="${preview?.kind === "narrated" ? "Measured narration" : "Planned length"}">${esc(lengthLabel(entry))}</span>
+<span class="vvoice" role="cell">${esc(recordedNarrator(entry))}</span>
+<span class="vupd" role="cell">${timeTag(version.updatedAt, "")}</span>
+<span class="vact" role="cell"><a class="vrow-primary" data-version-action href="${esc(action.href)}" aria-label="${esc(action.label)} · ${label}">${esc(action.shortLabel)}</a><span class="row-extras" data-row-extras>${workExtras(entry)}</span></span>
+</div>`;
+}
+
+function storyRow(story: Story<WorkVersion>) {
+  const { latest, representative } = story;
+  const { episode } = latest.entry;
+  const news = isNewsEpisode(episode);
+  const withVideo = story.versions.find((version) => version.entry.video);
+  const thumbnail = withVideo
+    ? `<img src="episodes/${encodeURIComponent(withVideo.selector)}/video/poster.png" alt="" width="54" height="96" loading="lazy">`
+    : `<span>${esc(episode.id.split("-")[0] ?? "SAP")}</span>`;
+  const action = workAction(representative.stage, representative.selector);
+  const flagged = story.versions.find((version) => version.attention);
+  const drawer = `versions-${story.id}`;
+  const count = plural(story.versions.length, "version");
+  return `<article class="story" data-story="${esc(story.id)}" data-title="${esc(episode.title)}" data-updated="${esc(latest.updatedAt)}" data-selector="${esc(story.id)}" data-kind="${news ? "news" : "tutorial"}" data-stages="${story.stages.join(" ")}" data-attention="${story.attention}" data-rep="${esc(representative.selector)}" data-versions="${story.versions.length}">
+<div class="story-main">
+<div class="work-thumbnail">${thumbnail}</div>
+<div class="work-title"><h3>${esc(episode.title)}</h3><div class="work-meta"><code class="chip">${esc(episode.id)}</code><span>${news ? "News" : "Tutorial"}</span><span class="sep" aria-hidden="true">·</span><span>${esc(lengthLabel(latest.entry))}</span><span class="sep" aria-hidden="true">·</span><span class="ver-static">${count}</span><button type="button" class="ver-btn" data-versions-toggle aria-expanded="true" aria-controls="${esc(drawer)}" hidden>${count} ${chevron}</button></div><p class="work-issue" data-work-issue ${flagged ? "" : "hidden"}>${flagged ? `${story.versions.length > 1 ? `${story.labels.get(flagged.selector)}: ` : ""}${esc(studioReadiness(flagged.entry).label)}` : ""}</p></div>
+<div class="work-state"><span class="stage-badge" data-work-stage data-badge="${representative.stage}">${stageLabel(representative.stage)}</span><small data-work-next>${esc(stageHint(representative.entry))}</small></div>
+${timeTag(latest.updatedAt, "story-updated")}
+<div class="work-actions"><a class="primary-action" data-work-action href="${esc(action.href)}">${esc(action.label)}</a><span class="row-extras" data-story-extras>${workExtras(representative.entry)}</span></div>
+</div>
+<div class="versions" id="${esc(drawer)}" role="table" aria-label="Versions of ${esc(story.id)}, newest first">
+<div class="vrow head" role="row"><span role="columnheader">Version</span><span role="columnheader">Details</span><span role="columnheader">Stage</span><span role="columnheader">Length</span><span role="columnheader">Voice</span><span role="columnheader">Updated</span><span role="columnheader"><span class="sr-only">Actions</span></span></div>
+${story.versions.map((version, index) => versionRow(version, story.labels.get(version.selector) ?? "", index === 0)).join("\n")}
+</div></article>`;
 }
 
 function comparisonSection(entries: LibraryEntry[]) {
@@ -170,6 +259,7 @@ export async function createLibraryPages(
     voicePanelCss,
     browserCss,
     collectionsScript,
+    storiesScript,
     navigationScript,
     writingCss,
     writingScript,
@@ -181,12 +271,15 @@ export async function createLibraryPages(
     readFile(resolve(projectRoot, "templates/voice-library.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/library-browser.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/library-collections.js"), "utf8"),
+    readFile(resolve(projectRoot, "templates/library-stories.js"), "utf8"),
     readFile(resolve(projectRoot, "templates/library-navigation.js"), "utf8"),
     readFile(resolve(projectRoot, "templates/writing-assistant.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/writing-assistant.js"), "utf8"),
   ]);
-  const videos = entries.filter((entry) => entry.video).length;
-  const newsCount = entries.filter((entry) => isNewsEpisode(entry.episode)).length;
+  const stories = groupStories(entries.map(workVersion));
+  const counts = stageCounts(stories);
+  const newsStories = stories.filter((story) => isNewsEpisode(story.latest.entry.episode)).length;
+  const tutorialStories = stories.length - newsStories;
   const newsIdeas = newsTopics
     .filter((topic) => topic.status === "needs-research")
     .sort((a, b) => a.priority - b.priority);
@@ -257,33 +350,36 @@ export async function createLibraryPages(
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self'; img-src 'self'; media-src 'self' blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">`;
   const html = `<!doctype html><html lang="en"><head>${head}<title>SAP Shorts · Workspace</title><style>${css}\n${voicePanelCss}\n${browserCss}\n${writingCss}</style></head><body class="workflow-studio">
 <a class="skip-link" href="#episodes">Skip to workspace</a>
-<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><a class="new-short-button" data-new-short href="#ideas"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>New short</span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${entries.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#styles">Delivery styles</a><a data-workspace-link="voices" href="#voices">Voice library</a><a data-workspace-link="writing" href="#writing">Writing engine</a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
+<div class="studio"><aside class="studio-nav"><a href="review.html" class="studio-brand"><i>S</i><span>SAP Shorts<small>CREATOR STUDIO</small></span></a><a class="new-short-button" data-new-short href="#ideas"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg><span>New short</span></a><div class="nav-caption">WORKSPACE</div><nav aria-label="Studio"><a class="nav-current" data-workspace-link="episodes" href="#episodes">My shorts <small>${stories.length}</small></a><a data-workspace-link="ideas" href="#ideas">Ideas <small>${newsIdeas.length + tutorialIdeas.length + stagedDrafts.length}</small></a><a data-workspace-link="styles" href="#styles"><em class="nav-full">Delivery styles</em><em class="nav-short">Styles</em></a><a data-workspace-link="voices" href="#voices"><em class="nav-full">Voice library</em><em class="nav-short">Voices</em></a><a data-workspace-link="writing" href="#writing"><em class="nav-full">Writing engine</em><em class="nav-short">Writing</em></a></nav><div class="nav-bottom"><span class="local-dot"></span>On this Mac<small>Pictures, narration and production stay local.</small></div></aside>
 <main class="studio-main"><header class="workspace-heading"><div><h1 id="workspace-title">My shorts</h1><p id="workspace-description">Find a draft, review a video, or pick up where you left off.</p></div></header>
 <aside id="studio-produce-banner" class="studio-produce-banner" hidden aria-live="polite"><div class="banner-content"><strong id="studio-produce-title">Producing video…</strong><p id="studio-produce-message"></p><div class="studio-progress-bar"><div id="studio-produce-progress" class="studio-progress-fill"></div></div><a id="studio-job-link" href="#episodes">Open working version</a></div></aside>
-<section id="episodes" class="episodes-section" data-workspace-view="episodes"><div class="pipeline-tabs" role="group" aria-label="Filter by stage"><button type="button" data-stage-filter="all" aria-pressed="true">All shorts <b>${entries.length}</b></button>${[
-    ["editing", "Editing", entries.length - videos],
-    ["producing", "Producing", 0],
-    ["review", "To review", videos],
-    ["publish", "To publish", "—"],
-    ["published", "Published", "—"],
+<section id="episodes" class="episodes-section" data-workspace-view="episodes"><section id="needs-you" class="needs-you" aria-labelledby="needs-you-title" hidden><h2 id="needs-you-title" class="sect-h">Needs you</h2><div class="attn" data-needs-list></div></section>
+<div class="shorts-controls" data-enhancement-only hidden><div class="pipe" role="group" aria-label="Filter by stage">${[
+    ["all", "All"],
+    ["editing", "Editing"],
+    ["producing", "Producing"],
+    ["review", "To review"],
+    ["publish", "To publish"],
+    ["published", "Published"],
   ]
     .map(
-      ([stage, label, count]) =>
-        `<button type="button" data-stage-filter="${stage}" aria-pressed="false">${label} <b data-stage-count="${stage}">${count}</b></button>`,
+      ([stage, label]) =>
+        `<button type="button" class="pipe-btn" data-stage-filter="${stage}" aria-pressed="${stage === "all"}">${stage === "all" ? "" : `<i class="dot" data-badge="${stage}" aria-hidden="true"></i>`}${label} <b data-stage-count="${stage}">${counts[stage as WorkStage | "all"]}</b></button>`,
     )
     .join("")}</div>
-<div class="library-tools" data-enhancement-only hidden><div class="episode-search"><label for="episode-search"><span class="sr-only">Search episodes</span></label><input id="episode-search" type="search" placeholder="Search titles, versions or scripts…" autocomplete="off" maxlength="200"><button type="button" id="clear-search" aria-label="Clear search" hidden>×</button></div><div class="format-filters" role="group" aria-label="Episode format"><button type="button" data-format="all" aria-pressed="true">All types</button><button type="button" data-format="tutorial" aria-pressed="false">Tutorials <span>${entries.length - newsCount}</span></button><button type="button" data-format="news" aria-pressed="false">News <span>${newsCount}</span></button></div><label class="attention-filter"><input type="checkbox" id="attention-filter"> Needs attention</label></div>
+<div class="shorts-toolbar"><div class="library-tools"><div class="episode-search"><label for="episode-search"><span class="sr-only">Search shorts</span></label><input id="episode-search" type="search" placeholder="Search titles, versions or scripts…" autocomplete="off" maxlength="200"><button type="button" id="clear-search" aria-label="Clear search" hidden>×</button></div><div class="format-filters" role="group" aria-label="Episode format"><button type="button" data-format="all" aria-pressed="true">All types</button><button type="button" data-format="tutorial" aria-pressed="false">Tutorials <span>${tutorialStories}</span></button><button type="button" data-format="news" aria-pressed="false">News <span>${newsStories}</span></button></div><label class="attention-filter"><input type="checkbox" id="attention-filter"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Needs attention</label></div>
 ${collectionTools(
   "shorts",
-  "shorts",
+  "stories",
   [
     ["recent", "Recently updated"],
     ["oldest", "Oldest updated"],
     ["title", "Title A–Z"],
     ["id", "Episode ID"],
   ],
-  { search: false, size: 8 },
-)}<div class="list-caption"><p id="filter-status" role="status">${new Set(entries.map((entry) => entry.episode.id)).size} topics · ${entries.length} versions</p><span id="workflow-sync" role="status">Saved library · connecting to live status…</span></div><div class="episode-grid" id="shorts-list">${entries.map(card).join("")}</div><div id="no-episodes" class="empty-library" ${entries.length ? "hidden" : ""}><h3>No shorts in this view</h3><p>Choose another stage or clear your filters. Open Ideas in the sidebar to explore the backlog.</p><button type="button" id="reset-filters">Show all shorts</button></div>${collectionPages("shorts", "shorts", "bottom")}</section>
+  { search: false, size: 10 },
+)}</div></div>
+<div class="list-caption"><p id="filter-status" role="status">${stories.length} stories · ${entries.length} versions</p><span id="workflow-sync" role="status">Saved library · connecting to live status…</span></div><div class="episode-grid" id="shorts-list">${stories.map(storyRow).join("\n")}</div><div id="no-episodes" class="empty-library" ${entries.length ? "hidden" : ""}><h3>No shorts in this view</h3><p>Choose another stage or clear your filters. Open Ideas in the sidebar to explore the backlog.</p><button type="button" id="reset-filters">Show all shorts</button></div>${collectionPages("shorts", "stories", "bottom")}</section>
 <div class="workspace-resources"><section id="formats" class="formats-section" data-workspace-view="styles"><div class="section-heading"><div><p class="eyebrow">MORE WAYS TO TELL IT</p><h2>Storytelling formats</h2></div></div><p class="styles-intro">Set the tone to professional, casual, or comic. Explore prepared examples below; new deliveries start with a reviewed script.</p><div class="style-grid">${presentationFormats.map((format) => formatOption(format, entries)).join("")}</div></section><section id="ideas" class="ideas-section" data-workspace-view="ideas"><nav class="idea-tabs" aria-label="Idea collections"><a href="#ideas" data-idea-tab="stories">Official stories</a><a href="#staged-drafts-section" data-idea-tab="drafts">Staged drafts <span id="drafts-count">${stagedDrafts.length}</span></a><a href="#curated-ideas" data-idea-tab="curated">News backlog</a><a href="#tutorial-ideas" data-idea-tab="tutorials">Tutorial ideas</a></nav><div class="news-hub-card" data-idea-panel="stories"><div class="news-hub-header"><div><div class="news-live-tag"><span class="live-pulse"></span> LIVE SAP SCANNER</div><p class="news-hub-sub">Stories from news.sap.com, scored for short-video fit. Starting a short drafts 7 scenes with dated claims and companion LinkedIn copy.</p></div><div class="news-hub-actions"><button type="button" id="scan-news-btn" class="secondary-action">↻ Refresh Top Stories</button></div></div><form id="custom-news-form" class="custom-news-bar" action="javascript:void(0);"><label for="custom-news-url" class="sr-only">SAP article URL</label><input type="url" id="custom-news-url" placeholder="Paste any official SAP article URL (e.g. https://news.sap.com/2026/10/...)" required /><button type="submit" id="custom-news-submit" class="primary-action">Draft Short from URL</button></form><div id="news-status-msg" class="news-status-banner" hidden></div>${collectionTools(
     "stories",
     "stories",
@@ -318,7 +414,7 @@ ${collectionTools(
       ["title", "Title A–Z"],
     ],
   )}<div class="tutorial-idea-grid" id="tutorial-list">${tutorialIdeas.map((topic) => `<article><span>${esc(topic.pillar)}</span><h3>${esc(topic.title)}</h3><p>Research and environment verification needed.</p></article>`).join("")}</div>${collectionEnd("tutorials", "tutorial ideas")}</section></section>
-${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="writing" data-workspace-view="writing">${writingPanel()}</section></div><footer class="studio-footer"><span>SAP Shorts / Local creator studio</span><span>Produced videos need review. Publication is recorded with a post link.</span></footer></main></div><script>${collectionsScript}\n${localActionsScript}\n${voiceProfilesScript}\n${script}\n${navigationScript}\n${writingScript}</script></body></html>`;
+${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="writing" data-workspace-view="writing">${writingPanel()}</section></div><footer class="studio-footer"><span>SAP Shorts / Local creator studio</span><span>Produced videos need review. Publication is recorded with a post link.</span></footer></main></div><script>${collectionsScript}\n${storiesScript}\n${localActionsScript}\n${voiceProfilesScript}\n${script}\n${navigationScript}\n${writingScript}</script></body></html>`;
   const files: Record<string, string | Buffer> = { "review.html": enhanceNewsReviewHtml(html) };
   for (const sample of content.voiceCatalog?.samples ?? [])
     files[`voices/${sample.key}/sample.wav`] = sample.audio;

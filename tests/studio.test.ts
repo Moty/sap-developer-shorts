@@ -131,7 +131,7 @@ test("comparison anchors and return links work without scripts and voice text re
     budgetCents: 500,
   });
   const html = String(files["review.html"]);
-  assert.match(html, /class="library-tools" data-enhancement-only hidden/);
+  assert.match(html, /class="shorts-controls" data-enhancement-only hidden/);
   assert.match(html, /href="#compare-CAP-01--duo" data-style-choice>Conversation/);
   assert.match(html, /<article id="compare-CAP-01--duo" class="style-panel" data-comparison-panel/);
   assert.doesNotMatch(html, /<article[^>]*data-comparison-panel[^>]*\bhidden\b/u);

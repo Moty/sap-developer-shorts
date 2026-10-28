@@ -5,11 +5,33 @@ recording/uploading a sample, auditioning Qwen narration and assigning an accept
 profile to each speaker. The default stays Heart. See [personal voice setup and
 privacy](QWEN_VOICES.md). This feature is local-only; hosted studios use stock voices.
 
-The workspace opens on the work list. Every row names the topic and the exact
-version, shows its stage, and offers one primary next action. Search, type,
-stage and **Needs attention** filters work together. Desktop uses compact rows;
-phones use stacked cards and a two-row stage selector. Nothing starts playing
-or rendering merely because a stage or version is selected.
+The workspace opens on the work list. **My shorts** shows one row per story (one
+episode id such as CAP-01), however many versions you saved. A row shows the
+opening frame (or a placeholder for drafts), the latest title, the id, type,
+length (measured or planned), the story's stage, its last update and one primary
+next action. **N versions ▾** opens a drawer listing every saved version, newest
+first, as v1…vN in the order they were created or updated; the real selector
+(for example `NEWS-01@my-edit`) stays visible beside each label, with its own
+stage, length, voice, last update, Edit/Review action, Presentation link and
+More menu. Drawers start collapsed; without JavaScript they stay open.
+
+The row's stage and primary action come from the story's **representative
+version**: the most advanced actionable state wins in this order — Producing
+(active job) > To review > To publish > Editing > Published. Ties go to the most
+recently updated version. So a story with an unreviewed video offers **Review
+video** even if you are also editing a newer draft; open the drawer to continue
+the draft.
+
+A **Needs you** strip (up to three cards, hidden when empty) comes from live
+status: stories waiting for review (oldest first), the latest version of a story
+whose production failed or was interrupted (Ready to retry), news whose source
+review has expired or ends within three days, and the number of official SAP
+stories that have no short yet. The stage row below shows how many stories have at
+least one version in each stage; **All** counts stories. Search, type, stage and
+the **Needs attention** chip work on stories: a story matches when any version
+does, and searching opens the drawers of matching stories and highlights the
+matching versions. Phones scroll the stage row and the needs-you cards sideways.
+Nothing starts playing or rendering merely because a stage or version is selected.
 
 | Stage | What it means | Next action |
 | --- | --- | --- |
@@ -212,14 +234,15 @@ editor return and voice-library links still open their matching section; browser
 Back and Forward follow section navigation. Static copies keep all content
 readable when JavaScript is disabled.
 
-My shorts shows eight entries per page by default. Search examines all saved
-versions, including their narration, rather than only the current page. Combine
-it with the stage, tutorial/news and attention filters. Sort by **Recently
-updated**, **Oldest updated**, **Title A–Z**, or **Episode ID**. Update time uses
-the later of the local script file modification and its recorded preview time;
-after a fresh clone, script dates reflect the checkout. Choose 8, 16 or 32 per
-page, use Previous/Next, or jump directly to a page at either end of the list.
-Result counts distinguish filtered matches from the complete library.
+My shorts shows ten stories per page by default. Search examines every saved
+version of every story, including narration, rather than only the current page.
+Combine it with the stage, tutorial/news and attention filters. Sort by **Recently
+updated**, **Oldest updated**, **Title A–Z**, or **Episode ID**. A story's update
+time is its newest version's: the later of the local script file modification and
+its recorded preview time; after a fresh clone, script dates reflect the
+checkout. Choose 10, 20 or 40 per page, use Previous/Next, or jump directly to a
+page at either end of the list. Result counts read like “9 stories · 62
+versions” and distinguish filtered matches from the complete library.
 
 Ideas separates official stories, staged drafts, the news backlog and tutorial
 ideas. Story cards show a five-step **fit** meter (High, Good or Low; the numeric
@@ -233,7 +256,8 @@ name/style search alongside their delivery-style filter.
 
 Search, sorting, page size and page number are remembered separately for each
 collection in this browser tab's session storage. Shorts also remember their
-stage/type/attention filters. Filtering or changing sort/page size returns to the
+stage/type/attention filters and which version drawers you opened, so returning
+from a video review lands on the same view. Filtering or changing sort/page size returns to the
 first page; live workflow polling keeps the current page, clamping it if the
 result list becomes shorter. Storage being unavailable does not prevent browsing.
 Switching sections pauses their media and stops any active microphone recording,

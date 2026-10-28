@@ -33,7 +33,8 @@ other edits, source dates, claims, and project default. The panel stays open
 while editing, and restoring a section returns focus to its input. A new version
 name alone is not counted as a wording or voice change.
 
-The local studio brings tutorial and news versions into one library, with stage
+The local studio brings tutorial and news stories into one library (one row per
+story, with a drawer of its saved versions), with stage
 and type filters, text search, source links, measured narration durations, live
 production status and an idea backlog. Its local server supports draft saves,
 production, exact-video approval and manually recorded post URLs. It does not

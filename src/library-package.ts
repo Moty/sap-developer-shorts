@@ -124,6 +124,7 @@ function validateManifest(value: unknown) {
     "templates/voice-library.css",
     "templates/library-browser.css",
     "templates/library-collections.js",
+    "templates/library-stories.js",
     "templates/library-navigation.js",
     "templates/presentation.css",
     "templates/presentation.js",

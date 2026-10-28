@@ -144,7 +144,8 @@
   window.addEventListener("popstate", chooseStyle);
   chooseStyle();
   const input = document.querySelector("#episode-search");
-  const cards = [...document.querySelectorAll(".episode-card")];
+  const stories = [...document.querySelectorAll(".story")];
+  const lib = globalThis.shortsStories;
   const buttons = [...document.querySelectorAll("[data-format]")];
   const clear = document.querySelector("#clear-search");
   const status = document.querySelector("#filter-status");
@@ -167,45 +168,127 @@
   }
 
   if (attentionFilter) attentionFilter.checked = rememberedFilters.attention === true;
+  const searchTerms = () => (input.value ?? "").trim().toLowerCase().split(/\s+/u).filter(Boolean);
+  const versionRows = (story) => [...story.querySelectorAll("[data-version]")];
+  const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  // A story is one row; its search index covers every saved version.
+  for (const story of stories)
+    story.dataset.search = versionRows(story)
+      .map((row) => row.dataset.search)
+      .join(" ");
+  const rememberedOpen = new Set(
+    Array.isArray(rememberedFilters.open) ? rememberedFilters.open : [],
+  );
+
+  function applyDrawer(story) {
+    const drawer = story.querySelector(".versions");
+    const open = story.dataset.open === "true";
+    if (drawer) drawer.hidden = !open;
+    story.querySelector("[data-versions-toggle]")?.setAttribute("aria-expanded", String(open));
+  }
+  // Searching opens the drawers whose versions match and marks the matching versions.
+  function applySearch() {
+    const terms = searchTerms();
+    for (const story of stories) {
+      let matched = 0;
+      for (const row of versionRows(story)) {
+        const match = terms.length > 0 && terms.every((term) => row.dataset.search.includes(term));
+        row.classList.toggle("is-match", match);
+        if (match) matched++;
+      }
+      story.dataset.open = String(matched > 0 || story.dataset.manualOpen === "true");
+      applyDrawer(story);
+    }
+  }
+  for (const story of stories) {
+    story.dataset.manualOpen = String(rememberedOpen.has(story.dataset.story));
+    for (const control of story.querySelectorAll("[data-versions-toggle]")) {
+      control.hidden = false;
+      control.addEventListener("click", () => {
+        const open = story.dataset.open !== "true";
+        story.dataset.open = String(open);
+        story.dataset.manualOpen = String(open);
+        applyDrawer(story);
+        saveFilters();
+      });
+    }
+    for (const label of story.querySelectorAll(".ver-static")) label.hidden = true;
+  }
+
   const episodeCollection = collections?.create({
     id: "shorts",
     root: document.querySelector("#shorts-list"),
     query: input,
     status,
     empty,
-    label: "shorts",
-    pageSize: 8,
+    label: "stories",
+    pageSize: 10,
     scrollTarget: document.querySelector("#episodes"),
-    match: (card) =>
-      (format === "all" || card.dataset.kind === format) &&
-      (stage === "all" || card.dataset.stage === stage) &&
-      (!attentionFilter?.checked || card.dataset.attention === "true"),
+    match: (story) =>
+      (format === "all" || story.dataset.kind === format) &&
+      (stage === "all" || story.dataset.stages.split(" ").includes(stage)) &&
+      (!attentionFilter?.checked || story.dataset.attention === "true"),
+    onRender: ({ ordered, start, perPage }) => {
+      const versions = ordered.reduce((sum, story) => sum + Number(story.dataset.versions), 0);
+      const total = stories.length;
+      const range =
+        ordered.length > perPage
+          ? `${start + 1}–${Math.min(start + perPage, ordered.length)} of ${ordered.length}`
+          : ordered.length === total
+            ? String(total)
+            : `${ordered.length} of ${total}`;
+      if (status)
+        status.textContent = ordered.length
+          ? `${range} ${total === 1 ? "story" : "stories"} · ${plural(versions, "version")}`
+          : `No matching stories (${total} total)`;
+    },
   });
-  function update(reset = false) {
-    const terms = input.value.trim().toLowerCase().split(/\s+/u).filter(Boolean);
-    let visible = 0;
-    for (const card of cards) {
-      const matches =
-        (format === "all" || card.dataset.kind === format) &&
-        (stage === "all" || card.dataset.stage === stage) &&
-        (!attentionFilter?.checked || card.dataset.attention === "true") &&
-        terms.every((term) => card.dataset.search.includes(term));
-      card.hidden = !matches;
-      if (matches) visible++;
-    }
-    for (const button of buttons)
-      button.setAttribute("aria-pressed", String(button.dataset.format === format));
-    for (const button of stageButtons)
-      button.setAttribute("aria-pressed", String(button.dataset.stageFilter === stage));
-    clear.hidden = !input.value;
-    empty.hidden = visible !== 0;
-    status.textContent = `${visible} ${visible === 1 ? "version" : "versions"}`;
-    episodeCollection?.render({ reset });
+  function saveFilters() {
     collections?.save("shorts:episode-filters", {
       format,
       stage,
       attention: !!attentionFilter?.checked,
+      open: stories
+        .filter((story) => story.dataset.manualOpen === "true")
+        .map((s) => s.dataset.story),
     });
+  }
+  function update(reset = false) {
+    for (const button of buttons)
+      button.setAttribute("aria-pressed", String(button.dataset.format === format));
+    for (const button of stageButtons)
+      button.setAttribute("aria-pressed", String(button.dataset.stageFilter === stage));
+    for (const count of document.querySelectorAll("[data-stage-count]"))
+      count.textContent = String(
+        count.dataset.stageCount === "all"
+          ? stories.length
+          : stories.filter((story) =>
+              story.dataset.stages.split(" ").includes(count.dataset.stageCount),
+            ).length,
+      );
+    clear.hidden = !input.value;
+    episodeCollection?.render({ reset });
+    saveFilters();
+    refreshNeeds();
+  }
+  // "Needs you" is derived from the same version rows that the workflow poll keeps current.
+  function refreshNeeds() {
+    const section = document.querySelector("#needs-you");
+    if (!lib || !section || stories.length === 0) return;
+    const ideas = [...document.querySelectorAll("#live-news-grid .news-story-card")].filter(
+      (card) => !card.querySelector(".story-existing"),
+    ).length;
+    lib.renderNeedsYou(
+      section,
+      lib.needsYou(
+        stories.map((story) => ({
+          id: story.dataset.story,
+          title: story.dataset.title,
+          versions: versionRows(story).map(lib.readVersion),
+        })),
+        { ideas },
+      ),
+    );
   }
   for (const button of stageButtons)
     button.addEventListener("click", () => {
@@ -221,9 +304,13 @@
       format = button.dataset.format;
       update(true);
     });
-  input.addEventListener("input", () => update(true));
+  input.addEventListener("input", () => {
+    applySearch();
+    update(true);
+  });
   clear.addEventListener("click", () => {
     input.value = "";
+    applySearch();
     update(true);
     input.focus();
   });
@@ -237,9 +324,11 @@
       window.history.replaceState(null, "", url);
     }
     input.value = "";
+    applySearch();
     update(true);
     input.focus();
   });
+  applySearch();
   update();
   document.querySelector("[data-enhancement-only]").hidden = false;
 
@@ -254,51 +343,19 @@
       const response = await fetch("/api/workflow");
       if (!response.ok) throw new Error("Status unavailable");
       const data = await response.json();
-      for (const card of cards) {
-        const state = data.episodes.find((entry) => entry.selector === card.dataset.selector);
-        if (!state) continue;
-        card.dataset.stage = state.stage;
-        card.dataset.attention = String(state.attention);
-        card.querySelector("[data-work-stage]").textContent = state.label;
-        const next = {
-          editing: "Script saved · continue when ready",
-          producing: "Running on this Mac",
-          review: "Video produced · awaiting your review",
-          publish: "Approved · ready to post",
-          published: "Live post link recorded",
-        };
-        card.querySelector("[data-work-next]").textContent =
-          state.productionStage === "BLOCKED" || state.productionStage === "FAILED"
-            ? "No MP4 yet · open this saved version to resolve the issue"
-            : next[state.stage];
-        const issue = card.querySelector("[data-work-issue]");
-        if (state.issue) {
-          issue.hidden = false;
-          issue.textContent = state.issue;
-        }
-        const action = card.querySelector("[data-work-action]");
-        if (["review", "publish", "published"].includes(state.stage)) {
-          action.textContent =
-            state.stage === "review"
-              ? "Review video"
-              : state.stage === "publish"
-                ? "Finish publishing"
-                : "View publication";
-          action.href = `episodes/${encodeURIComponent(state.selector)}/publish.html`;
-        }
-        if (state.stage === "producing") {
-          action.textContent = "View progress";
-          action.href = "#studio-produce-banner";
-        } else if (state.stage === "editing") {
-          action.textContent =
-            state.productionStage === "BLOCKED" ? "Fix saved version" : "Continue editing";
-          action.href = `episodes/${encodeURIComponent(state.selector)}/edit.html`;
-        }
-      }
-      for (const count of document.querySelectorAll("[data-stage-count]"))
-        count.textContent = String(
-          cards.filter((card) => card.dataset.stage === count.dataset.stageCount).length,
+      if (lib) {
+        const rows = new Map(
+          [...document.querySelectorAll("[data-version]")].map((row) => [
+            row.dataset.selector,
+            row,
+          ]),
         );
+        for (const state of data.episodes) {
+          const row = rows.get(state.selector);
+          if (row) lib.applyWorkflowState(row, state);
+        }
+        for (const story of stories) lib.syncStory(story);
+      }
       const job = data.activeJob;
       if (job && banner) {
         banner.hidden = false;
