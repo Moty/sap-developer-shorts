@@ -1,5 +1,9 @@
 # Local editorial model screening — October 27, 2026
 
+A separate [four-stage follow-up](LOCAL_MODEL_WORKFLOW_RESULTS.md) tests Gemma 31B,
+Qwen3.8 and Muse with new briefs. It updates the local recommendation without
+changing this first screen's measurements.
+
 Six already installed models were tested on this Mac, sequentially, through LM
 Studio's loopback API. No weights were downloaded and no external model was
 called. **Qwen3.8 27B is the most promising next writer candidate in this screen,

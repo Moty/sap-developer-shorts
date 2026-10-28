@@ -74,6 +74,9 @@ The existing news URL drafter uses paragraph extraction and templates; a writing
 LLM and its editorial review workflow are proposed, not yet connected.
 The preferred implementation is a [managed local writing model](docs/LOCAL_EDITORIAL_MODELS.md),
 with Qwen and Gemma candidates, local review and no automatic cloud fallback.
+See the [follow-up local writing comparison](docs/LOCAL_MODEL_WORKFLOW_RESULTS.md)
+for Gemma 31B, Qwen3.8 and Muse outputs, measured workflow times and remaining
+editorial limitations. This experiment does not connect an LLM to production yet.
 
 This is a portable, saved library. Rebuild it after creating or revising episodes, then serve the new directory. It does not purchase media or publish posts. Expired news remains viewable with a source-recheck label; new news production still requires a fresh review. See [review studio details](docs/REVIEW_STUDIO.md).
 

@@ -5,6 +5,11 @@ experiment. No new weights, hosted inference, account changes or installer
 release were performed. The earlier [measured local results](LOCAL_MODEL_BENCHMARK.md)
 remain unchanged.
 
+The authorized [local workflow follow-up](LOCAL_MODEL_WORKFLOW_RESULTS.md)
+now records downloads, inference results and configuration diagnostics for the
+three local candidates. Consult that report for the newer local recommendation;
+the hosted comparison below has not been performed.
+
 ## Decision
 
 Keep local authoring and rendering available, with an explicit optional paid

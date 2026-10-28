@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "asOf": "2026-10-27",
+  "description": "Held-out story questions for the second local screen. CAP topics share the existing sample project; this is not a domain-independent generalization test.",
+  "styleReference": "Proposed style reference, not a user-approved script: 'I thought the printer had retired. Turns out, I had sent the job to the office next door. Before replacing the printer, check where the request went.' Use its plain speech, small discovery and restrained situational humor; never import its printer facts into an SAP story.",
+  "cases": [
+    {
+      "id": "cap-key-lookup",
+      "title": "A product title is not its key",
+      "category": "tutorial",
+      "direction": "A warm, useful debugging discovery. Explain how to retrieve one specific product in the checked demo. A light joke can arise from names versus identifiers; do not invent a failed title-lookup request.",
+      "speakers": ["narrator"],
+      "facts": {
+        "u1": "The local Products entity declares a UUID ID as its key, with title and integer stock as other fields. The title field is not declared a key.",
+        "u2": "The seed assigns Mechanical Keyboard the ID 11111111-1111-4111-8111-111111111111 and stock 12.",
+        "u3": "A newly checked GET of Products(11111111-1111-4111-8111-111111111111) returns HTTP 200 and that keyboard with stock 12.",
+        "u4": "A newly checked GET for absent UUID aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa returns HTTP 404. This does not prove the item was deleted.",
+        "u5": "This is an isolated local OData V4 sample with seeded data, not a production search feature. No title-key request, duplicate-title experiment or production deployment was tested."
+      },
+      "sources": [
+        "demos/cap/inventory/db/schema.cds",
+        "demos/cap/inventory/db/data/demo-Products.csv",
+        "scripts/editorial/cap-evidence.cjs: known-key-is-200, missing-key-is-404"
+      ],
+      "evaluationNotes": [
+        "Do not claim a title lookup was tested or that a 404 proves deletion.",
+        "Keep the concrete lookup distinct from text search or universal API rules."
+      ]
+    },
+    {
+      "id": "cap-count-not-quantity",
+      "title": "Three products is not three units",
+      "category": "tutorial",
+      "direction": "Professional but conversational. Build a small prediction and reveal around what an OData count actually counts in this demo. Resolve the difference between row count and quantities.",
+      "speakers": ["narrator"],
+      "facts": {
+        "c1": "The local Products collection contains Mechanical Keyboard stock 12, USB-C Dock stock 7 and Monitor Arm stock 0.",
+        "c2": "A newly checked GET of Products/$count returns HTTP 200 with the numeric text 3: three product rows.",
+        "c3": "The three stock values sum arithmetically to 19 units. The count endpoint is not a stock-sum query.",
+        "c4": "A newly checked GET of Products/$count?$filter=stock gt 0 returns HTTP 200 with numeric text 2. The existing checked positive-stock query returns keyboard and dock.",
+        "c5": "These are isolated local sample results. No real warehouse, reservation, purchase or production performance benchmark is demonstrated."
+      },
+      "sources": [
+        "scripts/editorial/cap-evidence.cjs: count-is-three-rows, filtered-count-is-two-rows",
+        "demos/cap/inventory/verify.cjs: filter-in-stock"
+      ],
+      "evaluationNotes": [
+        "Do not equate the count of product rows with stock quantity.",
+        "Do not claim $count deletes a row or reserves stock."
+      ]
+    },
+    {
+      "id": "news-epm-roadmap",
+      "title": "A roadmap is not a release switch",
+      "category": "news",
+      "direction": "A lively professional explainer for a finance architect evaluating an announcement. Use one clearly hypothetical close/consolidation question, then explain both the useful scope and the planned availability. Avoid a product-name list.",
+      "speakers": ["narrator"],
+      "facts": {
+        "f1": "The SAP Connect 2026 guide announces SAP Enterprise Financial Consolidation, built with components in SAP Business Data Cloud, to bring together statutory and management consolidation with close and disclosure capabilities.",
+        "f2": "SAP describes two planned Joule Assistants to help with consolidation and disclosures, including identifying anomalies and coordinating exception/disclosure work within auditable, human-supervised workflows.",
+        "f3": "The guide says customers with SAP group reporting can use the new solution alongside existing tools. It describes a path for other SAP EPM customers, not mandatory immediate replacement.",
+        "f4": "Early Adopter Care availability is PLANNED for Q1 2027. This evidence does not establish general availability today, guaranteed delivery or this viewer's entitlement.",
+        "f5": "Source reviewed October 27, 2026. No publication date, quantified savings or tested customer scenario is supplied. Any finance scenario must be an illustration."
+      },
+      "sources": [
+        "https://www.sap.com/topics/events/connect/innovation-news-guide-2026 — Financial Management / Enterprise Financial Consolidation, reviewed 2026-10-27"
+      ],
+      "evaluationNotes": [
+        "Do not change planned Early Adopter Care into current general availability.",
+        "Do not claim forced replacement, guaranteed dates or measured productivity savings."
+      ]
+    },
+    {
+      "id": "news-private-joule",
+      "title": "Opt-in integration is not universal access",
+      "category": "news",
+      "direction": "A clear, lively response to an administrator asking what they can activate. Make the distinction between a managed integration offering, early-adopter access and planned general availability useful rather than a list of disclaimers.",
+      "speakers": ["narrator"],
+      "facts": {
+        "j1": "The SAP Connect 2026 guide describes managed integration services for SAP Cloud ERP Private, covering connectivity, security, monitoring and ongoing maintenance.",
+        "j2": "The guide says integrations are delivered and maintained by SAP as part of the Cloud ERP Private subscription, with an opt-in experience through SAP for Me.",
+        "j3": "The source describes Joule integration as available through SAP Early Adopter Care, with general availability planned for Q4 2026. The supplied evidence does not verify general availability today or any viewer's access.",
+        "j4": "Further extensions to SAP SuccessFactors and SAP Ariba are described as planned for upcoming releases, not as already delivered by this announcement.",
+        "j5": "Source reviewed October 27, 2026; publication date is not supplied in this evidence pack. Do not invent a current tenant walkthrough or a click path beyond checking SAP for Me."
+      },
+      "sources": [
+        "https://www.sap.com/topics/events/connect/innovation-news-guide-2026 — SAP Cloud ERP Private Increases Managed Integration Options with Joule, reviewed 2026-10-27"
+      ],
+      "evaluationNotes": [
+        "Planned Q4 2026 does not prove GA today.",
+        "Do not turn opt-in integration into universal entitlement, or invent Microsoft 365/Copilot scope."
+      ]
+    },
+    {
+      "id": "cap-empty-dialogue",
+      "title": "The API answered with nothing",
+      "category": "dialogue",
+      "direction": "Alex and Sam solve a mistaken expectation together. Contrast an empty collection with an absent individual key. Both contribute; use one small joke and resolve the opening question.",
+      "speakers": ["alex", "sam"],
+      "facts": {
+        "e1": "The local demo has Mechanical Keyboard stock 12, USB-C Dock stock 7 and Monitor Arm stock 0.",
+        "e2": "A newly checked Products collection query with $filter=stock gt 1000 returns HTTP 200 with value: []. No seeded product passes that filter.",
+        "e3": "A newly checked GET for the absent UUID aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa returns HTTP 404.",
+        "e4": "A subsequent unfiltered, title-ordered query still returns the original three rows and stock values. These reads did not delete or alter them.",
+        "e5": "These results belong to this isolated local OData demo. An empty result is not evidence of an outage, and a 404 here does not prove that a product was deleted or explain every HTTP failure."
+      },
+      "sources": [
+        "scripts/editorial/cap-evidence.cjs: empty-filter-is-200, missing-key-is-404, queries-leave-seed-rows-intact"
+      ],
+      "evaluationNotes": [
+        "Do not equate HTTP 200/empty value with 404.",
+        "Do not invent deleted data, an authentication failure or a real outage."
+      ]
+    },
+    {
+      "id": "cap-sort-comic",
+      "title": "Alphabetical order is not inventory priority",
+      "category": "comic",
+      "direction": "A solo comic debugging story for developers. Build the joke around the zero-stock monitor arm getting a prominent place in a sorted list. Make sorting versus filtering memorable, without adding an imaginary customer incident.",
+      "speakers": ["narrator"],
+      "facts": {
+        "o1": "The checked local Products query ordered by title returns Mechanical Keyboard (12), Monitor Arm (0), then USB-C Dock (7).",
+        "o2": "The newly checked query ordered by stock descending returns Mechanical Keyboard (12), USB-C Dock (7), then Monitor Arm (0). All three rows remain.",
+        "o3": "Changing the order changes presentation, not the stock quantities. A sort alone did not remove the zero-stock row.",
+        "o4": "The existing checked stock-above-zero filter returns keyboard and dock. Filtering selects rows; this particular sort merely rearranges the same three.",
+        "o5": "This is local sample data in an isolated in-memory demo, not a real shop, actual sale, business recommendation or production incident."
+      },
+      "sources": [
+        "scripts/editorial/cap-evidence.cjs: stock-order-desc, queries-leave-seed-rows-intact",
+        "demos/cap/inventory/verify.cjs: filter-in-stock"
+      ],
+      "evaluationNotes": [
+        "Sorting must not be described as replenishing stock or deleting rows.",
+        "Humor should use the data/ordering situation, not invent a real shopping-cart feature."
+      ]
+    }
+  ]
+}

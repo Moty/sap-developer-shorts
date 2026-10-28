@@ -11,6 +11,10 @@ adds Muse Glimmer and larger Gemma comparisons, identifies a Qwen settings gap,
 and recommends an explicit optional paid writing benchmark. Qwen remains a
 provisional installed control; no default provider has been selected or changed.
 
+The [four-stage follow-up](LOCAL_MODEL_WORKFLOW_RESULTS.md) tests Gemma 4 31B,
+Qwen3.8 and Muse locally with new source-backed briefs. Its measured results
+update the local candidate recommendation; application integration remains separate.
+
 This supersedes the cloud-first pilot suggested in the initial
 [content quality review](CONTENT_QUALITY_REVIEW.md). External writing providers
 are optional, explicit integrations, disabled by default. There must be no
