@@ -422,14 +422,13 @@ selected and the redistribution-review flag remains false. The running installed
 replacing it from this DMG; application data is retained by the update workflow.
 
 
-The draft was saved on GitHub at
+The completed draft is saved on GitHub at
 [0.1.2 installer draft](https://github.com/Moty/sap-developer-shorts/releases)
-(owner access required). DMG/checksum upload is currently pending: the Edge
-ChatGPT extension blocks file upload until its “Allow access to file URLs” setting
-is enabled. No extension permission was changed. Both verified local files are
-under `desktop/out/`; the draft currently contains only automatic source archives.
-The user approved temporary file-URL access for uploading, but automatic browser
-approval rejected opening Edge's internal extension settings (only HTTP/HTTPS
-navigation is allowed). No permission was changed. The safe continuation is to
-open the draft's Edit page, attach the DMG and `.sha256` file manually, and choose
-**Save draft**. Keep the release private for testing.
+(owner access required). Both the DMG and its `.sha256` file are attached, alongside
+the two automatic source archives. GitHub's displayed SHA-256 digests match the
+local files: the DMG matches the hash above, and the 108-byte checksum file matches
+`9ddb201e89c725436a1b2d545966dba70a911cf55b7c7cc48e4104752b8d97fe`.
+The upload was completed using the standard macOS file picker; no extension
+permission was changed. The stale upload-pending note was removed and the draft
+saved. The release remains private for the user-selected testing workflow; it has
+not been publicly published. Both verified files remain under `desktop/out/`.
