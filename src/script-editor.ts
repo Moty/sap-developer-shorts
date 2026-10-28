@@ -4,6 +4,13 @@ import { readContentEpisode } from "./contracts.js";
 import { hash } from "./digest.js";
 import { type ContentEpisode, isNewsEpisode } from "./domain.js";
 import { finalReviewPanel, writingPanel } from "./editorial/panel.js";
+import {
+  type EpisodeShellOptions,
+  episodeShell,
+  episodeShellAssets,
+  episodeStepSubs,
+  shellIcons,
+} from "./episode-shell.js";
 import { localActionButton, localActionFeedback } from "./local-action-controls.js";
 import { faceDetectorVersion, faceModelSha } from "./media/face-assets.js";
 import { type VoiceReference, voiceKey, voiceLabel } from "./media/voice-reference.js";
@@ -59,9 +66,20 @@ export async function createScriptEditor(
     availableVoices?: string[];
     reservedNames?: string[];
     sourceReviewExpired?: boolean;
+    /** Shared episode header context (versions, poster, MP4); defaults to a lone version. */
+    shell?: Omit<EpisodeShellOptions, "step"> & { deck?: boolean };
   } = {},
 ) {
   const seed = await scriptEditorSeed(episode, options.defaultVoice);
+  const shell = options.shell ?? {
+    root: "../../",
+    title: episode.title,
+    id: episode.id,
+    selector: episodeSelector(episode),
+    meta: presentationLabel(episode),
+    versions: [{ selector: episodeSelector(episode), label: "v1", stage: "editing" as const }],
+    hasVideo: false,
+  };
   const name = seed.presentation.variant ?? "my-edit";
   let suffix = 2;
   while (options.reservedNames?.includes(seed.presentation.variant ?? "")) {
@@ -97,6 +115,7 @@ export async function createScriptEditor(
     readFile(resolve(projectRoot, "templates/editor-workspace.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/editor-workspace.js"), "utf8"),
   ]);
+  const shellAssets = await episodeShellAssets();
   const editorData = {
     seed,
     faceDetector: { version: faceDetectorVersion, modelSha256: faceModelSha },
@@ -208,27 +227,30 @@ export async function createScriptEditor(
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'unsafe-inline'; connect-src 'self'; frame-src 'self' blob:; img-src 'self' blob: data:; media-src 'self' blob: data:; base-uri 'none'; form-action 'none'"><title>Revise script · ${esc(episode.title)}</title><style>${css}
 ${voicePanelCss}
 ${writingCss}
-${workspaceCss}</style></head>
-<body class="guided-editor workspace-editor" data-editor-workspace>
-<header class="studio-topbar editor-actionbar">
-  <a class="studio-brand" href="../../review.html"><span class="studio-logo" aria-hidden="true">S</span><span>SAP Shorts<small>CREATOR STUDIO</small></span></a>
-  <div class="studio-breadcrumb"><a class="back" href="../../review.html#episodes">Workspace</a><span aria-hidden="true">/</span><strong>Episode editor</strong></div>
-  <button type="button" id="editor-outline-toggle" class="studio-icon-button" aria-label="Episode sections" aria-controls="editor-outline" aria-expanded="false">${icons.menu}</button>
-  <div class="studio-save-state"><span id="editor-save-state" role="status">Unsaved new version</span><small id="editor-validation-state"></small></div>
-  <button type="button" id="save-draft" class="secondary-btn studio-save-button" aria-label="Save draft">${icons.save}<span class="action-label">Save draft</span></button>
-  <button type="button" id="editor-next" class="produce-btn" data-short-label="Voice">Next: Voice &amp; portrait</button>
-</header>
+${workspaceCss}
+${shellAssets.css}</style></head>
+<body class="guided-editor workspace-editor ep-page" data-editor-workspace>
+${episodeShell({
+  ...shell,
+  step: "script",
+  inPageEditor: true,
+  liveStages: true,
+  versionPrefix: "From ",
+  className: "studio-topbar editor-actionbar",
+  stepSubs: shell.stepSubs ?? episodeStepSubs(episode),
+  lead: `<button type="button" id="editor-outline-toggle" class="studio-icon-button" aria-label="Episode sections" aria-controls="editor-outline" aria-expanded="false">${icons.menu}</button>`,
+  status:
+    '<div class="studio-save-state"><span id="editor-save-state" role="status">Unsaved new version</span><small id="editor-validation-state"></small></div>',
+  actions: `${shell.deck ? `<a class="ep-btn ghost ep-icon-phone" href="presentation.html">${shellIcons.eye}<span class="ep-label">Saved deck</span></a>` : ""}<button type="button" id="save-draft" class="ep-btn secondary-btn studio-save-button" aria-label="Save draft">${icons.save}<span class="action-label">Save draft</span></button><button type="button" id="editor-next" class="ep-btn primary produce-btn" data-short-label="Voice">Next: Voice &amp; portrait</button>`,
+})}
 <main class="studio-main">
   <div class="workspace-grid">
     <nav id="editor-outline" class="workspace-outline" aria-label="Episode sections">
-      <p class="outline-caption">STORY</p>
+      <p class="outline-caption">STEP 1 · SCRIPT</p>
       <button type="button" class="workspace-nav-link" data-editor-target="details">${icons.details}<span>Episode details</span></button>
-      <button type="button" class="workspace-nav-link workspace-step-link" data-editor-step="script" aria-current="step">${icons.story}<span>Script</span><small>${episode.scenes.length} scenes</small></button>
+      <button type="button" class="workspace-nav-link workspace-step-link" data-editor-target="scene">${icons.story}<span>Scenes</span><small>${episode.scenes.length} scenes</small></button>
       <div class="workspace-scene-list">${episode.scenes.map((scene, index) => `<button type="button" class="workspace-scene-link" data-editor-scene="${index}" aria-label="Scene ${index + 1}: ${esc(sceneNames[scene.id] ?? scene.id)}"><span class="scene-nav-number">${String(index + 1).padStart(2, "0")}</span><span>${esc(sceneNames[scene.id] ?? scene.id)}</span><small>${scene.endSeconds - scene.startSeconds}s</small></button>`).join("")}</div>
       <button type="button" class="workspace-nav-link" data-editor-target="writing">${icons.magic}<span>Writing &amp; visuals</span><small>AI</small></button>
-      <div class="outline-divider"></div><p class="outline-caption">PRODUCTION</p>
-      <button type="button" class="workspace-nav-link workspace-step-link" data-editor-step="voice">${icons.voice}<span>Voice &amp; portrait</span></button>
-      <button type="button" class="workspace-nav-link workspace-step-link" data-editor-step="review">${icons.check}<span>Review &amp; produce</span></button>
       <p class="outline-note"><span></span>Local workspace<br><small>Each save keeps a new version.</small></p>
     </nav>
     <div class="workspace-content">
@@ -260,6 +282,7 @@ ${photoTexture.replace(/^export /gm, "")}
 ${portraitMotion.replace(/^export /gm, "")}
 ${script}
 ${workspaceScript}
+${shellAssets.script}
 ${writingScript}
 ${finalReviewScript}</script></body></html>`;
   return enhanceNewsReviewHtml(html);

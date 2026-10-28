@@ -2,6 +2,13 @@ import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { isNewsEpisode, type NewsEpisode } from "./domain.js";
 import { writingPanel } from "./editorial/panel.js";
+import {
+  type EpisodeShellOptions,
+  episodeShell,
+  episodeShellAssets,
+  episodeStepSubs,
+  shellIcons,
+} from "./episode-shell.js";
 import { formatGenerationTime, generationTimingHtml } from "./generation-timing.js";
 import type { LibraryContent, LibraryEntry } from "./library.js";
 import {
@@ -28,6 +35,7 @@ import {
 } from "./news/story-fit.js";
 import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationFormats, presentationLabel } from "./presentation.js";
+import { withDeckShell } from "./presentation-deck.js";
 import { publishReview } from "./publish-review.js";
 import { escapeHtml as esc } from "./review.js";
 import { createScriptEditor } from "./script-editor.js";
@@ -418,10 +426,57 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="w
   const files: Record<string, string | Buffer> = { "review.html": enhanceNewsReviewHtml(html) };
   for (const sample of content.voiceCatalog?.samples ?? [])
     files[`voices/${sample.key}/sample.wav`] = sample.audio;
+  const shellAssets = await episodeShellAssets();
+  const storyBySelector = new Map<string, Story<WorkVersion>>();
+  for (const story of stories)
+    for (const version of story.versions) storyBySelector.set(version.selector, story);
+  /** Shared episode header context for one version, seen from a page `root` levels deep. */
+  const shellFor = (entry: LibraryEntry, root: string): EpisodeShellOptions => {
+    const selector = episodeSelector(entry.episode);
+    const story = storyBySelector.get(selector);
+    const poster = entry.video
+      ? selector
+      : story?.versions.find((version) => version.entry.video)?.selector;
+    return {
+      root,
+      title: entry.episode.title,
+      id: entry.episode.id,
+      selector,
+      meta: presentationLabel(entry.episode),
+      ...(poster ? { thumbnail: `episodes/${encodeURIComponent(poster)}/video/poster.png` } : {}),
+      versions: (story?.versions ?? []).map((version, index) => ({
+        selector: version.selector,
+        label: story?.labels.get(version.selector) ?? "",
+        stage: version.stage,
+        latest: index === 0,
+      })),
+      step: null,
+      hasVideo: Boolean(entry.video),
+      stepSubs: episodeStepSubs(entry.episode, entry.preview?.durationSeconds),
+    };
+  };
+  const shellButton = (
+    href: string,
+    label: string,
+    options: { primary?: boolean; className?: string; icon?: string; download?: boolean } = {},
+  ) =>
+    `<a class="ep-btn${options.primary ? " primary" : ""}${options.className ? ` ${options.className}` : ""}" href="${esc(href)}"${options.download ? " download" : ""}>${options.icon ?? ""}<span class="ep-label">${esc(label)}</span></a>`;
   for (const entry of entries) {
     const prefix = `episodes/${episodeSelector(entry.episode)}`;
+    const back = `../../review.html${studioReturnFragment(entry)}`;
     for (const [name, bytes] of Object.entries(entry.deck ?? {}))
-      files[`${prefix}/${name}`] = bytes;
+      files[`${prefix}/${name}`] =
+        name === "presentation.html" && typeof bytes === "string"
+          ? withDeckShell(
+              bytes,
+              `<style>${shellAssets.css}</style>${episodeShell({
+                ...shellFor(entry, "../../"),
+                backHref: back,
+                actions: `${entry.video ? shellButton("publish.html", "Review & publish", { className: "ghost ep-desk" }) : ""}${shellButton("edit.html", "Edit script", { primary: true, icon: shellIcons.edit })}`,
+              })}`,
+              shellAssets.script,
+            )
+          : bytes;
     files[`${prefix}/edit.html`] = await createScriptEditor(entry.episode, {
       defaultVoice: content.voiceCatalog?.selected ?? "af_heart",
       availableVoices: content.voiceCatalog?.available ?? [],
@@ -431,6 +486,7 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="w
           other.episode.presentation?.variant ? [other.episode.presentation.variant] : [],
         ),
       sourceReviewExpired: entry.sourceReviewExpired,
+      shell: { ...shellFor(entry, "../../"), deck: Boolean(entry.deck) },
     });
     if (!entry.preview) continue;
     if (entry.download) files[`${prefix}/episode-package.zip`] = entry.download.bytes;
@@ -445,16 +501,46 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="w
           : bytes;
     if (entry.video) {
       files[`${prefix}/publish.html`] = enhanceNewsReviewHtml(
-        publishReview(entry, css, script, head),
+        publishReview(entry, css, script, head, {
+          header: episodeShell({
+            ...shellFor(entry, "../../"),
+            step: "review",
+            actions: `${entry.deck ? shellButton("presentation.html", "Deck preview", { className: "ghost ep-desk", icon: shellIcons.eye }) : ""}${shellButton("../../review.html#episodes", "Back to Shorts", { primary: true, className: "ep-desk" })}${shellButton("edit.html", "Needs changes", { className: "ep-phone" }).replace("<a ", '<a data-when="review" ')}<button type="button" class="ep-btn primary ep-phone" data-when="review" id="mbar-approve" disabled>${shellIcons.check}<span class="ep-label">Approve</span></button><button type="button" class="ep-btn ep-phone" data-when="publish" id="mbar-copy">${shellIcons.copy}<span class="ep-label">Copy post</span></button>${shellButton("video/short.mp4", "Download MP4", { primary: true, className: "ep-phone", icon: shellIcons.download, download: true }).replace("<a ", '<a data-when="publish" ')}${shellButton("../../review.html#episodes", "Back to Shorts", { primary: true, className: "ep-phone" }).replace("<a ", '<a data-when="none published" ')}`,
+          }),
+          css: shellAssets.css,
+          script: shellAssets.script,
+        }),
       );
+      const videoShell = episodeShell({
+        ...shellFor(entry, "../../../"),
+        episodeDir: "../",
+        backHref: `../${back}`,
+        actions: shellButton("../publish.html", "Open Review & publish", {
+          primary: true,
+          icon: shellIcons.arrow,
+        }),
+      });
+      const seconds = entry.preview.durationSeconds.toFixed(1);
       for (const [name, bytes] of Object.entries(entry.video.files)) {
+        const text = name === "review.html" ? bytes.toString("utf8") : "";
+        // Exports without a <body> (older fixtures) keep the header where the back link was.
+        const hasBody = /<body\b[^>]*>/iu.test(text);
         const copied =
           name === "review.html"
-            ? bytes
-                .toString("utf8")
+            ? text
+                .replace(
+                  /<\/head\s*>/iu,
+                  (closing) => `<style>${shellAssets.css}</style>${closing}`,
+                )
+                .replace(/<body\b([^>]*)>/iu, (_body, attributes: string) =>
+                  /\bclass=/iu.test(attributes)
+                    ? `<body${attributes.replace(/\bclass=(["'])/iu, "class=$1ep-page ")}>${videoShell}`
+                    : `<body${attributes} class="ep-page">${videoShell}`,
+                )
                 .replace(
                   "<!--LIBRARY_BACK-->",
-                  `<p><a href="../../../review.html${studioReturnFragment(entry)}">← All episodes and styles</a></p><p><a href="../publish.html">Review &amp; publish this video →</a></p><p class="note">${esc(comparisonLabel(entry))} · ${esc(recordedNarrator(entry))} · ${entry.preview.durationSeconds.toFixed(1)} seconds</p>${entry.sourceReviewExpired ? '<p class="note"><strong>Saved export · sources need rechecking.</strong> Re-read the official sources before producing or sharing a current news brief.</p>' : ""}`,
+                  () =>
+                    `${hasBody ? "" : videoShell}<p class="note">${esc(comparisonLabel(entry))} · ${esc(recordedNarrator(entry))} · ${seconds} seconds · <a href="../publish.html">Open Review &amp; publish</a></p>${entry.sourceReviewExpired ? '<p class="note"><strong>Saved export · sources need rechecking.</strong> Re-read the official sources before producing or sharing a current news brief.</p>' : ""}`,
                 )
                 .replace(
                   '<div class="links">',
@@ -468,8 +554,14 @@ ${comparisonSection(entries)}${voiceSection(content.voiceCatalog)}<section id="w
       }
     }
     // The framed review.html already carries the dated source notice; do not repeat it here.
+    const watchShell = episodeShell({
+      ...shellFor(entry, "../../"),
+      backHref: back,
+      liveStages: true,
+      actions: `${entry.video ? shellButton("video/review.html", "Watch MP4", { className: "ghost ep-desk", icon: shellIcons.film }) : ""}<a class="ep-btn ghost ep-desk" href="review.html" target="_blank" rel="noreferrer"><span class="ep-label">Open full preview ↗</span></a>${entry.video ? shellButton("publish.html", "Open Review & publish", { primary: true, icon: shellIcons.arrow }) : shellButton("edit.html", "Edit script", { primary: true, icon: shellIcons.edit })}`,
+    });
     files[`${prefix}/watch.html`] =
-      `<!doctype html><html lang="en"><head>${head}<title>${esc(entry.episode.title)} · SAP Shorts</title><style>${css}</style></head><body class="watch-page"><header class="watch-header"><a href="../../review.html${studioReturnFragment(entry)}" class="back-link">← All episodes</a><div><strong>${esc(entry.episode.title)}</strong><span>${esc(presentationLabel(entry.episode))} · ${isNewsEpisode(entry.episode) ? `News · sources checked ${dateLabel(entry.episode.news.asOf)}` : "Tutorial · local demo evidence"}${entry.sourceReviewExpired ? " · source recheck needed" : ""}</span><span class="watch-narrator">${esc(recordedNarrator(entry))}${entry.preview.kind === "narrated" ? ` · ${entry.preview.durationSeconds.toFixed(1)}s` : ""}</span></div>${entry.video ? '<a class="watch-video-link" href="video/review.html">Watch MP4</a>' : ""}<a class="full-preview" href="review.html" target="_blank" rel="noreferrer">Open full preview ↗</a></header><iframe class="episode-frame" src="review.html" title="${esc(entry.episode.title)} episode review"></iframe></body></html>`;
+      `<!doctype html><html lang="en"><head>${head}<title>${esc(entry.episode.title)} · SAP Shorts</title><style>${css}\n${shellAssets.css}</style></head><body class="watch-page ep-page">${watchShell}<p class="watch-context"><span>${esc(presentationLabel(entry.episode))} · ${isNewsEpisode(entry.episode) ? `News · sources checked ${dateLabel(entry.episode.news.asOf)}` : "Tutorial · local demo evidence"}${entry.sourceReviewExpired ? " · source recheck needed" : ""}</span><span class="watch-narrator">${esc(recordedNarrator(entry))}${entry.preview.kind === "narrated" ? ` · ${entry.preview.durationSeconds.toFixed(1)}s` : ""}</span></p><iframe class="episode-frame" src="review.html" title="${esc(entry.episode.title)} episode review"></iframe><script>${shellAssets.script}</script></body></html>`;
   }
   return files;
 }

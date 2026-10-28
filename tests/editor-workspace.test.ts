@@ -151,6 +151,9 @@ async function workspace(hash = "") {
   new Element("voice-pane", { editorPane: "voice" });
   for (const group of ["script", "voice", "review"])
     new Element(`step-${group}`, { editorStep: group }, "BUTTON");
+  // The shared episode stepper's in-page links.
+  for (const [index, group] of ["script", "voice", "review"].entries())
+    new Element(`stepper-${group}`, { editorStep: group, stepIndex: String(index + 1) }, "A");
   const context = {
     document: {
       querySelector: (selector: string) => (selector === ".studio-topbar" ? header : root),
@@ -221,13 +224,18 @@ test("focused navigation retains every field and DOM node across scenes, tools, 
   ui.id("step-voice").click();
   assert.equal(ui.id("voice-pane").hidden, false);
   assert.equal(ui.status().step, "voice");
-  assert.equal(ui.id("editor-next").textContent, "Next: Review & produce");
+  assert.deepEqual(
+    ["script", "voice", "review"].map((group) => ui.id(`stepper-${group}`).dataset.stepState),
+    ["done", "current", "todo"],
+  );
+  assert.equal(ui.id("stepper-voice").attributes.get("aria-current"), "step");
+  assert.equal(ui.id("editor-next").textContent, "Next: Produce");
   ui.id("editor-next").click();
   assert.equal(ui.id("view-companion").hidden, false);
   assert.equal(ui.id("editor-next").textContent, "Next: AI content review");
   ui.id("editor-next").click();
   assert.equal(ui.id("view-ai-review").hidden, false);
-  assert.equal(ui.id("editor-next").textContent, "Next: Produce");
+  assert.equal(ui.id("editor-next").textContent, "Next: Produce video");
   ui.id("editor-next").click();
   assert.equal(ui.id("view-produce").hidden, false);
   assert.equal(ui.id("editor-next").textContent, "Back to script");
@@ -284,7 +292,7 @@ test("mobile outline and evidence drawer dismiss cleanly and restore keyboard fo
 test("generated editor wires mounted scene cards, exclusive review views and a top action bar", async () => {
   const html = await createScriptEditor(await readContentEpisode("CAP-01@duo"));
   assert.match(html, /data-editor-workspace/u);
-  assert.match(html, /class="studio-topbar editor-actionbar"/u);
+  assert.match(html, /<header class="ep-shell studio-topbar editor-actionbar" data-live-stages>/u);
   assert.equal((html.match(/data-editor-scene="\d+"/gu) ?? []).length, 7);
   assert.equal((html.match(/data-scene-index="\d+"/gu) ?? []).length, 7);
   for (const view of ["details", "writing", "scene", "companion", "ai-review", "produce"])

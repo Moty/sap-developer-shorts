@@ -1,0 +1,635 @@
+/* Shared episode shell: header, version switcher, 4-step stepper and the phone action bar.
+   Self-contained so it reads the same on the editor, Review & publish, watch, video and deck pages;
+   "header.ep-shell" outranks the editor's legacy header and fixed action-bar rules. */
+header.ep-shell {
+  --es-bg: #f6f7f2;
+  --es-surface: #ffffff;
+  --es-surface-2: #eef2ec;
+  --es-border: #dde4dc;
+  --es-border-strong: #c7d2c6;
+  --es-text: #1d3329;
+  --es-muted: #5a6c62;
+  --es-faint: #7f8f86;
+  --es-brand: #285242;
+  --es-brand-strong: #1c4032;
+  --es-brand-soft: #e1eee5;
+  --es-warn: #8a4b08;
+  --es-warn-soft: #f8ecd6;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--es-border);
+  box-shadow: none;
+  color: var(--es-text);
+  font:
+    14px / 1.45 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  letter-spacing: normal;
+  text-align: left;
+}
+.ep-shell *,
+.ep-shell *::before,
+.ep-shell *::after {
+  box-sizing: border-box;
+}
+.ep-shell :is(a, button, summary):focus-visible {
+  outline: 3px solid #c49636;
+  outline-offset: 2px;
+}
+.ep-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ep-shell .ep-top {
+  display: flex;
+  flex: none;
+  color: var(--es-text);
+  font-size: 14px;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 24px;
+}
+.ep-shell .ep-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 10px 0 6px;
+  border-radius: 9px;
+  color: var(--es-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.ep-shell .ep-back:hover {
+  background: var(--es-surface-2);
+}
+.ep-shell .ep-thumb {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 53px;
+  border-radius: 7px;
+  object-fit: cover;
+  background: linear-gradient(160deg, #2e6a52, #173b2e);
+  color: #dff3e6;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+}
+.ep-id {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.ep-shell .ep-title {
+  display: block;
+  max-width: min(52vw, 680px);
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ep-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--es-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.ep-shell code.ep-chip {
+  display: inline-block;
+  margin: 0;
+  padding: 0 6px;
+  border: 1px solid var(--es-border);
+  border-radius: 6px;
+  background: var(--es-surface-2);
+  color: var(--es-muted);
+  font:
+    600 11.5px / 1.6 ui-monospace,
+    "SF Mono",
+    Menlo,
+    monospace;
+  user-select: all;
+}
+.ep-shell .ep-ver-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  margin: 0;
+  padding: 1px 8px;
+  border: 1px solid var(--es-border);
+  border-radius: 8px;
+  background: var(--es-surface);
+  color: var(--es-text);
+  font-size: 12px;
+  font-weight: 600;
+  list-style: none;
+}
+.ep-shell summary.ep-ver-chip {
+  cursor: pointer;
+}
+.ep-shell summary.ep-ver-chip::-webkit-details-marker {
+  display: none;
+}
+.ep-shell summary.ep-ver-chip::marker {
+  content: "";
+}
+.ep-shell summary.ep-ver-chip:hover {
+  border-color: var(--es-border-strong);
+}
+.ep-versions {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ep-versions[open] .ep-ic {
+  transform: rotate(180deg);
+}
+.ep-ver-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  width: max-content;
+  min-width: 300px;
+  max-width: min(440px, calc(100vw - 24px));
+  max-height: min(60vh, 460px);
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--es-border);
+  border-radius: 12px;
+  background: var(--es-surface);
+  box-shadow: 0 18px 50px #10181430;
+  white-space: normal;
+}
+.ep-shell .ep-ver-caption {
+  margin: 4px 8px 6px;
+  color: var(--es-faint);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ep-ver-menu ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ep-shell .ep-ver-menu a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--es-text);
+  font-size: 13px;
+  text-decoration: none;
+}
+.ep-shell .ep-ver-menu a:hover {
+  background: var(--es-surface-2);
+}
+.ep-shell .ep-ver-menu a[aria-current] {
+  background: var(--es-brand-soft);
+}
+.ep-ver-sel {
+  flex: 1 1 140px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--es-muted);
+  font:
+    12px ui-monospace,
+    "SF Mono",
+    Menlo,
+    monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ep-ver-tag {
+  padding: 0 6px;
+  border-radius: 99px;
+  background: var(--es-surface-2);
+  color: var(--es-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+.ep-ver-stage {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--es-warn-soft);
+  color: var(--es-warn);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ep-ver-stage[data-badge="editing"] {
+  background: #eff1ed;
+  color: #52605a;
+}
+.ep-ver-stage[data-badge="producing"] {
+  background: #e4eef8;
+  color: #245b7a;
+}
+.ep-ver-stage[data-badge="publish"] {
+  background: #e9e8f5;
+  color: #51447d;
+}
+.ep-ver-stage[data-badge="published"] {
+  background: #dfefe3;
+  color: #24633b;
+}
+.ep-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ep-spacer {
+  flex: 1;
+}
+.ep-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.ep-shell .ep-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--es-border-strong);
+  border-radius: 9px;
+  background: var(--es-surface);
+  color: var(--es-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ep-shell .ep-btn:hover {
+  border-color: var(--es-brand);
+}
+.ep-shell .ep-btn.primary {
+  border-color: var(--es-brand);
+  background: var(--es-brand);
+  color: #fff;
+}
+.ep-shell .ep-btn.primary:hover {
+  background: var(--es-brand-strong);
+}
+.ep-shell .ep-btn.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.ep-shell .ep-btn.ghost:hover {
+  background: var(--es-surface-2);
+}
+.ep-shell .ep-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ep-steps {
+  padding: 8px 24px;
+  border-top: 1px solid var(--es-border);
+  background: var(--es-bg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ep-steps::-webkit-scrollbar {
+  display: none;
+}
+.ep-steps ol {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ep-steps li {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin: 0;
+}
+.ep-steps li + li::before {
+  content: "";
+  flex: none;
+  width: 18px;
+  height: 1px;
+  margin-right: 4px;
+  background: var(--es-border-strong);
+}
+.ep-shell .ep-stp {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 7px;
+  border-radius: 12px;
+  color: var(--es-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ep-shell a.ep-stp:hover {
+  background: var(--es-surface-2);
+  color: var(--es-text);
+}
+.ep-shell .ep-stp[aria-current="step"] {
+  background: var(--es-surface);
+  color: var(--es-text);
+  box-shadow:
+    0 1px 2px #10181408,
+    0 6px 18px #1018140d;
+}
+.ep-n {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--es-border);
+  border-radius: 50%;
+  background: var(--es-surface-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ep-n > span {
+  display: none;
+  grid-area: 1 / 1;
+  line-height: 0;
+}
+.ep-n .ep-n-num {
+  display: block;
+  line-height: 1;
+}
+.ep-stp[data-step-state="done"] .ep-n {
+  border-color: transparent;
+  background: var(--es-brand-soft);
+  color: var(--es-brand);
+}
+.ep-stp[data-step-state="done"] .ep-n-num,
+.ep-stp[data-step-state="locked"] .ep-n-num {
+  display: none;
+}
+.ep-stp[data-step-state="done"] .ep-n-check,
+.ep-stp[data-step-state="locked"] .ep-n-lock {
+  display: block;
+}
+.ep-shell .ep-stp[aria-current="step"] .ep-n {
+  border-color: transparent;
+  background: var(--es-brand);
+  color: #fff;
+}
+.ep-shell .ep-stp[data-step-state="locked"] {
+  color: var(--es-faint);
+  cursor: not-allowed;
+}
+.ep-stp-sub {
+  color: var(--es-faint);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ep-stp:not([data-step-state="done"]) .ep-stp-done {
+  display: none;
+}
+.ep-shell .ep-phone {
+  display: none;
+}
+@media (max-width: 1180px) {
+  .ep-meta,
+  .ep-stp-sub,
+  .ep-back-text {
+    display: none;
+  }
+  .ep-shell .ep-back {
+    padding: 0 6px;
+  }
+}
+@media (max-width: 700px) {
+  .ep-shell .ep-top {
+    gap: 8px;
+    min-height: 56px;
+    padding: 8px 12px;
+  }
+  .ep-id {
+    flex: 1 1 0;
+  }
+  .ep-shell .ep-title {
+    max-width: 100%;
+    font-size: 14.5px;
+  }
+  .ep-spacer {
+    display: none;
+  }
+  .ep-ver-menu {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+  .ep-steps {
+    padding: 6px 12px;
+  }
+  .ep-steps ol {
+    gap: 2px;
+  }
+  .ep-steps li + li::before {
+    width: 8px;
+    margin-right: 2px;
+  }
+  .ep-shell .ep-stp {
+    gap: 6px;
+    padding: 5px 8px 5px 5px;
+    font-size: 13px;
+  }
+  /* Phones show numbered dots and the current step's label; every label stays in the a11y tree. */
+  .ep-shell .ep-stp:not([aria-current="step"]) .ep-stp-text,
+  .ep-shell .ep-stp-sub {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .ep-shell .ep-stp:not([aria-current="step"]) {
+    padding-right: 5px;
+  }
+  .ep-actions {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 55;
+    gap: 8px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--es-border);
+    background: #fffffff5;
+  }
+  .ep-shell .ep-actions .ep-btn {
+    flex: 1;
+    min-height: 46px;
+    font-size: 14px;
+  }
+  .ep-shell .ep-actions .ep-btn.ghost {
+    border-color: var(--es-border-strong);
+    background: var(--es-surface);
+  }
+  .ep-shell .ep-desk {
+    display: none;
+  }
+  .ep-shell .ep-phone {
+    display: inline-flex;
+  }
+  /* Review & publish swaps its phone actions with the workflow stage set by templates/library.js. */
+  .ep-shell .ep-phone[data-when] {
+    display: none;
+  }
+  body:not([data-release-stage]) .ep-shell .ep-phone[data-when~="none"],
+  body[data-release-stage="none"] .ep-shell .ep-phone[data-when~="none"],
+  body[data-release-stage="review"] .ep-shell .ep-phone[data-when~="review"],
+  body[data-release-stage="publish"] .ep-shell .ep-phone[data-when~="publish"],
+  body[data-release-stage="published"] .ep-shell .ep-phone[data-when~="published"] {
+    display: inline-flex;
+  }
+  .ep-shell .ep-actions .ep-btn.ep-icon-phone {
+    flex: none;
+    width: 46px;
+    padding: 0;
+  }
+  .ep-shell .ep-icon-phone .ep-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  body.ep-page {
+    padding-bottom: 76px;
+  }
+}
+
+/* Deck preview: light chrome around a dark stage. */
+body[data-episode-shell] {
+  background: #f6f7f2;
+  color: #1d3329;
+}
+body[data-episode-shell] .presentation-workspace {
+  padding-top: 22px;
+}
+body[data-episode-shell] .presentation-heading {
+  margin-bottom: 20px;
+}
+body[data-episode-shell] .presentation-heading p {
+  color: #285242;
+}
+body[data-episode-shell] .presentation-heading h1 {
+  font-size: clamp(22px, 2.4vw, 30px);
+}
+body[data-episode-shell] .presentation-heading span {
+  color: #5a6c62;
+}
+body[data-episode-shell] .presentation-stage {
+  padding: 22px;
+  border-radius: 24px;
+  background: #070b12;
+  color: #e2e8f0;
+}
+body[data-episode-shell] .presentation-inspector h2,
+body[data-episode-shell] .evidence-details summary {
+  color: #1d3329;
+}
+body[data-episode-shell] .presentation-inspector nav button {
+  border-color: #dde4dc;
+  background: #fff;
+  color: #1d3329;
+}
+body[data-episode-shell] .presentation-inspector button span {
+  color: #285242;
+}
+body[data-episode-shell] .presentation-inspector button small,
+body[data-episode-shell] .evidence-details :where(small) {
+  color: #5a6c62;
+}
+body[data-episode-shell] .presentation-inspector button[aria-current="step"] {
+  border-color: #285242;
+  background: #e1eee5;
+}
+body[data-episode-shell] .evidence-details {
+  border-top-color: #dde4dc;
+  color: #3f5249;
+}
+body[data-episode-shell] .presentation-inspector a {
+  color: #285242;
+}
+body[data-episode-shell] .stale-source-warning {
+  border-color: #e2b46a;
+  border-radius: 10px;
+  background: #fdf3e2;
+  color: #6b4410;
+}
+body[data-episode-shell] :is(a, button, summary, input):focus-visible {
+  outline-color: #c49636;
+}
+body[data-episode-shell].focus-presentation .ep-steps {
+  display: none;
+}
+body[data-episode-shell].focus-presentation .presentation-stage {
+  padding: 12px;
+}
+body[data-episode-shell].focus-presentation .phone-stage {
+  height: calc(100svh - 155px - var(--ep-shell-height, 66px) - var(--ep-bar-height, 0px));
+  min-height: 240px;
+}
+@media (max-width: 700px) {
+  /* Playback controls wrap to two rows on phones. */
+  body[data-episode-shell].focus-presentation .phone-stage {
+    height: calc(100svh - 200px - var(--ep-shell-height, 58px) - var(--ep-bar-height, 76px));
+  }
+  body[data-episode-shell] .presentation-stage {
+    padding: 14px;
+    border-radius: 18px;
+  }
+}

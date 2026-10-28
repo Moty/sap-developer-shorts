@@ -17,6 +17,7 @@ import {
   type EpisodeDownload,
   type PackageVideoReceipt,
 } from "./episode-package.js";
+import { episodeShellTemplates } from "./episode-shell.js";
 import {
   type GenerationSummary,
   generationForOutput,
@@ -387,6 +388,7 @@ export async function buildLibrary(
     "templates/voice-profiles.js",
     "templates/writing-assistant.css",
     "templates/writing-assistant.js",
+    ...episodeShellTemplates,
     "config/production.json",
     "content/topics/backlog.json",
     "content/news/backlog.json",

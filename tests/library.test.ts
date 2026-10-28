@@ -391,7 +391,12 @@ test("only an intact MP4 for the selected narration and exact editorial input is
   });
   assert.match(String(pages["review.html"]), /Watch MP4/u);
   assert.ok(pages["episodes/CAP-01/video/short.mp4"]);
-  assert.match(String(pages["episodes/CAP-01/video/review.html"]), /All episodes and styles/u);
+  const videoPage = String(pages["episodes/CAP-01/video/review.html"]);
+  assert.match(
+    videoPage,
+    /class="ep-back" href="\.\.\/\.\.\/\.\.\/review\.html#[^"]+" aria-label="Back to Shorts"/u,
+  );
+  assert.match(videoPage, /href="\.\.\/publish\.html"[^>]*>.*?Open Review &amp; publish/su);
   const audioPath = resolve(narration, "narration.wav");
   const originalAudio = await readFile(audioPath);
   const correctedAudio = Buffer.from(originalAudio);

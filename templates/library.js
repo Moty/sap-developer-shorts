@@ -4,20 +4,48 @@
     const node = (id) => document.getElementById(id);
     let current = null;
     let busy = false;
+    let approved = false;
+    // Four concrete checks replace the single confirmation; the request still sends one boolean.
+    const checks = [...release.querySelectorAll("[data-review-check]")];
+    const reviewed = () => checks.length > 0 && checks.every((check) => check.checked);
+    const setStep = (id, value) => {
+      const step = node(id);
+      if (step) step.dataset.stepState = value;
+    };
     function render(state) {
       current = state;
-      release.dataset.stage = state.stage;
-      node("release-state").textContent = state.label;
-      node("approve-video").disabled =
-        busy ||
-        state.reviewBlocked ||
-        !node("review-confirmed").checked ||
-        !!state.record?.reviewedAt;
-      node("record-publication").disabled =
-        busy || state.reviewBlocked || !state.record?.reviewedAt;
-      node("reopen-review").hidden = !state.record?.reviewedAt;
-      node("reopen-review").disabled = busy;
+      const reviewedAt = !!state.record?.reviewedAt;
       const publication = state.record?.publication;
+      // A cleared approval needs a fresh, complete review.
+      if (approved && !reviewedAt) for (const check of checks) check.checked = false;
+      approved = reviewedAt;
+      release.dataset.stage = state.stage;
+      document.body.dataset.releaseStage = ["review", "publish", "published"].includes(state.stage)
+        ? state.stage
+        : "none";
+      node("release-state").textContent = state.label;
+      node("release-state").dataset.badge = state.stage;
+      for (const check of checks) {
+        if (reviewedAt) check.checked = true;
+        check.disabled = busy || reviewedAt;
+      }
+      node("approve-video").disabled = busy || state.reviewBlocked || !reviewed() || reviewedAt;
+      const mobileApprove = node("mbar-approve");
+      if (mobileApprove) mobileApprove.disabled = node("approve-video").disabled;
+      node("record-publication").disabled = busy || state.reviewBlocked || !reviewedAt;
+      node("reopen-review").hidden = !reviewedAt;
+      node("reopen-review").disabled = busy;
+      const note = release.querySelector("[data-approved-note]");
+      if (note) note.hidden = !reviewedAt;
+      setStep("release-approval", reviewedAt ? "done" : "current");
+      setStep(
+        "release-post-step",
+        publication ? "done" : reviewedAt && !state.reviewBlocked ? "current" : "locked",
+      );
+      setStep(
+        "release-publication",
+        publication ? "done" : reviewedAt && !state.reviewBlocked ? "todo" : "locked",
+      );
       node("publication-record").hidden = !publication;
       if (publication) {
         const link = document.createElement("a");
@@ -53,7 +81,7 @@
             selector: release.dataset.selector,
             renderKey: release.dataset.renderKey,
             action,
-            reviewed: node("review-confirmed").checked,
+            reviewed: reviewed(),
             url: node("publication-url").value.trim(),
           }),
         });
@@ -67,10 +95,12 @@
         node("release-message").textContent = error.message;
       }
     }
-    node("review-confirmed").addEventListener("change", () => {
-      if (current) render(current);
-    });
+    for (const check of checks)
+      check.addEventListener("change", () => {
+        if (current) render(current);
+      });
     node("approve-video").addEventListener("click", () => change("approve"));
+    node("mbar-approve")?.addEventListener("click", () => node("approve-video").click());
     node("record-publication").addEventListener("click", () => {
       if (!node("publication-url").value.trim() || !node("publication-url").reportValidity()) {
         node("release-message").textContent =
@@ -81,7 +111,7 @@
       change("publish");
     });
     node("reopen-review").addEventListener("click", () => change("reopen"));
-    node("copy-post").addEventListener("click", async () => {
+    async function copyPost() {
       try {
         await navigator.clipboard.writeText(node("release-post").value);
         node("release-message").textContent = "Companion post copied.";
@@ -90,7 +120,78 @@
         node("release-post").select();
         node("release-message").textContent = "Select and copy the post text above.";
       }
-    });
+    }
+    node("copy-post").addEventListener("click", copyPost);
+    node("mbar-copy")?.addEventListener("click", copyPost);
+    // Transcript / Sources / Details become tabs; without scripts all three panels stay visible.
+    const tabList = release.querySelector?.("[role=tablist]");
+    if (tabList) {
+      const tabs = [...tabList.querySelectorAll("[role=tab]")];
+      const select = (tab, moveFocus = false) => {
+        for (const item of tabs) {
+          const active = item === tab;
+          item.setAttribute("aria-selected", String(active));
+          item.tabIndex = active ? 0 : -1;
+          const panel = node(item.getAttribute("aria-controls"));
+          if (panel) panel.hidden = !active;
+        }
+        if (moveFocus) tab.focus();
+      };
+      for (const tab of tabs) {
+        const panel = node(tab.getAttribute("aria-controls"));
+        panel?.setAttribute("role", "tabpanel");
+        panel?.setAttribute("aria-labelledby", tab.id);
+        panel?.setAttribute("tabindex", "0");
+        tab.addEventListener("click", () => select(tab));
+        tab.addEventListener("keydown", (event) => {
+          const index = tabs.indexOf(tab);
+          const next =
+            event.key === "ArrowRight"
+              ? tabs[(index + 1) % tabs.length]
+              : event.key === "ArrowLeft"
+                ? tabs[(index - 1 + tabs.length) % tabs.length]
+                : event.key === "Home"
+                  ? tabs[0]
+                  : event.key === "End"
+                    ? tabs[tabs.length - 1]
+                    : null;
+          if (!next) return;
+          event.preventDefault();
+          select(next, true);
+        });
+      }
+      release.querySelector("[data-release-tabs]")?.classList.add("is-tabbed");
+      tabList.hidden = false;
+      select(tabs.find((tab) => tab.getAttribute("aria-selected") === "true") ?? tabs[0]);
+    }
+    // Chapter markers seek the player; they are only shown when scripts can use them.
+    const video = node("release-video");
+    const chapters = [...(release.querySelectorAll?.("[data-seek]") ?? [])];
+    const chapterList = release.querySelector?.("[data-chapters]");
+    const chapterNow = release.querySelector?.("[data-chapter-now]");
+    if (video && chapterList && chapters.length) {
+      chapterList.hidden = false;
+      if (chapterNow) chapterNow.hidden = false;
+      const markCurrent = () => {
+        let active = chapters[0];
+        for (const chapter of chapters)
+          if (Number(chapter.dataset.seek) <= video.currentTime + 0.05) active = chapter;
+        for (const chapter of chapters) {
+          if (chapter === active) chapter.setAttribute("aria-current", "true");
+          else chapter.removeAttribute("aria-current");
+        }
+        if (chapterNow)
+          chapterNow.textContent = `Chapter ${chapters.indexOf(active) + 1} of ${chapters.length} · ${active.dataset.label ?? ""}`;
+      };
+      for (const chapter of chapters)
+        chapter.addEventListener("click", () => {
+          video.currentTime = Number(chapter.dataset.seek);
+          markCurrent();
+        });
+      video.addEventListener("timeupdate", markCurrent);
+      video.addEventListener("seeked", markCurrent);
+      markCurrent();
+    }
     fetch("/api/workflow")
       .then(async (response) => {
         if (!response.ok)
@@ -98,6 +199,7 @@
             "Review status is unavailable. Open this page from the running local studio to save progress.",
           );
         const data = await response.json();
+        globalThis.shortsEpisodeShell?.setStages(data.episodes);
         const state = data.episodes.find((entry) => entry.selector === release.dataset.selector);
         if (!state)
           throw new Error(

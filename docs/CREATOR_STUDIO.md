@@ -50,6 +50,18 @@ reviews and interrupted/failed production remain visible beside the next action.
 
 ## Editing and saving
 
+Every page of one version shares the same header and four steps:
+**1 Script · 2 Voice & presenter · 3 Produce · 4 Review & publish**. The header
+returns to **Shorts**, shows the story thumbnail, title, episode ID and a version
+switcher (v1 = oldest; each entry shows its stage and opens that version's
+editor or Review & publish page; it is a plain list of links without JavaScript).
+Steps 1–3 are the editor panes; step 4 opens `publish.html` once this version has
+a verified MP4 and is otherwise shown locked with "Produce the video first". The
+watch page, MP4 details page and deck preview use the same header with an
+**Open Review & publish** or **Edit script** action. On phones the stepper shows
+numbered dots with the current step's label, and the step's main action sits in a
+bottom bar.
+
 1. **Script:** choose a scene in the left outline, then edit its headline and
    narration in a focused card. **Previous / Next scene** moves through the story
    without showing seven stacked forms. **Episode details** holds the title and
@@ -63,19 +75,20 @@ reviews and interrupted/failed production remain visible beside the next action.
 2. **Voice & portrait:** choose local voices and a presenter. Mouth calibration
    and pronunciation tools are optional disclosures. The existing local portrait
    renderer, face calibration, auditions and recovery behavior are preserved.
-3. **Review & produce:** use the pinned **Companion post**, **AI content review**,
-   and **Produce video** tabs. AI review is optional; its provider, cost consent
+3. **Produce:** (the former Review & produce pane) use the pinned **Companion
+   post**, **AI content review**, and **Produce video** tabs. AI review is optional; its provider, cost consent
    and exact-content validity checks are unchanged. Production validation and
    **Review changes** live in Produce video.
 
-The sticky top bar offers **Save draft**, a single status line (a dot for the
-saved/unsaved state plus the draft check) and a **Next:** action that is labelled
-with the pane it opens (**Voice & portrait**, **Review & produce**, **AI content
-review**, **Produce**) and reads **Back to script** on the last view. It only
+The sticky header offers **Saved deck**, **Save draft**, a single status line (a
+dot for the saved/unsaved state plus the draft check) and a **Next:** action that
+is labelled with the pane it opens (**Voice & portrait**, **Produce**, **AI content
+review**, **Produce video**) and reads **Back to script** on the last view. It only
 navigates; producing a video is still done with the button in **Produce video**.
 Saved portraits appear by a readable name (for example **Moty headshot 2026**, or
-**Uploaded photo 1** for generated file names); the stored image is unchanged. The left outline remains available on desktop;
-on phones, **Episode sections** opens a drawer. Choosing an entry closes it;
+**Uploaded photo 1** for generated file names); the stored image is unchanged. The left outline (Episode details, Scenes, Writing &
+visuals) belongs to step 1 and is shown on desktop while editing the script;
+on phones, **Episode sections** opens it as a drawer. Choosing an entry closes it;
 Escape dismisses it. **Sources** opens a separate evidence drawer with the saved
 source dates and claims. Navigation changes visibility only: fields, personal
 voice selections, portrait canvases, auditions and unsaved edits stay mounted.
@@ -105,11 +118,20 @@ pending; the saved file remains available for CLI production.
 
 ## Review and publication
 
-Each produced version has `episodes/SELECTOR/publish.html` with its video, final
-review confirmation, MP4/package downloads, companion text, source links and
-publication record. Approve only after watching the whole short and checking
-speech, face movement, captions and factual accuracy. Copy the post text, publish
-on your chosen platform, then enter the live post URL. **Return to review / clear
+Each produced version has `episodes/SELECTOR/publish.html`, step 4 of the
+episode workspace. The player shows chapter markers per scene when measured
+timing is available; **Transcript**, **Sources** (with the dated source-review
+notice) and **Details** (generation time as a stacked bar) sit below it. The
+final check has four boxes — speech, face and lip movement, captions, and facts
+against the sources including the review-valid-through date — and **Approve
+video** stays disabled until all four are ticked. Approval still sends the same
+single confirmation to the workflow API. **Download & post** (MP4/package
+downloads, a social-post preview with character count and **Copy post text**)
+and **Record where it’s live** stay locked until the video is approved; without
+the running studio (a static copy) nothing is locked and the page explains that
+review status is unavailable. **Needs changes · edit as new version** opens the
+editor. Copy the post text, publish on your chosen platform, then enter the live
+post URL. **Return to review / clear
 publication record** removes the local approval and publication record; it does
 not remove an external post.
 
@@ -282,8 +304,8 @@ evidence is under `.state/private-tests/library-browser-*`.
 
 ## Explore the generated presentation
 
-Each saved short has a **Presentation** link in its workspace row. This opens a
-dark 9:16 interactive deck generated from the saved script and its available
+Each saved short has a **Presentation** link in its workspace row. This opens the
+episode header around a dark 9:16 interactive deck generated from the saved script and its available
 evidence. Play the narration, inspect code lines, switch captured results to a
 stock chart, explore a captured-row filter, or expand news scope and sources.
 Focus view enlarges the canvas. New MP4 exports use the refreshed motion design

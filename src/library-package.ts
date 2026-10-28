@@ -128,6 +128,10 @@ function validateManifest(value: unknown) {
     "templates/library-navigation.js",
     "templates/presentation.css",
     "templates/presentation.js",
+    "templates/episode-shell.css",
+    "templates/episode-shell.js",
+    "templates/writing-assistant.css",
+    "templates/writing-assistant.js",
   ])
     if (Object.hasOwn(object(manifest.sourceHashes), name)) expectedSources.add(name);
   const allowPresentation = (prefix: string) => {
@@ -334,6 +338,9 @@ function validateManifest(value: unknown) {
     (name) =>
       /^(?:src|dist\/src)\/(?:[a-z][a-z0-9-]*\/)*[a-z][a-z0-9-]*\.(?:ts|js|py)$/u.test(name) ||
       [
+        "templates/final-review.js",
+        "templates/editor-workspace.js",
+        "templates/editor-workspace.css",
         "config/qwen-voice.json",
         "config/qwen-voice-requirements.txt",
         "schemas/narration-timing-v2.schema.json",

@@ -7,10 +7,12 @@ draft on this Mac or download JSON for `script-import`; produce when ready.
 Source/claim/demo inputs and source-review dates stay fixed. Existing versions
 and recordings are preserved. See [presentation styles](PRESENTATION_STYLES.md).
 
-The episode editor now uses a focused workspace: a persistent desktop scene
-outline, a compact phone drawer, one scene card at a time and a sticky top save
-bar. Episode details, writing tools, voice/portrait and three review views have
-separate destinations. See [editing and saving](CREATOR_STUDIO.md#editing-and-saving).
+The episode editor now uses a focused workspace: a shared episode header with a
+version switcher and the four steps (Script · Voice & presenter · Produce ·
+Review & publish), a desktop scene outline for the Script step, a compact phone
+drawer, one scene card at a time and a sticky save bar. Episode details, writing
+tools, voice/portrait and three production views have separate destinations;
+Review & publish, the watch page, MP4 details and the deck share the same header. See [editing and saving](CREATOR_STUDIO.md#editing-and-saving).
 Rebuild the studio to update existing generated editor pages; saved scripts and
 media are preserved. This UI change does not require a new installer release.
 

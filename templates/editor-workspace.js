@@ -91,9 +91,17 @@
       pane.hidden = pane.dataset.workspacePane !== state.view;
     for (const card of all(".scene-editor[data-scene-index]"))
       card.hidden = state.view !== "scene" || Number(card.dataset.sceneIndex) !== state.scene;
+    const order = ["script", "voice", "review"];
     for (const button of all("[data-editor-step]")) {
       if (button.dataset.editorStep === state.step) button.setAttribute("aria-current", "step");
       else button.removeAttribute("aria-current");
+      // The shared stepper marks earlier steps done; Review & publish keeps its own state.
+      if (button.dataset.stepIndex) {
+        const position = order.indexOf(button.dataset.editorStep);
+        const current = order.indexOf(state.step);
+        button.dataset.stepState =
+          position < current ? "done" : position === current ? "current" : "todo";
+      }
     }
     for (const button of all("[data-editor-target]")) {
       if (button.dataset.editorTarget === state.view) button.setAttribute("aria-current", "page");
@@ -109,22 +117,22 @@
       state.step === "script"
         ? "Next: Voice & portrait"
         : state.step === "voice"
-          ? "Next: Review & produce"
+          ? "Next: Produce"
           : state.view === "companion"
             ? "Next: AI content review"
             : state.view === "ai-review"
-              ? "Next: Produce"
+              ? "Next: Produce video"
               : "Back to script";
     next.textContent = label;
     next.dataset.shortLabel =
       state.step === "script"
         ? "Voice"
         : state.step === "voice"
-          ? "Review"
+          ? "Produce"
           : state.view === "companion"
             ? "AI review"
             : state.view === "ai-review"
-              ? "Produce"
+              ? "Video"
               : "Script";
     next.setAttribute("aria-label", label);
     byId("editor-outline-toggle").setAttribute("aria-expanded", String(state.outline));
@@ -187,7 +195,11 @@
   for (const button of all("[data-editor-target]"))
     button.addEventListener("click", () => activate(button.dataset.editorTarget));
   for (const button of all("[data-editor-step]"))
-    button.addEventListener("click", () => showStep(button.dataset.editorStep, true));
+    button.addEventListener("click", (event) => {
+      // Stepper links keep their #fragment for no-JS use; switch panes in place instead.
+      event?.preventDefault?.();
+      showStep(button.dataset.editorStep, true);
+    });
   byId("workspace-scene-previous").addEventListener("click", () =>
     activate("scene", state.scene - 1),
   );
