@@ -59,6 +59,7 @@ function fixture() {
     "face",
     "test",
     "refresh",
+    "retry-startup",
     "worker-start",
     "worker-stop",
   ].map((action) => make(`action-${action}`, { action }));
@@ -144,4 +145,26 @@ test("desktop setup failures remain visible after core readiness and preserve wo
   assert.equal(f.element("create").hidden, true);
   assert.equal(f.element("worker").hidden, false);
   assert.equal(f.element("page-worker").getAttribute("aria-current"), "page");
+});
+
+test("failed startup offers a retry without leaving unfinished tool checks spinning", async () => {
+  const f = fixture();
+  await Promise.resolve();
+  const error = "News episode NEWS-10 needs a draft-ready news backlog entry";
+  f.render({ ready: false, canRetryStartup: true, error, engines: {} });
+  assert.equal(f.element("action-retry-startup").hidden, false);
+  assert.equal(f.element("action-retry-startup").disabled, false);
+  assert.match(f.element("engine-summary").textContent, /did not finish/u);
+  assert.equal(f.element("status-kokoro").textContent, "Not checked");
+  assert.equal(f.element("studio").disabled, true);
+  assert.equal(f.element("action-kokoro").disabled, true);
+  await f.element("action-retry-startup").click();
+  assert.equal(f.calls[0].action, "retry-startup");
+  f.render({ ready: false, error: null, task: { action: "startup" }, engines: {} });
+  assert.equal(f.element("action-retry-startup").hidden, true);
+  f.render({ ready: true, studioUrl: "http://mock.local", engines: {}, error: null });
+  assert.equal(f.element("action-retry-startup").hidden, true);
+  f.render({ ready: false, canRetryStartup: false, error: "Backend stopped", engines: {} });
+  assert.equal(f.element("action-retry-startup").hidden, true);
+  assert.match(f.element("engine-summary").textContent, /restart the app/u);
 });

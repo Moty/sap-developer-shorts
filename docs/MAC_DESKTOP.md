@@ -54,7 +54,11 @@ public seed list.
 The packaged program and template files are copied from a checksummed manifest
 into the managed workspace. Application code is repaired/refreshed on launch;
 existing content, production preferences, voices, photos, artifacts and job state
-are preserved. Runtime dependencies remain inside the app bundle. Replace the app
+are preserved. Backlog migrations add missing bundled topics by ID, preserving
+existing records and editorial status. Before adding records, the original backlog
+is backed up under `workspace/.state/desktop-backups/<migration-id>/content/`.
+New news priorities are adjusted only when they conflict with existing priorities.
+Runtime dependencies remain inside the app bundle. Replace the app
 with a newer version to update; automatic update delivery is not included yet.
 Model or voice-runtime changes may require a new audition, as in the source app.
 Deleting the app does not delete its data folder. Back up that folder separately.
@@ -432,3 +436,41 @@ The upload was completed using the standard macOS file picker; no extension
 permission was changed. The stale upload-pending note was removed and the draft
 saved. The release remains private for the user-selected testing workflow; it has
 not been publicly published. Both verified files remain under `desktop/out/`.
+
+### 0.1.2 upgrade regression and recovery
+
+An upgrade from an existing 0.1.1 workspace could stop with `News episode NEWS-10
+needs a draft-ready news backlog entry`. The installer added the new episode but
+treated the older backlog as an indivisible user seed and never added its matching
+record. This was an upgrade migration defect; rendering dependencies were not
+missing. The fresh-workspace installer check did not exercise this case.
+
+The source fix merges only missing bundled backlog records, after payload checksum
+verification and before installing new episodes. Existing scripts, backlog fields,
+editorial statuses and preferences are preserved. Backups retain the original
+bytes; repeated launches do not duplicate records or backups. A malformed saved
+backlog fails before new episodes are copied and is never replaced. This does not
+promote an existing research-only item or bypass source/production validation.
+
+Startup now checks engine availability before building the studio, reports checks
+that could not finish, and offers **Retry workspace preparation** when the backend
+can retry. A content error no longer leaves every tool labeled “Checking…”.
+
+The installed Mac was repaired using the verified bundled `NEWS-10` backlog entry
+and the same migration code. All six existing records were preserved, as were 24
+other content, photo and production-config files checked by hash. The original
+backlog is in the backup directory above. The app reopened with **Studio ready**,
+all four rendering tools ready, seven stories/19 versions and the existing produced
+video available for review.
+
+Validation: 403 workflow tests (unmodified Node 22), 18 desktop tests, typecheck,
+build and five live CAP checks passed. The real upgrade replay reproduced the
+failure in a copy of the existing content, repaired it without altering the six
+older records, and served the studio with HTTP 200. The regression tests cover
+priority conflicts, backup preservation, repeated updates, malformed saved data,
+and retrying startup after a content repair. Repository-wide pre-existing lint
+failures remain documented in the UX handoff.
+
+The permanent migration and launcher improvements are source changes for the next
+requested installer milestone. The signed 0.1.2 bundle and uploaded DMG have not
+been modified or replaced, and no new installer version was generated.

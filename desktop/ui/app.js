@@ -2,6 +2,7 @@
   const api = window.desktop;
   let state = {};
   const labels = {
+    startup: "Workspace preparation",
     kokoro: "Stock narration",
     qwen: "Voice cloning",
     portrait: "Realistic portraits",
@@ -48,7 +49,11 @@
     document.getElementById("engine-summary").textContent =
       checked.length === engineKeys.length
         ? `${installed.length} of ${engineKeys.length} rendering tools ready`
-        : "Checking rendering tools…";
+        : state.error
+          ? state.canRetryStartup
+            ? "Tool checks did not finish · retry workspace preparation"
+            : "Tool checks did not finish · restart the app"
+          : "Checking rendering tools…";
     document.getElementById("studio").disabled = !state.studioUrl;
     error.hidden = !state.error;
     error.textContent = state.error
@@ -66,12 +71,19 @@
           ? "Ready"
           : typeof installed === "boolean"
             ? "Not installed"
-            : "Checking…";
+            : state.error
+              ? "Not checked"
+              : "Checking…";
       item.classList.toggle("ready", !!installed && !active);
       item.classList.toggle("active", active);
     }
     for (const button of document.querySelectorAll("[data-action]")) {
       const action = button.dataset.action;
+      if (action === "retry-startup") {
+        button.hidden = !state.canRetryStartup || !!state.ready || !state.error;
+        button.disabled = !!state.task;
+        continue;
+      }
       button.disabled =
         !state.ready ||
         (action === "worker-stop" ? state.worker !== "running" : busy) ||

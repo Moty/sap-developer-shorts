@@ -35,6 +35,7 @@ let setupWindow,
   backend,
   current = {
     ready: false,
+    canRetryStartup: false,
     task: null,
     error: null,
     logs: ["Preparing the desktop workspace…"],
@@ -291,11 +292,13 @@ else {
         if (!quitting) {
           current.error = `Local backend stopped (${signal || code}). Restart the app to recover.`;
           current.ready = false;
+          current.canRetryStartup = false;
           publish();
         }
       });
       backend.on("error", (error) => {
         current.error = error.message;
+        current.canRetryStartup = false;
         publish();
         void smokeReport();
       });
