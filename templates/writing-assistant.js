@@ -108,13 +108,13 @@
     const provider = setup ? el("provider").value : settings?.provider;
     const remote = provider === "hyperspace";
     const modelId = setup ? el("model").value : (settings?.[provider]?.model ?? "");
+    el("cost").hidden = !remote;
     if (setup) {
-      el("cost").hidden = !remote;
       for (const radio of panel.querySelectorAll('input[name="writing-provider-choice"]')) {
         radio.checked = radio.value === provider;
         radio.disabled = starting;
       }
-    } else el("ack-row").hidden = !remote;
+    }
     const selected = knownModels.get(modelId);
     const current = settings ? choice() : null;
     const catalogMatches =
@@ -135,9 +135,7 @@
               ? "Choose a chat model in Settings."
               : provider === "local" && !selected.loaded
                 ? "Load this model in LM Studio, then check the connection again."
-                : remote && !el("allow-remote")?.checked
-                  ? "Tick the cost consent to use Hyperspace."
-                  : "";
+                : "";
     for (const button of actionButtons) button.disabled = Boolean(reason);
     if (editor) {
       el("cancel").hidden = !runningJobId;
@@ -523,11 +521,9 @@
       try {
         const bridge = globalThis.shortsWritingEditor;
         const snapshot = bridge.snapshot();
-        const acceptedCost = el("allow-remote").checked;
         const saved = await request("status");
         if (saved.settingsHash !== settingsHash) {
           adopt(saved);
-          el("allow-remote").checked = false;
           void catalog();
           throw new Error(
             "Writing settings changed in Settings. Check the engine shown above, then start again.",
@@ -541,10 +537,9 @@
           style: el("style").value,
           instruction: el("direction").value.trim(),
           settingsHash: saved.settingsHash,
-          allowRemote: saved.settings.provider === "hyperspace" && acceptedCost,
+          allowRemote: saved.settings.provider === "hyperspace",
         });
         starting = false;
-        el("allow-remote").checked = false;
         await watch(job);
       } catch (error) {
         status(error.message);
@@ -554,7 +549,6 @@
       }
     });
   if (editor) {
-    el("allow-remote").addEventListener("change", controls);
     el("cancel").addEventListener("click", async () => {
       if (!runningJobId) return;
       try {
@@ -635,7 +629,6 @@
     void (async () => {
       try {
         const data = await request("status");
-        if (data.settingsHash !== settingsHash) el("allow-remote").checked = false;
         adopt(data);
         running = false;
         runningJobId = null;

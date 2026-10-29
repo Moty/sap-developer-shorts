@@ -54,8 +54,8 @@ headlines are checked with export fonts and safe-area bounds before a proposal
 is offered or applied. Browser headings also fit their bounded area; code and
 evidence fonts remain unchanged.
 
-Hyperspace design generation uses one completion and requires the same explicit
-cost acknowledgment as other writing requests. Local writing does not fall back
+Hyperspace design generation uses one completion and shows the same possible-cost
+notice as other writing requests, without a confirmation checkbox. Local writing does not fall back
 to Hyperspace. See [writing setup and privacy](WRITING_ENGINES.md). This UI is in
 the local studio; the Firebase hosted editor does not yet dispatch LLM design jobs.
 

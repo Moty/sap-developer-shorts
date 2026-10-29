@@ -46,9 +46,7 @@
         ? "Choose a writing model in Settings."
         : busy || starting
           ? "A writing request is running. Wait for it to finish."
-          : remote && !el("remote").checked
-            ? "Tick the cost consent to use Hyperspace."
-            : "";
+          : "";
     el("start").disabled = Boolean(reason);
     el("hint").textContent = reason;
     el("hint").hidden = !reason;
@@ -74,7 +72,6 @@
   }
   globalThis.shortsWritingEngine?.subscribe(paintEngine);
   function engine(data) {
-    if (settingsHash !== data.settingsHash) el("remote").checked = false;
     settings = data.settings;
     settingsHash = data.settingsHash;
     paintEngine();
@@ -247,7 +244,6 @@
   }
   el("start").addEventListener("click", async () => {
     if (!settings || busy || starting) return;
-    const acceptedCost = el("remote").checked;
     const intendedSettings = settingsHash;
     starting = true;
     controls();
@@ -258,8 +254,6 @@
         engine(fresh);
         throw new Error("Writing settings changed. Review the displayed engine and start again.");
       }
-      if (fresh.settings.provider === "hyperspace" && !acceptedCost)
-        throw new Error("Confirm possible Hyperspace cost for this review.");
       const job = await request("jobs", {
         requestId: crypto.randomUUID(),
         ...context(snapshot),
@@ -268,9 +262,8 @@
         style: "conversational",
         instruction:
           "Final editorial consistency check before rendering. Preserve the story and the source facts.",
-        allowRemote: fresh.settings.provider === "hyperspace" && acceptedCost,
+        allowRemote: fresh.settings.provider === "hyperspace",
       });
-      el("remote").checked = false;
       starting = false;
       await watch(job);
     } catch (error) {
@@ -280,7 +273,6 @@
       controls();
     }
   });
-  el("remote").addEventListener("change", controls);
   el("refresh").addEventListener("click", () => void refresh());
   el("cancel").addEventListener("click", async () => {
     if (!runningId) return;

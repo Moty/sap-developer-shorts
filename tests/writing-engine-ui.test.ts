@@ -27,7 +27,7 @@ test("the editor shows a status chip instead of a second engine configuration", 
   for (const id of [
     "writing-style",
     "writing-direction",
-    "writing-allow-remote",
+    "writing-cost",
     "writing-ideas",
     "writing-rewrite",
     "writing-review",
@@ -40,7 +40,11 @@ test("the editor shows a status chip instead of a second engine configuration", 
   const review = finalReviewPanel();
   assert.match(review, /id="final-review-engine"[^>]*data-engine-chip/u);
   assert.match(review, /Change in Settings/u);
-  assert.ok(ids(review).includes("final-review-remote"));
+  assert.ok(ids(review).includes("final-review-cost-row"));
+  for (const panel of [editor, review]) {
+    assert.doesNotMatch(panel, /type="checkbox"/u);
+    assert.match(panel, /SAP Hyperspace usage may incur cost/u);
+  }
   assert.ok(ids(review).includes("final-review-hint"));
   assert.doesNotMatch(review, /Choose writing engine|Final-review budget/u);
 });
@@ -109,8 +113,8 @@ async function editorHarness(
     named.set(id, item);
     return item;
   };
-  for (const id of ["status", "usage", "result", "history", "hint", "ack-row", "cancel"]) node(id);
-  for (const id of ["direction", "allow-remote"]) node(id);
+  for (const id of ["status", "usage", "result", "history", "hint", "cost", "cancel"]) node(id);
+  node("direction");
   node("style").value = "conversational";
   const buttons = ["ideas", "rewrite", "review", "presentation"].map((action) => {
     const button = node(action);
@@ -201,25 +205,18 @@ const hyperspace = {
   outputTokens: { writing: 8192, finalReview: 16384 },
 };
 
-test("the editor loads the saved preference without engine controls and keeps Hyperspace consent explicit", async () => {
+test("the editor shows Hyperspace cost notice and permits repeated requests without a checkbox", async () => {
   const ui = await editorHarness(hyperspace);
   assert.deepEqual(
     ui.items.children.map((item) => item.textContent),
     ["gemini-3.8-flash", "SAP Hyperspace", "May incur cost", "Connected"],
   );
-  assert.equal(ui.named.get("ack-row")?.hidden, false);
-  assert.ok(ui.buttons.every((button) => button.disabled));
-  assert.equal(ui.named.get("hint")?.textContent, "Tick the cost consent to use Hyperspace.");
+  assert.equal(ui.named.get("cost")?.hidden, false);
+  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.equal(ui.named.get("hint")?.hidden, true);
 
   const request = ui.buttons[0];
   assert.ok(request);
-
-  const consent = ui.named.get("allow-remote");
-  assert.ok(consent);
-  consent.checked = true;
-  consent.listeners.get("change")?.();
-  assert.ok(ui.buttons.every((button) => !button.disabled));
-  assert.equal(ui.named.get("hint")?.hidden, true);
 
   await request.click();
   await ui.settle();
@@ -229,8 +226,14 @@ test("the editor loads the saved preference without engine controls and keeps Hy
   assert.equal(job.body.settingsHash, ui.hash, "the request is bound to the saved provider/model");
   assert.equal(job.body.allowRemote, true);
   assert.equal(job.body.action, "ideas");
-  assert.equal(consent.checked, false, "consent is per request");
-  assert.ok(ui.buttons.every((button) => button.disabled));
+  assert.equal(ui.named.get("cost")?.hidden, false);
+  assert.ok(ui.buttons.every((button) => !button.disabled));
+  await ui.buttons[3]?.click();
+  await ui.settle();
+  const requests = ui.posts.filter((post) => post.path === "jobs");
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1]?.body.action, "presentation");
+  assert.equal(requests[1]?.body.allowRemote, true);
 });
 
 test("a local engine needs no consent and the chip says it is free", async () => {
@@ -242,7 +245,7 @@ test("a local engine needs no consent and the chip says it is free", async () =>
     ui.items.children.map((item) => item.textContent),
     ["gemma-4-31b-it", "Local · LM Studio", "Free", "Connected"],
   );
-  assert.equal(ui.named.get("ack-row")?.hidden, true);
+  assert.equal(ui.named.get("cost")?.hidden, true);
   assert.ok(ui.buttons.every((button) => !button.disabled));
   const request = ui.buttons[1];
   assert.ok(request);
@@ -254,9 +257,9 @@ test("a local engine needs no consent and the chip says it is free", async () =>
   assert.equal(job.body.settingsHash, ui.hash);
 });
 
-test("a preference changed in another tab repaints the chip, clears consent and sends no request", async () => {
+test("a preference changed in another tab repaints the cost notice and requires a fresh action", async () => {
   const ui = await editorHarness({ ...hyperspace, provider: "local" });
-  assert.equal(ui.named.get("ack-row")?.hidden, true);
+  assert.equal(ui.named.get("cost")?.hidden, true);
   const switched = { ...hyperspace, hyperspace: { ...hyperspace.hyperspace, model: "claude-x" } };
   ui.server.settings = switched;
   ui.server.hash = "c".repeat(64);
@@ -272,15 +275,9 @@ test("a preference changed in another tab repaints the chip, clears consent and 
     ui.items.children.map((item) => item.textContent),
     ["claude-x", "SAP Hyperspace", "May incur cost", "Connected"],
   );
-  assert.equal(ui.named.get("ack-row")?.hidden, false);
-  const consent = ui.named.get("allow-remote");
-  assert.ok(consent);
-  assert.equal(consent.checked, false);
-  assert.ok(ui.buttons.every((button) => button.disabled));
-  assert.equal(ui.named.get("hint")?.textContent, "Tick the cost consent to use Hyperspace.");
-
-  consent.checked = true;
-  consent.listeners.get("change")?.();
+  assert.equal(ui.named.get("cost")?.hidden, false);
+  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.equal(ui.named.get("hint")?.hidden, true);
   await request.click();
   await ui.settle();
   const job = ui.posts.find((post) => post.path === "jobs");
@@ -289,12 +286,8 @@ test("a preference changed in another tab repaints the chip, clears consent and 
   assert.equal(job.body.allowRemote, true);
 });
 
-test("consent ticked for one Hyperspace model is cleared when the saved model changes", async () => {
+test("changing the saved Hyperspace model blocks the stale action and keeps the cost notice visible", async () => {
   const ui = await editorHarness(hyperspace);
-  const consent = ui.named.get("allow-remote");
-  assert.ok(consent);
-  consent.checked = true;
-  consent.listeners.get("change")?.();
   ui.server.settings = {
     ...hyperspace,
     hyperspace: { ...hyperspace.hyperspace, model: "other-model" },
@@ -303,7 +296,7 @@ test("consent ticked for one Hyperspace model is cleared when the saved model ch
   await ui.buttons[2]?.click();
   await ui.settle();
   assert.ok(!ui.posts.some((post) => post.path === "jobs"));
-  assert.equal(consent.checked, false);
+  assert.equal(ui.named.get("cost")?.hidden, false);
   assert.equal(ui.items.children[0]?.textContent, "other-model");
 });
 
@@ -329,4 +322,82 @@ test("a writing job completed while away does not leave restored editor actions 
   await ui.settle();
   assert.ok(ui.buttons.every((button) => !button.disabled));
   assert.equal(ui.posts.filter((post) => post.path === "jobs").length, 0);
+});
+
+async function finalReviewHarness(settings: Record<string, unknown>) {
+  const panel = new Fake();
+  const named = new Map<string, Fake>();
+  for (const id of ["cost-row", "start", "hint", "cancel", "refresh", "status", "result", "engine"])
+    named.set(id, new Fake());
+  const server = { settings, hash: "a".repeat(64) };
+  const posts: Record<string, unknown>[] = [];
+  const fetchMock = async (url: string, init?: { method?: string; body?: string }) => {
+    let data: unknown = {};
+    if (url.endsWith("/status"))
+      data = { settings: server.settings, settingsHash: server.hash, jobs: [] };
+    else if (url.endsWith("/final-review")) data = { state: "unreviewed", job: null };
+    else if (url.endsWith("/jobs")) {
+      posts.push(JSON.parse(init?.body ?? "{}"));
+      data = { id: "review-job", state: "FAILED", message: "Fixture stopped" };
+    }
+    return { ok: true, json: async () => data };
+  };
+  runInNewContext(await readFile(resolve(projectRoot, "templates/final-review.js"), "utf8"), {
+    document: {
+      getElementById: (id: string) =>
+        id === "final-review-panel" ? panel : (named.get(id.replace("final-review-", "")) ?? null),
+    },
+    fetch: fetchMock,
+    crypto: { randomUUID: () => "11111111-1111-4111-8111-111111111111" },
+    addEventListener() {},
+    clearTimeout,
+    setTimeout,
+    shortsWritingEditor: {
+      context: { selector: "NEWS-06@draft", sourceHash: "b".repeat(64) },
+      snapshot: () => ({ title: "Fixture", scenes: [], publicationText: "Fixture post" }),
+    },
+  });
+  const settle = async () => {
+    for (let index = 0; index < 20; index++) await new Promise((done) => setImmediate(done));
+  };
+  await settle();
+  return { named, server, posts, settle };
+}
+
+test("final AI review supports repeated Hyperspace requests with a cost notice and keeps local reviews local", async () => {
+  for (const provider of ["hyperspace", "local"]) {
+    const ui = await finalReviewHarness({ ...hyperspace, provider });
+    const start = ui.named.get("start");
+    assert.ok(start);
+    assert.equal(start.disabled, false);
+    assert.equal(ui.named.get("cost-row")?.hidden, provider === "local");
+    assert.equal(ui.posts.length, 0, "showing the cost notice never submits a request");
+    for (let index = 0; index < 2; index++) {
+      await start.click();
+      await ui.settle();
+      assert.equal(start.disabled, false);
+    }
+    assert.equal(ui.posts.length, 2);
+    for (const job of ui.posts) {
+      assert.equal(job.action, "final-review");
+      assert.equal(job.allowRemote, provider === "hyperspace");
+      assert.equal(job.settingsHash, ui.server.hash);
+    }
+  }
+});
+
+test("final review refreshes a changed provider and shows its cost notice before a new explicit action", async () => {
+  const ui = await finalReviewHarness({ ...hyperspace, provider: "local" });
+  ui.server.settings = hyperspace;
+  ui.server.hash = "c".repeat(64);
+  await ui.named.get("start")?.click();
+  await ui.settle();
+  assert.equal(ui.posts.length, 0);
+  assert.equal(ui.named.get("cost-row")?.hidden, false);
+  assert.match(ui.named.get("status")?.textContent ?? "", /settings changed/iu);
+  await ui.named.get("start")?.click();
+  await ui.settle();
+  assert.equal(ui.posts.length, 1);
+  assert.equal(ui.posts[0]?.settingsHash, "c".repeat(64));
+  assert.equal(ui.posts[0]?.allowRemote, true);
 });

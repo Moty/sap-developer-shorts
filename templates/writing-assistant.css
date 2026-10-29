@@ -69,13 +69,6 @@
   width: auto;
   margin: 0 8px 0 0;
 }
-.writing-panel .writing-ack {
-  display: block;
-  padding: 12px;
-  background: #fff4df;
-  border-radius: 8px;
-  margin: 12px 0;
-}
 .writing-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -235,7 +228,7 @@
   }
 }
 
-.writing-panel .writing-ack[hidden],
+.writing-cost[hidden],
 .final-review-panel [hidden] {
   display: none;
 }
@@ -243,23 +236,6 @@
   display: block;
   font-weight: 500;
   padding-top: 8px;
-}
-.final-review-panel .writing-ack {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 8px;
-  background: #fff4df;
-  font-weight: 500;
-}
-.final-review-panel .writing-ack input[type="checkbox"] {
-  flex: 0 0 auto;
-  width: auto;
-  margin: 5px 0 0;
-}
-.final-review-panel .writing-ack[hidden] {
-  display: none;
 }
 
 .writing-engine-choice {
@@ -412,21 +388,6 @@
   font-size: 13px;
   font-weight: 600;
   color: #7a4a10;
-}
-.writing-panel .writing-ack:not([hidden]) {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-weight: 500;
-}
-.writing-panel .writing-ack input[type="checkbox"] {
-  flex: 0 0 auto;
-  margin: 3px 0 0;
-}
-.writing-ack .writing-ack-detail {
-  display: block;
-  margin: 4px 0 0;
-  color: #6b5a34;
 }
 .writing-panel [data-engine-chip][hidden],
 .final-review-panel .writing-hint[hidden] {

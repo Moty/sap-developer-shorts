@@ -21,8 +21,10 @@ not automatically research new sources, generate speech, render a video, or publ
 5. Open a short's editor, choose **Script**, and expand **Writing & presentation assistant**.
    A status chip shows the saved engine and whether it is connected; use
    **Change in Settings ↗** to switch. Request buttons stay disabled, with the
-   reason shown beneath them, until the engine is connected and, for Hyperspace,
-   you tick the per-request cost consent. Select a wording style and, optionally, a concrete direction. Choose
+   reason shown beneath them, until a compatible model is connected. When Hyperspace
+   is selected, a visible notice explains its possible costs and the text sent to
+   the service; no confirmation checkbox is required. Select a wording style and,
+   optionally, a concrete direction. Choose
    **Suggest 3 angles**, **Draft / rewrite script**, **Review current script**, or
    **Generate / enhance presentation**. For a design, enter a visual direction,
    preview the proposal, compare its headlines, and **Apply presentation design**.
@@ -59,9 +61,9 @@ errors, incomplete output and timeouts are reported without an automatic retry.
 ## Final AI review before rendering
 
 Open an episode's editor, choose **Review & produce**, and use **Final AI review
-→ Review all content**. It uses the saved writing provider/model; **Choose writing
-engine** opens the existing setup panel. Every Hyperspace review requires its own
-cost checkbox. No review or provider fallback starts automatically when opening
+→ Review all content**. It uses the saved writing provider/model; **Change in Settings**
+opens the writing settings. Selecting Hyperspace shows the possible-cost notice;
+there is no review confirmation checkbox. No review or provider fallback starts automatically when opening
 the page, saving a draft, checking status, or producing a video.
 
 The review receives the current title, complete narration/turns, companion post,
@@ -126,8 +128,12 @@ The active account's catalog determines the choices; the application does not
 maintain a copied model list or choose an expensive model automatically.
 
 The UI explains that the local gateway forwards text to a downstream service.
-**Every Hyperspace writing request requires an explicit cost acknowledgment**;
-the checkbox resets after submission. Ideas, reviews and presentation designs make one completion
+**Selecting Hyperspace displays a cost notice; starting a writing action uses that
+saved provider without a repeated confirmation checkbox.** This applies to ideas,
+rewrites, presentation design, script review and Final AI review. The request's
+remote-use flag is derived from the selected provider. Changed settings in another
+tab still refresh the displayed choice and stop the stale action before submission.
+Ideas, reviews and presentation designs make one completion
 request. Rewriting makes a draft and one correction request, so it can incur
 charges for two completions. There are no hidden inference retries or provider
 switches. The selected provider/model is frozen for each admitted job.
