@@ -263,6 +263,9 @@
       angle: byId("writing-angle").value.trim(),
       targetSeconds: Number(byId("writing-target-seconds").value),
     };
+    return checkedBrief(brief);
+  }
+  function checkedBrief(brief) {
     if (
       !["developer", "architect", "consultant", "business"].includes(brief.audience) ||
       !Number.isInteger(brief.targetSeconds) ||
@@ -307,9 +310,25 @@
       )
         throw new Error("Your draft changed. View the ideas again before choosing an angle.");
       if (!byId("writing-angle")) return;
-      byId("writing-angle").value = `${idea.title}: ${idea.hook}`.slice(0, 240);
-      byId("writing-viewer-problem").value = idea.question.slice(0, 240);
-      byId("writing-takeaway").value = idea.payoff.slice(0, 240);
+      if (
+        !idea ||
+        ["title", "hook", "question", "payoff"].some((key) => typeof idea[key] !== "string")
+      )
+        throw new Error("Choose a complete plain-text angle.");
+      const field = (text) =>
+        text
+          .slice(0, 240)
+          .replace(/[\r\n]/gu, "")
+          .trim();
+      const next = checkedBrief({
+        ...currentBrief(),
+        angle: field(`${idea.title}: ${idea.hook}`),
+        viewerProblem: field(idea.question),
+        takeaway: field(idea.payoff),
+      });
+      byId("writing-angle").value = next.angle;
+      byId("writing-viewer-problem").value = next.viewerProblem;
+      byId("writing-takeaway").value = next.takeaway;
       update();
     },
     context: JSON.parse(document.getElementById("editor-data").textContent).writingContext,
@@ -1118,6 +1137,7 @@
     status.textContent = "";
     readDraft();
     globalThis.shortsFinalReview?.changed();
+    globalThis.dispatchEvent?.(new Event("shorts:draft-updated"));
   };
 
   if (byId("preset-load")) {

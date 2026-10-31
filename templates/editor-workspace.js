@@ -176,6 +176,7 @@
         "visual-studio-heading",
         "writing-brief-heading",
         "writing-task-heading",
+        "writing-angle",
       ].includes(id)
     )
       activate("writing", state.scene, false);

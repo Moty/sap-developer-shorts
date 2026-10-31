@@ -47,6 +47,20 @@ test("the editor shows a status chip instead of a second engine configuration", 
   }
   assert.ok(ids(review).includes("final-review-hint"));
   assert.doesNotMatch(review, /Choose writing engine|Final-review budget/u);
+  assert.equal(
+    ids(editor).filter((id) => id === "writing-angle").length,
+    1,
+    "one canonical draft angle field",
+  );
+  const quoted = writingPanel(true, {
+    audience: "developer",
+    targetSeconds: 55,
+    viewerProblem: "",
+    takeaway: "",
+    angle: 'A "quoted" angle & more',
+  });
+  assert.match(quoted, /value="A &quot;quoted&quot; angle &amp; more"/);
+  assert.ok(quoted.indexOf('id="writing-angle"') > quoted.indexOf('class="writing-workbench"'));
 });
 
 test("Settings presents provider radio cards over the same provider and model controls", () => {
@@ -75,7 +89,14 @@ class Fake {
   setAttribute(name: string, value: string) {
     this.attributes.set(name, value);
   }
-  focus() {}
+  focused = false;
+  scrolls = 0;
+  focus() {
+    this.focused = true;
+  }
+  scrollIntoView() {
+    this.scrolls++;
+  }
   dataset: Record<string, string> = {};
   children: Fake[] = [];
   listeners = new Map<string, () => unknown>();
@@ -136,6 +157,8 @@ async function editorHarness(
     "request-help",
     "visual-hints",
     "task-body",
+    "task-heading",
+    "angle",
   ])
     node(id);
   node("direction");
@@ -208,6 +231,7 @@ async function editorHarness(
   };
   let storySnapshot: Record<string, unknown> = { title: "x", scenes: [] };
   let anglesUsed = 0;
+  let invalidBrief = false;
   const context = {
     document: {
       querySelector: () => panel,
@@ -221,10 +245,25 @@ async function editorHarness(
       pageEvents.set(name, callback),
     shortsWritingEditor: {
       context: { selector: "NEWS-06@draft", sourceHash: "b".repeat(64) },
-      snapshot: () => structuredClone(storySnapshot),
-      selectAngle: (idea: unknown) => {
+      snapshot: () => {
+        if (invalidBrief) throw new Error("Invalid brief");
+        return structuredClone(storySnapshot);
+      },
+      selectAngle: (idea: { title: string; hook: string; question: string; payoff: string }) => {
         anglesUsed++;
-        storySnapshot = { ...storySnapshot, brief: idea };
+        const field = (value: string) =>
+          value
+            .slice(0, 240)
+            .replace(/[\r\n]/gu, "")
+            .trim();
+        const brief = {
+          angle: field(`${idea.title}: ${idea.hook}`),
+          viewerProblem: field(idea.question),
+          takeaway: field(idea.payoff),
+        };
+        storySnapshot = { ...storySnapshot, brief };
+        const angle = named.get("angle");
+        if (angle) angle.value = brief.angle;
       },
     },
   };
@@ -263,6 +302,19 @@ async function editorHarness(
     anglesUsed: () => anglesUsed,
     changeSnapshot: () => {
       storySnapshot.title = "changed";
+    },
+    invalidateBrief: () => {
+      invalidBrief = true;
+      const angle = named.get("angle");
+      if (angle) angle.value = "<";
+      pageEvents.get("shorts:draft-updated")?.({});
+    },
+    setBrief: (brief: Record<string, string>) => {
+      invalidBrief = false;
+      storySnapshot = { ...storySnapshot, brief };
+      const angle = named.get("angle");
+      if (angle) angle.value = brief.angle ?? "";
+      pageEvents.get("shorts:draft-updated")?.({});
     },
   };
 }
@@ -567,19 +619,25 @@ test("idea and feedback handoffs prepare a separate rewrite and reject foreign o
     payoff: "Expose the projection.",
   };
   const ui = await editorHarness(hyperspace);
-  ui.server.nextJob = job("ideas", { ideas: [idea] });
+  ui.server.nextJob = job("ideas", { ideas: [idea, { ...idea, title: "Another mechanism" }] });
   await ui.tasks[0]?.click();
   await ui.run.click();
-  await button(ui, "Use angle in brief").click();
+  await button(ui, "Use this angle").click();
   assert.equal(ui.anglesUsed(), 1);
+  assert.equal(ui.run.dataset.writingAction, "ideas", "selection stays at the ideas result");
+  assert.equal(button(ui, "Selected in draft").disabled, true);
+  assert.ok(button(ui, "Continue to Rewrite").focused);
+  assert.equal(ui.named.get("angle")?.value, "A useful mechanism: Where is the service?");
+  await button(ui, "Continue to Rewrite").click();
   assert.equal(ui.run.dataset.writingAction, "rewrite");
+  assert.ok(ui.named.get("task-heading")?.focused);
   assert.equal(
     ui.posts.filter((post) => post.path === "jobs").length,
     1,
-    "handoff does not start generation",
+    "choice and Continue do not start generation",
   );
   ui.changeSnapshot();
-  await button(ui, "Use angle in brief").click();
+  await button(ui, "Use this angle").click();
   assert.equal(ui.anglesUsed(), 1);
   assert.match(ui.named.get("status")?.textContent ?? "", /draft changed/);
 
@@ -590,7 +648,7 @@ test("idea and feedback handoffs prepare a separate rewrite and reject foreign o
   const foreignRoot = foreign.named.get("result");
   assert.ok(foreignRoot);
   assert.ok(
-    !foreign.descendants(foreignRoot).some((node) => node.textContent === "Use angle in brief"),
+    !foreign.descendants(foreignRoot).some((node) => node.textContent === "Use this angle"),
   );
 
   const review = await editorHarness(hyperspace);
@@ -618,4 +676,144 @@ test("idea and feedback handoffs prepare a separate rewrite and reject foreign o
   assert.match(review.named.get("direction")?.value ?? "", /missing endpoint/);
   assert.doesNotMatch(review.named.get("direction")?.value ?? "", /INDEPENDENT SOURCE CHECK/);
   assert.equal(review.posts.filter((post) => post.path === "jobs").length, 1);
+});
+
+test("angle choices show local feedback, follow manual/restored briefs, and continue without inference", async () => {
+  const ui = await editorHarness(hyperspace);
+  const first = {
+    title: "The missing service",
+    hook: "Where is the endpoint?",
+    question: "What exposes the model?",
+    payoff: "Add a service projection.",
+  };
+  const second = { ...first, title: "A different angle", hook: "One missing connection" };
+  ui.server.nextJob = {
+    id: "angles-1",
+    selector: "NEWS-06@draft",
+    sourceHash: "b".repeat(64),
+    state: "SUCCEEDED",
+    action: "ideas",
+    result: { ideas: [first, second] },
+    stages: [],
+    model: "m",
+    message: "Complete",
+  };
+  await ui.tasks[0]?.click();
+  await ui.run.click();
+  const root = ui.named.get("result");
+  assert.ok(root);
+  const cards = () =>
+    ui.descendants(root).filter((node) => node.className.startsWith("writing-angle-card"));
+  const button = (card: Fake, label: string) => {
+    const found = ui.descendants(card).find((node) => node.textContent === label);
+    assert.ok(found, label);
+    return found;
+  };
+  const a = cards()[0],
+    b = cards()[1];
+  assert.ok(a && b);
+  await button(a, "Use this angle").click();
+  assert.match(a.className, /is-chosen/);
+  assert.doesNotMatch(b.className, /is-chosen/);
+  assert.equal(button(a, "Selected in draft").disabled, true);
+  assert.equal(ui.run.dataset.writingAction, "ideas");
+  assert.ok(ui.descendants(a).some((node) => node.textContent === `${first.title}: ${first.hook}`));
+  assert.ok(button(a, "Continue to Rewrite").focused);
+  await button(b, "Use this angle").click();
+  assert.doesNotMatch(a.className, /is-chosen/);
+  assert.match(b.className, /is-chosen/);
+  assert.equal(ui.anglesUsed(), 2);
+  await button(b, "Edit angle").click();
+  assert.ok(ui.named.get("angle")?.focused);
+  ui.setBrief({
+    angle: "My own edited angle",
+    viewerProblem: first.question,
+    takeaway: first.payoff,
+  });
+  assert.ok(cards().every((card) => !card.className.includes("is-chosen")));
+  ui.setBrief({
+    angle: `${first.title}: ${first.hook}`,
+    viewerProblem: first.question,
+    takeaway: first.payoff,
+  });
+  assert.strictEqual(cards()[0], a, "restoration keeps the same card and focused controls");
+  assert.match(a.className, /is-chosen/);
+  ui.invalidateBrief();
+  assert.ok(
+    cards().every((card) => !card.className.includes("is-chosen")),
+    "invalid brief clears stale chosen confirmation",
+  );
+  assert.equal(button(a, "Use this angle").disabled, false);
+  ui.setBrief({
+    angle: `${first.title}: ${first.hook}`,
+    viewerProblem: first.question,
+    takeaway: first.payoff,
+  });
+  assert.match(a.className, /is-chosen/);
+  await button(a, "Continue to Rewrite").click();
+  assert.equal(ui.run.dataset.writingAction, "rewrite");
+  assert.ok(ui.named.get("task-heading")?.focused);
+  assert.equal(ui.posts.filter((post) => post.path === "jobs").length, 1);
+});
+
+test("stale angle errors are inline and reload uses saved results without replacing a newer result", async () => {
+  const ui = await editorHarness(hyperspace);
+  const idea = {
+    title: "An angle",
+    hook: "A mechanism",
+    question: "Where is the connection?",
+    payoff: "Expose the service.",
+  };
+  ui.server.nextJob = {
+    id: "angles-1",
+    selector: "NEWS-06@draft",
+    sourceHash: "b".repeat(64),
+    state: "SUCCEEDED",
+    action: "ideas",
+    result: { ideas: [idea] },
+    stages: [],
+    model: "m",
+    message: "Complete",
+  };
+  await ui.tasks[0]?.click();
+  await ui.run.click();
+  const root = ui.named.get("result");
+  assert.ok(root);
+  const find = (label: string) => {
+    const node = ui.descendants(root).find((item) => item.textContent === label);
+    assert.ok(node, label);
+    return node;
+  };
+  ui.changeSnapshot();
+  await find("Use this angle").click();
+  const error = ui.descendants(root).find((node) => node.className === "writing-angle-error");
+  assert.ok(error);
+  assert.equal(error.hidden, false);
+  assert.ok(ui.descendants(error).some((node) => /draft changed/.test(node.textContent)));
+  assert.equal(ui.anglesUsed(), 0);
+  await find("Reload saved options").click();
+  await find("Use this angle").click();
+  assert.equal(ui.anglesUsed(), 1);
+  assert.equal(
+    ui.posts.filter((post) => post.path === "jobs").length,
+    1,
+    "reload does not resubmit inference",
+  );
+  const oldReload = find("Reload saved options");
+  ui.server.nextJob = {
+    id: "review-2",
+    selector: "NEWS-06@draft",
+    sourceHash: "b".repeat(64),
+    state: "SUCCEEDED",
+    action: "review",
+    result: { summary: "Newer feedback", issues: [] },
+    stages: [],
+    model: "m",
+    message: "Complete",
+  };
+  await ui.tasks[2]?.click();
+  await ui.run.click();
+  await oldReload.click();
+  assert.ok(ui.descendants(root).some((node) => node.textContent === "Newer feedback"));
+  assert.ok(!ui.descendants(root).some((node) => node.textContent === "Choose a story angle"));
 });

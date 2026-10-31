@@ -25,7 +25,7 @@
       title: "Find an angle",
       result:
         "Three hook, question and payoff options grounded in this story and its saved sources.",
-      next: "Use an angle in your story brief, then optionally ask Rewrite script for a proposal. Choosing an angle does not rewrite narration.",
+      next: "Choose an angle below. Its card confirms the brief changes and offers Continue to Rewrite. Review the rewrite settings before starting a separate request.",
       style: "Idea wording style",
       styleHelp:
         "Guides the suggested hooks and payoffs for this request. Your narrator voice stays as selected.",
@@ -83,6 +83,7 @@
     },
   };
   let selectedTask = null;
+  let syncAngleChoices = () => {};
   const taskInputs = new Map();
   const status = (message) => {
     el("status").textContent = message;
@@ -353,7 +354,220 @@
     }
     if (!jobs?.length) para(el("history"), "No writing requests saved yet.");
   }
+  function focusWriting(name) {
+    if (globalThis.shortsWorkspace?.jumpTo?.(`writing-${name}`)) return;
+    const target = el(name);
+    if (!target) return;
+    if (["task-heading", "result"].includes(name)) target.setAttribute("tabindex", "-1");
+    target.scrollIntoView?.({ block: "start", behavior: "smooth" });
+    target.focus?.({ preventScroll: true });
+  }
+  function ideaBrief(idea) {
+    // Match selectAngle's 240-character text inputs and currentBrief's trimming.
+    const field = (text) =>
+      text
+        .slice(0, 240)
+        .replace(/[\r\n]/gu, "")
+        .trim();
+    return {
+      angle: field(`${idea.title}: ${idea.hook}`),
+      viewerProblem: field(idea.question),
+      takeaway: field(idea.payoff),
+    };
+  }
+  function isChosen(idea, brief) {
+    const expected = ideaBrief(idea);
+    return brief && Object.keys(expected).every((key) => brief[key] === expected[key]);
+  }
+  function renderIdeas(job, result) {
+    para(result, "Choose a story angle", "h3");
+    para(
+      result,
+      "A choice updates this draft’s angle, viewer problem and takeaway. It does not generate a script. Your selected card shows the next step.",
+    );
+    const bridge = globalThis.shortsWritingEditor;
+    let ideaSnapshot;
+    try {
+      if (matchingStory(job)) ideaSnapshot = bridge.snapshot();
+    } catch {
+      /* Recovery/save is pending. */
+    }
+    const choices = [];
+    const sync = () => {
+      let current;
+      try {
+        current = bridge.snapshot();
+      } catch {
+        // An invalid/pending brief cannot retain a stale confirmed selection.
+        current = null;
+      }
+      for (const choice of choices) {
+        const chosen = current && matchingStory(job) && isChosen(choice.idea, current.brief);
+        choice.card.className = `writing-angle-card${chosen ? " is-chosen" : ""}`;
+        choice.badge.hidden = !chosen;
+        if (choice.use) {
+          choice.use.textContent = chosen ? "Selected in draft" : "Use this angle";
+          choice.use.disabled = Boolean(chosen);
+        }
+        choice.success.hidden = !chosen;
+        choice.error.hidden = !choice.errorMessage;
+        choice.errorText.textContent = choice.errorMessage;
+        choice.feedback.hidden = !chosen && !choice.errorMessage;
+        if (chosen) {
+          for (const [key, textNode] of Object.entries(choice.fields)) {
+            const text = current.brief[key];
+            if (textNode.textContent !== text) textNode.textContent = text;
+          }
+        }
+      }
+    };
+    syncAngleChoices = sync;
+    for (const idea of job.result.ideas) {
+      const card = document.createElement("article");
+      card.className = "writing-angle-card";
+      const badge = para(card, "Selected angle", "span");
+      badge.className = "writing-angle-badge";
+      badge.hidden = true;
+      para(card, idea.title, "h3");
+      para(card, `Hook: ${idea.hook}`);
+      para(card, `Question: ${idea.question}`);
+      para(card, `Payoff: ${idea.payoff}`);
+      if (idea.claimIds?.length) para(card, `Saved evidence: ${idea.claimIds.join(", ")}`);
+      const feedback = document.createElement("div");
+      feedback.className = "writing-angle-feedback";
+      feedback.hidden = true;
+      const success = document.createElement("div");
+      success.hidden = true;
+      const confirmation = para(success, "Chosen for this draft", "h4");
+      confirmation.setAttribute("role", "status");
+      const changes = document.createElement("dl");
+      changes.className = "writing-angle-changes";
+      const fields = {};
+      for (const [key, label] of [
+        ["angle", "Angle"],
+        ["viewerProblem", "Viewer problem"],
+        ["takeaway", "Takeaway"],
+      ]) {
+        const row = document.createElement("div");
+        para(row, label, "dt");
+        fields[key] = para(row, "", "dd");
+        changes.append(row);
+      }
+      success.append(changes);
+      para(
+        success,
+        "Your narration is unchanged. Save draft to keep this choice. Continue to review rewrite settings; no AI request starts yet.",
+      );
+      const actions = document.createElement("div");
+      actions.className = "writing-buttons";
+      const next = document.createElement("button");
+      next.type = "button";
+      next.className = "writing-apply";
+      next.textContent = "Continue to Rewrite";
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Edit angle";
+      actions.append(next, edit);
+      success.append(actions);
+      const error = document.createElement("div");
+      error.hidden = true;
+      error.className = "writing-angle-error";
+      const errorText = para(error, "");
+      errorText.setAttribute("role", "alert");
+      const reload = document.createElement("button");
+      reload.type = "button";
+      reload.textContent = "Reload saved options";
+      para(
+        error,
+        "This reloads the same saved suggestions against your current draft. No new AI request.",
+      );
+      const editDraft = document.createElement("button");
+      editDraft.type = "button";
+      editDraft.textContent = "Edit draft angle";
+      editDraft.addEventListener("click", () => focusWriting("angle"));
+      error.append(reload, editDraft);
+      feedback.append(success, error);
+      const choice = {
+        idea,
+        card,
+        badge,
+        feedback,
+        success,
+        error,
+        errorText,
+        fields,
+        errorMessage: "",
+        use: null,
+      };
+      const showError = (message) => {
+        choice.errorMessage = message;
+        sync();
+        feedback.hidden = false;
+        error.hidden = false;
+        errorText.textContent = message;
+        error.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+        status(message);
+      };
+      next.addEventListener("click", () => {
+        try {
+          if (!matchingStory(job) || !isChosen(idea, bridge.snapshot().brief))
+            throw new Error(
+              "The draft angle changed. Choose the angle you want before continuing.",
+            );
+          chooseTask("rewrite");
+          focusWriting("task-heading");
+        } catch (failure) {
+          showError(failure.message);
+        }
+      });
+      edit.addEventListener("click", () => focusWriting("angle"));
+      reload.addEventListener("click", () => {
+        if (displayedJobId !== job.id) return;
+        render(job);
+        focusWriting("result");
+      });
+      if (ideaSnapshot) {
+        const use = document.createElement("button");
+        use.type = "button";
+        use.textContent = "Use this angle";
+        choice.use = use;
+        use.addEventListener("click", () => {
+          for (const entry of choices) entry.errorMessage = "";
+          try {
+            if (
+              !matchingStory(job) ||
+              JSON.stringify(bridge.snapshot()) !== JSON.stringify(ideaSnapshot)
+            )
+              throw new Error(
+                "Your draft changed since these options were shown. Reload the saved options, then choose an angle.",
+              );
+            bridge.selectAngle(idea, ideaSnapshot);
+            ideaSnapshot = bridge.snapshot();
+            sync();
+            status(
+              "Angle selected for this draft. Continue to Rewrite from the selected card when ready; narration has not changed.",
+            );
+            next.focus?.({ preventScroll: true });
+            feedback.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+          } catch (failure) {
+            showError(failure.message);
+          }
+        });
+        card.append(use);
+      }
+      card.append(feedback);
+      result.append(card);
+      choices.push(choice);
+    }
+    sync();
+    if (editor && !ideaSnapshot)
+      para(
+        result,
+        "Open this request’s matching script and source version to choose an angle in its brief.",
+      );
+  }
   function render(job) {
+    syncAngleChoices = () => {};
     displayedJobId = job.id;
     status(
       `${tasks[job.action]?.title ?? job.action} · ${job.model} · ${job.message}${job.warning ? ` ${job.warning}` : ""}`,
@@ -376,53 +590,7 @@
     result.hidden = !job.result || job.state !== "SUCCEEDED";
     if (result.hidden) return;
     if (job.action === "ideas") {
-      para(result, "Three possible angles", "h3");
-      const bridge = globalThis.shortsWritingEditor;
-      let ideaSnapshot;
-      try {
-        if (matchingStory(job)) ideaSnapshot = bridge.snapshot();
-      } catch {
-        /* Recovery/save is pending. */
-      }
-      for (const idea of job.result.ideas) {
-        const card = document.createElement("article");
-        para(card, idea.title, "h3");
-        para(card, `Hook: ${idea.hook}`);
-        para(card, `Question: ${idea.question}`);
-        para(card, `Payoff: ${idea.payoff}`);
-        if (idea.claimIds?.length) para(card, `Saved evidence: ${idea.claimIds.join(", ")}`);
-        if (ideaSnapshot) {
-          const use = document.createElement("button");
-          use.type = "button";
-          use.textContent = "Use angle in brief";
-          use.addEventListener("click", () => {
-            try {
-              if (
-                !matchingStory(job) ||
-                JSON.stringify(bridge.snapshot()) !== JSON.stringify(ideaSnapshot)
-              )
-                throw new Error(
-                  "Your draft changed since these ideas were shown. View this request again before choosing an angle.",
-                );
-              bridge.selectAngle(idea, ideaSnapshot);
-              ideaSnapshot = bridge.snapshot();
-              chooseTask("rewrite");
-              status(
-                "Angle added to the story brief. Rewrite script is selected; Generate rewrite proposal starts a separate request. Narration is unchanged.",
-              );
-            } catch (error) {
-              status(error.message);
-            }
-          });
-          card.append(use);
-        }
-        result.append(card);
-      }
-      if (editor && !ideaSnapshot)
-        para(
-          result,
-          "Open this request’s matching script and source version to use an angle in its brief.",
-        );
+      renderIdeas(job, result);
     } else if (job.action === "final-review") {
       para(result, "Final text review", "h3");
       para(result, job.result.summary);
@@ -740,6 +908,7 @@
       }
     });
   if (editor) {
+    globalThis.addEventListener("shorts:draft-updated", () => syncAngleChoices());
     if (el("run")) {
       taskInputs.set("rewrite", { style: el("style").value, direction: el("direction").value });
       chooseTask("rewrite");

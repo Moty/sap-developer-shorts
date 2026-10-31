@@ -105,6 +105,7 @@ async function workspace(hash = "") {
     "visual-studio-heading",
     "writing-brief-heading",
     "writing-task-heading",
+    "writing-angle",
     "voice-heading",
     "companion-post-heading",
     "final-review-heading",

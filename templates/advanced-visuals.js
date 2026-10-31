@@ -407,7 +407,7 @@
     }
   });
   document.getElementById("editor-fields").addEventListener("input", (event) => {
-    if (event.target.closest?.(".writing-workbench")) return;
+    if (["writing-style", "writing-direction"].includes(event.target.id)) return;
     if (!root.contains(event.target) && panelSnapshot && root.open) queuePreview();
   });
   node("assets-load").addEventListener("click", async () => {

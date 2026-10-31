@@ -904,3 +904,89 @@
 #writing-task-heading {
   scroll-margin-top: calc(var(--studio-bar-height, 76px) + 20px);
 }
+
+.writing-angle-context {
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid #d8e4d3;
+  border-radius: 9px;
+  background: #f5f9f1;
+}
+.writing-angle-context p {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #6b7e6b;
+}
+.writing-angle-context a {
+  color: #38654c;
+}
+.writing-result article.writing-angle-card.is-chosen {
+  border: 2px solid #49815a;
+  background: #eff7e8;
+  padding: 15px;
+}
+.writing-angle-badge {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 4px 9px;
+  border-radius: 20px;
+  background: #d9eacb;
+  color: #2c5839;
+  font-size: 11px;
+  font-weight: 700;
+}
+.writing-angle-feedback {
+  margin-top: 14px;
+  border-top: 1px solid #c9dcc0;
+  padding-top: 14px;
+}
+.writing-angle-feedback h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #2d5f3d;
+}
+.writing-angle-feedback p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.writing-angle-changes {
+  margin: 0;
+}
+.writing-angle-changes > div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px;
+  margin: 8px 0;
+}
+.writing-angle-changes dt {
+  color: #6c8167;
+  font-size: 11px;
+  font-weight: 650;
+}
+.writing-angle-changes dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.writing-angle-error {
+  padding: 12px;
+  border: 1px solid #d6a963;
+  border-radius: 8px;
+  background: #fff7e8;
+}
+.writing-angle-error > p:first-child {
+  margin-top: 0;
+  color: #865820;
+  font-weight: 650;
+}
+#writing-result {
+  scroll-margin-top: calc(var(--studio-bar-height, 76px) + 20px);
+}
+@media (max-width: 600px) {
+  .writing-angle-changes > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+}

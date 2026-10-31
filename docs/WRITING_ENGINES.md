@@ -34,7 +34,7 @@ not automatically research new sources, generate speech, render a video, or publ
 
 | Task | Result | How it applies |
 | --- | --- | --- |
-| Find an angle | Three hook/question/payoff options from the existing story and source pack | **Use angle in brief** updates the angle/problem/takeaway fields immediately and selects Rewrite; it does not rewrite narration or run another request. |
+| Find an angle | Three hook/question/payoff options from the existing story and source pack | **Use this angle** updates the draft brief and highlights the chosen card with its angle/problem/takeaway. **Continue to Rewrite** opens the rewrite settings; neither action generates narration or starts another request. |
 | Rewrite script | Proposed title, narration/turn text, scene overlays and optionally companion copy | Compare current/proposed text, then **Apply wording to this editor** and **Save draft**. Existing voices, photos, source records and custom slide design are retained. |
 | Review script | Feedback on text, clarity, delivery and saved-source alignment | Read and edit manually, or **Use wording feedback for a rewrite** to prepare an optional new request. Source findings require source review and are excluded from that shortcut. |
 | Design slides | Proposed visual headlines, theme, background/effects, layouts and supported captured charts | Preview, compare and **Apply presentation design**, then **Save draft**. Narration and local image choices remain intact. Manual Presentation studio settings must be applied to the draft before this request can use them. |
@@ -301,3 +301,37 @@ previous rewrite fields and confirmed episode fields were unchanged. No paid/mod
 request, episode production or installer was created for those checks. These changes
 are in the local source studio; existing installed applications require a later
 installer update.
+
+## Choosing an angle without losing your place
+
+The single canonical **Angle in this draft** field is now beside the AI task tabs,
+shared by all four tools. It retains its original recovery/save identity; it is
+explicitly draft content, separate from the request-only style and instructions.
+
+Choosing an idea keeps the current results in view. The chosen card gets a selected
+badge and confirmation showing the exact applied angle, viewer problem and takeaway.
+Focus moves to **Continue to Rewrite** in that card with only the nearest necessary
+scroll. Continue selects Rewrite and reveals its settings and draft angle; generation
+still requires **Generate rewrite proposal**. **Edit angle** jumps directly to the
+canonical field. Save draft keeps the selection as part of a version.
+
+Card state follows the actual normalized brief after manual edits, restoration and
+programmatic changes without rebuilding focused controls. An invalid or pending
+brief clears any stale selected confirmation. Projected idea values are validated
+together before assignment; rejected suggestions leave the previous brief intact.
+
+Errors appear inside the clicked card. **Reload saved options** reloads that same
+stored result against the current draft, with no inference, and cannot replace a
+newer displayed result. **Edit draft angle** provides a direct recovery path. Foreign
+story/source results remain ineligible for brief changes.
+
+Verification for this refinement: 439 workflow tests and 18 desktop tests passed,
+along with the TypeScript build, scoped Biome checks, five live CAP checks and
+content validation. A fresh studio and strict portable ZIP package were built. Astra independently
+reviewed the changes and passed 47 focused tests after the final validation fix.
+
+Live browser checks reused a stored Find an angle result: choosing a card showed
+its selected badge, applied brief values and next actions in place. Continue
+revealed Rewrite with the chosen angle visible; Edit angle focused that field.
+The check used an isolated tab, without saving an episode or starting any model
+request, audio/video production or installer build.

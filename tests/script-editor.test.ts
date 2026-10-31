@@ -1453,7 +1453,8 @@ test("preset pronunciation survives recovery and Start with original resets it",
 });
 
 test("using an idea updates only the brief and rejects a stale editor snapshot", async () => {
-  const ui = await workshop("CAP-01@casual-v2");
+  const storage = recoveryStorage();
+  const ui = await workshop("CAP-01@casual-v2", undefined, { storage });
   const before = ui.writingEditor.snapshot();
   const narration = ui.get("narration-0").value;
   const voice = ui.get("speaker-voice-0").value;
@@ -1474,4 +1475,20 @@ test("using an idea updates only the brief and rejects a stale editor snapshot",
   assert.equal(ui.get("writing-takeaway").value, idea.payoff);
   assert.equal(ui.get("narration-0").value, narration);
   assert.equal(ui.get("speaker-voice-0").value, voice);
+  const chosen = ui.writingEditor.snapshot();
+  for (const bad of [
+    { ...idea, question: "Why use <entity>?" },
+    { ...idea, payoff: "A tab\tinside" },
+  ]) {
+    assert.throws(() => ui.writingEditor.selectAngle(bad, chosen), /plain-text/);
+    assert.equal(
+      JSON.stringify(ui.writingEditor.snapshot()),
+      JSON.stringify(chosen),
+      "invalid suggestions cannot partially overwrite the brief",
+    );
+  }
+  const recovered = await workshop("CAP-01@casual-v2", undefined, { storage });
+  assert.equal(recovered.get("writing-angle").value, "The missing service: Where is the endpoint?");
+  assert.equal(recovered.get("writing-viewer-problem").value, idea.question);
+  assert.equal(recovered.get("narration-0").value, narration);
 });
