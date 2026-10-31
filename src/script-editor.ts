@@ -20,6 +20,7 @@ import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationLabel } from "./presentation.js";
 import { type ProductionHistorySample, productionWorkspace } from "./production-ui.js";
 import { escapeHtml as esc } from "./review.js";
+import { defaultStoryBrief } from "./story-brief.js";
 import type { PresentationDefinition } from "./variants.js";
 import { voiceLibraryPanel } from "./voice-library-panel.js";
 import { voiceReadingScripts } from "./voice-reading-scripts.js";
@@ -137,6 +138,10 @@ export async function createScriptEditor(
       sourceHash: hash(JSON.stringify(episode)),
     },
     productionHistory: options.productionHistory ?? [],
+    compositionClaimIds: episode.claims.map((claim) => claim.id),
+    compositionSceneIds: episode.scenes
+      .filter((scene) => scene.visual.kind === "presenter")
+      .map((scene) => scene.id),
     voiceReadingScripts,
     voiceStyles,
     recoveryId: hash(JSON.stringify(editorData)),
@@ -268,7 +273,7 @@ ${episodeShell({
 
       <fieldset id="editor-fields" disabled><legend class="sr-only">Revised script</legend>
         <section id="editor-script-start" class="draft-details" data-editor-pane="script" data-workspace-pane="details" aria-label="Version and title"><label for="variant-name">New version name</label><input id="variant-name" value="${esc(seed.presentation.variant ?? "")}" maxlength="32" autocomplete="off" spellcheck="false" aria-describedby="variant-help"><p id="variant-help">Use lowercase letters, numbers, and hyphens, starting with a letter. Existing versions are kept.</p><label for="draft-title">Short title</label><input id="draft-title" value="${esc(seed.title)}" maxlength="60"><input type="hidden" id="presentation-design" value="${esc(seed.presentation.design ? JSON.stringify(seed.presentation.design) : "")}"><p id="presentation-design-status" class="delivery"></p><div class="design-reset-row"><button type="button" id="presentation-design-reset" class="secondary-btn" aria-describedby="presentation-design-reset-hint">Use automatic presentation design</button><small id="presentation-design-reset-hint" class="design-reset-hint">Only needed after a custom design has been applied; the automatic design is in use now.</small></div></section>
-        <details id="presentation" class="writing-editor-disclosure" data-editor-pane="script" data-workspace-pane="writing"><summary>Writing &amp; presentation assistant</summary>${writingPanel(true)}</details>
+        <details id="presentation" class="writing-editor-disclosure" data-editor-pane="script" data-workspace-pane="writing"><summary>Writing &amp; presentation assistant</summary>${writingPanel(true, seed.presentation.brief ?? { ...defaultStoryBrief, targetSeconds: Math.min(90, Math.max(15, Math.round(episode.targetDurationSeconds))) })}</details>
         <section id="scene-focus" data-editor-pane="script" data-workspace-pane="scene" class="scene-focus" aria-label="Focused scene editor">
           <div class="scene-workspace-toolbar"><span id="workspace-scene-position">SCENE 01 OF ${String(episode.scenes.length).padStart(2, "0")}</span><div><button type="button" id="workspace-scene-previous" aria-label="Previous scene">← <span>Previous</span></button><button type="button" id="workspace-scene-next" aria-label="Next scene"><span>Next scene</span> →</button></div></div>
           <div class="scene-focus-layout"><div class="scene-focus-fields">${sceneFields}</div><aside class="scene-text-preview" aria-label="On-screen text preview"><div class="preview-label">ON-SCREEN CUE<span id="workspace-preview-number">01 / 07</span></div><div class="preview-phone"><div class="preview-brand">SAP / SHORTS</div><div class="preview-decoration" aria-hidden="true"></div><strong id="workspace-preview-headline"></strong><p id="workspace-preview-caption"></p><div class="preview-progress" aria-hidden="true"><i></i></div></div><p class="preview-help">Text preview. The full deck updates when you save.</p><a href="presentation.html" target="_blank" rel="noopener">Open saved deck ↗</a></aside></div>

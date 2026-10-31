@@ -130,7 +130,11 @@ export function presentationPlan(input: PresentationInput) {
       })) ?? [],
     steps: storySteps(episode),
     sources: episode.sources,
-    claims: episode.claims.map((claim) => ({ text: claim.text, sourceIds: claim.sourceIds })),
+    claims: episode.claims.map((claim) => ({
+      id: claim.id,
+      text: claim.text,
+      sourceIds: claim.sourceIds,
+    })),
     scenes,
     inputHash: hash(JSON.stringify(episode)),
   };
@@ -192,6 +196,15 @@ function sceneHtml(scene: PresentationPlan["scenes"][number], plan: Presentation
             .join("")}</details></article>`,
       )
       .join("")}</div>`;
+  if (scene.design.composition) {
+    const composition = scene.design.composition;
+    content = `<div class="story-composition composition-${composition.kind}" aria-label="${composition.kind} visual explanation">${composition.items
+      .map((item, index) => {
+        const evidence = plan.claims.find((claim) => claim.id === item.claimId);
+        return `<details class="composition-card" data-composition-item="${index}"${index === 0 ? ' data-active="true"' : ""}><summary><span class="composition-index">${composition.kind === "comparison" ? (index === 0 ? "A" : "B") : String(index + 1).padStart(2, "0")}</span><strong>${esc(item.label)}</strong><span class="composition-arrow" aria-hidden="true">${composition.kind === "steps" ? "↓" : "+"}</span></summary><p>${esc(evidence?.text ?? scene.narration)}</p>${evidence ? `<small>Saved evidence · ${esc(evidence.id)}</small>` : ""}</details>`;
+      })
+      .join("")}</div>`;
+  }
   return `<section class="deck-slide scene-${scene.kind} feed-${scene.design.kind} emphasis-${scene.design.emphasis}${scene.design.custom ? " custom-design" : ""}" style="--motion-duration:${scene.design.entranceSeconds}s;--scene-accent:${scene.design.accent};--scene-secondary:${scene.design.secondary};--scene-surface:${scene.design.surface}" data-scene="${scene.index}" data-auto-animate data-transition="fade"><div class="ambient-field" aria-hidden="true"></div><header class="slide-topline"><span>SAP DEVELOPER SHORTS</span><span>${String(scene.index + 1).padStart(2, "0")} / ${String(plan.scenes.length).padStart(2, "0")}</span></header><h2 data-id="headline">${esc(scene.title)}</h2><div class="slide-main">${content}</div><footer class="slide-footer"><span>${esc(scene.label)}</span><div class="narration-caption" aria-live="off"></div><div class="scene-progress"><i></i></div></footer></section>`;
 }
 export async function createPresentationDeck(input: PresentationInput) {

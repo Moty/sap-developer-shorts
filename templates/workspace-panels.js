@@ -128,8 +128,11 @@
       }
       if (!/^NEWS-\d{2}$/u.test(data.episode?.id))
         throw new Error("Draft saved, but its editor link is unavailable. Refresh My shorts.");
-      status.textContent = "Draft saved. Opening the script editor…";
-      window.location.assign(`episodes/${encodeURIComponent(data.episode.id)}/edit.html`);
+      status.textContent =
+        "Evidence draft saved. Opening the story planner to choose an angle and write the narration…";
+      window.location.assign(
+        `episodes/${encodeURIComponent(data.episode.id)}/edit.html#presentation`,
+      );
     } catch (error) {
       status.textContent = error.message;
     } finally {

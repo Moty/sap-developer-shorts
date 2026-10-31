@@ -2,14 +2,16 @@ import { words } from "../contracts.js";
 import { hash } from "../digest.js";
 import { type ContentEpisode, isNewsEpisode } from "../domain.js";
 import { type PresentationDesign, parsePresentationDesign } from "../presentation-design.js";
+import { parseStoryBrief, type StoryBrief } from "../story-brief.js";
 import { feedSceneDesign } from "../video/feed-design.js";
-import { type FinalReview, parseFinalReview } from "./final-review.js";
+import { assertCompanionLinks, type FinalReview, parseFinalReview } from "./final-review.js";
 import type { ChatMessage } from "./providers.js";
 
-export const writingPromptVersion = "source-backed-editor-v3-final-review";
+export const writingPromptVersion = "source-backed-editor-v4-story-brief";
 export type WritingAction = "ideas" | "rewrite" | "review" | "presentation" | "final-review";
 export type WritingStyle = "conversational" | "professional" | "comic";
 export interface WritingSnapshot {
+  brief?: StoryBrief;
   publicationText?: string;
   design?: PresentationDesign;
   title: string;
@@ -27,11 +29,12 @@ export interface WritingInput {
   allowRemote: boolean;
 }
 export interface WritingProposal {
+  publicationText?: string;
   title: string;
   scenes: { id: string; overlay: string; texts: string[] }[];
 }
 export interface WritingIdeas {
-  ideas: { title: string; hook: string; question: string; payoff: string }[];
+  ideas: { title: string; hook: string; question: string; payoff: string; claimIds?: string[] }[];
 }
 export interface WritingReview {
   summary: string;
@@ -49,12 +52,12 @@ export type WritingResult =
   | PresentationDesign
   | FinalReview;
 
-function object(value: unknown, keys: string[]): Record<string, unknown> {
+function object(value: unknown, keys: string[], optional: string[] = []): Record<string, unknown> {
   if (
     !value ||
     typeof value !== "object" ||
     Array.isArray(value) ||
-    Object.keys(value).some((key) => !keys.includes(key)) ||
+    Object.keys(value).some((key) => !keys.includes(key) && !optional.includes(key)) ||
     keys.some((key) => !Object.hasOwn(value, key))
   )
     throw new Error(`Expected fields: ${keys.join(", ")}.`);
@@ -104,6 +107,7 @@ export function parseWritingInput(value: unknown): WritingInput {
     "scenes",
     ...(Object.hasOwn(rawSnapshot ?? {}, "design") ? ["design"] : []),
     ...(Object.hasOwn(rawSnapshot ?? {}, "publicationText") ? ["publicationText"] : []),
+    ...(Object.hasOwn(rawSnapshot ?? {}, "brief") ? ["brief"] : []),
   ]);
   if (!Array.isArray(snapshot.scenes) || snapshot.scenes.length !== 7)
     throw new Error("The writing snapshot must contain the seven existing scenes.");
@@ -127,6 +131,7 @@ export function parseWritingInput(value: unknown): WritingInput {
     sourceHash: item.sourceHash,
     settingsHash: item.settingsHash,
     snapshot: {
+      ...(snapshot.brief !== undefined ? { brief: parseStoryBrief(snapshot.brief) } : {}),
       ...(snapshot.publicationText !== undefined
         ? { publicationText: text(snapshot.publicationText, "Companion post", 3000, true) }
         : {}),
@@ -151,6 +156,8 @@ export function parseWritingInput(value: unknown): WritingInput {
 /** Compile the reviewed text without changing any source, voice, or portrait metadata. */
 export function episodeWithWritingSnapshot(episode: ContentEpisode, snapshot: WritingSnapshot) {
   const copy = applyWritingProposal(episode, snapshot);
+  if (copy.presentation && snapshot.brief)
+    copy.presentation.brief = parseStoryBrief(snapshot.brief);
   if (copy.presentation) {
     delete copy.presentation.design;
     if (snapshot.design) copy.presentation.design = structuredClone(snapshot.design);
@@ -214,6 +221,8 @@ export function writingContext(episode: ContentEpisode, snapshot: WritingSnapsho
   return {
     title: snapshot.title,
     audience: episode.audience,
+    ...(snapshot.brief ? { storyBrief: parseStoryBrief(snapshot.brief) } : {}),
+    companionPost: snapshot.publicationText ?? episode.publication.text,
     styleFormat: episode.presentation?.format ?? "explainer",
     ...(snapshot.design ? { currentDesign: snapshot.design } : {}),
     sources: episode.sources.map((source) => ({
@@ -275,12 +284,12 @@ export function writingMessages(input: WritingInput, episode: ContentEpisode): C
     input.action === "final-review"
       ? `Perform the final editorial review BEFORE rendering. Review the script, companion post, actual visual headlines, and saved source/claim evidence TOGETHER. Check consistent titles and messaging, engaging natural speech, hook/payoff, unsupported promises, product/geography/roadmap scope, repetition, malformed HTML entities, incomplete sentences, and readable short visual cues. The source pack can itself be flawed: flag that for human source review; never call it verified or claim to fetch URLs. You cannot hear audio or inspect rendered pixels. Do not fail a section merely for exceeding a suggested word count or a three-second hook; total measured duration is checked during production. Return {"summary":"...","issues":[{"severity":"high or medium or low","area":"script or companion or slides or sources","sceneId":"existing id or overall","message":"concrete evidence of the issue","suggestion":"specific repair","fix":null}]}. At most twelve issues. If a safe wording correction is possible, replace fix:null with {"field":"title or narration or overlay or publicationText or presentationHeadline","sceneId":"existing id, or overall for title/post","turnIndex":0,"before":"EXACT COMPLETE current field, never an excerpt","after":"COMPLETE replacement"}. Narration uses its zero-based existing turn index. Use only one fix per field. Script issues may edit title/narration; companion issues may edit publicationText; slides issues may edit overlay/presentationHeadline. presentationHeadline requires an existing currentDesign; otherwise edit overlay. Preserve every source fact and the existing story. Do not invent missing claims or mutate source evidence. Source issues require fix:null. Title max60 characters, overlay/visual headline max48 plain characters, narration max1200, companion max3000. A corrected companion post must keep official source links and disclosures and agree with the script. If no issues exist return issues:[]. Return only this JSON object.`
       : input.action === "ideas"
-        ? `Propose exactly three distinct angles grounded in this script's existing evidence and fixed visual material. Each has title, hook, question, payoff. Return {"ideas":[{"title":"...","hook":"...","question":"...","payoff":"..."}, ...]}. The entire response should use under 180 words. Hooks are at most seven words. Avoid treating a scope disclaimer as a story.`
+        ? `Propose exactly three distinct angles grounded in this script's existing evidence and fixed visual material. Use the saved story brief to address the named audience and viewer problem. Vary the approach: a concrete problem, a surprising mechanism, and a practical decision. Each has title, hook, question, payoff and claimIds from the supplied evidence. Return {"ideas":[{"title":"...","hook":"...","question":"...","payoff":"...","claimIds":["existing claim id"]}, ...]}. The entire response should use under 180 words. Hooks are at most seven words. Avoid treating a scope disclaimer as a story.`
         : input.action === "presentation"
-          ? `Act as a mobile presentation designer. Generate or enhance this 9:16 deck from the supplied script, source claims and current design, following the user's direction. Communicate a discovery through concise visual headlines instead of copying narration. Preserve the meaning, uncertainty, scope and availability of every claim; the actual code, captured data and source cards remain rendered from saved evidence. Return {"schemaVersion":1,"theme":"electric or ocean or sunset","motion":"snappy or smooth or minimal","scenes":[{"id":"existing scene id","headline":"short source-grounded visual cue","emphasis":"balanced or headline or evidence"}, ...]}. Use the exact seven scene IDs in order. Each headline is 1–48 plain characters, no HTML/URLs. Theme electric is lime/violet, ocean is cyan/teal, sunset is coral/gold. Headline emphasis enlarges the visual cue; evidence emphasis gives more space to the real data; balanced keeps the default hierarchy. Motion controls entrance pace, with minimal reducing decoration. Do not author HTML, code, charts, numbers, media paths, source URLs or invented evidence. Do not change narration, voices or photos. Return only this JSON object.`
+          ? `Act as a mobile presentation designer. Generate or enhance this 9:16 deck from the supplied script, source claims and current design, following the user's direction. Communicate a discovery through concise visual headlines instead of copying narration. Preserve the meaning, uncertainty, scope and availability of every claim; the actual code, captured data and source cards remain rendered from saved evidence. Return {"schemaVersion":1,"theme":"electric or ocean or sunset","motion":"snappy or smooth or minimal","scenes":[{"id":"existing scene id","headline":"short source-grounded visual cue","emphasis":"balanced or headline or evidence"}, ...]}. Use the exact seven scene IDs in order. Each headline is 1–48 plain characters, no HTML/URLs. Theme electric is lime/violet, ocean is cyan/teal, sunset is coral/gold. Headline emphasis enlarges the visual cue; evidence emphasis gives more space to the real data; balanced keeps the default hierarchy. Motion controls entrance pace, with minimal reducing decoration. Do not author HTML, code, charts, numbers, media paths, source URLs or invented evidence. For scenes whose visualKind is presenter, you may add composition:{"kind":"callout or steps or comparison","items":[{"label":"short explanatory words","claimId":"optional existing claim id"}]}. Callout has one item, comparison exactly two, steps two or three. Labels are at most 32 plain characters with no numbers, URLs or paths; actual factual values remain in saved evidence. Use composition to explain the mechanism or contrast, not repeat narration. Omit composition on code, output and news-card scenes so their verified evidence remains visible. Vary compositions meaningfully across explanatory scenes. Do not change narration, voices or photos. Return only this JSON object.`
           : input.action === "review"
             ? `Review only this script and supplied source/claim alignment. Do not claim to hear audio or inspect video, and do not approve factual correctness. Identify concrete improvements to natural speech, hook/payoff, clarity, technical scope and source uncertainty. Return {"summary":"...","issues":[{"sceneId":"an existing scene id or overall","kind":"source or delivery or clarity","message":"specific problem","suggestion":"concrete fix"}]}. At most ten issues; no invented source facts.`
-            : `Rewrite the words for a short, engaging story, aiming around 115 spoken words and 45–60 seconds. The studio accepts 15–90 seconds measured audio. Scene word budgets and a seven-word opening are suggestions, not fixed limits: favor natural transitions and the overall story. This is planned timing, not measured audio. Use at most 270 words total. Keep the EXACT seven scene IDs, their order and every existing turn slot in place. Each on-screen overlay is 1–48 characters and contributes a concise cue rather than repeating speech. Keep the claims attached to their existing scenes, because visuals/evidence cannot change. Do not add/remove speaker turns or change speaker assignments. Return {"title":"title at most 60 characters","scenes":[{"id":"existing id","overlay":"...","texts":["rewritten text for first existing turn", "only add further entries if the scene already has them"]}, ...]}. No other fields. Do not rewrite voices, photos, source records, code, captions or the companion post.`;
+            : `Write an authored story from the saved evidence and story brief, rather than summarizing a press release. Follow the brief audience, viewer problem, chosen angle and target length; default to around 115 spoken words and 45–60 seconds. Build recognizable problem → concrete mechanism/reveal → useful payoff. Let narration explain why; visuals show what changed. For dialogue, use natural questions and responses, not alternating paragraphs. The studio accepts 15–90 seconds measured audio. Scene word budgets and a seven-word opening are suggestions, not fixed limits: favor natural transitions and the overall story. This is planned timing, not measured audio. Use at most 270 words total. Keep the EXACT seven scene IDs, their order and every existing turn slot in place. Each on-screen overlay is 1–48 characters and contributes a concise cue rather than repeating speech. Keep the claims attached to their existing scenes, because visuals/evidence cannot change. Do not add/remove speaker turns or change speaker assignments. Return {"title":"title at most 60 characters","scenes":[{"id":"existing id","overlay":"...","texts":["rewritten text for first existing turn", "only add further entries if the scene already has them"]}, ...]}. Also include publicationText: a complete companion post consistent with this story, retaining all URLs and material caveats from companionPost. Preserve attribution: the presenter is not SAP or a quoted customer. Do not speak internal editorial directions. Do not rewrite voices, photos, source records, code or captions.`;
   return [
     { role: "system", content: system },
     {
@@ -307,23 +316,39 @@ export function parseWritingResult(
     return parsePresentationDesign(
       value,
       episode.scenes.map((scene) => scene.id),
+      episode.claims.map((claim) => claim.id),
     );
   if (input.action === "ideas") {
     const result = object(value, ["ideas"]);
     if (!Array.isArray(result.ideas) || result.ideas.length !== 3)
       throw new Error("Return exactly three story angles.");
     const ideas = result.ideas.map((value) => {
-      const idea = object(value, ["title", "hook", "question", "payoff"]);
+      const idea = object(value, ["title", "hook", "question", "payoff"], ["claimIds"]);
+      if (
+        idea.claimIds !== undefined &&
+        (!Array.isArray(idea.claimIds) ||
+          !idea.claimIds.length ||
+          new Set(idea.claimIds).size !== idea.claimIds.length ||
+          idea.claimIds.some((id) => !episode.claims.some((claim) => claim.id === id)))
+      )
+        throw new Error("Story angles must reference existing claim IDs.");
       const item = {
         title: text(idea.title, "Idea title", 100),
         hook: text(idea.hook, "Hook", 120),
         question: text(idea.question, "Viewer question", 300),
         payoff: text(idea.payoff, "Payoff", 500),
+        ...(idea.claimIds ? { claimIds: idea.claimIds as string[] } : {}),
       };
       if (words(item.hook) > 7) throw new Error("Angle hooks must use at most seven words.");
       return item;
     });
-    if (words(ideas.flatMap((idea) => Object.values(idea)).join(" ")) > 180)
+    if (
+      words(
+        ideas
+          .flatMap(({ title, hook, question, payoff }) => [title, hook, question, payoff])
+          .join(" "),
+      ) > 180
+    )
       throw new Error("Keep the three ideas under 180 words.");
     return { ideas };
   }
@@ -349,7 +374,7 @@ export function parseWritingResult(
       }),
     };
   }
-  const result = object(value, ["title", "scenes"]);
+  const result = object(value, ["title", "scenes"], ["publicationText"]);
   if (!Array.isArray(result.scenes) || result.scenes.length !== episode.scenes.length)
     throw new Error("Return all seven existing scenes exactly once.");
   const scenes = result.scenes.map((value, index) => {
@@ -378,13 +403,30 @@ export function parseWritingResult(
     throw new Error(
       `Keep the short under 270 draft words; received ${count}. Measured audio decides the final duration.`,
     );
-  return { title: text(result.title, "Title", 60), scenes };
+  const publicationText =
+    result.publicationText === undefined
+      ? undefined
+      : text(result.publicationText, "Companion post", 3000);
+  if (publicationText !== undefined) {
+    assertCompanionLinks(
+      input.snapshot.publicationText ?? episode.publication.text,
+      publicationText,
+      episode.sources.map((source) => source.url),
+    );
+  }
+  return {
+    title: text(result.title, "Title", 60),
+    scenes,
+    ...(publicationText !== undefined ? { publicationText } : {}),
+  };
 }
 
 /** Merge only wording into a live editor definition; no model-authored metadata. */
 export function applyWritingProposal<
   T extends {
     title: string;
+    publication?: { text: string };
+    publicationText?: string;
     scenes: {
       id: string;
       narration: string;
@@ -397,6 +439,10 @@ export function applyWritingProposal<
   if (proposal.scenes.length !== copy.scenes.length)
     throw new Error("Proposal no longer matches the editor.");
   copy.title = proposal.title;
+  if (proposal.publicationText !== undefined) {
+    if (copy.publication) copy.publication.text = proposal.publicationText;
+    else copy.publicationText = proposal.publicationText;
+  }
   for (const [index, value] of proposal.scenes.entries()) {
     const scene = copy.scenes[index];
     if (!scene || scene.id !== value.id || value.texts.length !== (scene.dialogue?.length ?? 1))

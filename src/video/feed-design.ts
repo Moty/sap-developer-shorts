@@ -48,6 +48,7 @@ export function feedSceneDesign(episode: ContentEpisode, sceneIndex: number) {
     custom: !!custom,
     headline: direction?.headline ?? scene.overlay,
     emphasis: direction?.emphasis ?? "balanced",
+    ...(direction?.composition ? { composition: direction.composition } : {}),
     motion: custom?.motion ?? "smooth",
     entranceSeconds: !custom
       ? 0.5

@@ -218,6 +218,18 @@ async function workshop(
   node("variant-name", payload.seed.presentation.variant);
   node("draft-title", payload.seed.title);
   node("publication-text", payload.seed.publicationText);
+  node("writing-audience", payload.seed.presentation.brief?.audience ?? "developer");
+  node("writing-viewer-problem", payload.seed.presentation.brief?.viewerProblem ?? "");
+  node("writing-takeaway", payload.seed.presentation.brief?.takeaway ?? "");
+  node("writing-angle", payload.seed.presentation.brief?.angle ?? "");
+  node(
+    "writing-target-seconds",
+    String(
+      payload.seed.presentation.brief?.targetSeconds ??
+        html.match(/id="writing-target-seconds"[^>]*value="(\d+)"/u)?.[1] ??
+        55,
+    ),
+  );
   node(
     "presentation-design",
     payload.seed.presentation.design ? JSON.stringify(payload.seed.presentation.design) : "",
@@ -1259,6 +1271,46 @@ test("AI Apply rejects stale or malformed proposals atomically rather than overw
   last.texts.push("An extra speaker slot");
   assert.throws(() => ui.writingEditor.apply(broken, current), /speaker turns/u);
   assert.equal(ui.get("draft-title").value, current.title);
+  const invalidPost = {
+    ...current,
+    title: "Do not partially apply",
+    publicationText: "x".repeat(3001),
+  };
+  assert.throws(() => ui.writingEditor.apply(invalidPost, current), /companion post/u);
+  assert.equal(ui.get("draft-title").value, current.title);
+  assert.equal(ui.get("publication-text").value, current.publicationText);
+});
+
+test("pre-brief browser recovery retains unsaved text and migrates only new optional fields", async () => {
+  const storage = recoveryStorage();
+  const first = await workshop("CAP-01@casual-v2", undefined, { storage });
+  first.get("draft-title").value = "Keep my unsaved story";
+  first.get("narration-0").value = "My unsaved opening still matters.";
+  first.update();
+  const [key, bytes] = [...storage.data.entries()][0] ?? [];
+  assert.ok(key && bytes);
+  const record = JSON.parse(bytes);
+  for (const id of [
+    "presentation-design",
+    "writing-audience",
+    "writing-viewer-problem",
+    "writing-takeaway",
+    "writing-angle",
+    "writing-target-seconds",
+  ])
+    delete record.fields[id];
+  storage.data.set(key, JSON.stringify(record));
+  const second = await workshop("CAP-01@casual-v2", undefined, { storage });
+  assert.equal(second.get("draft-title").value, "Keep my unsaved story");
+  assert.equal(second.get("narration-0").value, "My unsaved opening still matters.");
+  assert.equal(second.get("writing-audience").value, "developer");
+  assert.equal(storage.calls.remove, 0);
+  second.download();
+  const definition = JSON.parse(second.downloads.at(-1)?.parts.join("") ?? "null");
+  assert.equal(
+    (await validatePresentationDefinition(definition)).episode.title,
+    "Keep my unsaved story",
+  );
 });
 
 test("presentation proposals survive recovery/download/import while keeping voice, portrait and spoken script intact", async () => {
@@ -1276,6 +1328,18 @@ test("presentation proposals survive recovery/download/import while keeping voic
       id: scene.id,
       headline: scene.overlay,
       emphasis: "headline",
+      ...(scene.id === "hook"
+        ? {
+            composition: {
+              kind: "steps" as const,
+              items: [
+                { label: "Define data" },
+                { label: "Expose service" },
+                { label: "Call the endpoint" },
+              ],
+            },
+          }
+        : {}),
     })),
   };
   ui.writingEditor.applyDesign(design, snapshot);

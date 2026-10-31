@@ -280,12 +280,15 @@
         para(card, `Hook: ${idea.hook}`);
         para(card, `Question: ${idea.question}`);
         para(card, `Payoff: ${idea.payoff}`);
+        if (idea.claimIds?.length) para(card, `Saved evidence: ${idea.claimIds.join(", ")}`);
         if (editor) {
           const use = document.createElement("button");
           use.type = "button";
           use.textContent = "Use this direction";
           use.addEventListener("click", () => {
-            el("direction").value = `${idea.title}. ${idea.question} ${idea.payoff}`.slice(0, 1200);
+            globalThis.shortsWritingEditor?.selectAngle?.(idea);
+            el("direction").value =
+              `${idea.title}. Hook: ${idea.hook}. ${idea.question} ${idea.payoff}`.slice(0, 1200);
             status(
               "Direction selected. Choose Draft / rewrite to generate a proposal with your selected provider.",
             );
@@ -349,6 +352,11 @@
           `Current: ${current?.design?.scenes[index]?.headline ?? current?.scenes[index]?.overlay ?? "Open the matching editor"}`,
         );
         para(card, `Proposed: ${scene.headline}`);
+        if (scene.composition)
+          para(
+            card,
+            `Visual: ${scene.composition.kind} · ${scene.composition.items.map((item) => item.label).join(" → ")}`,
+          );
         comparison.append(card);
       }
       result.append(comparison);
@@ -449,8 +457,12 @@
       }
       para(
         result,
-        "Review factual scope and the full story before applying. Sources are not rechecked; the companion post remains yours to edit.",
+        "Review factual scope and the full story before applying. Sources are not rechecked. Review the proposed companion post as well.",
       );
+      if (job.result.publicationText) {
+        para(result, "Proposed companion post", "h3");
+        para(result, job.result.publicationText, "pre");
+      }
       if (matchingEditor) {
         const apply = document.createElement("button");
         apply.type = "button";
@@ -549,6 +561,13 @@
       }
     });
   if (editor) {
+    for (const button of panel.querySelectorAll("[data-visual-direction]"))
+      button.addEventListener("click", () => {
+        el("direction").value = button.dataset.visualDirection;
+        status(
+          "Visual direction selected. Choose Generate / enhance presentation to create a proposal.",
+        );
+      });
     el("cancel").addEventListener("click", async () => {
       if (!runningJobId) return;
       try {

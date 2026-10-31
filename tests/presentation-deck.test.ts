@@ -3,13 +3,14 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
-import { readContentEpisode } from "../src/contracts.js";
+import { readContentEpisode, validateEpisode } from "../src/contracts.js";
 import { hash } from "../src/digest.js";
 import { type DemoEvidence, isNewsEpisode } from "../src/domain.js";
 import { readLayout } from "../src/layout.js";
 import type { NarrationTiming } from "../src/media/model.js";
 import { sourceFile } from "../src/paths.js";
 import { createPresentationDeck, presentationPlan } from "../src/presentation-deck.js";
+import { parsePresentationDesign, type SceneComposition } from "../src/presentation-design.js";
 import { cueIdentifiers, feedSceneDesign } from "../src/video/feed-design.js";
 import { drawVideoFrame } from "../src/video/frames.js";
 import { sceneMotion, storySteps } from "../src/video/motion.js";
@@ -50,7 +51,11 @@ test("presentation plans preserve source code, exact captured rows, scene order,
   assert.equal(plan.sources[0]?.retrievedOn, value.episode.sources[0]?.retrievedOn);
   assert.deepEqual(
     plan.claims,
-    value.episode.claims.map((claim) => ({ text: claim.text, sourceIds: claim.sourceIds })),
+    value.episode.claims.map((claim) => ({
+      id: claim.id,
+      text: claim.text,
+      sourceIds: claim.sourceIds,
+    })),
   );
   assert.deepEqual(
     plan.steps.map((step) => step.label),
@@ -258,6 +263,78 @@ test("stored presentation designs drive matching deck/video headlines and preser
   assert.equal(sceneMotion(value.episode, timing, 2, 300).enter, 1);
   assert.notEqual(hash(before), hash(await drawVideoFrame({ ...value, timing, layout }, moment)));
   assert.deepEqual(plan.sources, value.episode.sources);
+});
+
+test("callout, steps and comparison compositions change both deck and MP4 frames without replacing evidence", async () => {
+  const value = await input();
+  const original = structuredClone(value.episode);
+  const originalCode = presentationPlan(value).scenes[2]?.code;
+  const { layout } = await readLayout();
+  const timing = { durationSeconds: 55, scenes: [], cues: [] } as unknown as NarrationTiming;
+  const moment = { startFrame: 20, endFrame: 21, sceneIndex: 0, cueIndex: null };
+  const hashes = new Set<string>();
+  for (const kind of ["callout", "steps", "comparison"] as const) {
+    const labels =
+      kind === "callout"
+        ? ["Find the missing connection"]
+        : kind === "steps"
+          ? ["Define data", "Expose service", "Call the endpoint"]
+          : ["Data definition", "Exposed service"];
+    const composition: SceneComposition = { kind, items: labels.map((label) => ({ label })) };
+    value.episode.presentation = {
+      tone: "professional",
+      format: "explainer",
+      humor: "none",
+      speakers: [{ id: "narrator", name: "Narrator", voice: "af_heart" }],
+      design: {
+        schemaVersion: 1,
+        theme: "ocean",
+        motion: "minimal",
+        scenes: value.episode.scenes.map((scene, index) => ({
+          id: scene.id,
+          headline: scene.overlay,
+          emphasis: "balanced",
+          ...(index === 0 ? { composition } : {}),
+        })),
+      },
+    };
+    validateEpisode(value.episode);
+    const html = (await createPresentationDeck(value))["presentation.html"];
+    assert.match(html, new RegExp(`composition-${kind}`));
+    assert.ok(html.includes(labels[0] ?? "missing"));
+    hashes.add(hash(await drawVideoFrame({ ...value, timing, layout }, moment)));
+    assert.deepEqual(value.episode.claims, original.claims);
+    assert.deepEqual(value.episode.sources, original.sources);
+    assert.deepEqual(presentationPlan(value).scenes[2]?.code, originalCode);
+  }
+  assert.equal(hashes.size, 3);
+  const design = value.episode.presentation?.design;
+  assert.ok(design);
+  const explanation = design.scenes[0];
+  const code = design.scenes[2];
+  assert.ok(explanation && code);
+  assert.ok(explanation.composition);
+  code.composition = explanation.composition;
+  assert.throws(() => validateEpisode(value.episode), /evidence layout/u);
+  delete code.composition;
+  explanation.composition = {
+    kind: "callout",
+    items: [{ label: "Unsupported fact", claimId: "invented-claim" }],
+  };
+  assert.throws(() => validateEpisode(value.episode), /claim references/u);
+  explanation.composition = { kind: "callout", items: [{ label: "Seventy percent growth" }] };
+  const invalid = structuredClone(design);
+  const invalidItem = invalid.scenes[0]?.composition?.items[0];
+  assert.ok(invalidItem);
+  invalidItem.label = "70% growth";
+  assert.throws(
+    () =>
+      parsePresentationDesign(
+        invalid,
+        value.episode.scenes.map((s) => s.id),
+      ),
+    /factual values/u,
+  );
 });
 
 test("wide accepted visual headlines fit export and repeated story cards at readable sizes", async () => {

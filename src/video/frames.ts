@@ -7,6 +7,7 @@ import { drawAvatarBadge, loadAvatarImage, resolveCueAnimation } from "../media/
 import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
+import type { SceneComposition } from "../presentation-design.js";
 import { cueIdentifiers, feedSceneDesign } from "./feed-design.js";
 import { sceneMotion, storySteps } from "./motion.js";
 import { type VideoMoment, videoFps, videoTimeline } from "./timeline.js";
@@ -265,7 +266,16 @@ export async function assertPresentationDesignFits(episode: ContentEpisode) {
   const { layout } = await readLayout();
   const ctx = createCanvas(1080, 1920).getContext("2d");
   episode.scenes.forEach((_, index) => {
-    headlineTypography(ctx, feedSceneDesign(episode, index), layout);
+    const design = feedSceneDesign(episode, index);
+    headlineTypography(ctx, design, layout);
+    if (design.composition)
+      for (const card of compositionCards(design.composition, {
+        x: layout.demo.x + 32,
+        y: layout.demo.y + 118,
+        width: layout.demo.width - 64,
+        height: layout.demo.height - 150,
+      }))
+        fitVideoProse(ctx, card.label, card.textBox, card.preferredSize, 36, "composition label");
   });
   ctx.font = '34px "Shorts Heading"';
   for (const step of storySteps(episode))
@@ -280,6 +290,34 @@ export async function assertPresentationDesignFits(episode: ContentEpisode) {
       80
     )
       throw new Error("Presentation story headline is too wide. Use a shorter visual headline.");
+}
+
+function compositionCards(
+  composition: SceneComposition,
+  body: { x: number; y: number; width: number; height: number },
+) {
+  return composition.items.map((item, index) => {
+    const comparison = composition.kind === "comparison";
+    const callout = composition.kind === "callout";
+    const width = comparison ? (body.width - 28) / 2 : body.width;
+    const x = body.x + (comparison ? index * (width + 28) : 0);
+    const height = callout ? 420 : comparison ? 370 : 174;
+    const y = body.y + (callout ? 100 : comparison ? 140 : index * 220);
+    return {
+      ...item,
+      x,
+      y,
+      width,
+      height,
+      preferredSize: callout ? 58 : 44,
+      textBox: {
+        x: x + 28,
+        y: y + (comparison ? 90 : 50),
+        width: width - 56,
+        height: height - (comparison ? 125 : 85),
+      },
+    };
+  });
 }
 
 import { createMotionTrack, sampleMotionTrack } from "../media/portrait-motion.js";
@@ -464,7 +502,62 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   }
   let y = box.y + 118;
   const body = { x: box.x + 32, y, width: box.width - 64, height: box.height - 150 };
-  if (scene.visual.kind === "code" && "codePath" in scene.visual && scene.visual.codePath) {
+  if (design.composition) {
+    const cards = compositionCards(design.composition, body);
+    const active = Math.min(cards.length - 1, Math.floor(motion.progress * cards.length));
+    for (const [index, card] of cards.entries()) {
+      const cardActive = design.motion === "minimal" || index <= active;
+      ctx.save();
+      ctx.globalAlpha = cardActive ? 1 : 0.55;
+      panel(
+        ctx,
+        card.x,
+        card.y,
+        card.width,
+        card.height,
+        cardActive ? design.surface : "#102039",
+        24,
+      );
+      ctx.strokeStyle = cardActive ? accent : design.secondary;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(card.x, card.y, card.width, card.height, 24);
+      ctx.stroke();
+      text(
+        ctx,
+        design.composition.kind === "comparison"
+          ? index === 0
+            ? "A"
+            : "B"
+          : String(index + 1).padStart(2, "0"),
+        { x: card.x + 28, y: card.y + 16, width: card.width - 56, height: 34 },
+        24,
+        accent,
+        "Shorts Heading",
+        "composition marker",
+      );
+      text(
+        ctx,
+        card.label,
+        card.textBox,
+        fitVideoProse(ctx, card.label, card.textBox, card.preferredSize, 36, "composition label"),
+        "#f7faff",
+        "Shorts Heading",
+        "composition label",
+      );
+      if (design.composition.kind === "steps" && index < cards.length - 1)
+        text(
+          ctx,
+          "↓",
+          { x: card.x, y: card.y + card.height + 6, width: card.width, height: 44 },
+          32,
+          accent,
+          "Shorts Heading",
+          "composition arrow",
+        );
+      ctx.restore();
+    }
+  } else if (scene.visual.kind === "code" && "codePath" in scene.visual && scene.visual.codePath) {
     const source = code[scene.visual.codePath];
     if (!source) throw new Error("Missing verified source code for video");
     const codeHeight = text(

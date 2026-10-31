@@ -1,6 +1,15 @@
 (() => {
-  const { seed, scenes, reservedNames, availableVoices, recoveryId, pronunciation, faceDetector } =
-    JSON.parse(document.getElementById("editor-data").textContent);
+  const {
+    seed,
+    scenes,
+    reservedNames,
+    availableVoices,
+    recoveryId,
+    pronunciation,
+    faceDetector,
+    compositionClaimIds = [],
+    compositionSceneIds = [],
+  } = JSON.parse(document.getElementById("editor-data").textContent);
   const voiceKey = (voice) =>
     typeof voice === "string" ? voice : `qwen:${voice.profileId}:${voice.revision}`;
   const voiceFromKey = (value) => {
@@ -112,6 +121,8 @@
   }
   const recoveryLimit = 128 * 1024;
   const fieldIds = ["variant-name", "draft-title", "publication-text", "presentation-design"];
+  for (const name of ["audience", "viewer-problem", "takeaway", "angle", "target-seconds"])
+    if (byId(`writing-${name}`)) fieldIds.push(`writing-${name}`);
   for (const [index] of seed.presentation.speakers.entries())
     fieldIds.push(
       `speaker-voice-${index}`,
@@ -152,7 +163,9 @@
       if (
         !scene ||
         scene.id !== seed.scenes[index].id ||
-        Object.keys(scene).some((key) => !["id", "headline", "emphasis"].includes(key)) ||
+        Object.keys(scene).some(
+          (key) => !["id", "headline", "emphasis", "composition"].includes(key),
+        ) ||
         typeof scene.headline !== "string" ||
         !scene.headline.trim() ||
         scene.headline.length > 48 ||
@@ -160,15 +173,68 @@
         !["balanced", "headline", "evidence"].includes(scene.emphasis)
       )
         throw new Error("Presentation design has invalid scene content.");
+    for (const scene of value.scenes)
+      if (scene.composition !== undefined) {
+        const c = scene.composition;
+        if (
+          !compositionSceneIds.includes(scene.id) ||
+          !c ||
+          typeof c !== "object" ||
+          Array.isArray(c) ||
+          Object.keys(c).some((key) => !["kind", "items"].includes(key)) ||
+          !["callout", "steps", "comparison"].includes(c.kind) ||
+          !Array.isArray(c.items) ||
+          (c.kind === "callout"
+            ? c.items.length !== 1
+            : c.kind === "comparison"
+              ? c.items.length !== 2
+              : c.items.length < 2 || c.items.length > 3) ||
+          c.items.some(
+            (item) =>
+              !item ||
+              Object.keys(item).some((key) => !["label", "claimId"].includes(key)) ||
+              typeof item.label !== "string" ||
+              !item.label.trim() ||
+              item.label.length > 32 ||
+              /[<>\p{Cc}\p{N}]|https?:|[/\\]/u.test(item.label) ||
+              (item.claimId !== undefined && !compositionClaimIds.includes(item.claimId)),
+          )
+        )
+          throw new Error(
+            "Visual composition is invalid or would replace a verified evidence scene.",
+          );
+      }
     return structuredClone(value);
   }
   const currentDesign = () =>
     byId("presentation-design").value
       ? cleanDesign(JSON.parse(byId("presentation-design").value))
       : undefined;
+  function currentBrief() {
+    if (!byId("writing-audience")) return seed.presentation.brief;
+    const brief = {
+      audience: byId("writing-audience").value,
+      viewerProblem: byId("writing-viewer-problem").value.trim(),
+      takeaway: byId("writing-takeaway").value.trim(),
+      angle: byId("writing-angle").value.trim(),
+      targetSeconds: Number(byId("writing-target-seconds").value),
+    };
+    if (
+      !["developer", "architect", "consultant", "business"].includes(brief.audience) ||
+      !Number.isInteger(brief.targetSeconds) ||
+      brief.targetSeconds < 15 ||
+      brief.targetSeconds > 90 ||
+      [brief.viewerProblem, brief.takeaway, brief.angle].some(
+        (text) => text.length > 240 || /[<>\p{Cc}]/u.test(text),
+      )
+    )
+      throw new Error("Use a short plain-text story brief and a 15–90 second target.");
+    return brief;
+  }
   // The writer receives only these wording fields; media selections and private
   // profile metadata never enter its snapshot or its provider prompts.
   const writingSnapshot = () => ({
+    ...(currentBrief() ? { brief: currentBrief() } : {}),
     ...(currentDesign() ? { design: currentDesign() } : {}),
     title: byId("draft-title").value.trim(),
     publicationText: byId("publication-text").value.trim(),
@@ -188,6 +254,13 @@
   let recoveredDraft = false;
   let editorEnabled = false;
   globalThis.shortsWritingEditor = {
+    selectAngle(idea) {
+      if (!byId("writing-angle")) return;
+      byId("writing-angle").value = `${idea.title}: ${idea.hook}`.slice(0, 240);
+      byId("writing-viewer-problem").value = idea.question.slice(0, 240);
+      byId("writing-takeaway").value = idea.payoff.slice(0, 240);
+      update();
+    },
     context: JSON.parse(document.getElementById("editor-data").textContent).writingContext,
     validate() {
       return pendingRecovery ? null : readDraft();
@@ -278,7 +351,17 @@
         )
           throw new Error("Proposal does not match this editor's scene and speaker turns.");
       }
+      if (proposal.publicationText !== undefined) {
+        if (
+          typeof proposal.publicationText !== "string" ||
+          !proposal.publicationText.trim() ||
+          proposal.publicationText.length > 3000
+        )
+          throw new Error("The proposed companion post needs 1–3,000 characters.");
+      }
       byId("draft-title").value = proposal.title;
+      if (proposal.publicationText !== undefined)
+        byId("publication-text").value = proposal.publicationText;
       for (const [index, scene] of proposal.scenes.entries()) {
         byId(`overlay-${index}`).value = scene.overlay;
         if (seed.scenes[index].dialogue)
@@ -307,14 +390,16 @@
     text.length <= recoveryLimit && new TextEncoder().encode(text).byteLength <= recoveryLimit;
   function validFields(fields) {
     if (!fields || typeof fields !== "object" || Array.isArray(fields)) return false;
-    // Older text-only recovery records remain usable after adding presentation editing.
-    if (
-      !Object.hasOwn(fields, "presentation-design") &&
-      Object.keys(fields).length === fieldIds.length - 1
-    )
-      fields["presentation-design"] = seed.presentation.design
-        ? JSON.stringify(seed.presentation.design)
-        : "";
+    // Fill only known additive fields; never discard an older valid unsaved draft.
+    for (const id of [
+      "presentation-design",
+      "writing-audience",
+      "writing-viewer-problem",
+      "writing-takeaway",
+      "writing-angle",
+      "writing-target-seconds",
+    ])
+      if (fieldIds.includes(id) && !Object.hasOwn(fields, id)) fields[id] = startingFields[id];
     if (Object.keys(fields).length !== fieldIds.length) return false;
     if (fieldIds.some((id) => !Object.hasOwn(fields, id) || typeof fields[id] !== "string"))
       return false;
@@ -720,6 +805,11 @@
       errors.push(message);
       issues[kind].push(message);
     };
+    try {
+      if (currentBrief()) draft.presentation.brief = currentBrief();
+    } catch {
+      invalid("script", "Story brief is invalid. Use short plain text and a 15–90 second target.");
+    }
     try {
       const design = currentDesign();
       if (design) draft.presentation.design = design;

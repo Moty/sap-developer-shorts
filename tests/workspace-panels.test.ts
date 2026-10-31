@@ -152,7 +152,7 @@ test("New short carries each visible delivery choice into a mocked draft request
       secondaryNarrator: "am_michael",
     },
   });
-  assert.deepEqual(ui.navigations, ["episodes/NEWS-42/edit.html"]);
+  assert.deepEqual(ui.navigations, ["episodes/NEWS-42/edit.html#presentation"]);
 });
 
 test("switching sources disables the inactive URL so its invalid value cannot block native validation", () => {
@@ -179,7 +179,7 @@ test("zero-stock users can create a sourced draft with deferred default narratio
   const request = ui.requests[0];
   assert.ok(request);
   assert.equal((request.body.delivery as { narrator: string }).narrator, "default");
-  assert.deepEqual(ui.navigations, ["episodes/NEWS-42/edit.html"]);
+  assert.deepEqual(ui.navigations, ["episodes/NEWS-42/edit.html#presentation"]);
   const empty: LibraryContent = { entries: [], topics: [], newsTopics: [], budgetCents: 0 };
   const html = newShortSheet(empty, []);
   assert.match(html, /value="default" selected>Default \/ decide later/u);

@@ -93,6 +93,13 @@
       : "";
     slides[index].querySelector(".scene-progress i").style.transform =
       `scaleX(${Math.min(1, (time - scene.start) / (scene.end - scene.start))})`;
+    const cards = [...slides[index].querySelectorAll("[data-composition-item]")];
+    const activeCard = Math.min(
+      cards.length - 1,
+      Math.floor(((time - scene.start) / (scene.end - scene.start)) * cards.length),
+    );
+    for (const [position, card] of cards.entries())
+      card.dataset.active = String(reduced || position <= activeCard);
     if (playing && cue && scene.kind === "code") {
       const ignored = new Set(["the", "and", "with", "from", "this", "that", "for", "you", "your"]);
       const words = new Set(
