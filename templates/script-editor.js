@@ -350,6 +350,18 @@
         throw new Error("Finish draft recovery or saving before using the writing assistant.");
       return writingSnapshot();
     },
+    previewDesign(proposal, expected) {
+      if (JSON.stringify(this.snapshot()) !== JSON.stringify(expected))
+        throw new Error("Your draft changed. Reset the visual controls to the current draft.");
+      const design = proposal === undefined ? undefined : cleanDesign(proposal);
+      const result = this.validate();
+      if (!result) throw new Error("Finish draft recovery before previewing.");
+      // A preview is a candidate definition: no fields, recovery record or approvals change.
+      const draft = structuredClone(result.draft);
+      if (design) draft.presentation.design = design;
+      else delete draft.presentation.design;
+      return { ...result, draft };
+    },
     applyDesign(proposal, expected) {
       if (
         !editorEnabled ||

@@ -269,7 +269,7 @@ ${episodeShell({
       <p class="outline-caption">STEP 1 · SCRIPT</p>
       <button type="button" class="workspace-nav-link" data-editor-target="details">${icons.details}<span>Episode details</span></button>
       <button type="button" class="workspace-nav-link workspace-step-link" data-editor-target="scene">${icons.story}<span>Scenes</span><small>${episode.scenes.length} scenes</small></button>
-      <div class="workspace-scene-list">${episode.scenes.map((scene, index) => `<button type="button" class="workspace-scene-link" data-editor-scene="${index}" aria-label="Scene ${index + 1}: ${esc(sceneNames[scene.id] ?? scene.id)}"><span class="scene-nav-number">${String(index + 1).padStart(2, "0")}</span><span>${esc(sceneNames[scene.id] ?? scene.id)}</span><small>${scene.endSeconds - scene.startSeconds}s</small></button>`).join("")}</div>
+      <div class="workspace-scene-list">${episode.scenes.map((scene, index) => `<button type="button" class="workspace-scene-link" data-editor-scene="${index}" aria-label="Scene ${index + 1}: ${esc(sceneNames[scene.id] ?? scene.id)}"><span class="scene-nav-number">${String(index + 1).padStart(2, "0")}</span><span>${esc(sceneNames[scene.id] ?? scene.id)}</span><small>${Math.round((scene.endSeconds - scene.startSeconds) * 10) / 10}s</small></button>`).join("")}</div>
       <button type="button" class="workspace-nav-link" data-editor-target="writing">${icons.magic}<span>Writing &amp; visuals</span><small>AI</small></button>
       <p class="outline-note"><span></span>Local workspace<br><small>Each save keeps a new version.</small></p>
     </nav>

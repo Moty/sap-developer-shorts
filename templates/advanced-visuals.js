@@ -6,13 +6,19 @@
   const node = (name) => document.getElementById(`visual-${name}`);
   const status = node("status");
   let assets = [];
+  let assetsLoaded = false;
   let panelSnapshot = "";
-  let busy = false;
-  function snapshot() {
-    return editor.snapshot();
-  }
-  function designFor(current) {
-    return current.design
+  let workingDesign;
+  let editingScene = 0;
+  let uploadBusy = false;
+  let rendering = false;
+  let revision = 0;
+  let timer;
+  let applying = false;
+  let edited = false;
+  const snapshot = () => editor.snapshot();
+  const designFor = (current) =>
+    current.design
       ? structuredClone(current.design)
       : {
           schemaVersion: 1,
@@ -24,10 +30,6 @@
             emphasis: "balanced",
           })),
         };
-  }
-  function sceneIndex() {
-    return Number(node("scene").value || 0);
-  }
   for (const [index, scene] of data.seed.scenes.entries()) {
     const option = document.createElement("option");
     option.value = String(index);
@@ -43,36 +45,41 @@
     for (const asset of assets) {
       const option = document.createElement("option");
       option.value = asset.id;
-      option.textContent = `${asset.label} · ${asset.width} × ${asset.height}`;
+      option.textContent = asset.label;
       node("image").append(option);
     }
     if (selected && !assets.some((asset) => asset.id === selected)) {
       const missing = document.createElement("option");
       missing.value = selected;
-      missing.textContent = "Saved image reference · load library to verify";
+      missing.textContent = "Saved image · unavailable in this library";
       node("image").append(missing);
     }
     node("image").value = selected;
   }
+  function visibility() {
+    node("labels-field").hidden = node("layout").disabled || node("layout").value === "automatic";
+    node("image-fields").hidden = !node("image").value;
+    node("focus-fields").hidden = node("image-fit").value !== "cover";
+    for (const button of root.querySelectorAll("[data-visual-background]"))
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.visualBackground === node("background").value),
+      );
+  }
   function sceneFields() {
-    const current = snapshot();
-    const index = sceneIndex();
-    const scene = designFor(current).scenes[index];
-    if (!scene) return;
+    const scene = workingDesign.scenes[editingScene];
     const explanation = data.compositionSceneIds.includes(scene.id);
     const output = data.visualOutputSceneIds.includes(scene.id);
+    node("scene-title").textContent = `Scene ${editingScene + 1} · ${scene.id}`;
     node("layout").disabled = !explanation;
-    const framedOption = Array.from(node("image-treatment").options).find(
-      (option) => option.value === "card",
-    );
-    if (framedOption) framedOption.disabled = !explanation;
-    node("layout").title = explanation
-      ? "Choose an explanatory layout"
-      : "Source and code scenes keep their evidence; use a background image instead.";
-    node("labels").disabled = !explanation;
+    for (const option of node("image-treatment").options)
+      if (option.value === "card") option.disabled = !explanation;
+    node("layout-note").textContent = explanation
+      ? "Use a short visual explanation. Your headline and narration stay unchanged."
+      : "This scene preserves code or source evidence. Try changing its background or adding a background image.";
     node("layout").value = scene.composition?.kind ?? "automatic";
     node("labels").value = scene.composition?.items.map((item) => item.label).join("\n") ?? "";
-    node("data-view").disabled = !output;
+    node("data-field").hidden = !output;
     node("data-view").value = scene.dataView ?? "rows";
     imageChoices(scene.image?.assetId ?? "");
     node("image-treatment").value = scene.image?.treatment ?? (explanation ? "card" : "background");
@@ -81,55 +88,113 @@
     node("image-y").value = String(scene.image?.focalY ?? 0.5);
     node("image-alt").value = scene.image?.alt ?? "";
     node("image-caption").value = scene.image?.caption ?? "";
+    visibility();
+  }
+  function collect() {
+    if (!workingDesign) return;
+    workingDesign.theme = node("theme").value;
+    workingDesign.background = node("background").value;
+    workingDesign.motion = node("motion").value;
+    workingDesign.effect = node("effect").value;
+    const scene = workingDesign.scenes[editingScene];
+    if (data.compositionSceneIds.includes(scene.id)) {
+      const kind = node("layout").value;
+      if (kind === "automatic") delete scene.composition;
+      else {
+        const existing = scene.composition?.items ?? [];
+        scene.composition = {
+          kind,
+          items: node("labels")
+            .value.split(/\n/u)
+            .map((label) => label.trim())
+            .filter(Boolean)
+            .map((label, index) => ({
+              label,
+              ...(existing[index]?.label === label && existing[index]?.claimId
+                ? { claimId: existing[index].claimId }
+                : {}),
+            })),
+        };
+      }
+    }
+    if (data.visualOutputSceneIds.includes(scene.id)) {
+      if (node("data-view").value === "rows") delete scene.dataView;
+      else scene.dataView = node("data-view").value;
+    }
+    const selected = node("image").value;
+    if (!selected) delete scene.image;
+    else
+      scene.image = {
+        assetId: selected,
+        fit: node("image-fit").value,
+        treatment: node("image-treatment").value,
+        focalX: Number(node("image-x").value),
+        focalY: Number(node("image-y").value),
+        alt: node("image-alt").value.trim(),
+        ...(node("image-caption").value.trim()
+          ? { caption: node("image-caption").value.trim() }
+          : {}),
+      };
+    visibility();
+  }
+  function candidate() {
+    collect();
+    const before = snapshot();
+    if (JSON.stringify(before) !== panelSnapshot)
+      throw new Error("Your draft changed elsewhere. Reset to draft to load its latest design.");
+    const result = editor.previewDesign(hasChanges() ? workingDesign : before.design, before);
+    const problems = [...(result.issues?.script ?? []), ...(result.issues?.post ?? [])];
+    if (problems.length) throw new Error(problems.join(" "));
+    return result;
+  }
+  function hasChanges() {
+    const original = JSON.parse(panelSnapshot);
+    if (!original.design) return edited;
+    const saved = designFor(original);
+    // Optional defaults are equivalent to omitted fields on existing designs.
+    const canonical = (value) =>
+      Array.isArray(value)
+        ? value.map(canonical)
+        : value && typeof value === "object"
+          ? Object.fromEntries(
+              Object.keys(value)
+                .sort()
+                .map((key) => [key, canonical(value[key])]),
+            )
+          : value;
+    const normalized = (design) =>
+      JSON.stringify(
+        canonical({
+          ...design,
+          background: design.background ?? "classic",
+          effect: design.effect ?? "none",
+          scenes: design.scenes.map((scene) => ({ ...scene, dataView: scene.dataView ?? "rows" })),
+        }),
+      );
+    return normalized(workingDesign) !== normalized(saved);
+  }
+  function dirtyState() {
+    const dirty = hasChanges();
+    node("draft-state").textContent = dirty
+      ? "Preview only · not applied"
+      : JSON.parse(panelSnapshot).design
+        ? "Current draft"
+        : "Automatic draft style";
+    node("apply").disabled = !dirty;
   }
   function refresh() {
     const current = snapshot();
-    const design = designFor(current);
-    node("theme").value = design.theme;
-    node("background").value = design.background ?? "classic";
-    node("motion").value = design.motion;
-    node("effect").value = design.effect ?? "none";
     panelSnapshot = JSON.stringify(current);
+    edited = false;
+    workingDesign = designFor(current);
+    node("theme").value = workingDesign.theme;
+    node("background").value = workingDesign.background ?? "classic";
+    node("motion").value = workingDesign.motion;
+    node("effect").value = workingDesign.effect ?? "none";
+    editingScene = Number(node("scene").value || 0);
     sceneFields();
+    dirtyState();
   }
-  document.getElementById("editor-fields").addEventListener("input", () => {
-    node("frame-preview").hidden = true;
-  });
-  globalThis.addEventListener("shorts:design-applied", () => {
-    node("frame-preview").hidden = true;
-    if (root.open) {
-      try {
-        refresh();
-      } catch {
-        /* The editor reports invalid fields. */
-      }
-    }
-  });
-  root.addEventListener("toggle", () => {
-    if (root.open) {
-      try {
-        refresh();
-      } catch (error) {
-        status.textContent = error.message;
-      }
-    }
-  });
-  node("refresh").addEventListener("click", () => {
-    try {
-      refresh();
-      status.textContent = "Controls refreshed from the current draft.";
-    } catch (error) {
-      status.textContent = error.message;
-    }
-  });
-  node("scene").addEventListener("change", () => {
-    node("frame-preview").hidden = true;
-    try {
-      sceneFields();
-    } catch (error) {
-      status.textContent = error.message;
-    }
-  });
   async function request(path, body) {
     const session = await fetch("/api/local-voices/session");
     if (!session.ok) throw new Error("Open the current local studio for visual tools.");
@@ -147,18 +212,213 @@
     if (!response.ok) throw new Error(result.error || "Visual action failed.");
     return result;
   }
+  function pending() {
+    node("frame-preview").setAttribute("aria-busy", "true");
+    node("render-state").hidden = false;
+    node("render-state").textContent = "Updating…";
+    node("preview-status").textContent = "Updating the local preview…";
+  }
+  function queuePreview(delay = 450) {
+    revision++;
+    clearTimeout(timer);
+    if (!root.open) return;
+    pending();
+    timer = setTimeout(renderPreview, delay);
+  }
+  async function renderPreview() {
+    if (rendering || !root.open) return;
+    const turn = revision;
+    rendering = true;
+    try {
+      const result = candidate();
+      dirtyState();
+      const signature = JSON.stringify(result.draft);
+      const preview = await request("visual-preview", {
+        definition: result.draft,
+        selector: editor.context.selector,
+        sceneIndex: editingScene,
+        progress: Number(node("progress").value),
+      });
+      if (turn !== revision || !root.open) return;
+      if (JSON.stringify(candidate().draft) !== signature)
+        throw new Error("Your draft changed. Refresh the preview.");
+      node("frame-image").src = preview.imageDataUrl;
+      node("frame-image").hidden = false;
+      node("frame-empty").hidden = true;
+      node("frame-note").textContent =
+        `${preview.note} Scrub to inspect motion; this is not a finished video.`;
+      node("preview-status").textContent = "Preview up to date · no AI request";
+      node("render-state").hidden = true;
+    } catch (error) {
+      if (turn !== revision) return;
+      node("preview-status").textContent = error.message;
+      node("render-state").textContent = "Preview needs attention";
+      node("render-state").hidden = false;
+    } finally {
+      rendering = false;
+      if (turn !== revision && root.open) {
+        clearTimeout(timer);
+        timer = setTimeout(renderPreview, 80);
+      } else node("frame-preview").setAttribute("aria-busy", "false");
+    }
+  }
+  async function loadImages() {
+    const result = await request("visual-assets");
+    assets = result.assets;
+    assetsLoaded = true;
+    imageChoices();
+  }
+  function activate() {
+    if (!root.open) return;
+    try {
+      if (!panelSnapshot) refresh();
+      queuePreview(0);
+      if (!assetsLoaded)
+        loadImages().catch((error) => {
+          status.textContent = error.message;
+        });
+    } catch (error) {
+      node("preview-status").textContent = error.message;
+    }
+  }
+  root.addEventListener("toggle", () => {
+    if (root.open) activate();
+    else {
+      revision++;
+      clearTimeout(timer);
+    }
+  });
+  if (typeof IntersectionObserver !== "undefined") {
+    new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) activate();
+    }).observe(root);
+  } else activate();
+  root.addEventListener("input", (event) => {
+    const id = event.target.id;
+    if (!id?.startsWith("visual-") || id.startsWith("visual-upload-")) return;
+    if (id === "visual-scene") return;
+    status.textContent = "";
+    if (id === "visual-image" && node("image").value) {
+      node("image-alt").value =
+        assets.find((asset) => asset.id === node("image").value)?.label ?? node("image-alt").value;
+      if (node("image-treatment").value === "card") {
+        node("layout").value = "automatic";
+        status.textContent = "The framed image replaces the diagram in this preview.";
+      }
+    }
+    if (
+      id === "visual-image-treatment" &&
+      node("image").value &&
+      node("image-treatment").value === "card"
+    ) {
+      node("layout").value = "automatic";
+      status.textContent = "The framed image replaces the diagram in this preview.";
+    }
+    if (
+      id === "visual-layout" &&
+      node("layout").value !== "automatic" &&
+      node("image-treatment").value === "card" &&
+      node("image").value
+    ) {
+      node("image").value = "";
+      status.textContent = "The diagram replaces the framed image in this preview.";
+    }
+    if (id === "visual-progress") {
+      node("progress-label").textContent = `${Math.round(Number(node("progress").value) * 100)}%`;
+    } else {
+      edited = true;
+      collect();
+      dirtyState();
+    }
+    queuePreview();
+  });
+  root.addEventListener("change", (event) => {
+    if (event.target.id === "visual-scene") {
+      collect();
+      editingScene = Number(node("scene").value);
+      sceneFields();
+      queuePreview(0);
+    }
+  });
+  for (const button of root.querySelectorAll("[data-visual-background]"))
+    button.addEventListener("click", () => {
+      status.textContent = "";
+      edited = true;
+      node("background").value = button.dataset.visualBackground;
+      collect();
+      dirtyState();
+      queuePreview();
+    });
+  const tabs = Array.from(root.querySelectorAll("[data-visual-tab]"));
+  function selectTab(button) {
+    for (const tab of tabs) {
+      const selected = tab === button;
+      tab.setAttribute("aria-selected", String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      node(`panel-${tab.dataset.visualTab}`).hidden = !selected;
+    }
+  }
+  for (const [index, button] of tabs.entries()) {
+    button.addEventListener("click", () => selectTab(button));
+    button.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const position =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? tabs.length - 1
+            : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      selectTab(tabs[position]);
+      tabs[position].focus();
+    });
+  }
+  node("refresh").addEventListener("click", () => {
+    try {
+      refresh();
+      status.textContent = "Preview settings reset to your draft.";
+      queuePreview(0);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  node("preview").addEventListener("click", () => queuePreview(0));
+  node("apply").addEventListener("click", () => {
+    try {
+      const result = candidate();
+      applying = true;
+      editor.applyDesign(result.draft.presentation.design, JSON.parse(panelSnapshot));
+      refresh();
+      status.textContent =
+        "Applied to the draft. Save draft to keep a new version for the deck and MP4.";
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      applying = false;
+    }
+  });
+  globalThis.addEventListener("shorts:design-applied", () => {
+    if (applying || !panelSnapshot) return;
+    try {
+      refresh();
+      if (root.open) queuePreview(0);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  document.getElementById("editor-fields").addEventListener("input", (event) => {
+    if (!root.contains(event.target) && panelSnapshot && root.open) queuePreview();
+  });
   node("assets-load").addEventListener("click", async () => {
     try {
-      const result = await request("visual-assets");
-      assets = result.assets;
-      imageChoices();
+      await loadImages();
       status.textContent = `${assets.length} local images available.`;
     } catch (error) {
       status.textContent = error.message;
     }
   });
   node("upload").addEventListener("click", async () => {
-    if (busy) return;
+    if (uploadBusy) return;
     const file = node("upload-file").files?.[0];
     if (
       !file ||
@@ -168,7 +428,7 @@
       status.textContent = "Select PNG, JPEG or WebP up to 8 MB.";
       return;
     }
-    busy = true;
+    uploadBusy = true;
     node("upload").disabled = true;
     try {
       const dataUrl = await new Promise((resolve, reject) => {
@@ -183,110 +443,14 @@
         dataUrl,
       });
       assets = result.assets;
+      assetsLoaded = true;
       imageChoices();
-      status.textContent = `Saved “${result.asset.label}” locally. Select it and apply to a scene; uploading does not change the draft.`;
+      status.textContent = `Saved “${result.asset.label}”. Select it in Image to preview; your draft has not changed.`;
     } catch (error) {
       status.textContent = error.message;
     } finally {
-      busy = false;
+      uploadBusy = false;
       node("upload").disabled = false;
-    }
-  });
-  function apply() {
-    const before = snapshot();
-    if (JSON.stringify(before) !== panelSnapshot)
-      throw new Error(
-        "The draft changed while these controls were open. Reload controls before applying.",
-      );
-    const design = designFor(before);
-    const scene = design.scenes[sceneIndex()];
-    design.theme = node("theme").value;
-    design.motion = node("motion").value;
-    design.background = node("background").value;
-    design.effect = node("effect").value;
-    if (!scene) throw new Error("Choose a scene.");
-    if (data.compositionSceneIds.includes(scene.id)) {
-      const kind = node("layout").value;
-      if (kind === "automatic") delete scene.composition;
-      else {
-        const labels = node("labels")
-          .value.split(/\n/u)
-          .map((label) => label.trim())
-          .filter(Boolean);
-        const existing = scene.composition?.items ?? [];
-        scene.composition = {
-          kind,
-          items: labels.map((label, index) => ({
-            label,
-            ...(existing[index]?.label === label && existing[index]?.claimId
-              ? { claimId: existing[index].claimId }
-              : {}),
-          })),
-        };
-      }
-    }
-    if (data.visualOutputSceneIds.includes(scene.id)) scene.dataView = node("data-view").value;
-    const selected = node("image").value;
-    if (!selected) delete scene.image;
-    else {
-      if (!assets.some((asset) => asset.id === selected))
-        throw new Error("Load the image library and choose an available image.");
-      scene.image = {
-        assetId: selected,
-        fit: node("image-fit").value,
-        treatment: node("image-treatment").value,
-        focalX: Number(node("image-x").value),
-        focalY: Number(node("image-y").value),
-        alt: node("image-alt").value.trim(),
-        ...(node("image-caption").value.trim()
-          ? { caption: node("image-caption").value.trim() }
-          : {}),
-      };
-    }
-    editor.applyDesign(design, before);
-    refresh();
-    const result = editor.validate();
-    if (!result || result.errors.length)
-      throw new Error(result?.errors.join(" ") || "Finish draft recovery first.");
-    return result;
-  }
-  node("apply").addEventListener("click", () => {
-    try {
-      apply();
-      status.textContent =
-        "Visuals applied to this draft. Save a version for the interactive deck and next MP4.";
-      node("frame-preview").hidden = true;
-    } catch (error) {
-      status.textContent = error.message;
-    }
-  });
-  node("preview").addEventListener("click", async () => {
-    if (busy) return;
-    busy = true;
-    node("preview").disabled = true;
-    try {
-      const result = apply();
-      const signature = JSON.stringify(result.draft);
-      const index = sceneIndex();
-      status.textContent = "Drawing a representative frame locally…";
-      const preview = await request("visual-preview", {
-        definition: result.draft,
-        selector: editor.context.selector,
-        sceneIndex: index,
-        progress: 0.5,
-      });
-      if (JSON.stringify(editor.validate()?.draft) !== signature || sceneIndex() !== index)
-        throw new Error("The draft changed. Preview the current scene again.");
-      node("frame-image").src = preview.imageDataUrl;
-      node("frame-note").textContent = preview.note;
-      node("frame-preview").hidden = false;
-      status.textContent =
-        "Preview ready. These visual settings are in the editable draft; save a version when ready.";
-    } catch (error) {
-      status.textContent = error.message;
-    } finally {
-      busy = false;
-      node("preview").disabled = false;
     }
   });
 })();

@@ -362,6 +362,12 @@ async function workshop(
           apply(proposal: WritingProposal, expected: WritingSnapshot): void;
           applyFinal(snapshot: WritingSnapshot, expected: WritingSnapshot): void;
           applyDesign(proposal: PresentationDesign, expected: WritingSnapshot): void;
+          previewDesign(
+            proposal: PresentationDesign,
+            expected: WritingSnapshot,
+          ): {
+            draft: { presentation: { design: PresentationDesign } };
+          };
         };
       }
     ).shortsWritingEditor,
@@ -1352,6 +1358,20 @@ test("presentation proposals survive recovery/download/import while keeping voic
         : {}),
     })),
   };
+  ui.update();
+  const storedDesign = ui.get("presentation-design").value;
+  const beforeRecovery = JSON.stringify([...storage.data]);
+  const preview = ui.writingEditor.previewDesign(design, snapshot);
+  assert.deepEqual(JSON.parse(JSON.stringify(preview.draft.presentation.design)), design);
+  assert.equal(ui.get("presentation-design").value, storedDesign);
+  assert.equal(JSON.stringify(ui.writingEditor.snapshot()), JSON.stringify(snapshot));
+  // Preview cannot enter the recovered draft, including when the caller edits its result.
+  preview.draft.presentation.design.theme = "sunset";
+  assert.equal(ui.get("presentation-design").value, storedDesign);
+  assert.equal(JSON.stringify([...storage.data]), beforeRecovery);
+  ui.get("draft-title").value = "A newer title";
+  assert.throws(() => ui.writingEditor.previewDesign(design, snapshot), /draft changed/);
+  ui.get("draft-title").value = snapshot.title;
   ui.writingEditor.applyDesign(design, snapshot);
   assert.equal(ui.get("narration-1").value, snapshot.scenes[1]?.texts[0]);
   assert.equal(ui.get("speaker-avatar-image-0").value, "private-headshot.png");

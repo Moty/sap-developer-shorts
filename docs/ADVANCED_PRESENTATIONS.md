@@ -6,7 +6,7 @@ previous defaults; no episode or image is migrated automatically.
 
 ## Controls
 
-Open an episode's **Writing & visuals → Advanced presentation** panel.
+Open an episode's **Writing & visuals → Presentation studio** panel.
 
 - **Backgrounds:** Classic, Aurora glow, Architectural blueprint, Spotlight and
   Clean editorial. Theme still selects Electric, Ocean or Sunset colors.
@@ -27,12 +27,25 @@ Open an episode's **Writing & visuals → Advanced presentation** panel.
   occupies an explanatory presenter scene; code and source cards retain their
   evidence layout. Background images can accompany those protected scenes.
 
-Apply changes to the editable draft, then **Preview current scene** for an actual
-representative PNG from the video renderer. Preview uses planned timing and a
-verified saved capture when one exists; it does not generate narration or a
-neural portrait. Reload controls if the draft changed while they were open.
-Previewing applies current controls to the draft. **Save draft** creates a version;
-that version's deck and next MP4 use the saved design. Image upload alone never
+The studio keeps a phone-shaped preview beside the controls on wide screens. On
+narrow screens, a compact preview appears above the controls. **Look & motion**,
+**Scene layout** and **Image** tabs show one group at a time; background tiles
+illustrate the available styles. The selected scene remains visible across tabs.
+
+Changing a visual setting automatically draws a representative frame after a short
+pause. Updates are coalesced into one local frame request at a time, and outdated
+responses cannot replace newer results. The scene-position slider samples motion
+at different points in planned scene time; it is not video playback. Preview uses
+a verified saved demo capture when available and generates no speech, neural
+portrait or LLM request. A stale/error overlay distinguishes the last valid frame
+from current settings when something needs attention.
+
+Previewing **does not change the draft**. Untouched automatic designs retain their
+original rendering. Pending settings stay in the visual workbench while switching
+scenes. **Apply to draft** applies all pending scene/global settings, then **Save
+draft** creates a version for deck and MP4 production. **Reset to draft** discards
+unapplied preview settings. Reloading/closing the page also discards unapplied
+visual settings; existing applied draft recovery is unchanged. Upload alone never
 changes a scene. Older versions and approvals retain their exact-output binding.
 
 ## Assets and privacy
@@ -99,3 +112,24 @@ editing timeline remain future extensions.
   were rendered. FFmpeg fully decoded the sample; FFprobe reported H.264,
   1080×1920, 30 fps and 240 frames. The sample is a visual demonstration, with
   scene progress compressed for comparison, rather than a new approved short.
+
+## Live-preview refinement verification
+
+The preview-only editor bridge is tested to leave design fields, recovered drafts,
+narration and photos intact. Workbench tests exercise rapid-edit coalescing,
+stale-response rejection, automatic/saved-design fidelity, pending edits across
+scenes, scrub/reset behavior and recovery after a failed preview. Keyboard tabs
+support arrow keys, Home and End. A small sidebar fix rounds planned scene durations
+to one decimal place so floating-point noise cannot widen the navigation rail.
+
+Final refinement checks: 433 workflow tests, 18 desktop tests, TypeScript build,
+content validation and scoped lint passed. A fresh portable studio package was
+verified. Astra independently reviewed the changes and ran 53 focused tests.
+Live browser checks exercised automatic background/palette/effect changes, a flow,
+captured bars, scene switching, explicit Apply, image placement/crop/focus and
+Reset. Preview edits left the design field unchanged until Apply. No episode file,
+MP4, paid request or installer was created by these UI checks.
+
+Responsive CSS uses viewport media queries to avoid the in-app browser's rendering
+issue with size containment on a disclosure. The phone scales to available height
+on wide screens; explanatory notes and image upload fields start collapsed.
