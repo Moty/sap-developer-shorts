@@ -21,6 +21,7 @@ import { createPresentationDeck, presentationAssets } from "../presentation-deck
 import { readRuntimeFiles } from "../provenance.js";
 import { escapeHtml as esc } from "../review.js";
 import { shortDurationAllowed } from "../timing-policy.js";
+import { resolveVisualAssets } from "../visual-assets.js";
 import {
   acquireVideoGate,
   recoverVideoCache,
@@ -236,6 +237,13 @@ export async function renderVideo(
       renderSources[`assets/avatars/${speaker.avatar.imageId}`] = hash(await readFile(avatarPath));
     }
   }
+  const visualAssets = await resolveVisualAssets(episode);
+  for (const id of Object.keys(visualAssets)) {
+    renderSources[`.state/visual-assets/${id}.jpg`] = id;
+    renderSources[`.state/visual-assets/${id}.json`] = hash(
+      await readFile(await sourceFile(`.state/visual-assets/${id}.json`)),
+    );
+  }
   const sourceAudioHash = hash(audio);
   const sourceCodeCommit = isNewsEpisode(episode)
     ? null
@@ -371,6 +379,7 @@ export async function renderVideo(
         timing,
         layout,
         code,
+        visualAssets,
         ...(evidence ? { evidence } : {}),
       };
       const moments = videoTimeline(timing, { animateAvatar: true });

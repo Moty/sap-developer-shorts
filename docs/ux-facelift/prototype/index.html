@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SAP Shorts — full-journey redesign prototype</title>
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="proto" role="toolbar" aria-label="Prototype controls">
+  <b>SAP Shorts · Redesign</b>
+  <button class="pbtn" id="prevS" aria-label="Previous screen">←</button>
+  <select id="screenSel" aria-label="Screen"></select>
+  <button class="pbtn" id="nextS" aria-label="Next screen">→</button>
+  <span class="note" id="pos"></span>
+  <div class="seg" id="devSeg" role="group" aria-label="Device">
+    <button data-dev="desktop">Desktop</button>
+    <button data-dev="phone">Phone</button>
+  </div>
+  <span class="sp"></span>
+  <span class="note">Keys: [ ]</span>
+  <button class="pbtn" id="themeBtn">◐ Theme</button>
+  <a class="pbtn" href="analysis.html">UX analysis ↗</a>
+</div>
+<div class="stage">
+  <div class="device desktop" id="device">
+    <div class="viewport" id="viewport"><div class="app" id="app"></div></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+</div>
+<script src="js/data.js"></script>
+<script src="js/shell.js"></script>
+<script src="js/ws1.js"></script>
+<script src="js/ws2.js"></script>
+<script src="js/ep.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

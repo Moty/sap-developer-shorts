@@ -41,7 +41,7 @@ if (process.env.SHORTS_REVISION_TEST_CHILD !== "1") {
     delete env.NODE_TEST_CONTEXT;
     const result = await promisify(execFile)(
       process.execPath,
-      ["--import", "tsx", "--test", fileURLToPath(import.meta.url)],
+      ["--import", "tsx", "--test", "--test-reporter=tap", fileURLToPath(import.meta.url)],
       {
         cwd: projectRoot,
         env,

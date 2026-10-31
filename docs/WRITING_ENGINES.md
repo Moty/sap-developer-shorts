@@ -8,22 +8,58 @@ not automatically research new sources, generate speech, render a video, or publ
 
 ## Configure it in the UI
 
-1. Start the rebuilt local studio and open **Writing engine** in the sidebar.
-2. Choose **Local · LM Studio** or **SAP Hyperspace AI · LiteLLM**.
+1. Start the rebuilt local studio and open **Settings** in the sidebar (`review.html#settings`; the older `#writing`
+   link still works).
+2. Choose the **Local · LM Studio** card (Free) or the **SAP Hyperspace AI ·
+   LiteLLM** card (May incur cost).
 3. Expand **Connection & API key** to change the local service address. For
    Hyperspace, paste its proxy key and choose **Save setup & test connection**.
    The form clears the key after saving; it never reads the saved value back.
 4. Use **Check connection & refresh models**, choose an advertised chat model,
    and **Save writing preference**. Model IDs are preserved exactly, including
    suffixes such as `[1m]`. Embedding/speech models cannot be used as writers.
-5. Open a short's editor, choose **Script**, and expand **Writing & presentation assistant**.
-   Select a wording style and, optionally, a concrete direction. Choose
-   **Suggest 3 angles**, **Draft / rewrite script**, **Review current script**, or
-   **Generate / enhance presentation**. For a design, enter a visual direction,
-   preview the proposal, compare its headlines, and **Apply presentation design**.
-6. Compare a rewrite with the current title, headlines and narration, then choose
-   **Apply wording to this editor**. Review it and use the existing **Save draft**
-   action when ready. Applying wording alone does not save or produce an episode.
+5. Open a short’s **Script → Writing & visuals** section. Use **AI tasks** in
+   the local jump links to reach **What would you like help with?** directly.
+   The engine chip shows the saved provider/model; **Change in Settings ↗** switches it.
+6. Select one task, choose its target style and optional instruction, then use its
+   primary request button. The four tasks are independent, with no required order.
+   Selection and field edits never submit inference. The request button stays
+   disabled with an explanation until a compatible model is connected.
+7. Review the result below. Applying a rewrite or slide proposal changes the
+   editable draft; **Save draft** keeps a version. **Produce** later generates
+   narration/video. Hyperspace’s cost notice stays visible without a repeated
+   confirmation checkbox.
+
+## What each AI task does
+
+| Task | Result | How it applies |
+| --- | --- | --- |
+| Find an angle | Three hook/question/payoff options from the existing story and source pack | **Use angle in brief** updates the angle/problem/takeaway fields immediately and selects Rewrite; it does not rewrite narration or run another request. |
+| Rewrite script | Proposed title, narration/turn text, scene overlays and optionally companion copy | Compare current/proposed text, then **Apply wording to this editor** and **Save draft**. Existing voices, photos, source records and custom slide design are retained. |
+| Review script | Feedback on text, clarity, delivery and saved-source alignment | Read and edit manually, or **Use wording feedback for a rewrite** to prepare an optional new request. Source findings require source review and are excluded from that shortcut. |
+| Design slides | Proposed visual headlines, theme, background/effects, layouts and supported captured charts | Preview, compare and **Apply presentation design**, then **Save draft**. Narration and local image choices remain intact. Manual Presentation studio settings must be applied to the draft before this request can use them. |
+
+The style field is labelled for the selected task: idea wording, narration wording,
+review target or slide wording. It guides text for that request; it does not change
+voice identity, voice emotion, speaker assignments or the episode’s delivery format.
+Each task keeps its own style/direction while switching tools in this open page.
+These request fields are not saved episode settings and reset when the page reloads.
+The click freezes task, style, instruction and draft before checking saved settings.
+Changing tools or fields afterward cannot alter an already-started request.
+
+**Show steps / Compare ideas / Strong callout** appear only for Design slides. They
+append a hint to its optional instruction without submitting or applying anything.
+They preserve existing instruction text and refuse to append beyond its size limit.
+
+Results and history keep the completed request’s action label even after choosing
+another tool. Idea/feedback shortcuts are available only for a matching story/source
+version and reject a draft that changed since the result was displayed. They never
+silently run a second request. Applying a wording proposal retains an existing custom
+visual design; use Design slides if the new story also needs new slide headlines.
+
+Review script is optional text feedback. **Final AI review** in Produce checks the
+script, companion post and slide wording together. Neither review hears audio,
+inspects rendered pixels, rechecks live sources or grants final MP4 approval.
 
 Setup is available entirely through the UI. There is no terminal command needed
 to select a provider, switch models, replace/remove a proxy key, or run a writing
@@ -32,8 +68,7 @@ installed and running on the same Mac as the studio server.
 
 ## Response length and token budgets
 
-In **Writing engine** (or the editor's writing assistant), expand **Response
-length & model budgets**. Set separate maximum output-token budgets for ordinary
+In **Settings → Writing engine**, expand **Response length & model budgets**. Set separate maximum output-token budgets for ordinary
 writing and final review, then **Save writing preference**. New defaults are
 8,192 and 16,384 respectively. Older saved settings inherit those defaults until
 saved; their provider, model, endpoints and credentials are retained.
@@ -55,9 +90,9 @@ errors, incomplete output and timeouts are reported without an automatic retry.
 ## Final AI review before rendering
 
 Open an episode's editor, choose **Review & produce**, and use **Final AI review
-→ Review all content**. It uses the saved writing provider/model; **Choose writing
-engine** opens the existing setup panel. Every Hyperspace review requires its own
-cost checkbox. No review or provider fallback starts automatically when opening
+→ Review all content**. It uses the saved writing provider/model; **Change in Settings**
+opens the writing settings. Selecting Hyperspace shows the possible-cost notice;
+there is no review confirmation checkbox. No review or provider fallback starts automatically when opening
 the page, saving a draft, checking status, or producing a video.
 
 The review receives the current title, complete narration/turns, companion post,
@@ -122,8 +157,12 @@ The active account's catalog determines the choices; the application does not
 maintain a copied model list or choose an expensive model automatically.
 
 The UI explains that the local gateway forwards text to a downstream service.
-**Every Hyperspace writing request requires an explicit cost acknowledgment**;
-the checkbox resets after submission. Ideas, reviews and presentation designs make one completion
+**Selecting Hyperspace displays a cost notice; starting a writing action uses that
+saved provider without a repeated confirmation checkbox.** This applies to ideas,
+rewrites, presentation design, script review and Final AI review. The request's
+remote-use flag is derived from the selected provider. Changed settings in another
+tab still refresh the displayed choice and stop the stale action before submission.
+Ideas, reviews and presentation designs make one completion
 request. Rewriting makes a draft and one correction request, so it can incur
 charges for two completions. There are no hidden inference retries or provider
 switches. The selected provider/model is frozen for each admitted job.
@@ -246,3 +285,19 @@ formatting/lint errors in news code/content and additional local user content;
 those files were not reformatted as part of this feature. The content-contract
 test now requires the four seed episodes and unique IDs while allowing additional
 valid saved episodes, so a populated studio can run the suite.
+
+## Task-flow verification
+
+The task-selector refinement passed 437 workflow tests, 18 desktop tests, TypeScript
+build, scoped lint and content validation. A fresh portable studio package was
+verified. Astra independently reviewed the implementation and ran 50 focused tests.
+Regression checks exercise separate task fields, no submission on selection/hints,
+frozen request inputs, settings/cost guards, source-bound/stale handoffs and brief-only
+angle application. Keyboard tabs and direct links to local design, the story brief
+and AI tasks are supported.
+
+Live browser checks switched through all four tasks, added a design hint, restored
+previous rewrite fields and confirmed episode fields were unchanged. No paid/model
+request, episode production or installer was created for those checks. These changes
+are in the local source studio; existing installed applications require a later
+installer update.

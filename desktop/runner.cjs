@@ -20,6 +20,7 @@ const servers = [],
   children = new Set();
 const state = {
   ready: false,
+  canRetryStartup: true,
   studioUrl: null,
   task: null,
   error: null,
@@ -143,6 +144,11 @@ async function python() {
 let workerProcess = null;
 let pausingWorker = false;
 async function action(input) {
+  if (input?.action === "retry-startup") {
+    if (state.task) throw new Error("Wait for workspace preparation to finish.");
+    if (!state.ready) void initialize();
+    return;
+  }
   if (!state.ready) throw new Error("Wait for the desktop workspace to finish preparing.");
   if (input?.action === "worker-stop") {
     pausingWorker = true;
@@ -230,42 +236,51 @@ process.on("message", async (request) => {
   }
   publish();
 });
-(async () => {
-  log("Checking bundled tools and preparing your workspace…");
-  for (const [binary, args] of [
-    [process.execPath, ["--version"]],
-    ["ffmpeg", ["-version"]],
-    ["ffprobe", ["-version"]],
-    ["uv", ["--version"]],
-  ]) {
-    const { stdout } = await exec(binary, args, { cwd: root, timeout: 10000 });
-    log(stdout.split("\n")[0]);
-  }
-  state.tools = { node: process.execPath };
-  for (const binary of ["ffmpeg", "ffprobe", "uv"])
-    state.tools[binary] = (await exec("/usr/bin/which", [binary])).stdout.trim();
-  await phonemes();
-  await studio();
-  await engines();
-  state.ready = true;
+let statusTimer;
+async function initialize() {
+  state.task = { action: "startup", startedAt: new Date().toISOString() };
+  state.error = null;
   publish();
-  const timer = setInterval(async () => {
-    try {
-      const next = await busy();
-      if (next !== state.busy) {
-        state.busy = next;
-        publish();
-      }
-    } catch {
-      /* retain last known status */
+  try {
+    log("Checking bundled tools and preparing your workspace…");
+    for (const [binary, args] of [
+      [process.execPath, ["--version"]],
+      ["ffmpeg", ["-version"]],
+      ["ffprobe", ["-version"]],
+      ["uv", ["--version"]],
+    ]) {
+      const { stdout } = await exec(binary, args, { cwd: root, timeout: 10000 });
+      log(stdout.split("\n")[0]);
     }
-  }, 3000);
-  timer.unref();
-})().catch((error) => {
-  state.error = error.message;
-  log(error.stack);
-  publish();
-});
+    state.tools = { node: process.execPath };
+    for (const binary of ["ffmpeg", "ffprobe", "uv"])
+      state.tools[binary] = (await exec("/usr/bin/which", [binary])).stdout.trim();
+    await engines();
+    publish();
+    await phonemes();
+    await studio();
+    state.ready = true;
+    statusTimer ??= setInterval(async () => {
+      try {
+        const next = await busy();
+        if (next !== state.busy) {
+          state.busy = next;
+          publish();
+        }
+      } catch {
+        /* retain last known status */
+      }
+    }, 3000);
+    statusTimer.unref();
+  } catch (error) {
+    state.error = error.message;
+    log(error.stack);
+  } finally {
+    state.task = null;
+    publish();
+  }
+}
+void initialize();
 process.on("SIGTERM", () => {
   for (const child of children) child.kill("SIGTERM");
   for (const alias of phonemeAliases) void alias.cleanup();

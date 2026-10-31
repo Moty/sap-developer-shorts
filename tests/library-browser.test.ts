@@ -216,10 +216,10 @@ test("newly added drafts are revealed even with a search and a later page select
 });
 
 test("workspace navigation isolates sections, honors deep links/history, and separates idea collections", async () => {
-  const sections = ["episodes", "ideas", "styles", "styles", "voices"].map((view) =>
+  const sections = ["episodes", "ideas", "styles", "styles", "voices", "writing"].map((view) =>
     Object.assign(new Node(), { dataset: { workspaceView: view } }),
   );
-  const links = ["episodes", "ideas", "styles", "voices"].map((view) =>
+  const links = ["episodes", "ideas", "styles", "voices", "writing"].map((view) =>
     Object.assign(new Node(), { dataset: { workspaceLink: view } }),
   );
   const panels = ["stories", "drafts", "curated", "tutorials"].map((view) =>
@@ -268,7 +268,7 @@ test("workspace navigation isolates sections, honors deep links/history, and sep
   const visible = () =>
     sections.filter((section) => !section.hidden).map((section) => section.dataset.workspaceView);
   assert.deepEqual(visible(), ["voices"]);
-  assert.equal(nodes.get("workspace-title")?.textContent, "Voice library");
+  assert.equal(nodes.get("workspace-title")?.textContent, "Voices & presenters");
   assert.equal(links[3]?.attributes.get("aria-current"), "page");
   location.hash = "#tutorial-ideas";
   handlers.get("hashchange")?.();
@@ -283,4 +283,11 @@ test("workspace navigation isolates sections, honors deep links/history, and sep
   location.hash = "#episodes";
   handlers.get("hashchange")?.();
   assert.deepEqual(visible(), ["episodes"]);
+  for (const alias of ["#settings", "#writing"]) {
+    location.hash = alias;
+    handlers.get("hashchange")?.();
+    assert.deepEqual(visible(), ["writing"], alias);
+    assert.equal(nodes.get("workspace-title")?.textContent, "Settings");
+    assert.equal(links[4]?.attributes.get("aria-current"), "page");
+  }
 });

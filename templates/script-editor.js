@@ -1,6 +1,16 @@
 (() => {
-  const { seed, scenes, reservedNames, availableVoices, recoveryId, pronunciation, faceDetector } =
-    JSON.parse(document.getElementById("editor-data").textContent);
+  const {
+    seed,
+    scenes,
+    reservedNames,
+    availableVoices,
+    recoveryId,
+    pronunciation,
+    faceDetector,
+    compositionClaimIds = [],
+    compositionSceneIds = [],
+    visualOutputSceneIds = [],
+  } = JSON.parse(document.getElementById("editor-data").textContent);
   const voiceKey = (voice) =>
     typeof voice === "string" ? voice : `qwen:${voice.profileId}:${voice.revision}`;
   const voiceFromKey = (value) => {
@@ -20,6 +30,35 @@
   let renderGlossaryUi = null;
   let refreshAvatarUi = () => {};
   const byId = (id) => document.getElementById(id);
+  const portraitLabels = (ids) => {
+    const labels = new Map();
+    const taken = new Set();
+    let uploads = 0;
+    for (const id of ids) {
+      const base = id.replace(/\.[a-z0-9]+$/iu, "");
+      let label;
+      if (/^(?:portrait-)?(?:[0-9a-f]{8}-[0-9a-f]{4}-|[0-9a-f]{12,}$)/iu.test(base))
+        label = `Uploaded photo ${++uploads}`;
+      else {
+        const cleaned = base.replace(/[-_.\s]+/gu, " ").trim();
+        label = cleaned ? cleaned[0].toUpperCase() + cleaned.slice(1) : id;
+      }
+      let unique = label;
+      for (let copy = 2; taken.has(unique); copy++) unique = `${label} (${copy})`;
+      taken.add(unique);
+      labels.set(id, unique);
+    }
+    return labels;
+  };
+  // Option values stay the stored file names; only the visible text is friendlier.
+  function labelPortraitOptions(select) {
+    const options = Array.from(select?.options ?? []).filter((option) => option.value);
+    const labels = portraitLabels(options.map((option) => option.value));
+    for (const option of options) {
+      option.textContent = labels.get(option.value);
+      option.title = option.value;
+    }
+  }
   const words = (text) => text.trim().split(/\s+/u).filter(Boolean).length;
   const download = byId("download-script");
   const status = byId("download-status");
@@ -83,6 +122,9 @@
   }
   const recoveryLimit = 128 * 1024;
   const fieldIds = ["variant-name", "draft-title", "publication-text", "presentation-design"];
+  if (byId("preset-preferences")) fieldIds.push("preset-preferences");
+  for (const name of ["audience", "viewer-problem", "takeaway", "angle", "target-seconds"])
+    if (byId(`writing-${name}`)) fieldIds.push(`writing-${name}`);
   for (const [index] of seed.presentation.speakers.entries())
     fieldIds.push(
       `speaker-voice-${index}`,
@@ -110,11 +152,15 @@
       typeof value !== "object" ||
       Array.isArray(value) ||
       Object.keys(value).some(
-        (key) => !["schemaVersion", "theme", "motion", "scenes"].includes(key),
+        (key) =>
+          !["schemaVersion", "theme", "motion", "scenes", "background", "effect"].includes(key),
       ) ||
       value.schemaVersion !== 1 ||
       !["electric", "ocean", "sunset"].includes(value.theme) ||
       !["snappy", "smooth", "minimal"].includes(value.motion) ||
+      (value.background !== undefined &&
+        !["classic", "aurora", "blueprint", "spotlight", "editorial"].includes(value.background)) ||
+      (value.effect !== undefined && !["none", "drift", "particles"].includes(value.effect)) ||
       !Array.isArray(value.scenes) ||
       value.scenes.length !== seed.scenes.length
     )
@@ -123,7 +169,10 @@
       if (
         !scene ||
         scene.id !== seed.scenes[index].id ||
-        Object.keys(scene).some((key) => !["id", "headline", "emphasis"].includes(key)) ||
+        Object.keys(scene).some(
+          (key) =>
+            !["id", "headline", "emphasis", "composition", "dataView", "image"].includes(key),
+        ) ||
         typeof scene.headline !== "string" ||
         !scene.headline.trim() ||
         scene.headline.length > 48 ||
@@ -131,15 +180,105 @@
         !["balanced", "headline", "evidence"].includes(scene.emphasis)
       )
         throw new Error("Presentation design has invalid scene content.");
+    for (const scene of value.scenes)
+      if (scene.composition !== undefined) {
+        const c = scene.composition;
+        if (
+          !compositionSceneIds.includes(scene.id) ||
+          !c ||
+          typeof c !== "object" ||
+          Array.isArray(c) ||
+          Object.keys(c).some((key) => !["kind", "items"].includes(key)) ||
+          !["callout", "steps", "comparison", "flow", "timeline"].includes(c.kind) ||
+          !Array.isArray(c.items) ||
+          (c.kind === "callout"
+            ? c.items.length !== 1
+            : c.kind === "comparison"
+              ? c.items.length !== 2
+              : c.items.length < 2 ||
+                c.items.length > (["flow", "timeline"].includes(c.kind) ? 4 : 3)) ||
+          c.items.some(
+            (item) =>
+              !item ||
+              Object.keys(item).some((key) => !["label", "claimId"].includes(key)) ||
+              typeof item.label !== "string" ||
+              !item.label.trim() ||
+              item.label.length > 32 ||
+              /[<>\p{Cc}\p{N}]|https?:|[/\\]/u.test(item.label) ||
+              (item.claimId !== undefined && !compositionClaimIds.includes(item.claimId)),
+          )
+        )
+          throw new Error(
+            "Visual composition is invalid or would replace a verified evidence scene.",
+          );
+      }
+    for (const scene of value.scenes) {
+      if (
+        scene.dataView !== undefined &&
+        (!visualOutputSceneIds.includes(scene.id) ||
+          !["rows", "bars", "dots"].includes(scene.dataView))
+      )
+        throw new Error("Charts need a captured output scene.");
+      const image = scene.image;
+      if (
+        image !== undefined &&
+        (!image ||
+          typeof image !== "object" ||
+          Array.isArray(image) ||
+          Object.keys(image).some(
+            (key) =>
+              !["assetId", "fit", "treatment", "focalX", "focalY", "alt", "caption"].includes(key),
+          ) ||
+          !/^[a-f0-9]{64}$/u.test(image.assetId) ||
+          !["contain", "cover"].includes(image.fit) ||
+          !["card", "background"].includes(image.treatment) ||
+          ![image.focalX, image.focalY].every(
+            (number) => Number.isFinite(number) && number >= 0 && number <= 1,
+          ) ||
+          typeof image.alt !== "string" ||
+          !image.alt.trim() ||
+          image.alt.length > 160 ||
+          /[<>\p{Cc}]/u.test(image.alt) ||
+          (image.caption !== undefined &&
+            (typeof image.caption !== "string" ||
+              image.caption.length > 96 ||
+              /[<>\p{Cc}]/u.test(image.caption))) ||
+          (image.treatment === "card" &&
+            (!compositionSceneIds.includes(scene.id) || scene.composition)))
+      )
+        throw new Error("Use an existing image, readable text and a compatible explanation scene.");
+    }
     return structuredClone(value);
   }
   const currentDesign = () =>
     byId("presentation-design").value
       ? cleanDesign(JSON.parse(byId("presentation-design").value))
       : undefined;
+  function currentBrief() {
+    if (!byId("writing-audience")) return seed.presentation.brief;
+    const brief = {
+      audience: byId("writing-audience").value,
+      viewerProblem: byId("writing-viewer-problem").value.trim(),
+      takeaway: byId("writing-takeaway").value.trim(),
+      angle: byId("writing-angle").value.trim(),
+      targetSeconds: Number(byId("writing-target-seconds").value),
+    };
+    if (
+      !["developer", "architect", "consultant", "business"].includes(brief.audience) ||
+      !Number.isInteger(brief.targetSeconds) ||
+      brief.targetSeconds < 15 ||
+      brief.targetSeconds > 90 ||
+      [brief.viewerProblem, brief.takeaway, brief.angle].some(
+        (text) => text.length > 240 || /[<>\p{Cc}]/u.test(text),
+      )
+    )
+      throw new Error("Use a short plain-text story brief and a 15–90 second target.");
+    return brief;
+  }
   // The writer receives only these wording fields; media selections and private
   // profile metadata never enter its snapshot or its provider prompts.
   const writingSnapshot = () => ({
+    ...(currentBrief() ? { brief: currentBrief() } : {}),
     ...(currentDesign() ? { design: currentDesign() } : {}),
     title: byId("draft-title").value.trim(),
     publicationText: byId("publication-text").value.trim(),
@@ -159,7 +298,24 @@
   let recoveredDraft = false;
   let editorEnabled = false;
   globalThis.shortsWritingEditor = {
+    selectAngle(idea, expected) {
+      if (
+        !editorEnabled ||
+        pendingRecovery ||
+        saving ||
+        (expected && JSON.stringify(writingSnapshot()) !== JSON.stringify(expected))
+      )
+        throw new Error("Your draft changed. View the ideas again before choosing an angle.");
+      if (!byId("writing-angle")) return;
+      byId("writing-angle").value = `${idea.title}: ${idea.hook}`.slice(0, 240);
+      byId("writing-viewer-problem").value = idea.question.slice(0, 240);
+      byId("writing-takeaway").value = idea.payoff.slice(0, 240);
+      update();
+    },
     context: JSON.parse(document.getElementById("editor-data").textContent).writingContext,
+    validate() {
+      return pendingRecovery ? null : readDraft();
+    },
     syncStep(step) {
       editorStep = step;
     },
@@ -201,6 +357,18 @@
         throw new Error("Finish draft recovery or saving before using the writing assistant.");
       return writingSnapshot();
     },
+    previewDesign(proposal, expected) {
+      if (JSON.stringify(this.snapshot()) !== JSON.stringify(expected))
+        throw new Error("Your draft changed. Reset the visual controls to the current draft.");
+      const design = proposal === undefined ? undefined : cleanDesign(proposal);
+      const result = this.validate();
+      if (!result) throw new Error("Finish draft recovery before previewing.");
+      // A preview is a candidate definition: no fields, recovery record or approvals change.
+      const draft = structuredClone(result.draft);
+      if (design) draft.presentation.design = design;
+      else delete draft.presentation.design;
+      return { ...result, draft };
+    },
     applyDesign(proposal, expected) {
       if (
         !editorEnabled ||
@@ -213,6 +381,7 @@
       byId("presentation-design").value = JSON.stringify(design);
       reviewedDraft = "";
       update();
+      globalThis.dispatchEvent?.(new Event("shorts:design-applied"));
     },
     apply(proposal, expected) {
       if (
@@ -246,7 +415,17 @@
         )
           throw new Error("Proposal does not match this editor's scene and speaker turns.");
       }
+      if (proposal.publicationText !== undefined) {
+        if (
+          typeof proposal.publicationText !== "string" ||
+          !proposal.publicationText.trim() ||
+          proposal.publicationText.length > 3000
+        )
+          throw new Error("The proposed companion post needs 1–3,000 characters.");
+      }
       byId("draft-title").value = proposal.title;
+      if (proposal.publicationText !== undefined)
+        byId("publication-text").value = proposal.publicationText;
       for (const [index, scene] of proposal.scenes.entries()) {
         byId(`overlay-${index}`).value = scene.overlay;
         if (seed.scenes[index].dialogue)
@@ -275,14 +454,17 @@
     text.length <= recoveryLimit && new TextEncoder().encode(text).byteLength <= recoveryLimit;
   function validFields(fields) {
     if (!fields || typeof fields !== "object" || Array.isArray(fields)) return false;
-    // Older text-only recovery records remain usable after adding presentation editing.
-    if (
-      !Object.hasOwn(fields, "presentation-design") &&
-      Object.keys(fields).length === fieldIds.length - 1
-    )
-      fields["presentation-design"] = seed.presentation.design
-        ? JSON.stringify(seed.presentation.design)
-        : "";
+    // Fill only known additive fields; never discard an older valid unsaved draft.
+    for (const id of [
+      "presentation-design",
+      "preset-preferences",
+      "writing-audience",
+      "writing-viewer-problem",
+      "writing-takeaway",
+      "writing-angle",
+      "writing-target-seconds",
+    ])
+      if (fieldIds.includes(id) && !Object.hasOwn(fields, id)) fields[id] = startingFields[id];
     if (Object.keys(fields).length !== fieldIds.length) return false;
     if (fieldIds.some((id) => !Object.hasOwn(fields, id) || typeof fields[id] !== "string"))
       return false;
@@ -388,6 +570,12 @@
     if (text !== undefined) node.textContent = text;
     return node;
   };
+  const iconSvg = (path) =>
+    `<svg class="action-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${path}</svg>`;
+  const speakerSvg = iconSvg(
+    '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
+  );
+  const closeSvg = iconSvg('<path d="M6 6l12 12M18 6 6 18"/>');
   function reviewChanges(draft) {
     const signature = JSON.stringify(draft);
     if (signature === reviewedDraft) return;
@@ -671,12 +859,70 @@
     }
   }
 
+  let appliedPreferencesSignature = "";
   function readDraft() {
     const draft = structuredClone(seed);
     draft.presentation.variant = byId("variant-name").value.trim();
     draft.title = byId("draft-title").value.trim();
     draft.publicationText = byId("publication-text").value.trim();
     const errors = [];
+    const issues = { script: [], voice: [], presenter: [], post: [] };
+    let preferences = null;
+    try {
+      const raw = byId("preset-preferences")?.value;
+      if (raw) {
+        preferences = JSON.parse(raw);
+        if (
+          !preferences ||
+          !["professional", "casual", "comic"].includes(preferences.tone) ||
+          !["explainer", "dialogue", "myth-fact", "countdown", "story", "quiz"].includes(
+            preferences.format,
+          ) ||
+          !["none", "light", "sap-geek"].includes(preferences.humor) ||
+          !Number.isInteger(preferences.plannedDurationSeconds) ||
+          preferences.plannedDurationSeconds < 15 ||
+          preferences.plannedDurationSeconds > 90
+        )
+          throw new Error("Invalid preset preferences");
+        if (
+          !preferences.pronunciation ||
+          typeof preferences.pronunciation !== "object" ||
+          Array.isArray(preferences.pronunciation) ||
+          Object.entries(preferences.pronunciation).length > 64 ||
+          Object.entries(preferences.pronunciation).some(
+            ([term, spoken]) =>
+              !term.trim() ||
+              term.length > 80 ||
+              typeof spoken !== "string" ||
+              !spoken.trim() ||
+              spoken.length > 160 ||
+              /[[\]<>\r\n]/u.test(term + spoken),
+          )
+        )
+          throw new Error("Invalid preset pronunciation");
+        draft.presentation.tone = preferences.tone;
+        draft.presentation.format = preferences.format;
+        draft.presentation.humor = preferences.humor;
+        draft.plannedDurationSeconds = preferences.plannedDurationSeconds;
+        if (raw !== appliedPreferencesSignature) {
+          activePronunciation = { ...activePronunciation, ...preferences.pronunciation };
+          renderGlossaryUi?.();
+          appliedPreferencesSignature = raw;
+        }
+      }
+    } catch {
+      errors.push("Preset preferences are invalid. Apply a saved preset again.");
+    }
+
+    const invalid = (kind, message) => {
+      errors.push(message);
+      issues[kind].push(message);
+    };
+    try {
+      if (currentBrief()) draft.presentation.brief = currentBrief();
+    } catch {
+      invalid("script", "Story brief is invalid. Use short plain text and a 15–90 second target.");
+    }
     try {
       const design = currentDesign();
       if (design) draft.presentation.design = design;
@@ -686,7 +932,8 @@
         : "Automatic presentation design. Use the Writing assistant to generate or enhance it with a prompt.";
       byId("presentation-design-reset").disabled = !design;
     } catch {
-      errors.push(
+      invalid(
+        "script",
         "Presentation design is invalid. Restore the automatic design or generate a new proposal.",
       );
     }
@@ -694,7 +941,7 @@
       const original = voiceKey(seed.presentation.speakers[index].voice);
       const selected = byId(`speaker-voice-${index}`).value;
       if (selected !== original && !voiceAvailable(selected) && !validPersonalVoiceKey(selected))
-        errors.push(`Choose an available voice for ${speaker.name}.`);
+        invalid("voice", `Choose an available voice for ${speaker.name}.`);
       speaker.voice = voiceFromKey(selected);
       byId(`speaker-voice-${index}-help`).textContent = selected.startsWith("qwen:")
         ? "Personal voice profile on this Mac. Production checks its accepted revision."
@@ -723,7 +970,7 @@
         byId(`speaker-avatar-mouth-scale-val-${index}`).textContent =
           `${Math.round(mouthScale * 100)}%`;
         if (!imageId || !/^[a-z0-9][a-z0-9._-]{0,63}\.(?:png|jpg|jpeg|webp)$/iu.test(imageId)) {
-          errors.push(`Choose or upload a photo avatar for ${speaker.name}.`);
+          invalid("presenter", `Choose or upload a photo avatar for ${speaker.name}.`);
         }
         speaker.avatar = {
           mode: "photo",
@@ -747,19 +994,20 @@
         ),
       ).size !== draft.presentation.speakers.length
     )
-      errors.push("Choose a different voice for each person in the conversation.");
+      invalid("voice", "Choose a different voice for each person in the conversation.");
     draft.schemaVersion = draft.presentation.speakers.some(
       (speaker) => typeof speaker.voice !== "string",
     )
       ? 2
       : seed.schemaVersion;
     if (!/^[a-z][a-z0-9-]{0,31}$/u.test(draft.presentation.variant))
-      errors.push("Choose a version name using lowercase letters, numbers, and hyphens.");
+      invalid("script", "Choose a version name using lowercase letters, numbers, and hyphens.");
     if (reservedNames.includes(draft.presentation.variant))
-      errors.push("That version already exists. Choose a new name.");
-    if (!draft.title || draft.title.length > 60) errors.push("Use a title of 1–60 characters.");
+      invalid("script", "That version already exists. Choose a new name.");
+    if (!draft.title || draft.title.length > 60)
+      invalid("script", "Use a title of 1–60 characters.");
     if (!draft.publicationText || draft.publicationText.length > 3000)
-      errors.push("Use a companion post of 1–3,000 characters.");
+      invalid("post", "Use a companion post of 1–3,000 characters.");
     let total = 0;
     for (const [index, scene] of draft.scenes.entries()) {
       scene.overlay = byId(`overlay-${index}`).value.trim();
@@ -771,7 +1019,13 @@
         scene.narration = scene.dialogue.map((turn) => turn.text).join(" ");
       } else scene.narration = byId(`narration-${index}`).value.trim();
       const count = words(scene.narration);
-      const seconds = scenes[index].endSeconds - scenes[index].startSeconds;
+      const seconds =
+        Math.round(
+          (((scenes[index].endSeconds - scenes[index].startSeconds) *
+            (draft.plannedDurationSeconds ?? scenes.at(-1).endSeconds)) /
+            scenes.at(-1).endSeconds) *
+            10,
+        ) / 10;
       total += count;
       byId(`scene-${index}-count`).textContent = `${count} spoken words · ${seconds}s planned`;
       const problems = [];
@@ -788,7 +1042,7 @@
       const warning = byId(`scene-${index}-warning`);
       warning.textContent = [...problems, ...pacing].join(" ");
       warning.hidden = !problems.length && !pacing.length;
-      if (problems.length) errors.push(`Scene ${index + 1}: ${problems.join(" ")}`);
+      if (problems.length) invalid("script", `Scene ${index + 1}: ${problems.join(" ")}`);
     }
     for (const [term, spoken] of Object.entries(activePronunciation)) {
       if (
@@ -798,7 +1052,7 @@
         spoken.length > 160 ||
         /[[\]<>\r\n]/u.test(term + spoken)
       ) {
-        errors.push(`Pronunciation term "${term}" must be plain text without brackets.`);
+        invalid("script", `Pronunciation term "${term}" must be plain text without brackets.`);
       }
     }
     if (JSON.stringify(activePronunciation) !== JSON.stringify(startingPronunciation)) {
@@ -806,8 +1060,13 @@
     } else if (seed.pronunciation) {
       draft.pronunciation = structuredClone(seed.pronunciation);
     }
+    if (preferences) {
+      preferences.pronunciation = structuredClone(activePronunciation);
+      byId("preset-preferences").value = JSON.stringify(preferences);
+      appliedPreferencesSignature = byId("preset-preferences").value;
+    }
     byId("draft-count").textContent =
-      `${total} spoken words · ${scenes.at(-1).endSeconds}s planned · not yet recorded`;
+      `${total} spoken words · ${draft.plannedDurationSeconds ?? scenes.at(-1).endSeconds}s planned · not yet recorded`;
     byId("draft-errors").textContent = errors.length
       ? errors.join(" ")
       : "Ready to save or produce. Target 45–60s; measured totals of 15–90s are accepted. Section pacing is flexible.";
@@ -842,7 +1101,17 @@
     reviewChanges(draft);
     saveRecovery();
     globalThis.shortsWorkspace?.refresh();
-    return { draft, errors };
+    const result = {
+      draft,
+      errors,
+      issues,
+      enabled: editorEnabled && !pendingRecovery && !saving,
+      voicesReady: draft.presentation.speakers.every((speaker) =>
+        voiceAvailable(voiceKey(speaker.voice)),
+      ),
+    };
+    globalThis.shortsProduction?.update(result);
+    return result;
   }
   const update = () => {
     if (pendingRecovery) return;
@@ -850,6 +1119,152 @@
     readDraft();
     globalThis.shortsFinalReview?.changed();
   };
+
+  if (byId("preset-load")) {
+    const presetStatus = byId("preset-status");
+    let presetApplying = false;
+    async function presetRequest(body) {
+      await fetch("/api/local-voices/session");
+      const response = await fetch(
+        "/api/creator/presets",
+        body
+          ? {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            }
+          : {},
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Preset action failed.");
+      return data;
+    }
+    function showPresets(presets) {
+      const choice = byId("preset-choice");
+      choice.replaceChildren();
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "Choose a preset";
+      choice.append(empty);
+      for (const preset of presets) {
+        const option = document.createElement("option");
+        option.value = preset.id;
+        option.textContent = preset.name;
+        choice.append(option);
+      }
+    }
+    byId("preset-load").addEventListener("click", async () => {
+      try {
+        const data = await presetRequest();
+        showPresets(data.presets);
+        presetStatus.textContent = `${data.presets.length} saved presets on this Mac.`;
+      } catch (error) {
+        presetStatus.textContent = error.message;
+      }
+    });
+    byId("preset-save").addEventListener("click", async () => {
+      try {
+        const result = readDraft();
+        if (result.errors.length) throw new Error(result.errors.join(" "));
+        const data = await presetRequest({
+          action: "save",
+          name: byId("preset-name").value,
+          definition: result.draft,
+        });
+        showPresets(data.presets);
+        presetStatus.textContent =
+          "Preferences saved. Reuse this name to update the preset; scripts and source evidence are not stored in it.";
+      } catch (error) {
+        presetStatus.textContent = error.message;
+      }
+    });
+    byId("preset-apply").addEventListener("click", async () => {
+      if (presetApplying) return;
+      presetApplying = true;
+      byId("preset-apply").disabled = true;
+      try {
+        if (pendingRecovery || saving) throw new Error("Finish draft recovery or saving first.");
+        const result = readDraft();
+        if (result.errors.length) throw new Error(result.errors.join(" "));
+        const expectedDraft = JSON.stringify(result.draft);
+        const expectedPreset = byId("preset-choice").value;
+        const data = await presetRequest({
+          action: "apply",
+          id: byId("preset-choice").value,
+          definition: result.draft,
+        });
+        if (
+          expectedDraft !== JSON.stringify(readDraft().draft) ||
+          expectedPreset !== byId("preset-choice").value ||
+          pendingRecovery ||
+          saving
+        )
+          throw new Error(
+            "This draft or preset selection changed while loading. Apply it again to the current draft.",
+          );
+        const draft = data.definition;
+        for (const [index, speaker] of draft.presentation.speakers.entries()) {
+          const key = voiceKey(speaker.voice);
+          if (
+            !voiceAvailable(key) ||
+            !Array.from(byId(`speaker-voice-${index}`).options).some(
+              (option) => option.value === key,
+            )
+          )
+            throw new Error(
+              "A preset voice is unavailable. Restore its profile or install it, then reload this editor.",
+            );
+          if (
+            speaker.avatar?.mode === "photo" &&
+            !Array.from(byId(`speaker-avatar-image-${index}`).options).some(
+              (option) => option.value === speaker.avatar.imageId,
+            )
+          )
+            throw new Error(
+              "A preset photo is unavailable. Restore it in the photo library first.",
+            );
+        }
+        for (const [index, speaker] of draft.presentation.speakers.entries()) {
+          const avatar = speaker.avatar ?? { mode: "illustrated" };
+          byId(`speaker-voice-${index}`).value = voiceKey(speaker.voice);
+          for (const [field, value] of Object.entries({
+            mode: avatar.mode,
+            image: avatar.imageId ?? "",
+            "mouth-x": avatar.mouthX ?? 0.5,
+            "mouth-y": avatar.mouthY ?? 0.68,
+            "mouth-scale": avatar.mouthScale ?? 1,
+            "motion-style": avatar.motion?.style ?? "conversational",
+            "motion-intensity": avatar.motion?.intensity ?? 0.7,
+          }))
+            byId(`speaker-avatar-${field}-${index}`).value = String(value);
+          byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify(avatar);
+          const animation = byId(`speaker-avatar-animation-${index}`);
+          if (animation) animation.value = avatar.animation ?? "full-face";
+          refreshAvatarUi(index);
+        }
+        byId("presentation-design").value = draft.presentation.design
+          ? JSON.stringify(draft.presentation.design)
+          : "";
+        byId("preset-preferences").value = JSON.stringify({
+          tone: draft.presentation.tone,
+          format: draft.presentation.format,
+          humor: draft.presentation.humor,
+          plannedDurationSeconds: draft.plannedDurationSeconds,
+          pronunciation: draft.pronunciation,
+        });
+        if (byId("writing-target-seconds"))
+          byId("writing-target-seconds").value = String(draft.plannedDurationSeconds);
+        update();
+        presetStatus.textContent =
+          "Preset applied to this editable draft. Review voices and portraits, then save as a new version. Narration, source evidence and approvals are preserved.";
+      } catch (error) {
+        presetStatus.textContent = error.message;
+      } finally {
+        presetApplying = false;
+        byId("preset-apply").disabled = false;
+      }
+    });
+  }
   byId("editor-fields").addEventListener("input", update);
   byId("presentation-design-reset").addEventListener("click", () => {
     byId("presentation-design").value = "";
@@ -968,6 +1383,7 @@
       byId("save-draft").disabled = true;
       produceBtn.disabled = true;
       byId("editor-fields").disabled = true;
+      readDraft();
       byId("editor-save-state").textContent = "Saving draft and updating the workspace…";
       try {
         const response = await fetch("/api/scripts", {
@@ -989,11 +1405,13 @@
         byId("save-draft").disabled = false;
         produceBtn.disabled = false;
         byId("editor-fields").disabled = false;
+        readDraft();
       }
     });
   }
 
   function setProduceProgress(stage, message) {
+    globalThis.shortsProduction?.progress({ stage, message });
     if (progressText) progressText.textContent = `${stage}: ${message || ""}`;
     const stagePercent = {
       PREFLIGHT: "20%",
@@ -1017,6 +1435,7 @@
         return;
       }
       const selector = `${draft.baseEpisodeId}@${draft.presentation.variant}`;
+      globalThis.shortsProduction?.startAttempt({ selector });
       produceBtn.disabled = true;
       download.disabled = true;
       if (progressBox) progressBox.hidden = false;
@@ -1043,6 +1462,10 @@
           produceBtn.disabled = false;
           download.disabled = false;
           if (progressBox) progressBox.hidden = true;
+          setProduceProgress(
+            "FAILED",
+            data.error || "Another production is active. Return to Shorts to check its progress.",
+          );
           return;
         }
         if (!response.ok) {
@@ -1051,6 +1474,11 @@
         }
         const data = await response.json();
         rememberSnapshot(draft, selector);
+        globalThis.shortsProduction?.accepted({
+          id: data.jobId,
+          selector: data.selector || selector,
+          startedAt: data.startedAt,
+        });
         const sse = new EventSource(`/api/productions/${encodeURIComponent(data.jobId)}/stream`);
         sse.addEventListener("status", (e) => {
           try {
@@ -1075,6 +1503,12 @@
           } catch {}
           const report = payload.report || {};
           const stage = payload.stage || report.stage || "FAILED";
+          globalThis.shortsProduction?.progress({
+            stage,
+            report,
+            libraryUpdated: payload.libraryUpdated,
+            message: report.issue?.message || payload.error || "",
+          });
           if (stage !== "READY") {
             const issueMsg =
               report.issue?.message || payload.error || "Production stopped before MP4 export.";
@@ -1091,14 +1525,24 @@
               const edit = element(
                 "button",
                 "secondary-btn",
-                report.issue?.code === "VIDEO_LAYOUT_REVIEW_REQUIRED"
-                  ? "Review script & visuals"
-                  : report.issue?.code === "TIMING_REVIEW_REQUIRED"
-                    ? "Edit opening & narration"
-                    : "Review voice & portrait",
+                report.issue?.code === "VISUAL_IMAGE_REQUIRED"
+                  ? "Review presentation images"
+                  : report.issue?.code === "VIDEO_LAYOUT_REVIEW_REQUIRED"
+                    ? "Review script & visuals"
+                    : report.issue?.code === "TIMING_REVIEW_REQUIRED"
+                      ? "Edit opening & narration"
+                      : "Review voice & portrait",
               );
               edit.type = "button";
               edit.addEventListener("click", () => {
+                if (report.issue?.code === "VISUAL_IMAGE_REQUIRED") {
+                  if (globalThis.shortsWorkspace) globalThis.shortsWorkspace.activate("writing");
+                  else {
+                    showStep("script", true);
+                    jumpTo("presentation");
+                  }
+                  return;
+                }
                 showStep(
                   ["TIMING_REVIEW_REQUIRED", "VIDEO_LAYOUT_REVIEW_REQUIRED"].includes(
                     report.issue?.code,
@@ -1124,7 +1568,12 @@
             }
             return;
           }
-          setProduceProgress("READY", "Production complete!");
+          setProduceProgress(
+            "READY",
+            payload.libraryUpdated === false
+              ? "Video produced. Workspace refresh is pending; refresh the studio before opening it."
+              : "Production complete!",
+          );
           if (produceResult) {
             produceResult.hidden = false;
             const strong = element("strong", "", "Video produced · ready for your review");
@@ -1133,13 +1582,17 @@
             watchLink.href = `../../episodes/${encodeURIComponent(selector)}/publish.html`;
             const studioLink = element("a", "", "View in Studio ↗");
             studioLink.href = "../../review.html?stage=review#episodes";
-            p.append(watchLink, element("span", "", " "), studioLink);
+            if (payload.libraryUpdated === false) {
+              strong.textContent = "Video produced · workspace refresh pending";
+              p.append(studioLink);
+            } else p.append(watchLink, element("span", "", " "), studioLink);
             produceResult.replaceChildren(strong, p);
           }
         }
         sse.addEventListener("complete", completeProduction);
         sse.addEventListener("error", (e) => {
           if (!e.data) {
+            globalThis.shortsProduction?.reconnect();
             setProduceProgress(
               "RECONNECTING",
               "Production may still be running. Reconnecting; you can also check the workspace.",
@@ -1152,6 +1605,8 @@
         setProduceProgress("FAILED", error.message);
         produceBtn.disabled = false;
         download.disabled = false;
+      } finally {
+        readDraft();
       }
     });
   }
@@ -1248,7 +1703,9 @@
             if (val) activePronunciation[term] = val;
             update();
           });
-          const auditionBtn = element("button", "audition-term-btn", "🔊");
+          const auditionBtn = element("button", "audition-term-btn");
+          auditionBtn.innerHTML = speakerSvg;
+          auditionBtn.setAttribute("aria-label", `Audition ${term}`);
           auditionBtn.type = "button";
           auditionBtn.title = `Audition ${term}`;
           auditionBtn.addEventListener("click", () => {
@@ -1257,7 +1714,9 @@
             const sandboxPlayer = byId("sandbox-player");
             runAudition(spokenVal, 0, sandboxStatus, sandboxPlayer, auditionBtn);
           });
-          const removeBtn = element("button", "remove-term-btn", "✕");
+          const removeBtn = element("button", "remove-term-btn");
+          removeBtn.innerHTML = closeSvg;
+          removeBtn.setAttribute("aria-label", `Remove ${term}`);
           removeBtn.type = "button";
           removeBtn.title = `Remove ${term}`;
           removeBtn.addEventListener("click", () => {
@@ -1634,6 +2093,7 @@
           opts.push(opt);
         }
         selectEl.replaceChildren(...opts);
+        labelPortraitOptions(selectEl);
         selectEl.value = current;
       }
 
@@ -1656,6 +2116,9 @@
                 "Open through the local studio server to check the portrait renderer.";
           }
         });
+
+      for (const [index] of seed.presentation.speakers.entries())
+        labelPortraitOptions(byId(`speaker-avatar-image-${index}`));
 
       fetch("/api/avatars")
         .then((res) => (res.ok ? res.json() : { avatars: [] }))
@@ -1762,6 +2225,7 @@
                     const opt = element("option", "", avatarId);
                     opt.value = avatarId;
                     selectEl.append(opt);
+                    labelPortraitOptions(selectEl);
                   }
                   selectEl.value = avatarId;
                   loadedImages.delete(avatarId);
@@ -1865,6 +2329,7 @@
         const option = element("option", "", value);
         option.value = value;
         select.append(option);
+        labelPortraitOptions(select);
       }
     }
     for (const [index] of seed.presentation.speakers.entries()) {
@@ -1895,6 +2360,9 @@
     pendingRecovery = null;
     recoveredDraft = false;
     for (const id of fieldIds) byId(id).value = startingFields[id];
+    activePronunciation = structuredClone(startingPronunciation);
+    appliedPreferencesSignature = "";
+    renderGlossaryUi?.();
     try {
       clearSavedDraft();
       recoveryMessage("Saved draft discarded. The starting script is ready to edit.");

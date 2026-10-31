@@ -218,10 +218,32 @@ async function workshop(
   node("variant-name", payload.seed.presentation.variant);
   node("draft-title", payload.seed.title);
   node("publication-text", payload.seed.publicationText);
+  node("writing-audience", payload.seed.presentation.brief?.audience ?? "developer");
+  node("writing-viewer-problem", payload.seed.presentation.brief?.viewerProblem ?? "");
+  node("writing-takeaway", payload.seed.presentation.brief?.takeaway ?? "");
+  node("writing-angle", payload.seed.presentation.brief?.angle ?? "");
+  node(
+    "writing-target-seconds",
+    String(
+      payload.seed.presentation.brief?.targetSeconds ??
+        html.match(/id="writing-target-seconds"[^>]*value="(\d+)"/u)?.[1] ??
+        55,
+    ),
+  );
   node(
     "presentation-design",
     payload.seed.presentation.design ? JSON.stringify(payload.seed.presentation.design) : "",
   );
+  for (const id of [
+    "preset-preferences",
+    "preset-name",
+    "preset-save",
+    "preset-load",
+    "preset-choice",
+    "preset-apply",
+    "preset-status",
+  ])
+    node(id);
   node("presentation-design-status");
   node("presentation-design-reset");
   for (const [index, speaker] of payload.seed.presentation.speakers.entries()) {
@@ -337,9 +359,19 @@ async function workshop(
       context as unknown as {
         shortsWritingEditor: {
           snapshot(): WritingSnapshot;
+          selectAngle(
+            idea: { title: string; hook: string; question: string; payoff: string },
+            expected: WritingSnapshot,
+          ): void;
           apply(proposal: WritingProposal, expected: WritingSnapshot): void;
           applyFinal(snapshot: WritingSnapshot, expected: WritingSnapshot): void;
           applyDesign(proposal: PresentationDesign, expected: WritingSnapshot): void;
+          previewDesign(
+            proposal: PresentationDesign,
+            expected: WritingSnapshot,
+          ): {
+            draft: { presentation: { design: PresentationDesign } };
+          };
         };
       }
     ).shortsWritingEditor,
@@ -1259,6 +1291,46 @@ test("AI Apply rejects stale or malformed proposals atomically rather than overw
   last.texts.push("An extra speaker slot");
   assert.throws(() => ui.writingEditor.apply(broken, current), /speaker turns/u);
   assert.equal(ui.get("draft-title").value, current.title);
+  const invalidPost = {
+    ...current,
+    title: "Do not partially apply",
+    publicationText: "x".repeat(3001),
+  };
+  assert.throws(() => ui.writingEditor.apply(invalidPost, current), /companion post/u);
+  assert.equal(ui.get("draft-title").value, current.title);
+  assert.equal(ui.get("publication-text").value, current.publicationText);
+});
+
+test("pre-brief browser recovery retains unsaved text and migrates only new optional fields", async () => {
+  const storage = recoveryStorage();
+  const first = await workshop("CAP-01@casual-v2", undefined, { storage });
+  first.get("draft-title").value = "Keep my unsaved story";
+  first.get("narration-0").value = "My unsaved opening still matters.";
+  first.update();
+  const [key, bytes] = [...storage.data.entries()][0] ?? [];
+  assert.ok(key && bytes);
+  const record = JSON.parse(bytes);
+  for (const id of [
+    "presentation-design",
+    "writing-audience",
+    "writing-viewer-problem",
+    "writing-takeaway",
+    "writing-angle",
+    "writing-target-seconds",
+  ])
+    delete record.fields[id];
+  storage.data.set(key, JSON.stringify(record));
+  const second = await workshop("CAP-01@casual-v2", undefined, { storage });
+  assert.equal(second.get("draft-title").value, "Keep my unsaved story");
+  assert.equal(second.get("narration-0").value, "My unsaved opening still matters.");
+  assert.equal(second.get("writing-audience").value, "developer");
+  assert.equal(storage.calls.remove, 0);
+  second.download();
+  const definition = JSON.parse(second.downloads.at(-1)?.parts.join("") ?? "null");
+  assert.equal(
+    (await validatePresentationDefinition(definition)).episode.title,
+    "Keep my unsaved story",
+  );
 });
 
 test("presentation proposals survive recovery/download/import while keeping voice, portrait and spoken script intact", async () => {
@@ -1276,8 +1348,34 @@ test("presentation proposals survive recovery/download/import while keeping voic
       id: scene.id,
       headline: scene.overlay,
       emphasis: "headline",
+      ...(scene.id === "hook"
+        ? {
+            composition: {
+              kind: "steps" as const,
+              items: [
+                { label: "Define data" },
+                { label: "Expose service" },
+                { label: "Call the endpoint" },
+              ],
+            },
+          }
+        : {}),
     })),
   };
+  ui.update();
+  const storedDesign = ui.get("presentation-design").value;
+  const beforeRecovery = JSON.stringify([...storage.data]);
+  const preview = ui.writingEditor.previewDesign(design, snapshot);
+  assert.deepEqual(JSON.parse(JSON.stringify(preview.draft.presentation.design)), design);
+  assert.equal(ui.get("presentation-design").value, storedDesign);
+  assert.equal(JSON.stringify(ui.writingEditor.snapshot()), JSON.stringify(snapshot));
+  // Preview cannot enter the recovered draft, including when the caller edits its result.
+  preview.draft.presentation.design.theme = "sunset";
+  assert.equal(ui.get("presentation-design").value, storedDesign);
+  assert.equal(JSON.stringify([...storage.data]), beforeRecovery);
+  ui.get("draft-title").value = "A newer title";
+  assert.throws(() => ui.writingEditor.previewDesign(design, snapshot), /draft changed/);
+  ui.get("draft-title").value = snapshot.title;
   ui.writingEditor.applyDesign(design, snapshot);
   assert.equal(ui.get("narration-1").value, snapshot.scenes[1]?.texts[0]);
   assert.equal(ui.get("speaker-avatar-image-0").value, "private-headshot.png");
@@ -1318,4 +1416,62 @@ test("final-review edits apply through the real editor atomically and invalidate
     /companion post/u,
   );
   assert.equal(ui.get("draft-title").value, proposed.title);
+});
+
+test("preset pronunciation survives recovery and Start with original resets it", async () => {
+  const storage = recoveryStorage();
+  const ui = await workshop("CAP-01@casual-v2", undefined, { storage });
+  ui.get("preset-preferences").value = JSON.stringify({
+    tone: "casual",
+    format: "explainer",
+    humor: "light",
+    plannedDurationSeconds: 65,
+    pronunciation: { CAP: "my preset pronunciation" },
+  });
+  ui.get("draft-title").value = "Recovered preset draft";
+  ui.update();
+  const recovered = await workshop("CAP-01@casual-v2", undefined, { storage });
+  recovered.download();
+  assert.equal(
+    JSON.parse(recovered.downloads[0]?.parts.join("") ?? "null").pronunciation.CAP,
+    "my preset pronunciation",
+  );
+  recovered.get("discard-draft").click();
+  recovered.download();
+  const original = JSON.parse(recovered.downloads[1]?.parts.join("") ?? "null");
+  assert.notEqual(original.pronunciation?.CAP, "my preset pronunciation");
+  const malformed = await workshop("CAP-01@casual-v2");
+  malformed.get("preset-preferences").value = JSON.stringify({
+    tone: "casual",
+    format: "explainer",
+    humor: "light",
+    plannedDurationSeconds: 65,
+    pronunciation: { CAP: null },
+  });
+  assert.doesNotThrow(() => malformed.update());
+  assert.equal(malformed.get("download-script").disabled, true);
+});
+
+test("using an idea updates only the brief and rejects a stale editor snapshot", async () => {
+  const ui = await workshop("CAP-01@casual-v2");
+  const before = ui.writingEditor.snapshot();
+  const narration = ui.get("narration-0").value;
+  const voice = ui.get("speaker-voice-0").value;
+  const originalAngle = ui.get("writing-angle").value;
+  const idea = {
+    title: "The missing service",
+    hook: "Where is the endpoint?",
+    question: "What exposes the model?",
+    payoff: "Add a service projection.",
+  };
+  ui.get("writing-angle").value = "My newer choice";
+  assert.throws(() => ui.writingEditor.selectAngle(idea, before), /draft changed/);
+  assert.equal(ui.get("writing-angle").value, "My newer choice");
+  ui.get("writing-angle").value = originalAngle;
+  ui.writingEditor.selectAngle(idea, before);
+  assert.equal(ui.get("writing-angle").value, "The missing service: Where is the endpoint?");
+  assert.equal(ui.get("writing-viewer-problem").value, idea.question);
+  assert.equal(ui.get("writing-takeaway").value, idea.payoff);
+  assert.equal(ui.get("narration-0").value, narration);
+  assert.equal(ui.get("speaker-voice-0").value, voice);
 });

@@ -15,6 +15,7 @@ import {
 import type { Target } from "../../cloud/contracts.js";
 import { kokoroVoices } from "../../media/voices.js";
 import { voiceReadingScripts } from "../../voice-reading-scripts.js";
+import { friendlyError } from "./error-messages.js";
 import { voiceAudition, voiceReadiness } from "./voice-status.js";
 
 // biome-ignore lint/suspicious/noExplicitAny: Browser DTOs are validated by the private API; the editor preserves source-backed template fields.
@@ -29,11 +30,11 @@ const notice = (message: string, error = false) => {
 if (typeof window !== "undefined") {
   window.addEventListener("error", (event) => {
     const msg = event.message || (event.error && (event.error as Error).message) || String(event);
-    notice(`Client error: ${msg}`, true);
+    notice(`The studio ran into a problem. Refresh the page if it continues. ${msg}`, true);
   });
   window.addEventListener("unhandledrejection", (event) => {
     const msg = (event.reason && (event.reason as Error).message) || String(event.reason);
-    notice(`Error: ${msg}`, true);
+    notice(friendlyError(event.reason ?? msg), true);
   });
 }
 const uuid = (): string => {
@@ -105,16 +106,7 @@ async function run(callback: () => unknown, button?: HTMLButtonElement) {
     await callback();
   } catch (error) {
     if (version === generation) {
-      const code = (error as { code?: string }).code;
-      const messages: Record<string, string> = {
-        "auth/invalid-credential": "Email or password is incorrect.",
-        "auth/wrong-password": "Email or password is incorrect.",
-        "auth/user-not-found": "Email or password is incorrect.",
-        "auth/email-already-in-use":
-          "The account could not be created. Try signing in or resetting your password.",
-        "auth/too-many-requests": "Too many attempts. Wait a moment and try again.",
-      };
-      notice(code && messages[code] ? messages[code] : (error as Error).message, true);
+      notice(friendlyError(error), true);
     }
   } finally {
     if (button) button.disabled = false;
@@ -147,11 +139,15 @@ async function api(
     if (!response.ok) {
       if (response.status === 404)
         throw new Error(
-          "API backend unavailable. Connect to your local network (e.g. http://192.168.50.49:5890) where the studio server is running.",
+          "The studio server is unavailable at this address. Check your connection and open the workspace address shared with you.",
         );
-      throw new Error(`Server returned status ${response.status}`);
+      throw new Error(
+        `The studio server could not complete this request (${response.status}). Try again shortly.`,
+      );
     }
-    throw new Error("Invalid response from server.");
+    throw new Error(
+      "The studio server sent an unreadable response. Refresh the page and try again.",
+    );
   }
   if (version !== generation) throw new Error("The session changed. Open your workspace again.");
   if (!response.ok)
@@ -186,15 +182,23 @@ async function upload(path: string, bytes: Blob, headers: Record<string, string>
   });
   const result = await response.json();
   if (version !== generation) throw new Error("The session changed.");
-  if (!response.ok) throw new Error(result.error ?? "Upload failed.");
+  if (!response.ok)
+    throw Object.assign(new Error(result.error ?? "The upload could not finish. Try again."), {
+      code: result.code,
+    });
   return result;
 }
 function showTab(tab: string) {
-  element("workspace").dataset.section = tab;
+  const section = tab === "photos" ? "voices" : tab;
+  element("workspace").dataset.section = section;
+  element("presenter-sections").hidden = section !== "voices";
   for (const name of ["episodes", "news", "voices", "photos", "engines"])
     element(`${name}-panel`).hidden = tab !== name;
   document.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((button) => {
-    button.classList.toggle("selected", button.dataset.tab === tab);
+    const selected = button.dataset.tab === (button.closest("#presenter-sections") ? tab : section);
+    button.classList.toggle("selected", selected);
+    if (selected) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
   if (tab === "news") void run(loadCloudNews);
 }
@@ -446,7 +450,7 @@ function renderPhotos() {
         "p",
         linked.length
           ? `Linked to ${linked.map((voice) => voice.name).join(", ")}`
-          : "Link this photo under My voices.",
+          : "Link this photo under Voices & presenters.",
         "muted",
       ),
     );
@@ -486,7 +490,7 @@ element("upload-photo").onclick = () =>
     await uploadPortrait(file, field("photo-name").value);
     field("photo-file").value = "";
     field("photo-name").value = "";
-    notice("Photo saved. Link it to a voice under My voices, or select it in an episode.");
+    notice("Photo saved. Link it to a voice under Voices & presenters, or select it in a short.");
     await refresh();
   });
 function voicePhotoLinks(voice: Data) {
@@ -496,7 +500,7 @@ function voicePhotoLinks(voice: Data) {
   if (!activePhotos().length) {
     details.append(
       node("p", "Add photos to your library first.", "muted"),
-      action("Open My photos", () => showTab("photos")),
+      action("Open presenters", () => showTab("photos")),
     );
     return details;
   }
@@ -818,8 +822,8 @@ async function draftCloudNewsShort(url: string, btn?: HTMLElement) {
     showTab("episodes");
     openEditor(saved);
   } catch (error) {
-    status.textContent = `Draft creation failed: ${(error as Error).message}`;
-    notice(`Draft creation failed: ${(error as Error).message}`, true);
+    status.textContent = `The draft could not be created. ${friendlyError(error)}`;
+    notice(`The draft could not be created. ${friendlyError(error)}`, true);
   } finally {
     if (btn && "disabled" in btn) {
       (btn as HTMLButtonElement).disabled = false;
@@ -869,7 +873,7 @@ async function loadCloudNews() {
     }
     status.textContent = `Discovered ${data.stories.length} stories ranked by short-form video relevance.`;
   } catch (error) {
-    status.textContent = `Error discovering news: ${(error as Error).message}`;
+    status.textContent = `Ideas could not be refreshed. ${friendlyError(error)}`;
   }
 }
 

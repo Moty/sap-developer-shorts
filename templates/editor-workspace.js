@@ -21,7 +21,7 @@
     voice: "voice-heading",
     companion: "companion-post-heading",
     "ai-review": "final-review-heading",
-    produce: "download-controls",
+    produce: "production-heading",
   };
   const get = (id, fallback = "") => byId(id)?.value ?? fallback;
   const words = (text) => text.trim().split(/\s+/u).filter(Boolean).length;
@@ -91,9 +91,16 @@
       pane.hidden = pane.dataset.workspacePane !== state.view;
     for (const card of all(".scene-editor[data-scene-index]"))
       card.hidden = state.view !== "scene" || Number(card.dataset.sceneIndex) !== state.scene;
+    const order = ["script", "voice", "review"];
     for (const button of all("[data-editor-step]")) {
       if (button.dataset.editorStep === state.step) button.setAttribute("aria-current", "step");
       else button.removeAttribute("aria-current");
+      // The shared stepper marks earlier steps done; Review & publish keeps its own state.
+      if (button.dataset.stepIndex) {
+        const position = order.indexOf(button.dataset.editorStep);
+        const current = order.indexOf(state.step);
+        button.dataset.stepState = position === current ? "current" : "todo";
+      }
     }
     for (const button of all("[data-editor-target]")) {
       if (button.dataset.editorTarget === state.view) button.setAttribute("aria-current", "page");
@@ -107,31 +114,23 @@
     const next = byId("editor-next");
     const label =
       state.step === "script"
-        ? "Continue to voice →"
+        ? "Next: Voice & presenter"
         : state.step === "voice"
-          ? "Review & produce →"
-          : state.view === "companion"
-            ? "Review the content →"
-            : state.view === "ai-review"
-              ? "Ready to produce →"
-              : "Back to script";
+          ? "Next: Produce"
+          : "Save & produce";
     next.textContent = label;
-    next.dataset.shortLabel =
-      state.step === "script"
-        ? "Voice"
-        : state.step === "voice"
-          ? "Review"
-          : state.view === "companion"
-            ? "AI review"
-            : state.view === "ai-review"
-              ? "Produce"
-              : "Script";
-    next.setAttribute("aria-label", label.replace(" →", ""));
+    next.dataset.shortLabel = state.step === "script" ? "Voice" : "Produce";
+    next.setAttribute("aria-label", label);
+    if (state.step !== "review") {
+      next.disabled = false;
+      next.removeAttribute("aria-describedby");
+    }
     byId("editor-outline-toggle").setAttribute("aria-expanded", String(state.outline));
     byId("editor-evidence").hidden = !state.evidence;
     byId("editor-evidence-toggle").setAttribute("aria-expanded", String(state.evidence));
     if (state.view === "writing") byId("presentation").open = true;
     refresh();
+    globalThis.shortsProduction?.refresh();
     const target =
       state.view === "scene" ? `scene-${state.scene}-heading` : destinations[state.view];
     if (updateUrl && target) history.replaceState(null, "", `#${target}`);
@@ -140,6 +139,8 @@
     measure();
   }
   function activate(view, index = state.scene, moveFocus = true, updateUrl = true) {
+    const detail = view === "companion" ? "post" : view === "ai-review" ? "ai" : null;
+    if (detail) view = "produce";
     if (
       !Object.hasOwn(views, view) ||
       !Number.isInteger(index) ||
@@ -152,10 +153,11 @@
     state.scene = index;
     state.outline = false;
     render(moveFocus, updateUrl);
+    if (detail && byId(`production-${detail}`)) byId(`production-${detail}`).open = true;
   }
   function showStep(step, moveFocus = false) {
     activate(
-      step === "script" ? "scene" : step === "voice" ? "voice" : "companion",
+      step === "script" ? "scene" : step === "voice" ? "voice" : "produce",
       state.scene,
       moveFocus,
     );
@@ -167,7 +169,15 @@
     if (scene) activate("scene", Number(scene[1] ?? scene[2] ?? scene[3] ?? scene[4]), false);
     else if (["editor-script-start", "variant-name", "draft-title"].includes(id))
       activate("details", state.scene, false);
-    else if (["presentation", "presentation-design"].includes(id))
+    else if (
+      [
+        "presentation",
+        "presentation-design",
+        "visual-studio-heading",
+        "writing-brief-heading",
+        "writing-task-heading",
+      ].includes(id)
+    )
       activate("writing", state.scene, false);
     else if (id === "voice-heading" || id.startsWith("speaker-"))
       activate("voice", state.scene, false);
@@ -175,7 +185,9 @@
       activate("companion", state.scene, false);
     else if (id === "final-review-heading" || id === "final-review-panel")
       activate("ai-review", state.scene, false);
-    else if (["download-controls", "draft-errors", "produce-script"].includes(id))
+    else if (
+      ["production-heading", "download-controls", "draft-errors", "produce-script"].includes(id)
+    )
       activate("produce", state.scene, false);
     else return false;
     const target = id === "presentation-design" ? "presentation" : id;
@@ -187,23 +199,20 @@
   for (const button of all("[data-editor-target]"))
     button.addEventListener("click", () => activate(button.dataset.editorTarget));
   for (const button of all("[data-editor-step]"))
-    button.addEventListener("click", () => showStep(button.dataset.editorStep, true));
+    button.addEventListener("click", (event) => {
+      // Stepper links keep their #fragment for no-JS use; switch panes in place instead.
+      if (event?.button > 0 || event?.metaKey || event?.ctrlKey || event?.shiftKey || event?.altKey)
+        return;
+      event?.preventDefault?.();
+      showStep(button.dataset.editorStep, true);
+    });
   byId("workspace-scene-previous").addEventListener("click", () =>
     activate("scene", state.scene - 1),
   );
   byId("workspace-scene-next").addEventListener("click", () => activate("scene", state.scene + 1));
   byId("editor-next").addEventListener("click", () => {
-    activate(
-      state.step === "script"
-        ? "voice"
-        : state.step === "voice"
-          ? "companion"
-          : state.view === "companion"
-            ? "ai-review"
-            : state.view === "ai-review"
-              ? "produce"
-              : "scene",
-    );
+    if (state.step === "review") byId("produce-script").click();
+    else activate(state.step === "script" ? "voice" : "produce");
   });
   byId("editor-outline-toggle").addEventListener("click", () => {
     state.outline = !state.outline;
@@ -263,6 +272,26 @@
   const validation = byId("editor-validation-state");
   if (validation.textContent === "Draft checked · timing measured during production")
     validation.textContent = "Draft checked";
+  // The dot beside the status text mirrors the saved/unsaved state without changing the text.
+  const statusLine = saveState.parentElement;
+  function syncStatusDot() {
+    if (!statusLine?.dataset) return;
+    const text = saveState.textContent.trim();
+    statusLine.dataset.saveState = /^Saved/u.test(text)
+      ? "saved"
+      : /^Unsaved/u.test(text)
+        ? "unsaved"
+        : /^Saving/u.test(text)
+          ? "saving"
+          : "other";
+  }
+  syncStatusDot();
+  if (typeof MutationObserver === "function")
+    new MutationObserver(syncStatusDot).observe(saveState, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
   function navigateFragment() {
     let hash;
     try {

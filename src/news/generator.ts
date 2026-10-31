@@ -4,6 +4,7 @@ import type { NewsEpisode } from "../domain.js";
 import { projectRoot } from "../paths.js";
 import { validateNewsEpisode } from "./contracts.js";
 import { cleanHtml, fetchStoryDetail, type SapStoryDetail } from "./fetcher.js";
+import { applyNewShortDelivery, type NewShortDelivery } from "./new-short-delivery.js";
 
 const COMMON_PRONUNCIATIONS: Record<string, string> = {
   AI: "ay eye",
@@ -264,6 +265,7 @@ export function buildNewsEpisodeFromStory(story: SapStoryDetail, episodeId: stri
 }
 
 export interface CreateNewsEpisodeOptions {
+  delivery?: NewShortDelivery;
   targetId?: string;
   promote?: boolean;
 }
@@ -275,7 +277,8 @@ export async function createNewsEpisodeFromUrl(
 ): Promise<{ episode: NewsEpisode; path: string }> {
   const story = await fetchStoryDetail(url);
   const id = options.targetId ?? (await getNextNewsId());
-  const episode = buildNewsEpisodeFromStory(story, id);
+  const base = buildNewsEpisodeFromStory(story, id);
+  const episode = options.delivery ? applyNewShortDelivery(base, options.delivery) : base;
 
   const destinationDir = options.promote
     ? resolve(projectRoot, "content/episodes")

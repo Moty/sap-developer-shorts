@@ -40,12 +40,19 @@ function prose(value: unknown, maximum: number): string {
     throw new Error(`Final review text needs 1–${maximum} plain characters.`);
   return value.trim();
 }
-function links(value: string) {
+export function companionLinks(value: string) {
   return [
     ...new Set(
       (value.match(/https?:\/\/[^\s<>"')\]]+/gu) ?? []).map((url) => url.replace(/[.,;!?]+$/u, "")),
     ),
   ];
+}
+export function assertCompanionLinks(before: string, after: string, sourceUrls: string[]) {
+  const original = companionLinks(before);
+  const proposed = companionLinks(after);
+  const allowed = new Set([...original, ...sourceUrls]);
+  if (original.some((url) => !proposed.includes(url)) || proposed.some((url) => !allowed.has(url)))
+    throw new Error("Companion copy must retain existing links and use only saved source URLs.");
 }
 export function fixValue(
   snapshot: WritingSnapshot,
@@ -139,16 +146,11 @@ export function parseFinalReview(
       )
         throw new Error("Keep URLs and private identifiers out of narration.");
       if (fix.field === "publicationText") {
-        const original = links(fix.before);
-        const proposed = links(fix.after);
-        const allowed = new Set([...original, ...episode.sources.map((source) => source.url)]);
-        if (
-          original.some((url) => !proposed.includes(url)) ||
-          proposed.some((url) => !allowed.has(url))
-        )
-          throw new Error(
-            "Companion fixes must retain existing links and use only saved source URLs.",
-          );
+        assertCompanionLinks(
+          fix.before,
+          fix.after,
+          episode.sources.map((source) => source.url),
+        );
       }
       const key = JSON.stringify([fix.field, fix.sceneId, fix.turnIndex]);
       if (targets.has(key)) throw new Error("Propose only one replacement per field.");

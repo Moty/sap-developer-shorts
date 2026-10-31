@@ -15,7 +15,7 @@ that result can describe the changed text; unchanged content saved as another
 version retains the match. Review remains advisory and optional. Audio, rendered
 pixels and live factual accuracy are outside this stage.
 
-In **Writing engine → Response length & model budgets**, choose separate budgets
+In **Settings → Writing engine → Response length & model budgets**, choose separate budgets
 for ordinary writing and final review, or **Provider default · no app token cap**.
 Defaults are 8,192/16,384. Save writing preference to use a new budget on future
 requests. Jobs retain the budget they started with. Hyperspace retains explicit

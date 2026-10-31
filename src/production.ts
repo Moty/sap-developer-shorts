@@ -30,6 +30,7 @@ import { inside, projectRoot } from "./paths.js";
 import { episodeSelector, presentationLabel } from "./presentation.js";
 import { shortDurationAllowed } from "./timing-policy.js";
 import { renderVideo } from "./video/export.js";
+import { resolveVisualAssets } from "./visual-assets.js";
 
 const exec = promisify(execFile);
 type Stage = "PREFLIGHT" | "NARRATION" | "RENDER" | "LIBRARY";
@@ -87,6 +88,15 @@ function localStages(
   return {
     async preflight() {
       const episode = await readContentEpisode(selector);
+      try {
+        await resolveVisualAssets(episode);
+      } catch (error) {
+        throw new ProductionBlocked(
+          "VISUAL_IMAGE_REQUIRED",
+          (error as Error).message,
+          "Open Advanced presentation, restore the selected local image or choose another one, then save a new version.",
+        );
+      }
       if (isNewsEpisode(episode)) {
         try {
           validateNewsEpisode(episode, { requireFresh: true });
@@ -226,6 +236,7 @@ export async function produce(
     stageProgress?: (stage: Stage) => void;
     stages?: Partial<ProductionStages>;
     execution?: "local" | "cloud";
+    jobId?: string;
   } = {},
 ): Promise<ProductionReport> {
   if (!/^(ABAP|CAP|RAP|BTP|AI|NEWS)-\d{2}(?:@[a-z][a-z0-9-]{0,31})?$/u.test(selector))
@@ -234,7 +245,9 @@ export async function produce(
     projectRoot,
     options.artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
   );
-  const id = randomUUID();
+  const id = options.jobId ?? randomUUID();
+  if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u.test(id))
+    throw new Error("Invalid production job ID");
   const generationStarted = performance.now();
   const generationTiming: GenerationTiming = { totalMs: 0, stages: {} };
   let timedStage: GenerationStage | null = null;
@@ -433,4 +446,35 @@ export async function latestProduction(
     }
   }
   return latest;
+}
+
+/** Read one exact receipt for reconnecting after a local server restart. */
+export async function productionReceipt(
+  selector: string,
+  jobId: string,
+  artifactRoot?: string,
+): Promise<ProductionReport | null> {
+  await readContentEpisode(selector);
+  if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u.test(jobId))
+    throw new Error("Invalid production job ID");
+  try {
+    const report = JSON.parse(
+      await readFile(
+        resolve(
+          projectRoot,
+          artifactRoot ?? process.env.SHORTS_ARTIFACT_DIR ?? "artifacts",
+          "productions",
+          jobId,
+          "production.json",
+        ),
+        "utf8",
+      ),
+    ) as ProductionReport;
+    if (report.schemaVersion !== 1 || report.id !== jobId || report.selector !== selector)
+      throw new Error("Production receipt does not match this version");
+    return report;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
 }

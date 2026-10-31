@@ -52,6 +52,11 @@
   globalThis.shortsVoiceProfiles = {
     isAvailable: (value) =>
       state.profiles.some((profile) => profile.accepted && key(profile.voice) === value),
+    profiles: () => structuredClone(state.profiles),
+    select(value) {
+      byId("my-voice-saved").value = value;
+      showSaved();
+    },
   };
   const status = byId("my-voice-status");
   const message = (text) => {
@@ -420,6 +425,7 @@
         byId("my-voice-review-next").disabled = true;
         recordingStep(false);
       }
+      document.dispatchEvent?.(new Event("shorts:voice-style-saved"));
     } catch (error) {
       message(error.message);
     } finally {
@@ -462,6 +468,7 @@
       player.hidden = false;
       byId("my-voice-accept").disabled = false;
       message("Listen to the whole audition, then accept it if the voice sounds right.");
+      document.dispatchEvent?.(new Event("shorts:voices-ready"));
     } catch (error) {
       if (selection === state.selection) message(error.message);
     } finally {

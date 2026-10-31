@@ -51,7 +51,7 @@ test("the library keeps presentation variants separate from the original episode
   assert.ok(pages["episodes/CAP-01/watch.html"]);
   assert.ok(pages["episodes/CAP-01@casual/watch.html"]);
   assert.ok(pages["episodes/CAP-01@duo/watch.html"]);
-  assert.match(String(pages["review.html"]), /Delivery styles/);
+  assert.match(String(pages["review.html"]), /Choose a storytelling format/);
   assert.match(String(pages["review.html"]), /Two-person conversation/);
 });
 
@@ -264,6 +264,15 @@ test("expired news remains viewable with a recheck label while new media product
   assert.ok(String(files["review.html"]).includes("Saved preview · sources need rechecking"));
   assert.ok(String(files["review.html"]).includes("Saved media remains available."));
   assert.ok(String(files["episodes/NEWS-01/watch.html"]).includes("source recheck needed"));
+  const noticeCount = (html: string) =>
+    (html.match(/<section[^>]*data-news-review-notice/gu) ?? []).length;
+  // watch.html frames review.html, so only the framed page carries the dated notice.
+  assert.equal(noticeCount(String(files["episodes/NEWS-01/watch.html"])), 0);
+  assert.equal(noticeCount(String(files["episodes/NEWS-01/review.html"])), 1);
+  const workspace = String(files["review.html"]);
+  assert.match(workspace, /<a class="new-short-button" data-new-short href="#ideas">/u);
+  assert.doesNotMatch(workspace, /Explore ideas|Ideas &amp; SAP News Hub|Ideas & SAP News Hub/u);
+  assert.doesNotMatch(workspace, /YOUR CONTENT, FROM IDEA TO PUBLISHED/u);
 });
 
 test("a library is a portable hashed copy of validated previews and escapes titles", async (t) => {
@@ -382,7 +391,12 @@ test("only an intact MP4 for the selected narration and exact editorial input is
   });
   assert.match(String(pages["review.html"]), /Watch MP4/u);
   assert.ok(pages["episodes/CAP-01/video/short.mp4"]);
-  assert.match(String(pages["episodes/CAP-01/video/review.html"]), /All episodes and styles/u);
+  const videoPage = String(pages["episodes/CAP-01/video/review.html"]);
+  assert.match(
+    videoPage,
+    /class="ep-back" href="\.\.\/\.\.\/\.\.\/review\.html#[^"]+" aria-label="Back to Shorts"/u,
+  );
+  assert.match(videoPage, /href="\.\.\/publish\.html"[^>]*>.*?Open Review &amp; publish/su);
   const audioPath = resolve(narration, "narration.wav");
   const originalAudio = await readFile(audioPath);
   const correctedAudio = Buffer.from(originalAudio);

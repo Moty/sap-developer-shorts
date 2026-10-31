@@ -14,6 +14,7 @@ async function workspace(hash = "") {
   let step = "";
   let url = "";
   let reviews = 0;
+  let attempts = 0;
   class Element {
     value = "";
     textContent = "";
@@ -101,13 +102,22 @@ async function workspace(hash = "") {
     "editor-next",
     "editor-script-start",
     "presentation",
+    "visual-studio-heading",
+    "writing-brief-heading",
+    "writing-task-heading",
     "voice-heading",
     "companion-post-heading",
     "final-review-heading",
     "download-controls",
+    "production-heading",
+    "production-post",
+    "production-ai",
     "draft-errors",
   ])
     new Element(name);
+  new Element("produce-script", {}, "BUTTON").addEventListener("click", () => {
+    attempts++;
+  });
   const seed = {
     scenes: [{ id: "hook" }, { id: "context" }, { id: "payoff", dialogue: [{}, {}] }],
   };
@@ -141,8 +151,6 @@ async function workspace(hash = "") {
     details: "script",
     writing: "script",
     scene: "script",
-    companion: "review",
-    "ai-review": "review",
     produce: "review",
   })) {
     new Element(`view-${view}`, { editorPane: pane, workspacePane: view });
@@ -151,6 +159,9 @@ async function workspace(hash = "") {
   new Element("voice-pane", { editorPane: "voice" });
   for (const group of ["script", "voice", "review"])
     new Element(`step-${group}`, { editorStep: group }, "BUTTON");
+  // The shared episode stepper's in-page links.
+  for (const [index, group] of ["script", "voice", "review"].entries())
+    new Element(`stepper-${group}`, { editorStep: group, stepIndex: String(index + 1) }, "A");
   const context = {
     document: {
       querySelector: (selector: string) => (selector === ".studio-topbar" ? header : root),
@@ -186,7 +197,7 @@ async function workspace(hash = "") {
     context,
     listeners,
     pageListeners,
-    status: () => ({ focused, step, url, reviews }),
+    status: () => ({ focused, step, url, reviews, attempts }),
   };
 }
 
@@ -217,16 +228,25 @@ test("focused navigation retains every field and DOM node across scenes, tools, 
     );
   }
   assert.equal(ui.id("presentation").open, true);
+  assert.equal(ui.id("editor-next").textContent, "Next: Voice & presenter");
   ui.id("step-voice").click();
   assert.equal(ui.id("voice-pane").hidden, false);
   assert.equal(ui.status().step, "voice");
-  ui.id("editor-next").click();
-  assert.equal(ui.id("view-companion").hidden, false);
-  ui.id("editor-next").click();
-  assert.equal(ui.id("view-ai-review").hidden, false);
+  assert.deepEqual(
+    ["script", "voice", "review"].map((group) => ui.id(`stepper-${group}`).dataset.stepState),
+    ["todo", "current", "todo"],
+  );
+  assert.equal(ui.id("stepper-voice").attributes.get("aria-current"), "step");
+  assert.equal(ui.id("editor-next").textContent, "Next: Produce");
   ui.id("editor-next").click();
   assert.equal(ui.id("view-produce").hidden, false);
-  assert.equal(ui.id("view-companion").hidden, true);
+  assert.equal(ui.id("editor-next").textContent, "Save & produce");
+  ui.id("editor-next").click();
+  assert.equal(ui.status().attempts, 1, "the top action reuses the existing produce control");
+  ui.context.shortsWorkspace.jumpTo("publication-text");
+  assert.equal(ui.id("production-post").open, true);
+  ui.context.shortsWorkspace.jumpTo("final-review-heading");
+  assert.equal(ui.id("production-ai").open, true);
   assert.ok(ui.status().reviews > 0);
   ui.id("step-script").click();
   assert.equal(ui.cards[2]?.hidden, false);
@@ -250,7 +270,8 @@ test("deep links and validation jumps reveal the right view without breaking fie
   assert.equal(ui.id("view-produce").hidden, false);
   assert.equal(ui.status().focused, "draft-errors");
   ui.context.shortsWorkspace.jumpTo("publication-text");
-  assert.equal(ui.id("view-companion").hidden, false);
+  assert.equal(ui.id("view-produce").hidden, false);
+  assert.equal(ui.id("production-post").open, true);
   assert.equal(ui.context.shortsWorkspace.jumpTo("unknown-section"), false);
   ui.context.location.hash = "#narration-1";
   ui.pageListeners.get("hashchange")?.();
@@ -259,6 +280,15 @@ test("deep links and validation jumps reveal the right view without breaking fie
   const malformed = await workspace("#%E0%A4");
   assert.equal(malformed.cards[0]?.hidden, false);
   assert.equal(malformed.status().step, "script");
+  for (const fragment of [
+    "visual-studio-heading",
+    "writing-brief-heading",
+    "writing-task-heading",
+  ]) {
+    const linked = await workspace(`#${fragment}`);
+    assert.equal(linked.id("view-writing").hidden, false);
+    assert.equal(linked.status().focused, fragment);
+  }
 });
 
 test("mobile outline and evidence drawer dismiss cleanly and restore keyboard focus", async () => {
@@ -278,12 +308,28 @@ test("mobile outline and evidence drawer dismiss cleanly and restore keyboard fo
 test("generated editor wires mounted scene cards, exclusive review views and a top action bar", async () => {
   const html = await createScriptEditor(await readContentEpisode("CAP-01@duo"));
   assert.match(html, /data-editor-workspace/u);
-  assert.match(html, /class="studio-topbar editor-actionbar"/u);
+  assert.match(html, /<header class="ep-shell studio-topbar editor-actionbar" data-live-stages>/u);
   assert.equal((html.match(/data-editor-scene="\d+"/gu) ?? []).length, 7);
   assert.equal((html.match(/data-scene-index="\d+"/gu) ?? []).length, 7);
-  for (const view of ["details", "writing", "scene", "companion", "ai-review", "produce"])
+  for (const view of ["details", "writing", "scene", "produce"])
     assert.ok(html.includes(`data-workspace-pane="${view}"`));
   assert.doesNotMatch(html, /id="editor-jump-target"/u);
   assert.match(html, /id="speaker-avatar-mode-0"/u);
   assert.match(html, /id="speaker-voice-1"/u);
+});
+
+test("editor actions use SVG icons and plain labels, and explain the disabled design reset", async () => {
+  const html = await createScriptEditor(await readContentEpisode("CAP-01@duo"));
+  assert.doesNotMatch(html, /🔊|▶ Preview/u);
+  assert.match(
+    html,
+    /class="audition-btn"[^>]*><svg class="action-icon"[^>]*>.*?<span>Hear this line<\/span>/su,
+  );
+  assert.match(html, /id="editor-next"[^>]*>Next: Voice &amp; portrait<\/button>/u);
+  assert.match(
+    html,
+    /id="presentation-design-reset" class="secondary-btn" aria-describedby="presentation-design-reset-hint"/u,
+  );
+  assert.match(html, /id="presentation-design-reset-hint" class="design-reset-hint"/u);
+  assert.match(html, /<div class="studio-save-state"><span id="editor-save-state" role="status">/u);
 });

@@ -25,13 +25,16 @@
     episodes: ["My shorts", "Find a draft, review a video, or pick up where you left off."],
     ideas: [
       "Ideas & SAP news",
-      "Explore official stories, staged drafts, and your editorial backlog.",
+      "Official SAP stories ranked for a short, plus your staged drafts and backlog.",
     ],
-    styles: ["Delivery styles", "Explore storytelling formats and compare prepared examples."],
-    voices: ["Voice library", "Manage your personal recordings and compare stock narrators."],
+    styles: ["Formats", "Storytelling structures, delivery tones and prepared examples."],
+    voices: [
+      "Voices & presenters",
+      "Choose who speaks and who appears. Your recordings and photos stay on this Mac.",
+    ],
     writing: [
-      "Writing engine",
-      "Choose Gemma locally or an SAP Hyperspace model for ideas, rewriting and script review.",
+      "Settings",
+      "Choose the writing engine: Gemma locally for free, or an SAP Hyperspace model that may incur cost.",
     ],
   };
   let activeView;
@@ -59,7 +62,7 @@
             ? "tutorials"
             : "stories";
     const view =
-      hash === "#writing"
+      hash === "#writing" || hash === "#settings"
         ? "writing"
         : hash === "#voices" || hash === "#my-voice-panel"
           ? "voices"
@@ -80,8 +83,13 @@
     }
     for (const link of links) {
       link.classList.toggle("nav-current", link.dataset.workspaceLink === view);
-      if (link.dataset.workspaceLink === view) link.setAttribute("aria-current", "page");
-      else link.removeAttribute("aria-current");
+      if (link.dataset.workspaceLink === view) {
+        link.setAttribute("aria-current", "page");
+        // Keep the active tab visible when the phone strip scrolls horizontally.
+        const strip = link.parentElement;
+        if (strip && strip.scrollWidth > strip.clientWidth)
+          strip.scrollLeft = Math.max(0, link.offsetLeft - 24);
+      } else link.removeAttribute("aria-current");
     }
     document.getElementById("workspace-title").textContent = headings[view][0];
     document.getElementById("workspace-description").textContent = headings[view][1];
@@ -126,6 +134,7 @@
         "#styles",
         "#voices",
         "#writing",
+        "#settings",
         "#studio-produce-banner",
       ].includes(link.hash)
     )
@@ -165,6 +174,7 @@
       "#styles",
       "#voices",
       "#writing",
+      "#settings",
       ...Object.values(anchors),
     ].includes(window.location.hash)
   )

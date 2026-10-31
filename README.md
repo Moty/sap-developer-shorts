@@ -310,3 +310,7 @@ An Apple Silicon desktop launcher and local-test DMG build are available. The ap
 bundles its core tools and offers guided setup for local voice and portrait engines.
 See [Mac desktop distribution](docs/MAC_DESKTOP.md) for builds, installation, data
 storage and the signing/notarization requirements for public distribution.
+
+See the [creative workflow guide](docs/CREATIVE_WORKFLOW_ENHANCEMENTS.md) for story planning, dynamic visual layouts, finished-MP4 review kits, production presets, verified stock-scene reuse and library organization. These source enhancements do not automatically update an installed desktop app.
+
+The [advanced presentation guide](docs/ADVANCED_PRESENTATIONS.md) covers local backgrounds/effects, flows and milestones, captured-data charts, image uploads/cropping, and representative frame previews.
