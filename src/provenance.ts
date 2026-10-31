@@ -48,6 +48,7 @@ export async function runtimeFiles(): Promise<string[]> {
     "editorial/job-lock",
     "editorial/manager",
     "editorial/panel",
+    "editorial/task-panel",
     "editorial/visual-panel",
     "editorial/providers",
     "editorial/settings",

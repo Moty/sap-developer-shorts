@@ -8,7 +8,7 @@ export function advancedVisualPanel(): string {
     ["editorial", "Editorial"],
   ];
   return `<details class="advanced-visual-controls" open>
-<summary>Presentation studio <span class="visual-summary-tag">Live preview</span></summary>
+<summary id="visual-studio-heading">Presentation studio <span class="visual-summary-tag">Live preview</span></summary>
 <p class="writing-help">Explore a look, see it on your scene, then apply it to your draft. Previews run locally without an AI request.</p>
 <div class="visual-studio-container"><div class="visual-studio">
 <aside class="visual-preview-pane" aria-label="Scene preview">

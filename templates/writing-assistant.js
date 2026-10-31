@@ -19,9 +19,110 @@
   let leaving = false;
   const knownModels = new Map();
   const actionButtons = [...panel.querySelectorAll("[data-writing-action]")];
+  const taskButtons = [...panel.querySelectorAll("[data-writing-task]")];
+  const tasks = {
+    ideas: {
+      title: "Find an angle",
+      result:
+        "Three hook, question and payoff options grounded in this story and its saved sources.",
+      next: "Use an angle in your story brief, then optionally ask Rewrite script for a proposal. Choosing an angle does not rewrite narration.",
+      style: "Idea wording style",
+      styleHelp:
+        "Guides the suggested hooks and payoffs for this request. Your narrator voice stays as selected.",
+      direction: "Optional angle direction",
+      placeholder:
+        "Find a surprising angle for a CAP developer who already understands data models.",
+      run: "Suggest 3 angles",
+      request:
+        "Uses this draft, its story brief, the selected style and instruction. One model request; no new source research.",
+    },
+    rewrite: {
+      title: "Rewrite script",
+      result:
+        "A proposal for the title, narration and on-screen text, with companion copy when returned.",
+      next: "Compare the proposal, apply it to your draft, then Save draft. Produce later to hear the new narration.",
+      style: "Narration wording style",
+      styleHelp:
+        "Guides this rewrite’s words. Your narrator voice and episode delivery format stay as selected.",
+      direction: "Optional rewrite direction",
+      placeholder:
+        "Make the opening sound like a colleague asking a useful question. Keep one light SAP joke.",
+      run: "Generate rewrite proposal",
+      request:
+        "Uses this draft, its story brief, the selected style and instruction. A rewrite uses a draft and one correction request.",
+    },
+    review: {
+      title: "Review script",
+      result:
+        "Feedback on wording, hook/payoff, clarity and alignment with the saved source pack. No automatic edits.",
+      next: "Edit the script yourself or use the feedback to prepare a rewrite. Produce’s Final AI review also checks companion and slide copy; video approval is separate.",
+      style: "Review against this style",
+      styleHelp:
+        "Sets the target for feedback on the text. This review does not hear your voice, inspect video or recheck live sources.",
+      direction: "Optional review focus",
+      placeholder:
+        "Check whether the opening is engaging and the explanation sounds natural to a developer.",
+      run: "Review this script",
+      request:
+        "Uses the current script, its brief, saved claims, target style and review focus. One model request; returns feedback only.",
+    },
+    presentation: {
+      title: "Design slides",
+      result:
+        "A proposal for visual headlines, layouts, colors, backgrounds and motion based on the current script.",
+      next: "Preview the slide proposal, apply the design, then Save draft. Its design is used in the deck and next MP4; narration and local images are retained.",
+      style: "Slide wording style",
+      styleHelp:
+        "Guides slide headlines and labels for this request. Narration, narrator voice and episode delivery format stay as selected.",
+      direction: "Optional slide-design direction",
+      placeholder:
+        "Use ocean colors, show the model-to-service connection as a flow, and keep the code readable.",
+      run: "Generate slide proposal",
+      request:
+        "Uses the current script, applied design, saved evidence, selected style and instruction. One model request; generates a design proposal, not a video.",
+    },
+  };
+  let selectedTask = null;
+  const taskInputs = new Map();
   const status = (message) => {
     el("status").textContent = message;
   };
+  function chooseTask(action) {
+    if (!tasks[action] || !el("run")) return;
+    if (selectedTask)
+      taskInputs.set(selectedTask, { style: el("style").value, direction: el("direction").value });
+    const fields = taskInputs.get(action) ?? { style: "conversational", direction: "" };
+    const task = tasks[action];
+    selectedTask = action;
+    if (!running) status("");
+    el("style").value = fields.style;
+    el("direction").value = fields.direction;
+    el("style-label").textContent = task.style;
+    el("style-help").textContent = task.styleHelp;
+    el("direction-label").textContent = task.direction;
+    el("direction").placeholder = task.placeholder;
+    el("task-result").textContent = task.result;
+    el("task-next").textContent = task.next;
+    el("request-help").textContent = task.request;
+    el("visual-hints").hidden = action !== "presentation";
+    el("run").textContent = task.run;
+    el("run").dataset.writingAction = action;
+    el("task-body").setAttribute("aria-labelledby", `writing-${action}`);
+    for (const button of taskButtons) {
+      const selected = button.dataset.writingTask === action;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    }
+    controls();
+  }
+  function matchingStory(job) {
+    const bridge = globalThis.shortsWritingEditor;
+    return (
+      editor &&
+      bridge?.context?.selector === job.selector &&
+      bridge?.context?.sourceHash === job.sourceHash
+    );
+  }
   const providerName = (provider) =>
     provider === "hyperspace" ? "SAP Hyperspace" : "Local · LM Studio";
   const stateLabels = { connected: "Connected", offline: "Not connected", checking: "Checking…" };
@@ -233,7 +334,7 @@
       row.className = "writing-history-row";
       para(
         row,
-        `${job.selector} · ${job.action} · ${job.model} · ${job.state} · ${new Date(job.startedAt).toLocaleString()}`,
+        `${job.selector} · ${tasks[job.action]?.title ?? job.action} · ${job.model} · ${job.state} · ${new Date(job.startedAt).toLocaleString()}`,
         "small",
       );
       const open = document.createElement("button");
@@ -254,7 +355,9 @@
   }
   function render(job) {
     displayedJobId = job.id;
-    status(`${job.model} · ${job.message}${job.warning ? ` ${job.warning}` : ""}`);
+    status(
+      `${tasks[job.action]?.title ?? job.action} · ${job.model} · ${job.message}${job.warning ? ` ${job.warning}` : ""}`,
+    );
     const duration = job.stages.reduce((sum, stage) => sum + stage.seconds, 0);
     const tokenCount = (field, label) => {
       const values = job.stages
@@ -274,6 +377,13 @@
     if (result.hidden) return;
     if (job.action === "ideas") {
       para(result, "Three possible angles", "h3");
+      const bridge = globalThis.shortsWritingEditor;
+      let ideaSnapshot;
+      try {
+        if (matchingStory(job)) ideaSnapshot = bridge.snapshot();
+      } catch {
+        /* Recovery/save is pending. */
+      }
       for (const idea of job.result.ideas) {
         const card = document.createElement("article");
         para(card, idea.title, "h3");
@@ -281,22 +391,38 @@
         para(card, `Question: ${idea.question}`);
         para(card, `Payoff: ${idea.payoff}`);
         if (idea.claimIds?.length) para(card, `Saved evidence: ${idea.claimIds.join(", ")}`);
-        if (editor) {
+        if (ideaSnapshot) {
           const use = document.createElement("button");
           use.type = "button";
-          use.textContent = "Use this direction";
+          use.textContent = "Use angle in brief";
           use.addEventListener("click", () => {
-            globalThis.shortsWritingEditor?.selectAngle?.(idea);
-            el("direction").value =
-              `${idea.title}. Hook: ${idea.hook}. ${idea.question} ${idea.payoff}`.slice(0, 1200);
-            status(
-              "Direction selected. Choose Draft / rewrite to generate a proposal with your selected provider.",
-            );
+            try {
+              if (
+                !matchingStory(job) ||
+                JSON.stringify(bridge.snapshot()) !== JSON.stringify(ideaSnapshot)
+              )
+                throw new Error(
+                  "Your draft changed since these ideas were shown. View this request again before choosing an angle.",
+                );
+              bridge.selectAngle(idea, ideaSnapshot);
+              ideaSnapshot = bridge.snapshot();
+              chooseTask("rewrite");
+              status(
+                "Angle added to the story brief. Rewrite script is selected; Generate rewrite proposal starts a separate request. Narration is unchanged.",
+              );
+            } catch (error) {
+              status(error.message);
+            }
           });
           card.append(use);
         }
         result.append(card);
       }
+      if (editor && !ideaSnapshot)
+        para(
+          result,
+          "Open this request’s matching script and source version to use an angle in its brief.",
+        );
     } else if (job.action === "final-review") {
       para(result, "Final text review", "h3");
       para(result, job.result.summary);
@@ -318,6 +444,56 @@
         para(card, issue.message);
         para(card, issue.suggestion);
         result.append(card);
+      }
+      para(
+        result,
+        "Feedback only. Edit the script yourself or prepare a rewrite; check source findings against the official sources.",
+      );
+      let reviewedSnapshot;
+      const bridge = globalThis.shortsWritingEditor;
+      try {
+        if (matchingStory(job)) reviewedSnapshot = bridge.snapshot();
+      } catch {
+        /* Recovery/save is pending. */
+      }
+      const wordingFeedback = job.result.issues.filter((issue) => issue.kind !== "source");
+      if (reviewedSnapshot && wordingFeedback.length) {
+        const use = document.createElement("button");
+        use.type = "button";
+        use.textContent = "Use wording feedback for a rewrite";
+        use.addEventListener("click", () => {
+          try {
+            if (
+              !matchingStory(job) ||
+              JSON.stringify(bridge.snapshot()) !== JSON.stringify(reviewedSnapshot)
+            )
+              throw new Error(
+                "Your draft changed since this feedback was shown. View the request again before preparing a rewrite.",
+              );
+            chooseTask("rewrite");
+            const previous = el("direction").value.trim();
+            const feedback = wordingFeedback
+              .map((issue) => `${issue.sceneId}: ${issue.suggestion}`)
+              .join("\n");
+            const combined = [
+              previous,
+              `Use this wording feedback; preserve the saved claims:\n${feedback}`,
+            ]
+              .filter(Boolean)
+              .join("\n");
+            if (combined.length > 1200)
+              throw new Error(
+                "This feedback is too long to add to your existing rewrite direction. Shorten that direction or copy the most useful suggestions.",
+              );
+            el("direction").value = combined;
+            status(
+              "Wording feedback added to Rewrite script. Review the direction and choose Generate rewrite proposal when ready. Source findings need a separate source check.",
+            );
+          } catch (error) {
+            status(error.message);
+          }
+        });
+        result.append(use);
       }
     } else if (job.action === "presentation") {
       para(result, "Presentation proposal · preview before applying", "h3");
@@ -533,6 +709,11 @@
       try {
         const bridge = globalThis.shortsWritingEditor;
         const snapshot = bridge.snapshot();
+        const intent = {
+          action: button.dataset.writingAction,
+          style: el("style").value,
+          instruction: el("direction").value.trim(),
+        };
         const saved = await request("status");
         if (saved.settingsHash !== settingsHash) {
           adopt(saved);
@@ -545,9 +726,7 @@
           requestId: crypto.randomUUID(),
           ...bridge.context,
           snapshot,
-          action: button.dataset.writingAction,
-          style: el("style").value,
-          instruction: el("direction").value.trim(),
+          ...intent,
           settingsHash: saved.settingsHash,
           allowRemote: saved.settings.provider === "hyperspace",
         });
@@ -561,11 +740,39 @@
       }
     });
   if (editor) {
+    if (el("run")) {
+      taskInputs.set("rewrite", { style: el("style").value, direction: el("direction").value });
+      chooseTask("rewrite");
+    }
+    for (const [index, button] of taskButtons.entries()) {
+      button.addEventListener("click", () => chooseTask(button.dataset.writingTask));
+      button.addEventListener("keydown", (event) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const position =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? taskButtons.length - 1
+              : (index + (event.key === "ArrowRight" ? 1 : -1) + taskButtons.length) %
+                taskButtons.length;
+        chooseTask(taskButtons[position].dataset.writingTask);
+        taskButtons[position].focus();
+      });
+    }
     for (const button of panel.querySelectorAll("[data-visual-direction]"))
       button.addEventListener("click", () => {
-        el("direction").value = button.dataset.visualDirection;
+        if (selectedTask !== "presentation") return;
+        const combined = [el("direction").value.trim(), button.dataset.visualDirection]
+          .filter(Boolean)
+          .join("\n");
+        if (combined.length > 1200) {
+          status("Shorten the current direction before adding another hint.");
+          return;
+        }
+        el("direction").value = combined;
         status(
-          "Visual direction selected. Choose Generate / enhance presentation to create a proposal.",
+          "Hint added to the slide direction. Generate slide proposal starts a request; the hint alone changes no slides.",
         );
       });
     el("cancel").addEventListener("click", async () => {

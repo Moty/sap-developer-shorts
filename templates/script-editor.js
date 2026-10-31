@@ -298,7 +298,14 @@
   let recoveredDraft = false;
   let editorEnabled = false;
   globalThis.shortsWritingEditor = {
-    selectAngle(idea) {
+    selectAngle(idea, expected) {
+      if (
+        !editorEnabled ||
+        pendingRecovery ||
+        saving ||
+        (expected && JSON.stringify(writingSnapshot()) !== JSON.stringify(expected))
+      )
+        throw new Error("Your draft changed. View the ideas again before choosing an angle.");
       if (!byId("writing-angle")) return;
       byId("writing-angle").value = `${idea.title}: ${idea.hook}`.slice(0, 240);
       byId("writing-viewer-problem").value = idea.question.slice(0, 240);

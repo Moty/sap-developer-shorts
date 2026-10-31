@@ -18,19 +18,48 @@ not automatically research new sources, generate speech, render a video, or publ
 4. Use **Check connection & refresh models**, choose an advertised chat model,
    and **Save writing preference**. Model IDs are preserved exactly, including
    suffixes such as `[1m]`. Embedding/speech models cannot be used as writers.
-5. Open a short's editor, choose **Script**, and expand **Writing & presentation assistant**.
-   A status chip shows the saved engine and whether it is connected; use
-   **Change in Settings ↗** to switch. Request buttons stay disabled, with the
-   reason shown beneath them, until a compatible model is connected. When Hyperspace
-   is selected, a visible notice explains its possible costs and the text sent to
-   the service; no confirmation checkbox is required. Select a wording style and,
-   optionally, a concrete direction. Choose
-   **Suggest 3 angles**, **Draft / rewrite script**, **Review current script**, or
-   **Generate / enhance presentation**. For a design, enter a visual direction,
-   preview the proposal, compare its headlines, and **Apply presentation design**.
-6. Compare a rewrite with the current title, headlines and narration, then choose
-   **Apply wording to this editor**. Review it and use the existing **Save draft**
-   action when ready. Applying wording alone does not save or produce an episode.
+5. Open a short’s **Script → Writing & visuals** section. Use **AI tasks** in
+   the local jump links to reach **What would you like help with?** directly.
+   The engine chip shows the saved provider/model; **Change in Settings ↗** switches it.
+6. Select one task, choose its target style and optional instruction, then use its
+   primary request button. The four tasks are independent, with no required order.
+   Selection and field edits never submit inference. The request button stays
+   disabled with an explanation until a compatible model is connected.
+7. Review the result below. Applying a rewrite or slide proposal changes the
+   editable draft; **Save draft** keeps a version. **Produce** later generates
+   narration/video. Hyperspace’s cost notice stays visible without a repeated
+   confirmation checkbox.
+
+## What each AI task does
+
+| Task | Result | How it applies |
+| --- | --- | --- |
+| Find an angle | Three hook/question/payoff options from the existing story and source pack | **Use angle in brief** updates the angle/problem/takeaway fields immediately and selects Rewrite; it does not rewrite narration or run another request. |
+| Rewrite script | Proposed title, narration/turn text, scene overlays and optionally companion copy | Compare current/proposed text, then **Apply wording to this editor** and **Save draft**. Existing voices, photos, source records and custom slide design are retained. |
+| Review script | Feedback on text, clarity, delivery and saved-source alignment | Read and edit manually, or **Use wording feedback for a rewrite** to prepare an optional new request. Source findings require source review and are excluded from that shortcut. |
+| Design slides | Proposed visual headlines, theme, background/effects, layouts and supported captured charts | Preview, compare and **Apply presentation design**, then **Save draft**. Narration and local image choices remain intact. Manual Presentation studio settings must be applied to the draft before this request can use them. |
+
+The style field is labelled for the selected task: idea wording, narration wording,
+review target or slide wording. It guides text for that request; it does not change
+voice identity, voice emotion, speaker assignments or the episode’s delivery format.
+Each task keeps its own style/direction while switching tools in this open page.
+These request fields are not saved episode settings and reset when the page reloads.
+The click freezes task, style, instruction and draft before checking saved settings.
+Changing tools or fields afterward cannot alter an already-started request.
+
+**Show steps / Compare ideas / Strong callout** appear only for Design slides. They
+append a hint to its optional instruction without submitting or applying anything.
+They preserve existing instruction text and refuse to append beyond its size limit.
+
+Results and history keep the completed request’s action label even after choosing
+another tool. Idea/feedback shortcuts are available only for a matching story/source
+version and reject a draft that changed since the result was displayed. They never
+silently run a second request. Applying a wording proposal retains an existing custom
+visual design; use Design slides if the new story also needs new slide headlines.
+
+Review script is optional text feedback. **Final AI review** in Produce checks the
+script, companion post and slide wording together. Neither review hears audio,
+inspects rendered pixels, rechecks live sources or grants final MP4 approval.
 
 Setup is available entirely through the UI. There is no terminal command needed
 to select a provider, switch models, replace/remove a proxy key, or run a writing
@@ -256,3 +285,19 @@ formatting/lint errors in news code/content and additional local user content;
 those files were not reformatted as part of this feature. The content-contract
 test now requires the four seed episodes and unique IDs while allowing additional
 valid saved episodes, so a populated studio can run the suite.
+
+## Task-flow verification
+
+The task-selector refinement passed 437 workflow tests, 18 desktop tests, TypeScript
+build, scoped lint and content validation. A fresh portable studio package was
+verified. Astra independently reviewed the implementation and ran 50 focused tests.
+Regression checks exercise separate task fields, no submission on selection/hints,
+frozen request inputs, settings/cost guards, source-bound/stale handoffs and brief-only
+angle application. Keyboard tabs and direct links to local design, the story brief
+and AI tasks are supported.
+
+Live browser checks switched through all four tasks, added a design hint, restored
+previous rewrite fields and confirmed episode fields were unchanged. No paid/model
+request, episode production or installer was created for those checks. These changes
+are in the local source studio; existing installed applications require a later
+installer update.

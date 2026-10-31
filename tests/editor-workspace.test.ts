@@ -102,6 +102,9 @@ async function workspace(hash = "") {
     "editor-next",
     "editor-script-start",
     "presentation",
+    "visual-studio-heading",
+    "writing-brief-heading",
+    "writing-task-heading",
     "voice-heading",
     "companion-post-heading",
     "final-review-heading",
@@ -277,6 +280,15 @@ test("deep links and validation jumps reveal the right view without breaking fie
   const malformed = await workspace("#%E0%A4");
   assert.equal(malformed.cards[0]?.hidden, false);
   assert.equal(malformed.status().step, "script");
+  for (const fragment of [
+    "visual-studio-heading",
+    "writing-brief-heading",
+    "writing-task-heading",
+  ]) {
+    const linked = await workspace(`#${fragment}`);
+    assert.equal(linked.id("view-writing").hidden, false);
+    assert.equal(linked.status().focused, fragment);
+  }
 });
 
 test("mobile outline and evidence drawer dismiss cleanly and restore keyboard focus", async () => {

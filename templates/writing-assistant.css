@@ -88,7 +88,7 @@
   opacity: 0.5;
   cursor: default;
 }
-.writing-panel #writing-rewrite,
+.writing-panel #writing-run,
 .writing-panel .writing-apply {
   background: #245a47;
   color: white;
@@ -406,6 +406,124 @@
   }
 }
 
+.advanced-visual-controls button {
+  margin: 10px 8px 8px 0;
+  padding: 10px 14px;
+  border: 1px solid #b8cdc0;
+  border-radius: 8px;
+  background: white;
+  color: #234e40;
+  cursor: pointer;
+}
+.writing-request-fields small {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #77877d;
+}
+.advanced-visual-controls label small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #718274;
+}
+/* Each AI task is independent; task selection and request submission are separate. */
+.writing-task-heading h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.writing-task-heading p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #62766b;
+}
+
+.writing-tasks {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.writing-panel .writing-tasks button {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #d7e2d8;
+  background: #fff;
+  color: #4d6859;
+  text-align: left;
+  min-width: 0;
+}
+.writing-panel .writing-tasks button strong {
+  font-size: 12px;
+}
+.writing-panel .writing-tasks button small {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #7b8b80;
+}
+.writing-panel .writing-tasks button[aria-selected="true"] {
+  border-color: #397255;
+  background: #eaf2e6;
+  box-shadow: inset 0 0 0 1px #397255;
+  color: #234e3d;
+}
+.writing-task-scope {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  padding: 15px 0;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #e2e9df;
+}
+.writing-task-scope span {
+  font-size: 10px;
+  font-weight: 700;
+  color: #7b8c7e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.writing-task-scope p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 5px 0 0;
+}
+.writing-request-fields {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(0, 1.4fr);
+  gap: 18px;
+  margin: 18px 0;
+  align-items: start;
+}
+
+.writing-run-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 16px 0 8px;
+}
+.writing-run-row .writing-help {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: 11px;
+}
+.writing-request-boundary {
+  color: #788779;
+  font-size: 11px;
+}
+@media (max-width: 800px) {
+  .writing-tasks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .writing-request-fields,
+  .writing-task-scope {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+
 /* A compact visual workbench, with its preview kept beside the active controls. */
 .advanced-visual-controls {
   border: 1px solid #c2d4ca;
@@ -546,15 +664,7 @@
   background: transparent;
   cursor: ew-resize;
 }
-.advanced-visual-controls button {
-  margin: 10px 8px 8px 0;
-  padding: 10px 14px;
-  border: 1px solid #b8cdc0;
-  border-radius: 8px;
-  background: white;
-  color: #234e40;
-  cursor: pointer;
-}
+
 .visual-preview-actions {
   display: flex;
   flex-wrap: wrap;
@@ -616,11 +726,6 @@
   border-radius: 8px;
   background: white;
   font-size: 12px;
-}
-.advanced-visual-controls label small {
-  font-size: 10px;
-  font-weight: 400;
-  color: #718274;
 }
 
 .advanced-visual-controls .visual-upload-panel {
@@ -777,4 +882,25 @@
   .visual-control-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.writing-jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 18px;
+}
+.writing-jumps a {
+  font-size: 11px;
+  color: #3f6a53;
+  padding: 7px 10px;
+  border: 1px solid #dce7da;
+  border-radius: 6px;
+  text-decoration: none;
+  background: #f6f9f3;
+}
+#visual-studio-heading,
+#writing-brief-heading,
+#writing-task-heading {
+  scroll-margin-top: calc(var(--studio-bar-height, 76px) + 20px);
 }

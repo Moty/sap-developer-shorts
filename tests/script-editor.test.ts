@@ -359,6 +359,10 @@ async function workshop(
       context as unknown as {
         shortsWritingEditor: {
           snapshot(): WritingSnapshot;
+          selectAngle(
+            idea: { title: string; hook: string; question: string; payoff: string },
+            expected: WritingSnapshot,
+          ): void;
           apply(proposal: WritingProposal, expected: WritingSnapshot): void;
           applyFinal(snapshot: WritingSnapshot, expected: WritingSnapshot): void;
           applyDesign(proposal: PresentationDesign, expected: WritingSnapshot): void;
@@ -1446,4 +1450,28 @@ test("preset pronunciation survives recovery and Start with original resets it",
   });
   assert.doesNotThrow(() => malformed.update());
   assert.equal(malformed.get("download-script").disabled, true);
+});
+
+test("using an idea updates only the brief and rejects a stale editor snapshot", async () => {
+  const ui = await workshop("CAP-01@casual-v2");
+  const before = ui.writingEditor.snapshot();
+  const narration = ui.get("narration-0").value;
+  const voice = ui.get("speaker-voice-0").value;
+  const originalAngle = ui.get("writing-angle").value;
+  const idea = {
+    title: "The missing service",
+    hook: "Where is the endpoint?",
+    question: "What exposes the model?",
+    payoff: "Add a service projection.",
+  };
+  ui.get("writing-angle").value = "My newer choice";
+  assert.throws(() => ui.writingEditor.selectAngle(idea, before), /draft changed/);
+  assert.equal(ui.get("writing-angle").value, "My newer choice");
+  ui.get("writing-angle").value = originalAngle;
+  ui.writingEditor.selectAngle(idea, before);
+  assert.equal(ui.get("writing-angle").value, "The missing service: Where is the endpoint?");
+  assert.equal(ui.get("writing-viewer-problem").value, idea.question);
+  assert.equal(ui.get("writing-takeaway").value, idea.payoff);
+  assert.equal(ui.get("narration-0").value, narration);
+  assert.equal(ui.get("speaker-voice-0").value, voice);
 });

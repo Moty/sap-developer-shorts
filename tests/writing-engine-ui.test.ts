@@ -69,6 +69,13 @@ class Fake {
   disabled = false;
   checked = false;
   className = "";
+  placeholder = "";
+  tabIndex = 0;
+  attributes = new Map<string, string>();
+  setAttribute(name: string, value: string) {
+    this.attributes.set(name, value);
+  }
+  focus() {}
   dataset: Record<string, string> = {};
   children: Fake[] = [];
   listeners = new Map<string, () => unknown>();
@@ -113,14 +120,36 @@ async function editorHarness(
     named.set(id, item);
     return item;
   };
-  for (const id of ["status", "usage", "result", "history", "hint", "cost", "cancel"]) node(id);
+  for (const id of [
+    "status",
+    "usage",
+    "result",
+    "history",
+    "hint",
+    "cost",
+    "cancel",
+    "style-label",
+    "style-help",
+    "direction-label",
+    "task-result",
+    "task-next",
+    "request-help",
+    "visual-hints",
+    "task-body",
+  ])
+    node(id);
   node("direction");
   node("style").value = "conversational";
-  const buttons = ["ideas", "rewrite", "review", "presentation"].map((action) => {
+  const tasks = ["ideas", "rewrite", "review", "presentation"].map((action) => {
     const button = node(action);
-    button.dataset.writingAction = action;
+    button.dataset.writingTask = action;
     return button;
   });
+  const run = node("run");
+  run.dataset.writingAction = "rewrite";
+  const hint = node("hint-steps");
+  hint.dataset.visualDirection = "Explain the mechanism in steps.";
+  const hints = [hint];
   const chip = new Fake();
   const items = new Fake();
   const note = new Fake();
@@ -131,6 +160,8 @@ async function editorHarness(
   const server = {
     settings,
     hash: "a".repeat(64),
+    nextJob: null as Record<string, unknown> | null,
+    statusGate: null as Promise<void> | null,
     online: !offline,
     jobs: runningAtStart
       ? [{ id: "running-job", state: "RUNNING", stages: [], action: "ideas", model: "m" }]
@@ -142,13 +173,15 @@ async function editorHarness(
     const reply = (body: unknown, ok = true) => ({ ok, json: async () => body });
     if (url === "/api/local-voices/session") return reply({});
     if (init?.method === "POST") posts.push({ path, body: JSON.parse(init.body ?? "{}") });
-    if (path === "status")
+    if (path === "status") {
+      if (server.statusGate) await server.statusGate;
       return reply({
         settings: server.settings,
         settingsHash: server.hash,
         jobs: server.jobs,
         keyConfigured: true,
       });
+    }
     if (path === "catalog") {
       const current = server.settings as Record<string, { model: string }> & {
         provider: "local" | "hyperspace";
@@ -161,9 +194,20 @@ async function editorHarness(
       });
     }
     if (path === "jobs")
-      return reply({ id: "job-1", state: "FAILED", stages: [], message: "stopped", model: "m" });
+      return reply(
+        server.nextJob ?? {
+          id: "job-1",
+          state: "FAILED",
+          action: JSON.parse(init?.body ?? "{}").action,
+          stages: [],
+          message: "stopped",
+          model: "m",
+        },
+      );
     return reply({ error: "unexpected" }, false);
   };
+  let storySnapshot: Record<string, unknown> = { title: "x", scenes: [] };
+  let anglesUsed = 0;
   const context = {
     document: {
       querySelector: () => panel,
@@ -177,15 +221,23 @@ async function editorHarness(
       pageEvents.set(name, callback),
     shortsWritingEditor: {
       context: { selector: "NEWS-06@draft", sourceHash: "b".repeat(64) },
-      snapshot: () => ({ title: "x", scenes: [] }),
+      snapshot: () => structuredClone(storySnapshot),
+      selectAngle: (idea: unknown) => {
+        anglesUsed++;
+        storySnapshot = { ...storySnapshot, brief: idea };
+      },
     },
   };
   panel.queryAll = (selector: string) =>
     selector === "[data-writing-action]"
-      ? buttons
-      : selector.startsWith("[data-engine-chip]")
-        ? [chip]
-        : [];
+      ? [run]
+      : selector === "[data-writing-task]"
+        ? tasks
+        : selector === "[data-visual-direction]"
+          ? hints
+          : selector.startsWith("[data-engine-chip]")
+            ? [chip]
+            : [];
   runInNewContext(
     await readFile(resolve(projectRoot, "templates/writing-assistant.js"), "utf8"),
     context,
@@ -194,7 +246,25 @@ async function editorHarness(
     for (let index = 0; index < 20; index++) await new Promise((done) => setImmediate(done));
   };
   await settle();
-  return { named, buttons, items, note, posts, hash: server.hash, server, settle, pageEvents };
+  const descendants = (item: Fake): Fake[] => [item, ...item.children.flatMap(descendants)];
+  return {
+    named,
+    tasks,
+    run,
+    hints,
+    items,
+    note,
+    posts,
+    hash: server.hash,
+    server,
+    settle,
+    pageEvents,
+    descendants,
+    anglesUsed: () => anglesUsed,
+    changeSnapshot: () => {
+      storySnapshot.title = "changed";
+    },
+  };
 }
 
 const hyperspace = {
@@ -212,10 +282,11 @@ test("the editor shows Hyperspace cost notice and permits repeated requests with
     ["gemini-3.8-flash", "SAP Hyperspace", "May incur cost", "Connected"],
   );
   assert.equal(ui.named.get("cost")?.hidden, false);
-  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.ok(!ui.run.disabled);
   assert.equal(ui.named.get("hint")?.hidden, true);
 
-  const request = ui.buttons[0];
+  await ui.tasks[0]?.click();
+  const request = ui.run;
   assert.ok(request);
 
   await request.click();
@@ -227,8 +298,9 @@ test("the editor shows Hyperspace cost notice and permits repeated requests with
   assert.equal(job.body.allowRemote, true);
   assert.equal(job.body.action, "ideas");
   assert.equal(ui.named.get("cost")?.hidden, false);
-  assert.ok(ui.buttons.every((button) => !button.disabled));
-  await ui.buttons[3]?.click();
+  assert.ok(!ui.run.disabled);
+  await ui.tasks[3]?.click();
+  await ui.run.click();
   await ui.settle();
   const requests = ui.posts.filter((post) => post.path === "jobs");
   assert.equal(requests.length, 2);
@@ -246,8 +318,8 @@ test("a local engine needs no consent and the chip says it is free", async () =>
     ["gemma-4-31b-it", "Local · LM Studio", "Free", "Connected"],
   );
   assert.equal(ui.named.get("cost")?.hidden, true);
-  assert.ok(ui.buttons.every((button) => !button.disabled));
-  const request = ui.buttons[1];
+  assert.ok(!ui.run.disabled);
+  const request = ui.run;
   assert.ok(request);
   await request.click();
   await ui.settle();
@@ -264,7 +336,8 @@ test("a preference changed in another tab repaints the cost notice and requires 
   ui.server.settings = switched;
   ui.server.hash = "c".repeat(64);
 
-  const request = ui.buttons[0];
+  await ui.tasks[0]?.click();
+  const request = ui.run;
   assert.ok(request);
   await request.click();
   await ui.settle();
@@ -276,7 +349,7 @@ test("a preference changed in another tab repaints the cost notice and requires 
     ["claude-x", "SAP Hyperspace", "May incur cost", "Connected"],
   );
   assert.equal(ui.named.get("cost")?.hidden, false);
-  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.ok(!ui.run.disabled);
   assert.equal(ui.named.get("hint")?.hidden, true);
   await request.click();
   await ui.settle();
@@ -293,7 +366,8 @@ test("changing the saved Hyperspace model blocks the stale action and keeps the 
     hyperspace: { ...hyperspace.hyperspace, model: "other-model" },
   };
   ui.server.hash = "d".repeat(64);
-  await ui.buttons[2]?.click();
+  await ui.tasks[2]?.click();
+  await ui.run.click();
   await ui.settle();
   assert.ok(!ui.posts.some((post) => post.path === "jobs"));
   assert.equal(ui.named.get("cost")?.hidden, false);
@@ -302,25 +376,25 @@ test("changing the saved Hyperspace model blocks the stale action and keeps the 
 
 test("returning from Settings refreshes an offline editor without submitting a model job", async () => {
   const ui = await editorHarness({ ...hyperspace, provider: "local" }, true);
-  assert.ok(ui.buttons.every((button) => button.disabled));
+  assert.ok(ui.run.disabled);
   ui.pageEvents.get("pagehide")?.({});
   ui.server.online = true;
   ui.server.hash = "b".repeat(64);
   ui.pageEvents.get("pageshow")?.({ persisted: true });
   await ui.settle();
-  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.ok(!ui.run.disabled);
   assert.equal(ui.named.get("hint")?.hidden, true);
   assert.equal(ui.posts.filter((post) => post.path === "jobs").length, 0);
 });
 
 test("a writing job completed while away does not leave restored editor actions disabled", async () => {
   const ui = await editorHarness({ ...hyperspace, provider: "local" }, false, true);
-  assert.ok(ui.buttons.every((button) => button.disabled));
+  assert.ok(ui.run.disabled);
   ui.pageEvents.get("pagehide")?.({});
   ui.server.jobs = [];
   ui.pageEvents.get("pageshow")?.({ persisted: true });
   await ui.settle();
-  assert.ok(ui.buttons.every((button) => !button.disabled));
+  assert.ok(!ui.run.disabled);
   assert.equal(ui.posts.filter((post) => post.path === "jobs").length, 0);
 });
 
@@ -400,4 +474,148 @@ test("final review refreshes a changed provider and shows its cost notice before
   assert.equal(ui.posts.length, 1);
   assert.equal(ui.posts[0]?.settingsHash, "c".repeat(64));
   assert.equal(ui.posts[0]?.allowRemote, true);
+});
+
+test("AI task selection preserves separate directions/styles and only Run submits", async () => {
+  const ui = await editorHarness(hyperspace);
+  assert.equal(ui.run.dataset.writingAction, "rewrite");
+  const style = ui.named.get("style"),
+    direction = ui.named.get("direction");
+  assert.ok(style && direction);
+  style.value = "comic";
+  direction.value = "Make the narration playful.";
+  await ui.tasks[3]?.click();
+  assert.equal(style.value, "conversational", "a comic rewrite style cannot leak into design");
+  assert.equal(direction.value, "");
+  assert.match(ui.named.get("style-help")?.textContent ?? "", /Narration.*stay as selected/);
+  assert.equal(ui.named.get("visual-hints")?.hidden, false);
+  direction.value = "Use ocean colors.";
+  await ui.hints[0]?.click();
+  assert.match(direction.value, /^Use ocean colors\.\nExplain/);
+  await ui.tasks[2]?.click();
+  assert.equal(direction.value, "");
+  assert.match(ui.named.get("task-result")?.textContent ?? "", /No automatic edits/);
+  assert.equal(ui.named.get("visual-hints")?.hidden, true);
+  await ui.tasks[1]?.click();
+  assert.equal(style.value, "comic");
+  assert.equal(direction.value, "Make the narration playful.");
+  assert.equal(ui.posts.filter((post) => post.path === "jobs").length, 0);
+  await ui.run.click();
+  const job = ui.posts.find((post) => post.path === "jobs");
+  assert.equal(job?.body.action, "rewrite");
+  assert.equal(job?.body.style, "comic");
+  assert.equal(job?.body.instruction, "Make the narration playful.");
+  await ui.tasks[3]?.click();
+  assert.match(direction.value, /^Use ocean colors\.\nExplain/);
+});
+
+test("Run freezes the selected task, style, direction and draft before the asynchronous settings check", async () => {
+  const ui = await editorHarness(hyperspace);
+  let release = () => {};
+  ui.server.statusGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const style = ui.named.get("style"),
+    direction = ui.named.get("direction");
+  assert.ok(style && direction);
+  style.value = "professional";
+  direction.value = "Keep this exact request.";
+  const pending = ui.run.click();
+  await ui.settle();
+  await ui.tasks[3]?.click();
+  style.value = "comic";
+  direction.value = "A later slide instruction.";
+  ui.changeSnapshot();
+  release();
+  await pending;
+  const job = ui.posts.find((post) => post.path === "jobs");
+  assert.ok(job);
+  assert.equal(job.body.action, "rewrite");
+  assert.equal(job.body.style, "professional");
+  assert.equal(job.body.instruction, "Keep this exact request.");
+  assert.equal((job.body.snapshot as { title: string }).title, "x");
+  assert.equal(
+    ui.run.dataset.writingAction,
+    "presentation",
+    "next task selection remains available",
+  );
+});
+
+test("idea and feedback handoffs prepare a separate rewrite and reject foreign or changed stories", async () => {
+  const job = (action: string, result: unknown) => ({
+    id: "job-1",
+    selector: "NEWS-06@draft",
+    sourceHash: "b".repeat(64),
+    state: "SUCCEEDED",
+    action,
+    result,
+    stages: [],
+    model: "m",
+    message: "Complete",
+  });
+  const button = (ui: Awaited<ReturnType<typeof editorHarness>>, label: string) => {
+    const root = ui.named.get("result");
+    assert.ok(root);
+    const found = ui.descendants(root).find((node) => node.textContent === label);
+    assert.ok(found, label);
+    return found;
+  };
+  const idea = {
+    title: "A useful mechanism",
+    hook: "Where is the service?",
+    question: "What is missing?",
+    payoff: "Expose the projection.",
+  };
+  const ui = await editorHarness(hyperspace);
+  ui.server.nextJob = job("ideas", { ideas: [idea] });
+  await ui.tasks[0]?.click();
+  await ui.run.click();
+  await button(ui, "Use angle in brief").click();
+  assert.equal(ui.anglesUsed(), 1);
+  assert.equal(ui.run.dataset.writingAction, "rewrite");
+  assert.equal(
+    ui.posts.filter((post) => post.path === "jobs").length,
+    1,
+    "handoff does not start generation",
+  );
+  ui.changeSnapshot();
+  await button(ui, "Use angle in brief").click();
+  assert.equal(ui.anglesUsed(), 1);
+  assert.match(ui.named.get("status")?.textContent ?? "", /draft changed/);
+
+  const foreign = await editorHarness(hyperspace);
+  foreign.server.nextJob = { ...job("ideas", { ideas: [idea] }), sourceHash: "c".repeat(64) };
+  await foreign.tasks[0]?.click();
+  await foreign.run.click();
+  const foreignRoot = foreign.named.get("result");
+  assert.ok(foreignRoot);
+  assert.ok(
+    !foreign.descendants(foreignRoot).some((node) => node.textContent === "Use angle in brief"),
+  );
+
+  const review = await editorHarness(hyperspace);
+  review.server.nextJob = job("review", {
+    summary: "Improve the opening.",
+    issues: [
+      {
+        sceneId: "hook",
+        kind: "clarity",
+        message: "Abstract",
+        suggestion: "Start with the missing endpoint.",
+      },
+      {
+        sceneId: "overall",
+        kind: "source",
+        message: "Availability",
+        suggestion: "INDEPENDENT SOURCE CHECK",
+      },
+    ],
+  });
+  await review.tasks[2]?.click();
+  await review.run.click();
+  await button(review, "Use wording feedback for a rewrite").click();
+  assert.equal(review.run.dataset.writingAction, "rewrite");
+  assert.match(review.named.get("direction")?.value ?? "", /missing endpoint/);
+  assert.doesNotMatch(review.named.get("direction")?.value ?? "", /INDEPENDENT SOURCE CHECK/);
+  assert.equal(review.posts.filter((post) => post.path === "jobs").length, 1);
 });

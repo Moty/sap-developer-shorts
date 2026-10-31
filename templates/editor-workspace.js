@@ -169,7 +169,15 @@
     if (scene) activate("scene", Number(scene[1] ?? scene[2] ?? scene[3] ?? scene[4]), false);
     else if (["editor-script-start", "variant-name", "draft-title"].includes(id))
       activate("details", state.scene, false);
-    else if (["presentation", "presentation-design"].includes(id))
+    else if (
+      [
+        "presentation",
+        "presentation-design",
+        "visual-studio-heading",
+        "writing-brief-heading",
+        "writing-task-heading",
+      ].includes(id)
+    )
       activate("writing", state.scene, false);
     else if (id === "voice-heading" || id.startsWith("speaker-"))
       activate("voice", state.scene, false);
