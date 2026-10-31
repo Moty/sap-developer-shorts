@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { readContentEpisode } from "./contracts.js";
+import { handleCreatorApi } from "./creator-api.js";
 import { hash } from "./digest.js";
 import { handleWritingApi } from "./editorial/api.js";
 import type { WritingManager } from "./editorial/manager.js";
@@ -149,6 +150,16 @@ export async function handleApiRequest(
     sendJson(response, 403, { error: "Save changes from this local studio using JSON." });
     return true;
   }
+  if (
+    await handleCreatorApi(request, response, url, {
+      ...(options.privateVoiceToken ? { token: options.privateVoiceToken } : {}),
+      ...(options.artifactRoot ? { artifactRoot: options.artifactRoot } : {}),
+      ...(options.libraryDirectory ? { directory: options.libraryDirectory() } : {}),
+      readBody: readJsonBody,
+      send: sendJson,
+    })
+  )
+    return true;
   if (
     await handleWritingApi(request, response, url, {
       ...(options.editorial ? { manager: options.editorial } : {}),

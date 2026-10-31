@@ -258,6 +258,18 @@
   const input = document.querySelector("#episode-search");
   const stories = [...document.querySelectorAll(".story")];
   const lib = globalThis.shortsStories;
+  const organizationView = document.querySelector("#creator-library-view");
+  const organizationFavorites = document.querySelector("#creator-favorites");
+  const organizationSeries = document.querySelector("#creator-series");
+  const organizationMatch = (story) =>
+    (!organizationView ||
+      organizationView.value === "all" ||
+      (organizationView.value === "archived"
+        ? story.dataset.archived === "true"
+        : story.dataset.archived !== "true")) &&
+    (!organizationFavorites?.checked || story.dataset.favorite === "true") &&
+    (!organizationSeries?.value || story.dataset.series === organizationSeries.value);
+
   const buttons = [...document.querySelectorAll("[data-format]")];
   const clear = document.querySelector("#clear-search");
   const status = document.querySelector("#filter-status");
@@ -340,6 +352,7 @@
     pageSize: 10,
     scrollTarget: document.querySelector("#episodes"),
     match: (story) =>
+      organizationMatch(story) &&
       (format === "all" || story.dataset.kind === format) &&
       (stage === "all" || story.dataset.stages.split(" ").includes(stage)) &&
       (!attentionFilter?.checked || story.dataset.attention === "true"),
@@ -378,9 +391,11 @@
     for (const count of document.querySelectorAll("[data-stage-count]"))
       count.textContent = String(
         count.dataset.stageCount === "all"
-          ? stories.length
-          : stories.filter((story) =>
-              story.dataset.stages.split(" ").includes(count.dataset.stageCount),
+          ? stories.filter(organizationMatch).length
+          : stories.filter(
+              (story) =>
+                organizationMatch(story) &&
+                story.dataset.stages.split(" ").includes(count.dataset.stageCount),
             ).length,
       );
     clear.hidden = !input.value;
@@ -398,11 +413,13 @@
     lib.renderNeedsYou(
       section,
       lib.needsYou(
-        stories.map((story) => ({
-          id: story.dataset.story,
-          title: story.dataset.title,
-          versions: versionRows(story).map(lib.readVersion),
-        })),
+        stories
+          .filter((story) => story.dataset.archived !== "true")
+          .map((story) => ({
+            id: story.dataset.story,
+            title: story.dataset.title,
+            versions: versionRows(story).map(lib.readVersion),
+          })),
         { ideas },
       ),
     );
@@ -445,6 +462,257 @@
     update(true);
     input.focus();
   });
+  if (organizationView) {
+    const organizationStatus = document.querySelector("#creator-library-status");
+    let metadata = {};
+    let organizationBusy = false;
+    let organizationLoaded = false;
+    const organizationControls = [
+      ...document.querySelectorAll(
+        "[data-story-favorite], [data-story-archive], [data-story-series-save]",
+      ),
+    ];
+    for (const control of organizationControls) control.disabled = true;
+    async function creatorRequest(path, body) {
+      await fetch("/api/local-voices/session");
+      const response = await fetch(
+        `/api/creator/${path}`,
+        body
+          ? {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            }
+          : {},
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Studio action unavailable.");
+      return data;
+    }
+    function applyOrganization(data) {
+      const previousMetadata = metadata;
+      metadata = data.stories;
+      for (const story of stories) {
+        const meta = metadata[story.dataset.story] ?? {
+          archived: false,
+          favorite: false,
+          series: "",
+        };
+        story.dataset.archived = String(meta.archived);
+        story.dataset.favorite = String(meta.favorite);
+        story.dataset.series = meta.series;
+        const favorite = story.querySelector("[data-story-favorite]");
+        if (favorite) {
+          favorite.textContent = meta.favorite ? "★ Favorited" : "☆ Favorite";
+          favorite.setAttribute("aria-pressed", String(meta.favorite));
+        }
+        const archive = story.querySelector("[data-story-archive]");
+        if (archive) archive.textContent = meta.archived ? "Restore story" : "Archive story";
+        const series = story.querySelector("[data-story-series]");
+        if (
+          series &&
+          (series.value === (previousMetadata[story.dataset.story]?.series ?? "") ||
+            series.value === meta.series)
+        )
+          series.value = meta.series;
+        const label = story.querySelector("[data-story-meta-label]");
+        if (label)
+          label.textContent = [
+            meta.archived ? "Archived · files kept" : "",
+            meta.favorite ? "Favorite" : "",
+            meta.series,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+      }
+      const previous = organizationSeries.value;
+      organizationSeries.replaceChildren();
+      for (const name of [
+        "",
+        ...new Set(
+          Object.values(metadata)
+            .map((item) => item.series)
+            .filter(Boolean),
+        ),
+      ].sort()) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name || "All series";
+        organizationSeries.append(option);
+      }
+      organizationSeries.value = Array.from(organizationSeries.options).some(
+        (item) => item.value === previous,
+      )
+        ? previous
+        : "";
+      update(true);
+    }
+    for (const control of [organizationView, organizationFavorites, organizationSeries])
+      control.addEventListener("change", () => update(true));
+    document.querySelector("#reset-filters").addEventListener("click", () => {
+      organizationView.value = "active";
+      organizationFavorites.checked = false;
+      organizationSeries.value = "";
+      update(true);
+    });
+    for (const story of stories) {
+      async function saveOrganization(patch) {
+        if (organizationBusy || !organizationLoaded) return;
+        organizationBusy = true;
+        const controls = [
+          ...document.querySelectorAll(
+            "[data-story-favorite], [data-story-archive], [data-story-series-save]",
+          ),
+        ];
+        for (const control of controls) control.disabled = true;
+        try {
+          const id = story.dataset.story;
+          const data = await creatorRequest("library", {
+            id,
+            metadata: patch,
+          });
+          applyOrganization(data);
+          organizationStatus.textContent =
+            "Organization saved on this Mac. Archiving keeps every script, video and approval; restore it from Archived stories.";
+        } catch (error) {
+          organizationStatus.textContent = error.message;
+        } finally {
+          organizationBusy = false;
+          for (const control of controls) control.disabled = false;
+        }
+      }
+      story
+        .querySelector("[data-story-favorite]")
+        ?.addEventListener("click", () =>
+          saveOrganization({ favorite: story.dataset.favorite !== "true" }),
+        );
+      story
+        .querySelector("[data-story-archive]")
+        ?.addEventListener("click", () =>
+          saveOrganization({ archived: story.dataset.archived !== "true" }),
+        );
+      story
+        .querySelector("[data-story-series-save]")
+        ?.addEventListener("click", () =>
+          saveOrganization({ series: story.querySelector("[data-story-series]").value }),
+        );
+    }
+    const comparison = document.querySelector("#creator-compare-dialog");
+    const pauseComparison = () => {
+      for (const video of comparison.querySelectorAll("video")) video.pause();
+    };
+    comparison.addEventListener("close", pauseComparison);
+    comparison.addEventListener("cancel", pauseComparison);
+
+    function openComparison(story) {
+      const left = document.querySelector("#creator-compare-left");
+      const right = document.querySelector("#creator-compare-right");
+      const versions = story
+        ? [...story.querySelectorAll("[data-version]")].map((row) => row.dataset.selector)
+        : Array.from(left.options).map((option) => option.value);
+      left.value = versions[0] ?? left.value;
+      right.value = versions[1] ?? versions[0] ?? right.value;
+      document.querySelector("#creator-compare-results").replaceChildren();
+      document.querySelector("#creator-compare-status").textContent =
+        "Choose two versions, then compare.";
+      comparison.showModal();
+    }
+    document
+      .getElementById("creator-compare-open")
+      .addEventListener("click", () => openComparison());
+    for (const story of stories)
+      story
+        .querySelector("[data-compare-story]")
+        ?.addEventListener("click", () => openComparison(story));
+    document.querySelector("#creator-compare-run").addEventListener("click", async () => {
+      const button = document.querySelector("#creator-compare-run");
+      const message = document.querySelector("#creator-compare-status");
+      button.disabled = true;
+      const left = document.querySelector("#creator-compare-left").value;
+      const right = document.querySelector("#creator-compare-right").value;
+      try {
+        const data = await creatorRequest(
+          `compare?left=${encodeURIComponent(left)}&right=${encodeURIComponent(right)}`,
+        );
+        if (
+          left !== document.querySelector("#creator-compare-left").value ||
+          right !== document.querySelector("#creator-compare-right").value
+        )
+          throw new Error("Selection changed. Compare the current pair.");
+        const results = document.querySelector("#creator-compare-results");
+        results.replaceChildren();
+        for (const version of data.versions) {
+          const column = document.createElement("section");
+          const text = (tag, value) => {
+            const node = document.createElement(tag);
+            node.textContent = value;
+            column.append(node);
+          };
+          text("h3", version.title);
+          text("code", version.selector);
+          text(
+            "p",
+            `${version.stage} · ${version.style} · ${version.plannedSeconds}s planned${version.measuredSeconds ? ` · ${version.measuredSeconds.toFixed(1)}s measured` : ""}`,
+          );
+          for (const speaker of version.speakers)
+            text(
+              "p",
+              `${speaker.name}: ${typeof speaker.voice === "string" ? speaker.voice : `Personal Qwen voice ${speaker.voice.profileId.slice(0, 8)}`} · ${speaker.portrait}`,
+            );
+          if (version.video) {
+            const video = document.createElement("video");
+            video.controls = true;
+            video.preload = "none";
+            video.src = version.video.href;
+            video.setAttribute("playsinline", "");
+            video.addEventListener("play", () => {
+              for (const other of comparison.querySelectorAll("video"))
+                if (other !== video) other.pause();
+            });
+            video.addEventListener("error", () => {
+              message.textContent =
+                "The compared video changed or is unavailable. Compare the current versions again.";
+            });
+            column.append(video);
+            const fingerprint = document.createElement("small");
+            fingerprint.textContent = `MP4 ${version.video.hash.slice(0, 12)}`;
+            column.append(fingerprint);
+          }
+          for (const scene of version.scenes) {
+            text("h4", `${scene.id} · ${scene.visualHeadline}`);
+            text("p", scene.narration);
+            if (scene.composition)
+              text(
+                "p",
+                `${scene.composition.kind}: ${scene.composition.items.map((item) => item.label).join(" / ")}`,
+              );
+          }
+          text("h4", "Companion post");
+          text("p", version.companionPost);
+          const edit = document.createElement("a");
+          edit.href = `episodes/${encodeURIComponent(version.selector)}/edit.html`;
+          edit.textContent = "Edit this version";
+          column.append(edit);
+          results.append(column);
+        }
+        message.textContent =
+          "Saved versions compared. Playback starts only when you choose Play; approvals remain separate.";
+      } catch (error) {
+        message.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+    creatorRequest("library")
+      .then((data) => {
+        applyOrganization(data);
+        organizationLoaded = true;
+        for (const control of organizationControls) control.disabled = false;
+      })
+      .catch((error) => {
+        organizationStatus.textContent = error.message;
+      });
+  }
   applySearch();
   update();
   document.querySelector("[data-enhancement-only]").hidden = false;
@@ -887,4 +1155,152 @@
       }
     });
   }
+})();
+
+// Exact-output advisory review; this never changes the approval checks.
+(() => {
+  const root = document.querySelector("#output-review");
+  const release = document.querySelector("#release-review");
+  if (!root || !release) return;
+  const status = document.querySelector("#output-review-status");
+  const reviewPlayer = document.querySelector("#release-video");
+  const reviewMediaLinks = [...document.querySelectorAll('a[href="video/short.mp4"]')];
+  let liveMedia = location.protocol !== "file:";
+  let reviewSessionEstablished = false;
+  const savedMediaSource = reviewPlayer.getAttribute("src");
+  const savedMediaLinks = reviewMediaLinks.map((link) => ({
+    link,
+    href: link.getAttribute("href"),
+  }));
+  if (liveMedia) {
+    reviewPlayer.pause();
+    reviewPlayer.removeAttribute("src");
+    reviewPlayer.load();
+    for (const link of reviewMediaLinks) {
+      link.removeAttribute("href");
+      link.setAttribute("aria-disabled", "true");
+    }
+  }
+
+  const findings = document.querySelector("#output-review-findings");
+  const endpoint = `/api/creator/output-review?selector=${encodeURIComponent(release.dataset.selector)}&renderKey=${encodeURIComponent(release.dataset.renderKey)}`;
+  async function request(body) {
+    const session = await fetch("/api/local-voices/session");
+    if (!session.ok) {
+      if (session.status === 404 && !reviewSessionEstablished) {
+        liveMedia = false;
+        if (savedMediaSource) {
+          reviewPlayer.src = savedMediaSource;
+          reviewPlayer.load();
+        }
+        for (const item of savedMediaLinks)
+          if (item.href) {
+            item.link.href = item.href;
+            item.link.removeAttribute("aria-disabled");
+          }
+        throw new Error(
+          "This is a static studio copy. Open the local app for verified review tools.",
+        );
+      }
+      throw new Error("Reopen this local studio to review outputs.");
+    }
+    reviewSessionEstablished = true;
+    const response = await fetch(
+      endpoint,
+      body
+        ? {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          }
+        : {},
+    );
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Review unavailable.");
+    if (data.kit) {
+      if (data.kit.renderKey !== release.dataset.renderKey)
+        throw new Error("This page shows an older MP4. Reload to review the current output.");
+      const exact = `/api/creator/video?selector=${encodeURIComponent(data.kit.selector)}&renderKey=${encodeURIComponent(data.kit.renderKey)}&videoHash=${data.kit.videoHash}`;
+      const player = document.querySelector("#release-video");
+      if (player.getAttribute("src") !== exact) {
+        player.src = exact;
+        player.addEventListener(
+          "error",
+          () => {
+            status.textContent = "This MP4 changed or is unavailable. Reload before reviewing it.";
+          },
+          { once: true },
+        );
+      }
+      for (const link of reviewMediaLinks) {
+        link.href = exact;
+        link.download = "short.mp4";
+        link.removeAttribute("aria-disabled");
+      }
+    }
+    return data;
+  }
+  function render(review, stale) {
+    findings.replaceChildren();
+    status.textContent = stale
+      ? "A saved review belongs to an older MP4. Get a new kit."
+      : review
+        ? `External advisory review · ${review.reviewer}. Human approval is still required.`
+        : "No external review saved for this MP4.";
+    if (!review) return;
+    const summary = document.createElement("p");
+    summary.textContent = review.summary;
+    findings.append(summary);
+    for (const item of review.findings) {
+      const card = document.createElement("article");
+      const seek = document.createElement("button");
+      seek.type = "button";
+      seek.textContent = `${item.seconds.toFixed(1)}s · ${item.severity} · ${item.area}`;
+      seek.addEventListener("click", () => {
+        document.querySelector("#release-video").currentTime = item.seconds;
+      });
+      const evidence = document.createElement("p");
+      evidence.textContent = item.observation;
+      const fix = document.createElement("p");
+      fix.textContent = item.suggestion;
+      const edit = document.createElement("a");
+      edit.href = "edit.html";
+      edit.textContent = "Edit as a new version";
+      card.append(seek, evidence, fix, edit);
+      findings.append(card);
+    }
+  }
+  document.querySelector("#review-kit-download").addEventListener("click", async () => {
+    try {
+      const data = await request();
+      render(data.review, data.stale);
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(data.kit, null, 2)], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${release.dataset.selector}-review-kit.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      status.textContent =
+        "Kit downloaded. Upload it with the exact MP4 yourself; paste the JSON review below.";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  document.querySelector("#output-review-import").addEventListener("click", async () => {
+    try {
+      const data = await request(JSON.parse(document.querySelector("#output-review-json").value));
+      render(data.review, false);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  request()
+    .then((data) => render(data.review, data.stale))
+    .catch((error) => {
+      status.textContent = liveMedia
+        ? `${error.message} The live player and exact-MP4 download stay unavailable until the output is verified. Reopen the current local studio.`
+        : "Saved media can play in this static copy. Open the current local studio to download a verified review kit or save feedback.";
+    });
 })();

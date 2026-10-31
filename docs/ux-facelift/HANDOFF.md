@@ -94,3 +94,8 @@ UI; previously saved media and ZIPs remain unchanged.
   their displayed range is approximate, not a promised completion time.
 - Source quality and creative wording still need editorial review; format selection
   alone does not produce a new authored narrative.
+
+
+## October 30 creative-workflow follow-up
+
+The later local-source enhancement milestone adds two-version comparison, whole-story archive/favorites/series, saved production presets, source-backed story briefs, bounded visual compositions, exact-output external review handoff/import and Kokoro scene caching. This supersedes earlier notes that Compare is deferred. See [CREATIVE_WORKFLOW_ENHANCEMENTS.md](../CREATIVE_WORKFLOW_ENHANCEMENTS.md) for the tested scope and limitations. No new installer or cloud deployment is part of this follow-up.

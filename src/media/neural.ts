@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { access, lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { hash } from "../digest.js";
@@ -12,7 +13,7 @@ import {
   sampleRate,
   splitNarration,
 } from "./audio.js";
-import type { Cue, MediaRequest, NarrationTiming } from "./model.js";
+import type { Cue, LegacyNarrationTiming, MediaRequest } from "./model.js";
 import { kokoroVoice } from "./voices.js";
 
 const exec = promisify(execFile);
@@ -236,14 +237,13 @@ export async function readNeuralScene(
   request: NeuralSpeechRequest,
   index: number,
   directory: string,
+  names = { wav: `scene-${index}.wav`, alignment: `scene-${index}.json` },
 ) {
   const input = sceneInput(request, index);
   const inputText = JSON.stringify(input);
-  const wav = await readFile(resolve(directory, `scene-${index}.wav`));
+  const wav = await readFile(resolve(directory, names.wav));
   const pcm = readPcmWav(wav);
-  const alignment = JSON.parse(
-    await readFile(resolve(directory, `scene-${index}.json`), "utf8"),
-  ) as {
+  const alignment = JSON.parse(await readFile(resolve(directory, names.alignment), "utf8")) as {
     schemaVersion: number;
     sceneId: string;
     inputHash: string;
@@ -279,9 +279,99 @@ export async function readNeuralScene(
       throw new Error("Saved neural caption alignment is invalid");
     end = cue.endSeconds;
   }
-  return { pcm, alignment, inputText };
+  return { pcm, wav, alignment, inputText };
 }
 
+/** Cache only complete, hash-verified stock speech; personal Qwen audio is not stored here. */
+function sceneCacheKey(request: NeuralSpeechRequest, index: number) {
+  if (!request.generatorHash || !/^[a-f0-9]{64}$/u.test(request.generatorHash)) return null;
+  return hash(JSON.stringify(sceneInput(request, index)));
+}
+export async function restoreNeuralScene(
+  request: NeuralSpeechRequest,
+  index: number,
+  directory: string,
+  cacheRoot = resolve(projectRoot, ".state/stock-scene-cache"),
+) {
+  const key = sceneCacheKey(request, index);
+  if (!key) return false;
+  const cached = resolve(cacheRoot, key);
+  try {
+    if (!(await lstat(cached)).isDirectory()) return false;
+    for (const name of ["audio.wav", "alignment.json"]) {
+      const info = await lstat(resolve(cached, name));
+      if (!info.isFile() || info.size > 16 * 1024 * 1024) return false;
+    }
+    const scene = await readNeuralScene(request, index, cached, {
+      wav: "audio.wav",
+      alignment: "alignment.json",
+    });
+    await mkdir(directory, { recursive: true });
+    await writeFile(resolve(directory, `scene-${index}.wav`), scene.wav);
+    await writeFile(resolve(directory, `scene-${index}.json`), JSON.stringify(scene.alignment));
+    await writeFile(
+      resolve(directory, `scene-${index}-reuse.json`),
+      JSON.stringify({ inputHash: key, source: "scene-cache" }),
+    );
+    return true;
+  } catch {
+    return false; // A missing, unreadable or corrupt optional cache is a miss.
+  }
+}
+export async function cacheNeuralScene(
+  request: NeuralSpeechRequest,
+  index: number,
+  directory: string,
+  cacheRoot = resolve(projectRoot, ".state/stock-scene-cache"),
+) {
+  const key = sceneCacheKey(request, index);
+  if (!key) return;
+  const scene = await readNeuralScene(request, index, directory);
+  try {
+    const existing = resolve(cacheRoot, key);
+    if ((await lstat(existing)).isDirectory()) {
+      const safe = await Promise.all(
+        ["audio.wav", "alignment.json"].map((name) => lstat(resolve(existing, name))),
+      );
+      if (safe.every((info) => info.isFile() && info.size <= 16 * 1024 * 1024)) {
+        await readNeuralScene(request, index, existing, {
+          wav: "audio.wav",
+          alignment: "alignment.json",
+        });
+        return;
+      }
+    }
+  } catch {
+    /* Publish a verified replacement below. */
+  }
+  try {
+    await mkdir(cacheRoot, { recursive: true, mode: 0o700 });
+    const temporary = resolve(cacheRoot, `.${randomUUID()}`);
+    await mkdir(temporary, { mode: 0o700 });
+    try {
+      await writeFile(resolve(temporary, "audio.wav"), scene.wav, { mode: 0o600 });
+      await writeFile(resolve(temporary, "alignment.json"), JSON.stringify(scene.alignment), {
+        mode: 0o600,
+      });
+      const destination = resolve(cacheRoot, key);
+      try {
+        await rename(temporary, destination);
+      } catch (error) {
+        if (
+          !["EEXIST", "ENOTEMPTY", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")
+        )
+          throw error;
+        // Preserve a corrupt entry for diagnostics, then replace it with verified output.
+        await rename(destination, resolve(cacheRoot, `.replaced-${key}-${randomUUID()}`));
+        await rename(temporary, destination);
+      }
+    } finally {
+      await rm(temporary, { recursive: true, force: true });
+    }
+  } catch {
+    /* Cache publication is optional; verified job output remains usable. */
+  }
+}
 export async function synthesizeNeuralScene(
   request: NeuralSpeechRequest,
   index: number,
@@ -292,10 +382,13 @@ export async function synthesizeNeuralScene(
     throw new Error("Missing neural runtime fingerprint");
   try {
     await readNeuralScene(request, index, directory);
+    await cacheNeuralScene(request, index, directory);
     return;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  signal.throwIfAborted();
+  if (await restoreNeuralScene(request, index, directory)) return;
   await mkdir(directory, { recursive: true });
   const input = resolve(directory, `scene-${index}-input.json`);
   await writeFile(input, JSON.stringify(sceneInput(request, index)));
@@ -312,13 +405,18 @@ export async function synthesizeNeuralScene(
     { signal, logPath: resolve(directory, `scene-${index}.log`) },
   );
   await readNeuralScene(request, index, directory);
+  await writeFile(
+    resolve(directory, `scene-${index}-reuse.json`),
+    JSON.stringify({ inputHash: sceneCacheKey(request, index), source: "generated" }),
+  );
+  await cacheNeuralScene(request, index, directory);
 }
 
 export async function assembleNeuralNarration(
   request: MediaRequest,
   directory: string,
-): Promise<NarrationTiming> {
-  const timing: NarrationTiming = {
+): Promise<LegacyNarrationTiming> {
+  const timing: LegacyNarrationTiming = {
     schemaVersion: 1,
     mode: "local-preview",
     engine: "kokoro",
@@ -331,10 +429,27 @@ export async function assembleNeuralNarration(
     scenes: [],
     cues: [],
   };
+  timing.sceneReuse = { reused: 0, generated: 0, checkpoint: 0 };
   const buffers: Buffer[] = [];
   let frames = 0;
   for (let index = 0; index < request.episode.scenes.length; index++) {
     const { pcm, alignment } = await readNeuralScene(request, index, directory);
+    let source = "checkpoint";
+    try {
+      const saved = JSON.parse(
+        await readFile(resolve(directory, `scene-${index}-reuse.json`), "utf8"),
+      );
+      if (
+        saved.inputHash === sceneCacheKey(request, index) &&
+        ["generated", "scene-cache"].includes(saved.source)
+      )
+        source = saved.source;
+    } catch {
+      /* Legacy validated checkpoints do not claim cache provenance. */
+    }
+    timing.sceneReuse[
+      source === "scene-cache" ? "reused" : source === "generated" ? "generated" : "checkpoint"
+    ]++;
     const start = frames / sampleRate;
     buffers.push(pcm);
     frames += pcm.length / 2;

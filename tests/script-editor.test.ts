@@ -234,6 +234,16 @@ async function workshop(
     "presentation-design",
     payload.seed.presentation.design ? JSON.stringify(payload.seed.presentation.design) : "",
   );
+  for (const id of [
+    "preset-preferences",
+    "preset-name",
+    "preset-save",
+    "preset-load",
+    "preset-choice",
+    "preset-apply",
+    "preset-status",
+  ])
+    node(id);
   node("presentation-design-status");
   node("presentation-design-reset");
   for (const [index, speaker] of payload.seed.presentation.speakers.entries()) {
@@ -1382,4 +1392,38 @@ test("final-review edits apply through the real editor atomically and invalidate
     /companion post/u,
   );
   assert.equal(ui.get("draft-title").value, proposed.title);
+});
+
+test("preset pronunciation survives recovery and Start with original resets it", async () => {
+  const storage = recoveryStorage();
+  const ui = await workshop("CAP-01@casual-v2", undefined, { storage });
+  ui.get("preset-preferences").value = JSON.stringify({
+    tone: "casual",
+    format: "explainer",
+    humor: "light",
+    plannedDurationSeconds: 65,
+    pronunciation: { CAP: "my preset pronunciation" },
+  });
+  ui.get("draft-title").value = "Recovered preset draft";
+  ui.update();
+  const recovered = await workshop("CAP-01@casual-v2", undefined, { storage });
+  recovered.download();
+  assert.equal(
+    JSON.parse(recovered.downloads[0]?.parts.join("") ?? "null").pronunciation.CAP,
+    "my preset pronunciation",
+  );
+  recovered.get("discard-draft").click();
+  recovered.download();
+  const original = JSON.parse(recovered.downloads[1]?.parts.join("") ?? "null");
+  assert.notEqual(original.pronunciation?.CAP, "my preset pronunciation");
+  const malformed = await workshop("CAP-01@casual-v2");
+  malformed.get("preset-preferences").value = JSON.stringify({
+    tone: "casual",
+    format: "explainer",
+    humor: "light",
+    plannedDurationSeconds: 65,
+    pronunciation: { CAP: null },
+  });
+  assert.doesNotThrow(() => malformed.update());
+  assert.equal(malformed.get("download-script").disabled, true);
 });

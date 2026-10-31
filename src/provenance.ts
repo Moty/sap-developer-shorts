@@ -36,6 +36,13 @@ export async function runtimeFiles(): Promise<string[]> {
   const names = [
     "cli",
     "api",
+    "creator-api",
+    "creator-store",
+    "finished-review",
+    "production-presets",
+    "library-management",
+    "library-stories",
+    "story-brief",
     "editorial/api",
     "editorial/final-review",
     "editorial/job-lock",

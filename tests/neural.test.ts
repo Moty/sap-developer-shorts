@@ -16,9 +16,11 @@ import {
 import type { MediaJob, MediaRequest } from "../src/media/model.js";
 import {
   assembleNeuralNarration,
+  cacheNeuralScene,
   kokoroSceneTimeoutMs,
   neuralRuntime,
   readNeuralScene,
+  restoreNeuralScene,
   runNeuralProcess,
 } from "../src/media/neural.js";
 import { packageNarration, validateTiming } from "../src/media/package.js";
@@ -111,7 +113,7 @@ test("installing a cohost leaves existing voice fingerprints and pinned snapshot
   await assert.rejects(neuralRuntime(["af_heart"], directory), /snapshot changed/);
 });
 
-async function fixture(t: TestContext, voice?: string) {
+async function fixture(t: TestContext, voice?: string, generatorHash?: string) {
   const directory = await mkdtemp(resolve(tmpdir(), "sap-neural-test-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const request: MediaRequest = {
@@ -123,6 +125,7 @@ async function fixture(t: TestContext, voice?: string) {
     sourceDirectory: directory,
     sourceManifestHash: hash("source fixture"),
     voiceRuntimeHash: hash("model fixture"),
+    ...(generatorHash ? { generatorHash } : {}),
   };
   if (voice) request.settings.localPreview.voice = voice;
   let frames = 0;
@@ -141,6 +144,7 @@ async function fixture(t: TestContext, voice?: string) {
       voice: request.settings.localPreview.voice,
       speed: request.settings.localPreview.speed ?? 0.96,
       voiceRuntimeHash: request.voiceRuntimeHash,
+      ...(generatorHash ? { generatorHash } : {}),
     };
     const sceneFrames = Math.round(sampleRate * (0.8 + index * 0.1));
     frames += sceneFrames;
@@ -274,4 +278,71 @@ test("packaged neural previews name the recorded voice instead of always labelin
     const receipt = JSON.parse(await readFile(resolve(output, "media-manifest.json"), "utf8"));
     assert.equal(receipt.quality.narrator.voice, voice);
   }
+});
+
+test("cross-job stock cache reuses only unchanged verified speech and ignores corrupt entries", async (t) => {
+  const { directory, request } = await fixture(t, undefined, hash("generator"));
+  const cache = resolve(directory, "cache");
+  const next = resolve(directory, "next-job");
+  for (let index = 0; index < request.episode.scenes.length; index++)
+    await cacheNeuralScene(request, index, directory, cache);
+  for (let index = 0; index < request.episode.scenes.length; index++)
+    assert.equal(await restoreNeuralScene(request, index, next, cache), true);
+  const changed = structuredClone(request);
+  assert.ok(changed.episode.scenes[0]);
+  changed.episode.scenes[0].narration = "A new opening sentence.";
+  assert.equal(await restoreNeuralScene(changed, 0, resolve(directory, "edited"), cache), false);
+  assert.equal(await restoreNeuralScene(changed, 1, resolve(directory, "edited"), cache), true);
+  for (const change of ["voice", "speed", "runtime", "generator", "pronunciation"]) {
+    const altered = structuredClone(request);
+    if (change === "voice") altered.settings.localPreview.voice = "af_bella";
+    if (change === "speed") altered.settings.localPreview.speed = 1.1;
+    if (change === "runtime") altered.voiceRuntimeHash = hash("new runtime");
+    if (change === "generator") altered.generatorHash = hash("new generator");
+    if (change === "pronunciation") altered.episode.pronunciation.CAP = "changed pronunciation";
+    assert.equal(
+      await restoreNeuralScene(
+        altered,
+        change === "pronunciation" ? 1 : 0,
+        resolve(directory, "miss"),
+        cache,
+      ),
+      false,
+      change,
+    );
+  }
+  const { readdir } = await import("node:fs/promises");
+  const before = await readdir(cache);
+  await cacheNeuralScene(request, 0, directory, cache);
+  assert.deepEqual(await readdir(cache), before, "valid entries stay in place");
+  const secondCache = resolve(directory, "separate-workspace-cache");
+  assert.equal(
+    await restoreNeuralScene(request, 0, resolve(directory, "isolated"), secondCache),
+    false,
+  );
+  for (const name of before) await rm(resolve(cache, name), { recursive: true });
+  for (const name of before) await writeFile(resolve(cache, name), "not a directory");
+  assert.equal(await restoreNeuralScene(request, 0, resolve(directory, "bad-type"), cache), false);
+  await assert.doesNotReject(() => cacheNeuralScene(request, 0, directory, cache));
+  for (const name of await readdir(cache))
+    if (name.startsWith(".replaced-")) await rm(resolve(cache, name), { force: true });
+  // Rebuild the other valid entries before corrupting their WAVs below.
+  for (let index = 1; index < request.episode.scenes.length; index++)
+    await cacheNeuralScene(request, index, directory, cache);
+  for (const name of await readdir(cache))
+    if (name.startsWith(".replaced-")) await rm(resolve(cache, name), { force: true });
+
+  for (const name of await readdir(cache))
+    await writeFile(resolve(cache, name, "audio.wav"), "corrupt");
+  assert.equal(await restoreNeuralScene(request, 0, resolve(directory, "bad"), cache), false);
+  const timing = await assembleNeuralNarration(request, next);
+  assert.deepEqual(timing.sceneReuse, { reused: 7, generated: 0, checkpoint: 0 });
+  assert.doesNotThrow(() =>
+    validateTiming(
+      timing,
+      request.episode,
+      readPcmWav(encodePcmWav(Buffer.alloc(Math.round(timing.durationSeconds * sampleRate) * 2)))
+        .length / 2,
+    ),
+  );
 });

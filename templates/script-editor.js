@@ -121,6 +121,7 @@
   }
   const recoveryLimit = 128 * 1024;
   const fieldIds = ["variant-name", "draft-title", "publication-text", "presentation-design"];
+  if (byId("preset-preferences")) fieldIds.push("preset-preferences");
   for (const name of ["audience", "viewer-problem", "takeaway", "angle", "target-seconds"])
     if (byId(`writing-${name}`)) fieldIds.push(`writing-${name}`);
   for (const [index] of seed.presentation.speakers.entries())
@@ -393,6 +394,7 @@
     // Fill only known additive fields; never discard an older valid unsaved draft.
     for (const id of [
       "presentation-design",
+      "preset-preferences",
       "writing-audience",
       "writing-viewer-problem",
       "writing-takeaway",
@@ -794,6 +796,7 @@
     }
   }
 
+  let appliedPreferencesSignature = "";
   function readDraft() {
     const draft = structuredClone(seed);
     draft.presentation.variant = byId("variant-name").value.trim();
@@ -801,6 +804,53 @@
     draft.publicationText = byId("publication-text").value.trim();
     const errors = [];
     const issues = { script: [], voice: [], presenter: [], post: [] };
+    let preferences = null;
+    try {
+      const raw = byId("preset-preferences")?.value;
+      if (raw) {
+        preferences = JSON.parse(raw);
+        if (
+          !preferences ||
+          !["professional", "casual", "comic"].includes(preferences.tone) ||
+          !["explainer", "dialogue", "myth-fact", "countdown", "story", "quiz"].includes(
+            preferences.format,
+          ) ||
+          !["none", "light", "sap-geek"].includes(preferences.humor) ||
+          !Number.isInteger(preferences.plannedDurationSeconds) ||
+          preferences.plannedDurationSeconds < 15 ||
+          preferences.plannedDurationSeconds > 90
+        )
+          throw new Error("Invalid preset preferences");
+        if (
+          !preferences.pronunciation ||
+          typeof preferences.pronunciation !== "object" ||
+          Array.isArray(preferences.pronunciation) ||
+          Object.entries(preferences.pronunciation).length > 64 ||
+          Object.entries(preferences.pronunciation).some(
+            ([term, spoken]) =>
+              !term.trim() ||
+              term.length > 80 ||
+              typeof spoken !== "string" ||
+              !spoken.trim() ||
+              spoken.length > 160 ||
+              /[[\]<>\r\n]/u.test(term + spoken),
+          )
+        )
+          throw new Error("Invalid preset pronunciation");
+        draft.presentation.tone = preferences.tone;
+        draft.presentation.format = preferences.format;
+        draft.presentation.humor = preferences.humor;
+        draft.plannedDurationSeconds = preferences.plannedDurationSeconds;
+        if (raw !== appliedPreferencesSignature) {
+          activePronunciation = { ...activePronunciation, ...preferences.pronunciation };
+          renderGlossaryUi?.();
+          appliedPreferencesSignature = raw;
+        }
+      }
+    } catch {
+      errors.push("Preset preferences are invalid. Apply a saved preset again.");
+    }
+
     const invalid = (kind, message) => {
       errors.push(message);
       issues[kind].push(message);
@@ -906,7 +956,13 @@
         scene.narration = scene.dialogue.map((turn) => turn.text).join(" ");
       } else scene.narration = byId(`narration-${index}`).value.trim();
       const count = words(scene.narration);
-      const seconds = scenes[index].endSeconds - scenes[index].startSeconds;
+      const seconds =
+        Math.round(
+          (((scenes[index].endSeconds - scenes[index].startSeconds) *
+            (draft.plannedDurationSeconds ?? scenes.at(-1).endSeconds)) /
+            scenes.at(-1).endSeconds) *
+            10,
+        ) / 10;
       total += count;
       byId(`scene-${index}-count`).textContent = `${count} spoken words · ${seconds}s planned`;
       const problems = [];
@@ -941,8 +997,13 @@
     } else if (seed.pronunciation) {
       draft.pronunciation = structuredClone(seed.pronunciation);
     }
+    if (preferences) {
+      preferences.pronunciation = structuredClone(activePronunciation);
+      byId("preset-preferences").value = JSON.stringify(preferences);
+      appliedPreferencesSignature = byId("preset-preferences").value;
+    }
     byId("draft-count").textContent =
-      `${total} spoken words · ${scenes.at(-1).endSeconds}s planned · not yet recorded`;
+      `${total} spoken words · ${draft.plannedDurationSeconds ?? scenes.at(-1).endSeconds}s planned · not yet recorded`;
     byId("draft-errors").textContent = errors.length
       ? errors.join(" ")
       : "Ready to save or produce. Target 45–60s; measured totals of 15–90s are accepted. Section pacing is flexible.";
@@ -995,6 +1056,152 @@
     readDraft();
     globalThis.shortsFinalReview?.changed();
   };
+
+  if (byId("preset-load")) {
+    const presetStatus = byId("preset-status");
+    let presetApplying = false;
+    async function presetRequest(body) {
+      await fetch("/api/local-voices/session");
+      const response = await fetch(
+        "/api/creator/presets",
+        body
+          ? {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            }
+          : {},
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Preset action failed.");
+      return data;
+    }
+    function showPresets(presets) {
+      const choice = byId("preset-choice");
+      choice.replaceChildren();
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "Choose a preset";
+      choice.append(empty);
+      for (const preset of presets) {
+        const option = document.createElement("option");
+        option.value = preset.id;
+        option.textContent = preset.name;
+        choice.append(option);
+      }
+    }
+    byId("preset-load").addEventListener("click", async () => {
+      try {
+        const data = await presetRequest();
+        showPresets(data.presets);
+        presetStatus.textContent = `${data.presets.length} saved presets on this Mac.`;
+      } catch (error) {
+        presetStatus.textContent = error.message;
+      }
+    });
+    byId("preset-save").addEventListener("click", async () => {
+      try {
+        const result = readDraft();
+        if (result.errors.length) throw new Error(result.errors.join(" "));
+        const data = await presetRequest({
+          action: "save",
+          name: byId("preset-name").value,
+          definition: result.draft,
+        });
+        showPresets(data.presets);
+        presetStatus.textContent =
+          "Preferences saved. Reuse this name to update the preset; scripts and source evidence are not stored in it.";
+      } catch (error) {
+        presetStatus.textContent = error.message;
+      }
+    });
+    byId("preset-apply").addEventListener("click", async () => {
+      if (presetApplying) return;
+      presetApplying = true;
+      byId("preset-apply").disabled = true;
+      try {
+        if (pendingRecovery || saving) throw new Error("Finish draft recovery or saving first.");
+        const result = readDraft();
+        if (result.errors.length) throw new Error(result.errors.join(" "));
+        const expectedDraft = JSON.stringify(result.draft);
+        const expectedPreset = byId("preset-choice").value;
+        const data = await presetRequest({
+          action: "apply",
+          id: byId("preset-choice").value,
+          definition: result.draft,
+        });
+        if (
+          expectedDraft !== JSON.stringify(readDraft().draft) ||
+          expectedPreset !== byId("preset-choice").value ||
+          pendingRecovery ||
+          saving
+        )
+          throw new Error(
+            "This draft or preset selection changed while loading. Apply it again to the current draft.",
+          );
+        const draft = data.definition;
+        for (const [index, speaker] of draft.presentation.speakers.entries()) {
+          const key = voiceKey(speaker.voice);
+          if (
+            !voiceAvailable(key) ||
+            !Array.from(byId(`speaker-voice-${index}`).options).some(
+              (option) => option.value === key,
+            )
+          )
+            throw new Error(
+              "A preset voice is unavailable. Restore its profile or install it, then reload this editor.",
+            );
+          if (
+            speaker.avatar?.mode === "photo" &&
+            !Array.from(byId(`speaker-avatar-image-${index}`).options).some(
+              (option) => option.value === speaker.avatar.imageId,
+            )
+          )
+            throw new Error(
+              "A preset photo is unavailable. Restore it in the photo library first.",
+            );
+        }
+        for (const [index, speaker] of draft.presentation.speakers.entries()) {
+          const avatar = speaker.avatar ?? { mode: "illustrated" };
+          byId(`speaker-voice-${index}`).value = voiceKey(speaker.voice);
+          for (const [field, value] of Object.entries({
+            mode: avatar.mode,
+            image: avatar.imageId ?? "",
+            "mouth-x": avatar.mouthX ?? 0.5,
+            "mouth-y": avatar.mouthY ?? 0.68,
+            "mouth-scale": avatar.mouthScale ?? 1,
+            "motion-style": avatar.motion?.style ?? "conversational",
+            "motion-intensity": avatar.motion?.intensity ?? 0.7,
+          }))
+            byId(`speaker-avatar-${field}-${index}`).value = String(value);
+          byId(`speaker-avatar-geometry-${index}`).value = JSON.stringify(avatar);
+          const animation = byId(`speaker-avatar-animation-${index}`);
+          if (animation) animation.value = avatar.animation ?? "full-face";
+          refreshAvatarUi(index);
+        }
+        byId("presentation-design").value = draft.presentation.design
+          ? JSON.stringify(draft.presentation.design)
+          : "";
+        byId("preset-preferences").value = JSON.stringify({
+          tone: draft.presentation.tone,
+          format: draft.presentation.format,
+          humor: draft.presentation.humor,
+          plannedDurationSeconds: draft.plannedDurationSeconds,
+          pronunciation: draft.pronunciation,
+        });
+        if (byId("writing-target-seconds"))
+          byId("writing-target-seconds").value = String(draft.plannedDurationSeconds);
+        update();
+        presetStatus.textContent =
+          "Preset applied to this editable draft. Review voices and portraits, then save as a new version. Narration, source evidence and approvals are preserved.";
+      } catch (error) {
+        presetStatus.textContent = error.message;
+      } finally {
+        presetApplying = false;
+        byId("preset-apply").disabled = false;
+      }
+    });
+  }
   byId("editor-fields").addEventListener("input", update);
   byId("presentation-design-reset").addEventListener("click", () => {
     byId("presentation-design").value = "";
@@ -2080,6 +2287,9 @@
     pendingRecovery = null;
     recoveredDraft = false;
     for (const id of fieldIds) byId(id).value = startingFields[id];
+    activePronunciation = structuredClone(startingPronunciation);
+    appliedPreferencesSignature = "";
+    renderGlossaryUi?.();
     try {
       clearSavedDraft();
       recoveryMessage("Saved draft discarded. The starting script is ready to edit.");

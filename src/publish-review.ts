@@ -111,7 +111,37 @@ export function publishReview(
     .join("")}</ol>`;
   // The only source-review notice on this page (the copied player keeps its own).
   const sources = `${isNewsEpisode(episode) ? newsReviewNotice(episode.news, entry.sourceReviewExpired) : ""}<ul class="rv-sources">${episode.sources.map((source) => `<li><a href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.title)} <span aria-hidden="true">↗</span></a><small>Read ${esc(source.retrievedOn)}</small></li>`).join("")}</ul>`;
-  const details = `${generationTimingBar(entry.generation)}<dl class="rv-facts"><div><dt>Length</dt><dd>${duration.toFixed(1)} seconds</dd></div><div><dt>Version</dt><dd><code>${esc(selector)}</code></dd></div><div><dt>Style</dt><dd>${esc(presentationLabel(episode))}</dd></div><div><dt>Voice</dt><dd>${esc(recordedNarrator(entry))}</dd></div></dl>`;
+  const quality = entry.video?.receipt?.quality;
+  const measurements = quality
+    ? `<dl class="rv-facts"><div><dt>Decode / audio checks</dt><dd>${quality.decoded && quality.audioChecked ? "Passed at export" : "Unavailable"}</dd></div>${[
+        [
+          "Resolution",
+          quality.width && quality.height ? `${quality.width} × ${quality.height}` : null,
+        ],
+        ["Frame rate", quality.fps],
+        ["Integrated loudness (LUFS)", quality.integratedLufs],
+        ["True peak (dB)", quality.truePeakDb],
+        ["Caption alignment", quality.captions],
+      ]
+        .filter(([, value]) => value != null)
+        .map(
+          ([label, value]) =>
+            `<div><dt>${esc(String(label))}</dt><dd>${esc(String(value))}</dd></div>`,
+        )
+        .join("")}</dl>`
+    : "<p>No saved technical measurements for this export.</p>";
+  const outputReview = `<section class="rv-card" id="output-review"><h2>Finished-video review</h2>${measurements}<p>Export checks measure file integrity and audio format. Naturalness, lip sync and visual quality still need watching and listening.</p><details><summary>Get an external AI review (Gemini or another video reviewer)</summary><p>Download this exact MP4 and its review kit, then upload them yourself to your chosen reviewer. The kit contains transcript, source links and companion text; no voice samples or photo originals. Nothing is uploaded automatically.</p><button type="button" class="secondary-action" id="review-kit-download">Download review kit</button> <a href="video/short.mp4" download>Download exact MP4</a><label for="output-review-json">Paste the reviewer’s JSON response</label><textarea id="output-review-json" rows="5" placeholder="Use the responseTemplate in the kit"></textarea><button type="button" class="secondary-action" id="output-review-import">Save advisory review</button></details><p id="output-review-status" role="status"></p><div id="output-review-findings"></div></section>`;
+  let reuseNote = "";
+  try {
+    const reuse = JSON.parse(
+      entry.preview?.files["timing.json"]?.toString("utf8") ?? "null",
+    )?.sceneReuse;
+    if (reuse && [reuse.reused, reuse.generated, reuse.checkpoint].every(Number.isInteger))
+      reuseNote = `<p>Original stock recording provenance: ${reuse.reused} scenes reused from verified cache · ${reuse.generated} generated · ${reuse.checkpoint} resumed checkpoints. These counts describe the saved recording, including when a later job reuses the whole track.</p>`;
+  } catch {
+    /* Older exports have no scene-cache measurements. */
+  }
+  const details = `${generationTimingBar(entry.generation)}${reuseNote}<dl class="rv-facts"><div><dt>Length</dt><dd>${duration.toFixed(1)} seconds</dd></div><div><dt>Version</dt><dd><code>${esc(selector)}</code></dd></div><div><dt>Style</dt><dd>${esc(presentationLabel(episode))}</dd></div><div><dt>Voice</dt><dd>${esc(recordedNarrator(entry))}</dd></div></dl>`;
   const panels = [
     ["transcript", "Transcript", transcript],
     ["sources", "Sources", sources],
@@ -132,7 +162,7 @@ export function publishReview(
 <h1 class="ep-sr">Review &amp; publish · ${esc(episode.title)}</h1>
 <div class="rv">
 <div class="rv-media"><section class="release-player" aria-label="Produced video"><video id="release-video" controls playsinline preload="metadata" poster="video/poster.png" src="video/short.mp4"><track kind="captions" src="captions.vtt" srclang="en" label="English">Your browser does not support video.</video>${chapterList(entry, windows)}<a href="video/review.html">Open video details</a></section>
-${tabs}</div>
+${tabs}${outputReview}</div>
 <section class="rv-card release-controls" aria-labelledby="release-steps-title"><h2 class="ep-sr" id="release-steps-title">Publishing steps</h2><p id="release-message" role="status" aria-live="polite">Connecting to the local studio…</p>
 <ol class="pub-steps">
 <li class="pub-step" id="release-approval">${stepNumber(1)}<div class="pub-head"><h3>Final check</h3><span class="stage-badge" id="release-state">To review</span></div><div class="pub-body"><p class="pub-hint">Watch the whole short, then confirm each point. Approval applies to this exact MP4, script and source-review window.</p><fieldset class="rchecks"><legend class="ep-sr">Confirm each point before approving</legend>${checks}</fieldset><div class="pub-actions"><button type="button" class="primary-action" id="approve-video" disabled>${shellIcons.check}Approve video</button><a class="text-action" href="edit.html">${shellIcons.edit}Needs changes · edit as new version</a></div></div><p class="pub-approved" data-approved-note hidden>${shellIcons.check}Approved for this exact MP4.</p><button type="button" class="text-action" id="reopen-review" hidden>Return to review / clear publication record</button></li>

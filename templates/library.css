@@ -3345,3 +3345,118 @@ button.produce-card-btn:disabled {
   font-size: 12px;
   padding: 7px 10px;
 }
+
+#episodes .creator-library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: end;
+  padding: 14px 0;
+}
+#episodes .creator-library-filters label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+}
+#episodes .creator-library-filters select,
+#episodes .story-organize input {
+  padding: 8px;
+  border: 1px solid #cbd5c7;
+  border-radius: 8px;
+  background: white;
+  max-width: 220px;
+}
+#episodes .creator-library-filters #creator-library-status {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: #527268;
+}
+#episodes .story-organize {
+  font-size: 12px;
+  margin: 8px 0;
+}
+#episodes .story-organize summary {
+  cursor: pointer;
+  color: #365f51;
+}
+#episodes .story-organize > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: #f0f5ed;
+  border-radius: 10px;
+}
+#episodes .story-organize button,
+#episodes .creator-library-filters button {
+  border: 1px solid #b9cdbf;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #234e40;
+  cursor: pointer;
+}
+#episodes .story-organize label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#creator-compare-dialog {
+  width: min(1100px, 95vw);
+  max-height: 88vh;
+  border: 1px solid #cbd5c7;
+  border-radius: 18px;
+  color: #203c36;
+  padding: 24px;
+}
+#creator-compare-dialog::backdrop {
+  background: #0e251bb3;
+}
+#creator-compare-dialog .creator-compare-selects {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+#creator-compare-dialog .creator-compare-selects label {
+  flex: 1;
+  min-width: 220px;
+}
+#creator-compare-dialog .creator-compare-selects select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 10px;
+}
+#creator-compare-dialog .creator-compare-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+#creator-compare-dialog .creator-compare-results section {
+  min-width: 0;
+  padding: 16px;
+  background: #f5f7f0;
+  border-radius: 12px;
+}
+#creator-compare-dialog .creator-compare-results p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#creator-compare-dialog .creator-compare-results video {
+  width: 100%;
+  max-height: 340px;
+  background: #102a32;
+}
+#creator-compare-dialog .creator-compare-results code {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  #creator-compare-dialog .creator-compare-results {
+    grid-template-columns: 1fr;
+  }
+  #episodes .creator-library-filters label {
+    flex-wrap: wrap;
+  }
+}

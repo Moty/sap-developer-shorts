@@ -80,7 +80,7 @@ bottom bar.
    validation. Presenter runtime and alignment are checked during production;
    the checklist does not claim a render has already passed. Open **Companion
    post** or **Optional AI content review** only when needed. AI review remains
-   optional, with unchanged provider and per-request cost consent.
+   optional, with the selected provider and a visible Hyperspace cost notice.
 
 The sticky header offers **Saved deck**, **Save draft**, and one status line.
 **Next: Voice & presenter** and **Next: Produce** navigate the first two steps.
@@ -361,3 +361,6 @@ index. Keep the ledger or a recent snapshot when moving a working studio between
 Macs. The first migration preserves the existing display order; it cannot infer
 historical creation dates that were never recorded. Stage filters choose the primary action from a matching version without expanding
 long drawers; searching still opens and highlights matching versions.
+
+
+The [creative workflow enhancements](CREATIVE_WORKFLOW_ENHANCEMENTS.md) add saved story briefs, visual compositions, exact-output external review, verified stock-scene reuse, production presets, and story organization/version comparison to the local source studio. See that guide for controls, storage and current limits.
