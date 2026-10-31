@@ -360,6 +360,7 @@ export async function buildLibrary(
       );
     entry.deck = await createPresentationDeck({
       workspaceHref: "../../review.html#episodes",
+      allowMissingVisualAssets: true,
       episode: entry.episode,
       code,
       ...(evidence ? { evidence } : {}),
@@ -397,6 +398,7 @@ export async function buildLibrary(
     "templates/voice-library.css",
     "templates/script-editor.css",
     "templates/script-editor.js",
+    "templates/advanced-visuals.js",
     "templates/voice-profiles.js",
     "templates/writing-assistant.css",
     "templates/writing-assistant.js",

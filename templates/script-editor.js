@@ -9,6 +9,7 @@
     faceDetector,
     compositionClaimIds = [],
     compositionSceneIds = [],
+    visualOutputSceneIds = [],
   } = JSON.parse(document.getElementById("editor-data").textContent);
   const voiceKey = (voice) =>
     typeof voice === "string" ? voice : `qwen:${voice.profileId}:${voice.revision}`;
@@ -151,11 +152,15 @@
       typeof value !== "object" ||
       Array.isArray(value) ||
       Object.keys(value).some(
-        (key) => !["schemaVersion", "theme", "motion", "scenes"].includes(key),
+        (key) =>
+          !["schemaVersion", "theme", "motion", "scenes", "background", "effect"].includes(key),
       ) ||
       value.schemaVersion !== 1 ||
       !["electric", "ocean", "sunset"].includes(value.theme) ||
       !["snappy", "smooth", "minimal"].includes(value.motion) ||
+      (value.background !== undefined &&
+        !["classic", "aurora", "blueprint", "spotlight", "editorial"].includes(value.background)) ||
+      (value.effect !== undefined && !["none", "drift", "particles"].includes(value.effect)) ||
       !Array.isArray(value.scenes) ||
       value.scenes.length !== seed.scenes.length
     )
@@ -165,7 +170,8 @@
         !scene ||
         scene.id !== seed.scenes[index].id ||
         Object.keys(scene).some(
-          (key) => !["id", "headline", "emphasis", "composition"].includes(key),
+          (key) =>
+            !["id", "headline", "emphasis", "composition", "dataView", "image"].includes(key),
         ) ||
         typeof scene.headline !== "string" ||
         !scene.headline.trim() ||
@@ -183,13 +189,14 @@
           typeof c !== "object" ||
           Array.isArray(c) ||
           Object.keys(c).some((key) => !["kind", "items"].includes(key)) ||
-          !["callout", "steps", "comparison"].includes(c.kind) ||
+          !["callout", "steps", "comparison", "flow", "timeline"].includes(c.kind) ||
           !Array.isArray(c.items) ||
           (c.kind === "callout"
             ? c.items.length !== 1
             : c.kind === "comparison"
               ? c.items.length !== 2
-              : c.items.length < 2 || c.items.length > 3) ||
+              : c.items.length < 2 ||
+                c.items.length > (["flow", "timeline"].includes(c.kind) ? 4 : 3)) ||
           c.items.some(
             (item) =>
               !item ||
@@ -205,6 +212,42 @@
             "Visual composition is invalid or would replace a verified evidence scene.",
           );
       }
+    for (const scene of value.scenes) {
+      if (
+        scene.dataView !== undefined &&
+        (!visualOutputSceneIds.includes(scene.id) ||
+          !["rows", "bars", "dots"].includes(scene.dataView))
+      )
+        throw new Error("Charts need a captured output scene.");
+      const image = scene.image;
+      if (
+        image !== undefined &&
+        (!image ||
+          typeof image !== "object" ||
+          Array.isArray(image) ||
+          Object.keys(image).some(
+            (key) =>
+              !["assetId", "fit", "treatment", "focalX", "focalY", "alt", "caption"].includes(key),
+          ) ||
+          !/^[a-f0-9]{64}$/u.test(image.assetId) ||
+          !["contain", "cover"].includes(image.fit) ||
+          !["card", "background"].includes(image.treatment) ||
+          ![image.focalX, image.focalY].every(
+            (number) => Number.isFinite(number) && number >= 0 && number <= 1,
+          ) ||
+          typeof image.alt !== "string" ||
+          !image.alt.trim() ||
+          image.alt.length > 160 ||
+          /[<>\p{Cc}]/u.test(image.alt) ||
+          (image.caption !== undefined &&
+            (typeof image.caption !== "string" ||
+              image.caption.length > 96 ||
+              /[<>\p{Cc}]/u.test(image.caption))) ||
+          (image.treatment === "card" &&
+            (!compositionSceneIds.includes(scene.id) || scene.composition)))
+      )
+        throw new Error("Use an existing image, readable text and a compatible explanation scene.");
+    }
     return structuredClone(value);
   }
   const currentDesign = () =>
@@ -319,6 +362,7 @@
       byId("presentation-design").value = JSON.stringify(design);
       reviewedDraft = "";
       update();
+      globalThis.dispatchEvent?.(new Event("shorts:design-applied"));
     },
     apply(proposal, expected) {
       if (
@@ -1462,14 +1506,24 @@
               const edit = element(
                 "button",
                 "secondary-btn",
-                report.issue?.code === "VIDEO_LAYOUT_REVIEW_REQUIRED"
-                  ? "Review script & visuals"
-                  : report.issue?.code === "TIMING_REVIEW_REQUIRED"
-                    ? "Edit opening & narration"
-                    : "Review voice & portrait",
+                report.issue?.code === "VISUAL_IMAGE_REQUIRED"
+                  ? "Review presentation images"
+                  : report.issue?.code === "VIDEO_LAYOUT_REVIEW_REQUIRED"
+                    ? "Review script & visuals"
+                    : report.issue?.code === "TIMING_REVIEW_REQUIRED"
+                      ? "Edit opening & narration"
+                      : "Review voice & portrait",
               );
               edit.type = "button";
               edit.addEventListener("click", () => {
+                if (report.issue?.code === "VISUAL_IMAGE_REQUIRED") {
+                  if (globalThis.shortsWorkspace) globalThis.shortsWorkspace.activate("writing");
+                  else {
+                    showStep("script", true);
+                    jumpTo("presentation");
+                  }
+                  return;
+                }
                 showStep(
                   ["TIMING_REVIEW_REQUIRED", "VIDEO_LAYOUT_REVIEW_REQUIRED"].includes(
                     report.issue?.code,

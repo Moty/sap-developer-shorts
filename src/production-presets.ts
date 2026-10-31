@@ -18,7 +18,10 @@ export interface ProductionPreset {
     speakers: Pick<Presentation["speakers"][number], "voice" | "avatar">[];
     targetSeconds: number;
     pronunciation: Record<string, string>;
-    design?: Pick<NonNullable<Presentation["design"]>, "theme" | "motion">;
+    design?: Pick<
+      NonNullable<Presentation["design"]>,
+      "theme" | "motion" | "background" | "effect"
+    >;
   };
 }
 export async function presetFromDefinition(
@@ -53,7 +56,18 @@ export async function presetFromDefinition(
       ),
       pronunciation: structuredClone(episode.pronunciation),
       ...(presentation.design
-        ? { design: { theme: presentation.design.theme, motion: presentation.design.motion } }
+        ? {
+            design: {
+              theme: presentation.design.theme,
+              motion: presentation.design.motion,
+              ...(presentation.design.background !== undefined
+                ? { background: presentation.design.background }
+                : {}),
+              ...(presentation.design.effect !== undefined
+                ? { effect: presentation.design.effect }
+                : {}),
+            },
+          }
         : {}),
     },
   };

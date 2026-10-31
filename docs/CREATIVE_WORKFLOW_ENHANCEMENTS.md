@@ -155,3 +155,7 @@ See [desktop notes](MAC_DESKTOP.md) for that distinction.
   Review & publish established a fresh session and loaded the pinned MP4 (47.58s,
   no media error). The reusable **CAP · Casual Heart** preset was saved and
   applied through the UI; no episode version was saved or rendered by that check.
+
+## Advanced visual follow-up
+
+[Advanced presentations](ADVANCED_PRESENTATIONS.md) extends the design engine with local background/effect controls, flow/milestone layouts, captured-data charts, immutable local images and real frame previews. Narration, source evidence and prior outputs retain their existing preservation rules.

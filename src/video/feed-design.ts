@@ -49,6 +49,10 @@ export function feedSceneDesign(episode: ContentEpisode, sceneIndex: number) {
     headline: direction?.headline ?? scene.overlay,
     emphasis: direction?.emphasis ?? "balanced",
     ...(direction?.composition ? { composition: direction.composition } : {}),
+    background: custom?.background ?? "classic",
+    effect: custom?.motion === "minimal" ? "none" : (custom?.effect ?? "none"),
+    ...(direction?.image ? { image: direction.image } : {}),
+    dataView: direction?.dataView ?? "rows",
     motion: custom?.motion ?? "smooth",
     entranceSeconds: !custom
       ? 0.5

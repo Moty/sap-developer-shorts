@@ -13,6 +13,8 @@ import {
   type ProductionPreset,
   saveProductionPreset,
 } from "./production-presets.js";
+import { listVisualAssets, readVisualAsset, saveVisualAsset } from "./visual-assets.js";
+import { visualPreview } from "./visual-preview.js";
 import { workflowDirectory } from "./workflow.js";
 
 export async function handleCreatorApi(
@@ -38,7 +40,31 @@ export async function handleCreatorApi(
   try {
     if (!options.directory) throw new Error("Reopen the current studio.");
     const selector = url.searchParams.get("selector") ?? "";
-    if (url.pathname === "/api/creator/video" && request.method === "GET") {
+    if (url.pathname === "/api/creator/visual-preview" && request.method === "POST") {
+      send(
+        200,
+        await visualPreview(
+          await options.readBody(request, 128 * 1024),
+          options.directory,
+          options.artifactRoot,
+        ),
+      );
+    } else if (url.pathname === "/api/creator/visual-assets") {
+      if (request.method === "GET") send(200, { assets: await listVisualAssets() });
+      else if (request.method === "POST") {
+        const asset = await saveVisualAsset(await options.readBody(request, 12 * 1024 * 1024));
+        send(200, { asset, assets: await listVisualAssets() });
+      } else send(405, { error: "Use the visual library controls." });
+    } else if (url.pathname.startsWith("/api/creator/visual-assets/") && request.method === "GET") {
+      const asset = await readVisualAsset(url.pathname.slice("/api/creator/visual-assets/".length));
+      response.writeHead(200, {
+        "content-type": "image/jpeg",
+        "content-length": asset.bytes.length,
+        "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
+      });
+      response.end(asset.bytes);
+    } else if (url.pathname === "/api/creator/video" && request.method === "GET") {
       const bytes = await verifiedLibraryVideo(
         options.directory,
         selector,

@@ -1250,3 +1250,152 @@ body.design-preview .presentation-layout {
 body.design-preview .phone-stage {
   height: min(560px, 72svh);
 }
+
+.advanced-backdrop,
+.visual-image-background {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.advanced-backdrop svg,
+.visual-image-background img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.visual-image-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #030715cc;
+}
+.sequence-graphic {
+  display: block;
+  width: 100%;
+  max-height: 700px;
+}
+.sequence-graphic text {
+  fill: #f8fafc;
+  font:
+    44px system-ui,
+    sans-serif;
+}
+.sequence-graphic text.sequence-number {
+  font-size: 26px;
+  fill: var(--scene-accent);
+}
+.sequence-graphic [data-active="false"] {
+  opacity: 0.55;
+}
+.sequence-note {
+  font-size: 24px;
+  color: #a6bcc8;
+}
+.visual-image-figure {
+  margin: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 180px;
+  max-height: 100%;
+  height: 100%;
+  background: #101a30;
+  border-radius: 20px;
+  overflow: hidden;
+}
+.visual-image-figure svg {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.visual-image-figure figcaption {
+  font-size: 36px;
+  line-height: 1.25;
+  padding: 20px 20px 0;
+  color: #f8fafc;
+  overflow-wrap: anywhere;
+}
+.slide-main .visual-image-figure small {
+  display: block;
+  font-size: 22px;
+  margin-top: 12px;
+  color: #a4bacb;
+}
+.advanced-chart {
+  max-height: 100%;
+  overflow-y: auto;
+}
+.advanced-chart h3 {
+  font-size: 40px;
+  color: var(--scene-accent);
+  margin: 0 0 24px;
+}
+.advanced-chart-row {
+  margin: 0 12px 40px 0;
+}
+.advanced-chart-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 36px;
+  margin-bottom: 18px;
+}
+.advanced-chart-track {
+  height: 20px;
+  background: #39485d;
+  border-radius: 8px;
+  position: relative;
+}
+.advanced-chart-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--fraction) * 100%);
+  background: var(--scene-accent);
+  border-radius: 8px;
+}
+.advanced-chart[data-chart-style="dots"] .advanced-chart-track {
+  height: 4px;
+  margin-top: 28px;
+}
+.advanced-chart[data-chart-style="dots"] .advanced-chart-track i {
+  inset: -10px auto auto calc(var(--fraction) * 100%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+.slide-main .advanced-chart p,
+.advanced-chart summary {
+  font-size: 24px;
+}
+.advanced-chart table {
+  font-size: 28px;
+  width: 100%;
+  border-spacing: 12px;
+}
+.advanced-chart th {
+  text-align: left;
+}
+.background-image-credit {
+  position: absolute;
+  bottom: 50px;
+  left: 72px;
+  right: 144px;
+  z-index: 2;
+  font-size: 22px;
+  line-height: 1.2;
+  color: #a4bacb;
+  overflow-wrap: anywhere;
+}
+.missing-visual {
+  position: relative;
+  z-index: 2;
+  padding: 32px;
+  border: 2px solid #ffcb77;
+  border-radius: 18px;
+  background: #291e0e;
+  color: #ffe6b5;
+  font-size: 32px;
+  line-height: 1.4;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}

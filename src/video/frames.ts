@@ -1,5 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { createCanvas, GlobalFonts, type SKRSContext2D } from "@napi-rs/canvas";
+import {
+  createCanvas,
+  GlobalFonts,
+  type Image,
+  loadImage,
+  type SKRSContext2D,
+} from "@napi-rs/canvas";
 import { hash } from "../digest.js";
 import { type ContentEpisode, type DemoEvidence, isNewsEpisode } from "../domain.js";
 import { readLayout, type VideoLayout } from "../layout.js";
@@ -8,9 +14,18 @@ import type { NarrationTiming } from "../media/model.js";
 import { availabilityLabels } from "../news/contracts.js";
 import { sourceFile } from "../paths.js";
 import type { SceneComposition } from "../presentation-design.js";
+import { type ResolvedVisualAsset, resolveVisualAssets } from "../visual-assets.js";
 import { cueIdentifiers, feedSceneDesign } from "./feed-design.js";
 import { sceneMotion, storySteps } from "./motion.js";
 import { type VideoMoment, videoFps, videoTimeline } from "./timeline.js";
+import {
+  chartPlan,
+  figureGeometry,
+  imagePlacement,
+  sequenceGeometry,
+  visualLabelLines,
+  visualPrimitives,
+} from "./visual-plan.js";
 
 export const videoFontFiles = [
   "assets/fonts/DejaVuSans.ttf",
@@ -275,7 +290,14 @@ export async function assertPresentationDesignFits(episode: ContentEpisode) {
         width: layout.demo.width - 64,
         height: layout.demo.height - 150,
       }))
-        fitVideoProse(ctx, card.label, card.textBox, card.preferredSize, 36, "composition label");
+        fitVideoProse(
+          ctx,
+          card.renderLabel,
+          card.textBox,
+          card.preferredSize,
+          36,
+          "composition label",
+        );
   });
   ctx.font = '34px "Shorts Heading"';
   for (const step of storySteps(episode))
@@ -296,25 +318,30 @@ function compositionCards(
   composition: SceneComposition,
   body: { x: number; y: number; width: number; height: number },
 ) {
+  const sequence = ["flow", "timeline"].includes(composition.kind)
+    ? sequenceGeometry(composition.kind, composition.items.length, body)
+    : null;
   return composition.items.map((item, index) => {
     const comparison = composition.kind === "comparison";
     const callout = composition.kind === "callout";
-    const width = comparison ? (body.width - 28) / 2 : body.width;
-    const x = body.x + (comparison ? index * (width + 28) : 0);
-    const height = callout ? 420 : comparison ? 370 : 174;
-    const y = body.y + (callout ? 100 : comparison ? 140 : index * 220);
+    const node = sequence?.[index];
+    const width = node?.width ?? (comparison ? (body.width - 28) / 2 : body.width);
+    const x = node?.x ?? body.x + (comparison ? index * (width + 28) : 0);
+    const height = node?.height ?? (callout ? 420 : comparison ? 370 : 174);
+    const y = node?.y ?? body.y + (callout ? 100 : comparison ? 140 : index * 220);
     return {
       ...item,
       x,
       y,
       width,
       height,
-      preferredSize: callout ? 58 : 44,
+      preferredSize: node ? Math.round((44 * body.width) / 900) : callout ? 58 : 44,
+      renderLabel: node ? visualLabelLines(item.label).join("\n") : item.label,
       textBox: {
         x: x + 28,
-        y: y + (comparison ? 90 : 50),
+        y: y + (comparison ? 90 : node ? 44 : 50),
         width: width - 56,
-        height: height - (comparison ? 125 : 85),
+        height: height - (comparison ? 125 : node ? 55 : 85),
       },
     };
   });
@@ -330,6 +357,7 @@ export interface VideoFrameInput {
   code: Record<string, string>;
   evidence?: DemoEvidence;
   talkingHeadSequences?: Record<string, TalkingHeadSequence>;
+  visualAssets?: Record<string, ResolvedVisualAsset>;
 }
 
 /** Render distinct text states without neural sequences before costly inference. */
@@ -367,6 +395,44 @@ function portraitMotion(input: VideoFrameInput, speakerId: string, time: number)
   return sampleMotionTrack(track, time);
 }
 
+const visualImageCache = new WeakMap<
+  VideoFrameInput,
+  Promise<Record<string, { asset: ResolvedVisualAsset; image: Image }>>
+>();
+function visualImages(input: VideoFrameInput) {
+  let pending = visualImageCache.get(input);
+  if (!pending) {
+    pending = (async () => {
+      const assets = input.visualAssets ?? (await resolveVisualAssets(input.episode));
+      return Object.fromEntries(
+        await Promise.all(
+          Object.entries(assets).map(async ([id, asset]) => [
+            id,
+            { asset, image: await loadImage(asset.bytes) },
+          ]),
+        ),
+      );
+    })();
+    visualImageCache.set(input, pending);
+  }
+  return pending;
+}
+function drawVisualImage(
+  ctx: SKRSContext2D,
+  image: Image,
+  box: { x: number; y: number; width: number; height: number },
+  fit: string,
+  focalX: number,
+  focalY: number,
+) {
+  const placed = imagePlacement(image.width, image.height, box, fit, focalX, focalY);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(box.x, box.y, box.width, box.height);
+  ctx.clip();
+  ctx.drawImage(image, placed.x, placed.y, placed.width, placed.height);
+  ctx.restore();
+}
 export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment): Promise<Buffer> {
   await loadVideoFonts();
   const { episode, timing, layout, code, evidence } = input;
@@ -417,6 +483,58 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       ctx.fill();
     }
   ctx.globalAlpha = 1;
+  const images = await visualImages(input);
+  const selectedImage = design.image ? images[design.image.assetId] : undefined;
+  if (design.image && !selectedImage)
+    throw new Error("Selected presentation image is unavailable.");
+  if (design.image?.treatment === "background" && selectedImage) {
+    drawVisualImage(
+      ctx,
+      selectedImage.image,
+      { x: 0, y: 0, width: 1080, height: 1920 },
+      design.image.fit,
+      design.image.focalX,
+      design.image.focalY,
+    );
+    ctx.fillStyle = "#030715cc";
+    ctx.fillRect(0, 0, 1080, 1920);
+  }
+  for (const shape of visualPrimitives(
+    design.background,
+    design.effect,
+    motion.progress,
+    design.motion === "minimal",
+  )) {
+    ctx.save();
+    ctx.globalAlpha = shape.opacity;
+    const color = shape.secondary ? design.secondary : accent;
+    if (shape.kind === "line") {
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(shape.x, shape.y);
+      ctx.lineTo(shape.x2 ?? shape.x, shape.y2 ?? shape.y);
+      ctx.stroke();
+    } else {
+      if (shape.kind === "glow") {
+        const radial = ctx.createRadialGradient(
+          shape.x,
+          shape.y,
+          0,
+          shape.x,
+          shape.y,
+          shape.r ?? 0,
+        );
+        radial.addColorStop(0, color);
+        radial.addColorStop(1, `${color}00`);
+        ctx.fillStyle = radial;
+      } else ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(shape.x, shape.y, shape.r ?? 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
   text(
     ctx,
     "SAP / DEVELOPER SHORTS",
@@ -502,7 +620,46 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
   }
   let y = box.y + 118;
   const body = { x: box.x + 32, y, width: box.width - 64, height: box.height - 150 };
-  if (design.composition) {
+  if (design.image?.treatment === "card" && selectedImage) {
+    const imageBox = figureGeometry(body);
+    panel(ctx, imageBox.x, imageBox.y, imageBox.width, imageBox.height, "#101a30", 18);
+    drawVisualImage(
+      ctx,
+      selectedImage.image,
+      imageBox,
+      design.image.fit,
+      design.image.focalX,
+      design.image.focalY,
+    );
+    const caption = design.image.caption ?? "Illustration";
+    const captionBox = { ...body, y: imageBox.y + imageBox.height + 20, height: 110 };
+    text(
+      ctx,
+      caption,
+      captionBox,
+      fitVideoProse(ctx, caption, captionBox, 38, 30, "image caption"),
+      "#f8fafc",
+      "Shorts Body",
+      "image caption",
+    );
+    if (selectedImage.asset.credit)
+      text(
+        ctx,
+        selectedImage.asset.credit,
+        { ...body, y: imageBox.y + imageBox.height + 140, height: 45 },
+        fitVideoProse(
+          ctx,
+          selectedImage.asset.credit,
+          { width: body.width, height: 45 },
+          24,
+          18,
+          "image credit",
+        ),
+        "#a4bacb",
+        "Shorts Body",
+        "image credit",
+      );
+  } else if (design.composition) {
     const cards = compositionCards(design.composition, body);
     const active = Math.min(cards.length - 1, Math.floor(motion.progress * cards.length));
     for (const [index, card] of cards.entries()) {
@@ -538,13 +695,47 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
       );
       text(
         ctx,
-        card.label,
+        card.renderLabel,
         card.textBox,
-        fitVideoProse(ctx, card.label, card.textBox, card.preferredSize, 36, "composition label"),
+        fitVideoProse(
+          ctx,
+          card.renderLabel,
+          card.textBox,
+          card.preferredSize,
+          36,
+          "composition label",
+        ),
         "#f7faff",
         "Shorts Heading",
         "composition label",
       );
+      if (design.composition.kind === "timeline") {
+        const node = sequenceGeometry("timeline", cards.length, body)[index];
+        if (!node) throw new Error("Missing timeline node.");
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(node.markerX, body.y);
+        ctx.lineTo(node.markerX, body.y + body.height);
+        ctx.stroke();
+        ctx.fillStyle = accent;
+        ctx.beginPath();
+        ctx.arc(node.markerX, node.markerY, 10, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (design.composition.kind === "flow" && index < cards.length - 1) {
+        const center = card.x + card.width / 2;
+        const bottom = card.y + card.height + 2;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(center, bottom);
+        ctx.lineTo(center, bottom + 23);
+        ctx.moveTo(center - 8, bottom + 15);
+        ctx.lineTo(center, bottom + 23);
+        ctx.lineTo(center + 8, bottom + 15);
+        ctx.stroke();
+      }
       if (design.composition.kind === "steps" && index < cards.length - 1)
         text(
           ctx,
@@ -650,60 +841,131 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
         );
         y += 78;
       }
-      const maximumStock = Math.max(1, ...capture.value.map((row) => row.stock));
-      const rowHeight = spacious ? 128 : 90;
-      for (const [rowIndex, row] of capture.value.entries()) {
-        const spotlight =
-          Math.floor(motion.elapsed / 2.4) % Math.max(1, capture.value.length) === rowIndex;
-        panel(ctx, body.x, y, body.width, rowHeight - 12, rowIndex % 2 ? "#242a53" : "#124051", 16);
-        if (spotlight) panel(ctx, body.x, y + 12, 6, rowHeight - 36, accent, 3);
-        const reveal = Math.min(1, Math.max(0, motion.elapsed - rowIndex * 0.16) / 0.65);
+      if (design.dataView !== "rows") {
+        const chart = chartPlan(capture.value, motion.progress, design.motion === "minimal");
+        const rowHeight = Math.min(160, (box.y + box.height - y - 90) / chart.rows.length);
+        if (rowHeight < 110)
+          throw new Error(
+            "Too many captured rows for a readable chart. Use data rows or a smaller captured result.",
+          );
+        for (const row of chart.rows) {
+          text(
+            ctx,
+            row.label,
+            { x: body.x, y, width: body.width - 120, height: 54 },
+            fitVideoProse(
+              ctx,
+              row.label,
+              { width: body.width - 120, height: 54 },
+              38,
+              26,
+              "chart label",
+            ),
+            "#f8fafc",
+            "Shorts Heading",
+            "chart label",
+          );
+          text(
+            ctx,
+            String(row.value),
+            { x: body.x + body.width - 110, y, width: 110, height: 54 },
+            40,
+            accent,
+            "Shorts Heading",
+            "chart value",
+          );
+          panel(ctx, body.x, y + 64, body.width, 4, "#39485d", 2);
+          if (design.dataView === "bars")
+            panel(
+              ctx,
+              body.x,
+              y + 60,
+              Math.max(1, body.width * row.fraction * row.reveal),
+              16,
+              accent,
+              6,
+            );
+          else {
+            ctx.fillStyle = accent;
+            ctx.beginPath();
+            ctx.arc(body.x + body.width * row.fraction * row.reveal, y + 66, 12, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          y += rowHeight;
+        }
         text(
           ctx,
-          row.title,
-          { x: body.x + 20, y: y + 20, width: body.width - 210, height: 56 },
-          spacious ? 42 : 34,
-          "#f2f7ff",
-          "Shorts Heading",
-          "captured product",
+          `Stock · zero baseline · ${chart.rows.length} captured rows`,
+          { x: body.x, y: box.y + box.height - 66, width: body.width, height: 40 },
+          24,
+          "#9fb8b6",
+          "Shorts Body",
+          "chart basis",
         );
-        text(
-          ctx,
-          String(row.stock),
-          { x: body.x + body.width - 170, y: y + 18, width: 145, height: 60 },
-          spacious ? 48 : 36,
-          accent,
-          "Shorts Heading",
-          "captured stock",
-        );
-        text(
-          ctx,
-          "in stock",
-          { x: body.x + body.width - 170, y: y + (spacious ? 72 : 48), width: 145, height: 30 },
-          spacious ? 22 : 18,
-          "#bfd7df",
-        );
-        panel(
-          ctx,
-          body.x + 20,
-          y + rowHeight - (spacious ? 22 : 18),
-          Math.max(1, (body.width - 40) * (row.stock / maximumStock) * reveal),
-          spacious ? 6 : 4,
-          accent,
-          3,
-        );
-        y += rowHeight;
-      }
-      if (!spacious && y + 130 < box.y + box.height - 24) {
-        text(
-          ctx,
-          `${capture.value.length} captured rows`,
-          { x: body.x, y: y + 30, width: body.width, height: 65 },
-          44,
-          accent,
-          "Shorts Heading",
-          "captured total",
-        );
+      } else {
+        const maximumStock = Math.max(1, ...capture.value.map((row) => row.stock));
+        const rowHeight = spacious ? 128 : 90;
+        for (const [rowIndex, row] of capture.value.entries()) {
+          const spotlight =
+            Math.floor(motion.elapsed / 2.4) % Math.max(1, capture.value.length) === rowIndex;
+          panel(
+            ctx,
+            body.x,
+            y,
+            body.width,
+            rowHeight - 12,
+            rowIndex % 2 ? "#242a53" : "#124051",
+            16,
+          );
+          if (spotlight) panel(ctx, body.x, y + 12, 6, rowHeight - 36, accent, 3);
+          const reveal = Math.min(1, Math.max(0, motion.elapsed - rowIndex * 0.16) / 0.65);
+          text(
+            ctx,
+            row.title,
+            { x: body.x + 20, y: y + 20, width: body.width - 210, height: 56 },
+            spacious ? 42 : 34,
+            "#f2f7ff",
+            "Shorts Heading",
+            "captured product",
+          );
+          text(
+            ctx,
+            String(row.stock),
+            { x: body.x + body.width - 170, y: y + 18, width: 145, height: 60 },
+            spacious ? 48 : 36,
+            accent,
+            "Shorts Heading",
+            "captured stock",
+          );
+          text(
+            ctx,
+            "in stock",
+            { x: body.x + body.width - 170, y: y + (spacious ? 72 : 48), width: 145, height: 30 },
+            spacious ? 22 : 18,
+            "#bfd7df",
+          );
+          panel(
+            ctx,
+            body.x + 20,
+            y + rowHeight - (spacious ? 22 : 18),
+            Math.max(1, (body.width - 40) * (row.stock / maximumStock) * reveal),
+            spacious ? 6 : 4,
+            accent,
+            3,
+          );
+          y += rowHeight;
+        }
+        if (!spacious && y + 130 < box.y + box.height - 24) {
+          text(
+            ctx,
+            `${capture.value.length} captured rows`,
+            { x: body.x, y: y + 30, width: body.width, height: 65 },
+            44,
+            accent,
+            "Shorts Heading",
+            "captured total",
+          );
+        }
       }
       if (y > box.y + box.height - 20) throw new Error("Captured results overflow the video panel");
     }
@@ -1001,5 +1263,24 @@ export async function drawVideoFrame(input: VideoFrameInput, moment: VideoMoment
     24,
     "#a5bdb4",
   );
+  if (design.image?.treatment === "background" && selectedImage?.asset.credit) {
+    const creditBox = { x: 72, y: 1830, width: 864, height: 48 };
+    text(
+      ctx,
+      `Image: ${selectedImage.asset.credit}`,
+      creditBox,
+      fitVideoProse(
+        ctx,
+        `Image: ${selectedImage.asset.credit}`,
+        creditBox,
+        22,
+        18,
+        "background image credit",
+      ),
+      "#a4bacb",
+      "Shorts Body",
+      "background image credit",
+    );
+  }
   return canvas.encode("png");
 }

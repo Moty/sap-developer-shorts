@@ -1,13 +1,17 @@
 import { words } from "../contracts.js";
 import { hash } from "../digest.js";
 import { type ContentEpisode, isNewsEpisode } from "../domain.js";
-import { type PresentationDesign, parsePresentationDesign } from "../presentation-design.js";
+import {
+  type PresentationDesign,
+  parsePresentationDesign,
+  sceneSupportsCharts,
+} from "../presentation-design.js";
 import { parseStoryBrief, type StoryBrief } from "../story-brief.js";
 import { feedSceneDesign } from "../video/feed-design.js";
 import { assertCompanionLinks, type FinalReview, parseFinalReview } from "./final-review.js";
 import type { ChatMessage } from "./providers.js";
 
-export const writingPromptVersion = "source-backed-editor-v4-story-brief";
+export const writingPromptVersion = "source-backed-editor-v5-advanced-visuals";
 export type WritingAction = "ideas" | "rewrite" | "review" | "presentation" | "final-review";
 export type WritingStyle = "conversational" | "professional" | "comic";
 export interface WritingSnapshot {
@@ -224,7 +228,14 @@ export function writingContext(episode: ContentEpisode, snapshot: WritingSnapsho
     ...(snapshot.brief ? { storyBrief: parseStoryBrief(snapshot.brief) } : {}),
     companionPost: snapshot.publicationText ?? episode.publication.text,
     styleFormat: episode.presentation?.format ?? "explainer",
-    ...(snapshot.design ? { currentDesign: snapshot.design } : {}),
+    ...(snapshot.design
+      ? {
+          currentDesign: {
+            ...snapshot.design,
+            scenes: snapshot.design.scenes.map(({ image: _image, ...scene }) => scene),
+          },
+        }
+      : {}),
     sources: episode.sources.map((source) => ({
       id: source.id,
       title: source.title,
@@ -264,6 +275,8 @@ export function writingContext(episode: ContentEpisode, snapshot: WritingSnapsho
       ...(isNewsEpisode(episode) ? { claimIds: episode.scenes[index]?.claimIds ?? [] } : {}),
       // The visual/evidence remain fixed; give only its descriptive kind, not a file or image path.
       visualKind: scene.visual.kind,
+      chartAvailable: sceneSupportsCharts(scene),
+      hasFramedIllustration: snapshot.design?.scenes[index]?.image?.treatment === "card",
       visualLabel: scene.visual.label,
       turns: (snapshot.scenes[index]?.texts ?? []).map((value, position) => ({
         speakerId: `speaker-${Math.max(0, speakerIds.indexOf(scene.dialogue?.[position]?.speakerId ?? speakerIds[0] ?? "narrator")) + 1}`,
@@ -286,7 +299,7 @@ export function writingMessages(input: WritingInput, episode: ContentEpisode): C
       : input.action === "ideas"
         ? `Propose exactly three distinct angles grounded in this script's existing evidence and fixed visual material. Use the saved story brief to address the named audience and viewer problem. Vary the approach: a concrete problem, a surprising mechanism, and a practical decision. Each has title, hook, question, payoff and claimIds from the supplied evidence. Return {"ideas":[{"title":"...","hook":"...","question":"...","payoff":"...","claimIds":["existing claim id"]}, ...]}. The entire response should use under 180 words. Hooks are at most seven words. Avoid treating a scope disclaimer as a story.`
         : input.action === "presentation"
-          ? `Act as a mobile presentation designer. Generate or enhance this 9:16 deck from the supplied script, source claims and current design, following the user's direction. Communicate a discovery through concise visual headlines instead of copying narration. Preserve the meaning, uncertainty, scope and availability of every claim; the actual code, captured data and source cards remain rendered from saved evidence. Return {"schemaVersion":1,"theme":"electric or ocean or sunset","motion":"snappy or smooth or minimal","scenes":[{"id":"existing scene id","headline":"short source-grounded visual cue","emphasis":"balanced or headline or evidence"}, ...]}. Use the exact seven scene IDs in order. Each headline is 1–48 plain characters, no HTML/URLs. Theme electric is lime/violet, ocean is cyan/teal, sunset is coral/gold. Headline emphasis enlarges the visual cue; evidence emphasis gives more space to the real data; balanced keeps the default hierarchy. Motion controls entrance pace, with minimal reducing decoration. Do not author HTML, code, charts, numbers, media paths, source URLs or invented evidence. For scenes whose visualKind is presenter, you may add composition:{"kind":"callout or steps or comparison","items":[{"label":"short explanatory words","claimId":"optional existing claim id"}]}. Callout has one item, comparison exactly two, steps two or three. Labels are at most 32 plain characters with no numbers, URLs or paths; actual factual values remain in saved evidence. Use composition to explain the mechanism or contrast, not repeat narration. Omit composition on code, output and news-card scenes so their verified evidence remains visible. Vary compositions meaningfully across explanatory scenes. Do not change narration, voices or photos. Return only this JSON object.`
+          ? `Act as a mobile presentation designer. Generate or enhance this 9:16 deck from the supplied script, source claims and current design, following the user's direction. Communicate a discovery through concise visual headlines instead of copying narration. Preserve the meaning, uncertainty, scope and availability of every claim; the actual code, captured data and source cards remain rendered from saved evidence. Return {"schemaVersion":1,"theme":"electric or ocean or sunset","motion":"snappy or smooth or minimal","scenes":[{"id":"existing scene id","headline":"short source-grounded visual cue","emphasis":"balanced or headline or evidence"}, ...]}. Use the exact seven scene IDs in order. Each headline is 1–48 plain characters, no HTML/URLs. Theme electric is lime/violet, ocean is cyan/teal, sunset is coral/gold. Headline emphasis enlarges the visual cue; evidence emphasis gives more space to the real data; balanced keeps the default hierarchy. Motion controls entrance pace, with minimal reducing decoration. Do not author HTML, code, charts, numbers, media paths, source URLs or invented evidence. For scenes whose visualKind is presenter, you may add composition:{"kind":"callout or steps or comparison or flow or timeline","items":[{"label":"short explanatory words","claimId":"optional existing claim id"}]}. Callout has one item, comparison exactly two, steps two or three; flow and timeline two to four. Timeline means an ordered sequence, not an invented dated schedule. Labels are at most 32 plain characters with no numbers, URLs or paths; actual factual values remain in saved evidence. Use composition to explain the mechanism or contrast, not repeat narration. Omit composition on code, output and news-card scenes so their verified evidence remains visible. Vary compositions meaningfully across explanatory scenes. You may add global background:"classic or aurora or blueprint or spotlight or editorial" and effect:"none or drift or particles". Only for scenes with chartAvailable true, dataView:"rows or bars or dots" switches the saved captured stock data; never author data values. Do not author image references; locally selected illustrations are preserved automatically. If a scene hasFramedIllustration is true, omit composition so its chosen figure remains visible. Do not change narration, voices or photos. Return only this JSON object.`
           : input.action === "review"
             ? `Review only this script and supplied source/claim alignment. Do not claim to hear audio or inspect video, and do not approve factual correctness. Identify concrete improvements to natural speech, hook/payoff, clarity, technical scope and source uncertainty. Return {"summary":"...","issues":[{"sceneId":"an existing scene id or overall","kind":"source or delivery or clarity","message":"specific problem","suggestion":"concrete fix"}]}. At most ten issues; no invented source facts.`
             : `Write an authored story from the saved evidence and story brief, rather than summarizing a press release. Follow the brief audience, viewer problem, chosen angle and target length; default to around 115 spoken words and 45–60 seconds. Build recognizable problem → concrete mechanism/reveal → useful payoff. Let narration explain why; visuals show what changed. For dialogue, use natural questions and responses, not alternating paragraphs. The studio accepts 15–90 seconds measured audio. Scene word budgets and a seven-word opening are suggestions, not fixed limits: favor natural transitions and the overall story. This is planned timing, not measured audio. Use at most 270 words total. Keep the EXACT seven scene IDs, their order and every existing turn slot in place. Each on-screen overlay is 1–48 characters and contributes a concise cue rather than repeating speech. Keep the claims attached to their existing scenes, because visuals/evidence cannot change. Do not add/remove speaker turns or change speaker assignments. Return {"title":"title at most 60 characters","scenes":[{"id":"existing id","overlay":"...","texts":["rewritten text for first existing turn", "only add further entries if the scene already has them"]}, ...]}. Also include publicationText: a complete companion post consistent with this story, retaining all URLs and material caveats from companionPost. Preserve attribution: the presenter is not SAP or a quoted customer. Do not speak internal editorial directions. Do not rewrite voices, photos, source records, code or captions.`;
@@ -312,12 +325,25 @@ export function parseWritingResult(
     throw new Error("Return one complete JSON object without commentary.");
   }
   if (input.action === "final-review") return parseFinalReview(value, input.snapshot, episode);
-  if (input.action === "presentation")
+  if (input.action === "presentation") {
+    const incoming = value as PresentationDesign;
+    if (incoming?.scenes?.some((scene) => scene.image !== undefined))
+      throw new Error(
+        "Presentation images are selected locally; the writer cannot attach image references.",
+      );
+    if (Array.isArray(incoming?.scenes))
+      incoming.scenes = incoming.scenes.map((scene, index) => {
+        const image = input.snapshot.design?.scenes[index]?.image;
+        const preserved = { ...scene, ...(image ? { image: structuredClone(image) } : {}) };
+        if (image?.treatment === "card") delete preserved.composition;
+        return preserved;
+      });
     return parsePresentationDesign(
-      value,
+      incoming,
       episode.scenes.map((scene) => scene.id),
       episode.claims.map((claim) => claim.id),
     );
+  }
   if (input.action === "ideas") {
     const result = object(value, ["ideas"]);
     if (!Array.isArray(result.ideas) || result.ideas.length !== 3)

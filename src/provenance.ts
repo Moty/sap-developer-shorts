@@ -81,6 +81,9 @@ export async function runtimeFiles(): Promise<string[]> {
     "news/new-short-delivery",
     "presentation",
     "presentation-design",
+    "visual-assets",
+    "visual-preview",
+    "video/visual-plan",
     "timing-policy",
     "presentation-deck",
     "production",
@@ -137,7 +140,7 @@ export async function runtimeFiles(): Promise<string[]> {
       projectRoot,
       fileURLToPath(
         new URL(
-          `./${name}${["media/photo-texture", "media/portrait-motion"].includes(name) ? ".js" : extension}`,
+          `./${name}${["media/photo-texture", "media/portrait-motion", "video/visual-plan"].includes(name) ? ".js" : extension}`,
           import.meta.url,
         ),
       ),

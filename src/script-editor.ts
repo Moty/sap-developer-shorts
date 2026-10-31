@@ -18,6 +18,7 @@ import { kokoroVoices } from "./media/voices.js";
 import { enhanceNewsReviewHtml, newsReviewNotice } from "./news/freshness.js";
 import { projectRoot } from "./paths.js";
 import { episodeSelector, presentationLabel } from "./presentation.js";
+import { sceneSupportsCharts } from "./presentation-design.js";
 import { type ProductionHistorySample, productionWorkspace } from "./production-ui.js";
 import { escapeHtml as esc } from "./review.js";
 import { defaultStoryBrief } from "./story-brief.js";
@@ -109,6 +110,7 @@ export async function createScriptEditor(
     workspaceScript,
     productionCss,
     productionScript,
+    advancedVisualsScript,
   ] = await Promise.all([
     readFile(resolve(projectRoot, "templates/script-editor.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/script-editor.js"), "utf8"),
@@ -124,6 +126,7 @@ export async function createScriptEditor(
     readFile(resolve(projectRoot, "templates/editor-workspace.js"), "utf8"),
     readFile(resolve(projectRoot, "templates/production-workspace.css"), "utf8"),
     readFile(resolve(projectRoot, "templates/production-workspace.js"), "utf8"),
+    readFile(resolve(projectRoot, "templates/advanced-visuals.js"), "utf8"),
   ]);
   const shellAssets = await episodeShellAssets();
   const editorData = {
@@ -142,6 +145,7 @@ export async function createScriptEditor(
     },
     productionHistory: options.productionHistory ?? [],
     compositionClaimIds: episode.claims.map((claim) => claim.id),
+    visualOutputSceneIds: episode.scenes.filter(sceneSupportsCharts).map((scene) => scene.id),
     compositionSceneIds: episode.scenes
       .filter((scene) => scene.visual.kind === "presenter")
       .map((scene) => scene.id),
@@ -295,6 +299,7 @@ ${profileScript}
 ${photoTexture.replace(/^export /gm, "")}
 ${portraitMotion.replace(/^export /gm, "")}
 ${script}
+${advancedVisualsScript}
 ${workspaceScript}
 ${productionScript}
 ${shellAssets.script}

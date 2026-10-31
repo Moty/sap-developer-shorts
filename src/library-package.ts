@@ -121,6 +121,7 @@ function validateManifest(value: unknown) {
   const allowed = new Set(["review.html"]);
   const expectedSources = new Set(sourceInputs);
   for (const name of [
+    "templates/advanced-visuals.js",
     "templates/voice-profiles.js",
     "templates/local-actions.js",
     "templates/voice-library.css",

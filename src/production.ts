@@ -30,6 +30,7 @@ import { inside, projectRoot } from "./paths.js";
 import { episodeSelector, presentationLabel } from "./presentation.js";
 import { shortDurationAllowed } from "./timing-policy.js";
 import { renderVideo } from "./video/export.js";
+import { resolveVisualAssets } from "./visual-assets.js";
 
 const exec = promisify(execFile);
 type Stage = "PREFLIGHT" | "NARRATION" | "RENDER" | "LIBRARY";
@@ -87,6 +88,15 @@ function localStages(
   return {
     async preflight() {
       const episode = await readContentEpisode(selector);
+      try {
+        await resolveVisualAssets(episode);
+      } catch (error) {
+        throw new ProductionBlocked(
+          "VISUAL_IMAGE_REQUIRED",
+          (error as Error).message,
+          "Open Advanced presentation, restore the selected local image or choose another one, then save a new version.",
+        );
+      }
       if (isNewsEpisode(episode)) {
         try {
           validateNewsEpisode(episode, { requireFresh: true });
