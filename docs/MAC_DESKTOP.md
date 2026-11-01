@@ -503,3 +503,43 @@ The build excludes local drafts, personal media and credentials.
 The signed installer and its SHA-256 file are created under `desktop/out/`.
 Installer-specific evidence is recorded below after verification of the actual
 DMG, including a fresh workspace and a replay of an older workspace upgrade.
+
+### 0.1.3 signed preview verification — November 1, 2026
+
+Built from `9b03ceb` at the pushed `v0.1.3-preview` tag. All 439 workflow tests,
+18 desktop tests, five live CAP checks, typecheck/build, content validation and
+scoped version-file lint passed before packaging. The accepted editor changes
+retain their independent Astra review recorded in [WRITING_ENGINES.md](WRITING_ENGINES.md).
+
+- Apple accepted the app (`a4f07adc-2f89-41cb-b865-d74f50e70f48`) and DMG
+  (`593576b3-542b-4514-972d-e87f9acd5b07`) with no issues. App and DMG tickets
+  were stapled and validated; Gatekeeper accepted both as **Notarized Developer ID**.
+- The final DMG was mounted read-only, its app copied outside the repository and
+  the image ejected. That copy started with an empty, isolated data directory and
+  served the studio with HTTP 200. The app's short version and build version,
+  payload manifest and filename all identify 0.1.3; the manifest records the tag's
+  exact source revision.
+- All 20 native binaries passed signature, team, secure-timestamp and Hardened
+  Runtime checks. All 437 seed/runtime checksums passed. Seed content matched the
+  committed source and excluded local drafts, personal photos and credentials.
+  The bundled signed Node loaded Canvas, executed SQLite and passed the five CAP
+  checks without relying on source-checkout dependencies.
+- Upgrade replay used the actual 0.1.1 DMG's payload in a separate workspace.
+  Startup succeeded with HTTP 200, preserved all six original backlog records,
+  added the required draft-ready NEWS-10 record and backed up the original backlog
+  bytes. Four local-data sentinel files remained unchanged. A second launch
+  preserved the backlog and sentinels without creating another migration backup.
+
+File: `desktop/out/SAP-Shorts-0.1.3-arm64-signed-preview.dmg`
+(342,629,398 bytes), with adjacent `.dmg.sha256` file:
+
+```text
+4be5140c80fd66c33f91c9fe0a6fb605a4371a342228cdfb10c5dfa58ab894c9
+```
+
+Evidence is retained locally under `.state/desktop-013/`. The installed app and
+its data were not replaced by verification. No optional model download, paid AI
+request, new voice/photo enrollment or full episode render was performed in this
+installer check. Another physical Mac remains a separate installation test.
+This artifact remains a signed testing preview; public redistribution review
+and public release remain pending.
