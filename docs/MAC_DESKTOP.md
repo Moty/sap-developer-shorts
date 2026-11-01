@@ -107,8 +107,8 @@ Output:
 
 ```
 desktop/out/SAP Shorts-darwin-arm64/SAP Shorts.app
-desktop/out/SAP-Shorts-0.1.2-arm64-local-test.dmg
-desktop/out/SAP-Shorts-0.1.2-arm64-local-test.dmg.sha256
+desktop/out/SAP-Shorts-0.1.3-arm64-local-test.dmg
+desktop/out/SAP-Shorts-0.1.3-arm64-local-test.dmg.sha256
 desktop/out/build-report.json
 ```
 
@@ -134,7 +134,7 @@ DESKTOP_NOTARY_PROFILE="sap-shorts-notary" \
 npm run desktop:build -- --signed-preview
 ```
 
-This creates `SAP-Shorts-0.1.2-arm64-signed-preview.dmg` with Apple's signature and
+This creates `SAP-Shorts-0.1.3-arm64-signed-preview.dmg` with Apple's signature and
 notarization checks. Its manifest and build report retain `notarized-preview` and
 `redistributionReviewed: false`. Apple notarization does not grant redistribution
 rights for the bundled dependencies. In particular, the CAP demo currently bundles
@@ -474,3 +474,32 @@ failures remain documented in the UX handoff.
 The permanent migration and launcher improvements are source changes for the next
 requested installer milestone. The signed 0.1.2 bundle and uploaded DMG have not
 been modified or replaced, and no new installer version was generated.
+
+## Desktop 0.1.3 — accepted creator-studio checkpoint
+
+The November 1, 2026 installer milestone freezes the user-accepted creator flow
+through `a064a88`. Its source/build restore tag is `v0.1.3-preview`; the desktop
+package, lockfile, app metadata and DMG filename use **0.1.3**. The preview label
+continues the existing testing distribution while public redistribution review
+remains pending. It does not change existing tags or publish/merge `main`.
+
+This batches the changes after 0.1.2:
+
+- Backlog upgrade migration and retryable startup, including the NEWS-10 fix.
+- Story briefs, production presets, version comparison, archive/favorite/series
+  organization, finished-output review handoff and local Kokoro scene caching.
+- Advanced slide looks, layouts, charts and local images, with automatic scene
+  previews and compact visual controls.
+- Independent writing tasks with scoped instructions, visible Hyperspace cost
+  notices, and selected-angle confirmation beside the clicked card. Continue to
+  Rewrite reveals the chosen angle and settings without starting a request.
+
+Heart remains the default stock narrator. Personal Qwen voices, photo alignment
+and realistic local Ditto portraits remain optional installations. Updating the
+app preserves desktop content and models; source-checkout data is still separate.
+Save edits and quit the installed app before replacing it from the new DMG.
+The build excludes local drafts, personal media and credentials.
+
+The signed installer and its SHA-256 file are created under `desktop/out/`.
+Installer-specific evidence is recorded below after verification of the actual
+DMG, including a fresh workspace and a replay of an older workspace upgrade.
