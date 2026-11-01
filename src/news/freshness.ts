@@ -17,7 +17,7 @@ const escapeHtml = (value: string) =>
     );
   });
 
-function validThrough(news: NewsReviewDate): string | null {
+export function validThrough(news: NewsReviewDate): string | null {
   if (
     !/^\d{4}-\d{2}-\d{2}$/u.test(news.asOf) ||
     !Number.isInteger(news.maxAgeDays) ||

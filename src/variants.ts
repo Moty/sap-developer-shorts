@@ -21,6 +21,7 @@ export type PresentationDefinition = {
   }[];
   publicationText?: string;
   pronunciation?: Record<string, string>;
+  plannedDurationSeconds?: number;
 };
 
 function assertPronunciations(glossary: unknown): asserts glossary is Record<string, string> {
@@ -58,6 +59,7 @@ export async function validatePresentationDefinition(value: unknown, expectedSel
           "scenes",
           "publicationText",
           "pronunciation",
+          "plannedDurationSeconds",
         ].includes(key),
     ) ||
     ![1, 2].includes(definition.schemaVersion) ||
@@ -95,7 +97,13 @@ export function applyPresentationVariant(
   base: ContentEpisode,
   value: Pick<
     PresentationDefinition,
-    "baseInputHash" | "title" | "presentation" | "scenes" | "publicationText" | "pronunciation"
+    | "baseInputHash"
+    | "title"
+    | "presentation"
+    | "scenes"
+    | "publicationText"
+    | "pronunciation"
+    | "plannedDurationSeconds"
   >,
 ): ContentEpisode {
   if (value.baseInputHash !== hash(JSON.stringify(base)))
@@ -104,6 +112,17 @@ export function applyPresentationVariant(
     throw new Error("Presentation must provide every scene exactly once");
   if (Object.hasOwn(value, "pronunciation")) assertPronunciations(value.pronunciation);
   const episode = structuredClone(base);
+  if (value.plannedDurationSeconds !== undefined) {
+    const target = value.plannedDurationSeconds;
+    if (!Number.isInteger(target) || target < 15 || target > 90)
+      throw new Error("Planned length must be 15–90 whole seconds.");
+    const ratio = target / episode.targetDurationSeconds;
+    for (const scene of episode.scenes) {
+      scene.startSeconds = Math.round(scene.startSeconds * ratio * 1000) / 1000;
+      scene.endSeconds = Math.round(scene.endSeconds * ratio * 1000) / 1000;
+    }
+    episode.targetDurationSeconds = target;
+  }
   episode.title = value.title;
   episode.presentation = value.presentation;
   if (value.presentation.speakers.some((speaker) => typeof speaker.voice !== "string"))

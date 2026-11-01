@@ -8,6 +8,7 @@ const {
   sha,
   safeRelative,
   installWorkspace,
+  mergeBacklogSeed,
   desktopEnvironment,
   workerInput,
   allowedExternal,
@@ -70,6 +71,70 @@ test("payload verification completes before creating or modifying workspace cont
   await fs.writeFile(resolve(f.payload, "seed/content/episodes/CAP-01.json"), "tampered");
   await assert.rejects(installWorkspace(f.payload, f.workspace), /checksum failed/);
   await assert.rejects(fs.access(f.workspace), { code: "ENOENT" });
+});
+test("upgrades add missing backlog records before new episodes while preserving editorial edits and backups", async (t) => {
+  const f = await fixture(t);
+  async function seed(path, value) {
+    const bytes = `${JSON.stringify(value, null, 2)}\n`;
+    const target = resolve(f.payload, "seed", path);
+    await fs.mkdir(dirname(target), { recursive: true });
+    await fs.writeFile(target, bytes);
+    const entry = { path, policy: "seed", sha256: sha(bytes) };
+    const index = f.manifest.files.findIndex((file) => file.path === path);
+    if (index < 0) f.manifest.files.push(entry);
+    else f.manifest.files[index] = entry;
+    await f.save();
+  }
+  const backlogPath = "content/news/backlog.json";
+  const older = [{ id: "NEWS-01", priority: 1, status: "draft-ready", title: "Original" }];
+  await seed(backlogPath, older);
+  await installWorkspace(f.payload, f.workspace);
+  const edited = [
+    { ...older[0], title: "My edited news", status: "needs-research" },
+    { id: "NEWS-09", priority: 9, status: "draft-ready", title: "My private story" },
+  ];
+  const originalBytes = `${JSON.stringify(edited)}\n`;
+  await fs.writeFile(resolve(f.workspace, backlogPath), originalBytes);
+  await fs.writeFile(resolve(f.workspace, "content/drafts/NEWS-09.json"), "private draft");
+  const newTopic = { id: "NEWS-10", priority: 9, status: "draft-ready", title: "New seed" };
+  await seed(backlogPath, [...older, newTopic]);
+  // The episode precedes the backlog in the manifest, reproducing a partial older update.
+  await seed("content/episodes/NEWS-10.json", { id: "NEWS-10" });
+  f.manifest.files.reverse();
+  await f.save();
+  await installWorkspace(f.payload, f.workspace);
+  const merged = JSON.parse(await fs.readFile(resolve(f.workspace, backlogPath), "utf8"));
+  assert.deepEqual(merged, [...edited, { ...newTopic, priority: 10 }]);
+  assert.equal(
+    await fs.readFile(resolve(f.workspace, "content/drafts/NEWS-09.json"), "utf8"),
+    "private draft",
+  );
+  const backups = resolve(f.workspace, ".state/desktop-backups");
+  const [backup] = await fs.readdir(backups);
+  assert.equal(await fs.readFile(resolve(backups, backup, backlogPath), "utf8"), originalBytes);
+  const bytes = await fs.readFile(resolve(f.workspace, backlogPath), "utf8");
+  await installWorkspace(f.payload, f.workspace);
+  assert.equal(await fs.readFile(resolve(f.workspace, backlogPath), "utf8"), bytes);
+  assert.equal((await fs.readdir(backups)).length, 1);
+  // A damaged saved backlog fails before another episode is copied, without replacement.
+  await fs.writeFile(resolve(f.workspace, backlogPath), "{unfinished");
+  await seed("content/episodes/NEWS-11.json", { id: "NEWS-11" });
+  await assert.rejects(installWorkspace(f.payload, f.workspace), /saved backlog was not replaced/);
+  assert.equal(await fs.readFile(resolve(f.workspace, backlogPath), "utf8"), "{unfinished");
+  await assert.rejects(fs.access(resolve(f.workspace, "content/episodes/NEWS-11.json")), {
+    code: "ENOENT",
+  });
+});
+test("backlog migration handles tutorials and empty lists without promoting or replacing existing items", () => {
+  const topic = { id: "CAP-01", status: "pilot-ready" };
+  assert.deepEqual(mergeBacklogSeed([], [topic]), [topic]);
+  assert.equal(mergeBacklogSeed([topic], [{ ...topic, status: "needs-research" }]), null);
+  for (const invalid of [null, {}, [{ id: "" }], [topic, topic]])
+    assert.throws(() => mergeBacklogSeed(invalid, [topic]), /valid and unique/);
+  assert.throws(
+    () => mergeBacklogSeed([{ id: "NEWS-01", priority: 0 }], [], { prioritized: true }),
+    /valid and unique/,
+  );
 });
 test("workspace setup rejects occupied folders and redirected application directories without removing their contents", async (t) => {
   const f = await fixture(t);

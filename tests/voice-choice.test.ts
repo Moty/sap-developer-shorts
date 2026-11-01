@@ -184,7 +184,7 @@ test("studio embeds portable verified voice samples with native audio and clear 
   const html = String(pages["review.html"]);
   assert.match(html, /media-src 'self'/);
   assert.match(html, /href="#voices"/);
-  assert.match(html, /Listen to the voices/);
+  assert.match(html, /Choose who speaks/);
   assert.match(html, /Installed but no current sample: Michael/);
   assert.match(html, /voice-select af_heart/);
   assert.match(html, /data-local-action="voice-default"[^>]*data-voice="af_heart"[^>]*disabled/u);

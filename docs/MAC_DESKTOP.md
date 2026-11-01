@@ -54,7 +54,11 @@ public seed list.
 The packaged program and template files are copied from a checksummed manifest
 into the managed workspace. Application code is repaired/refreshed on launch;
 existing content, production preferences, voices, photos, artifacts and job state
-are preserved. Runtime dependencies remain inside the app bundle. Replace the app
+are preserved. Backlog migrations add missing bundled topics by ID, preserving
+existing records and editorial status. Before adding records, the original backlog
+is backed up under `workspace/.state/desktop-backups/<migration-id>/content/`.
+New news priorities are adjusted only when they conflict with existing priorities.
+Runtime dependencies remain inside the app bundle. Replace the app
 with a newer version to update; automatic update delivery is not included yet.
 Model or voice-runtime changes may require a new audition, as in the source app.
 Deleting the app does not delete its data folder. Back up that folder separately.
@@ -103,8 +107,8 @@ Output:
 
 ```
 desktop/out/SAP Shorts-darwin-arm64/SAP Shorts.app
-desktop/out/SAP-Shorts-0.1.1-arm64-local-test.dmg
-desktop/out/SAP-Shorts-0.1.1-arm64-local-test.dmg.sha256
+desktop/out/SAP-Shorts-0.1.3-arm64-local-test.dmg
+desktop/out/SAP-Shorts-0.1.3-arm64-local-test.dmg.sha256
 desktop/out/build-report.json
 ```
 
@@ -130,7 +134,7 @@ DESKTOP_NOTARY_PROFILE="sap-shorts-notary" \
 npm run desktop:build -- --signed-preview
 ```
 
-This creates `SAP-Shorts-0.1.1-arm64-signed-preview.dmg` with Apple's signature and
+This creates `SAP-Shorts-0.1.3-arm64-signed-preview.dmg` with Apple's signature and
 notarization checks. Its manifest and build report retain `notarized-preview` and
 `redistributionReviewed: false`. Apple notarization does not grant redistribution
 rights for the bundled dependencies. In particular, the CAP demo currently bundles
@@ -369,3 +373,173 @@ Signed preview: `desktop/out/SAP-Shorts-0.1.1-arm64-signed-preview.dmg`
 Quit the installed app after saving current edits, replace it from the DMG, then
 reopen. Tests used separate workspaces; the currently running installed app is not
 silently replaced or restarted. Public redistribution review remains pending.
+
+
+## Desktop 0.1.2 — creator workspace facelift
+
+This release batches the source improvements since 0.1.1: story/version grouping,
+focused scene editing, shared episode navigation, a production checklist with
+actual progress and reload recovery, New short creation, voice/presenter libraries,
+and refreshed launcher/private-studio layouts. It also includes the accumulated
+writing/presentation assistance and flexible measured-audio timing policy.
+
+The packaged studio supports optional local Kokoro, personal Qwen narration and
+realistic Ditto portraits through the existing setup actions. Models remain
+separate downloads. Updating application code preserves saved scripts, model
+files, voice profiles, photos and produced videos in the desktop workspace.
+
+The source milestone passed 403 workflow tests, 14 desktop tests, five CAP demo
+checks, typecheck/build, content validation and verified studio ZIP packaging.
+Repository-wide CI is still blocked by pre-existing formatting issues documented
+in the UX handoff. Installer-specific signature, notarization and isolated-startup
+results are recorded with the final artifact after packaging.
+
+
+### 0.1.2 signed preview verification — October 28, 2026
+
+The installer was built from source commit `1ee4ad5` (`v0.1.2-preview`). Apple
+accepted the app notarization (`24e818ec-d603-417e-b982-72fee33d5cff`) and DMG
+notarization (`c4933884-d3b7-47c6-9432-4ec9fec39a46`). Both tickets validated;
+Gatekeeper accepted both as **Notarized Developer ID**.
+
+The final DMG was mounted read-only and its app copied to a separate temporary
+folder. That copy started with an empty data directory and served the creator
+studio with HTTP 200. All 20 native binaries passed signature, secure timestamp,
+team and Hardened Runtime checks. The signer matched the selected newer Developer
+ID certificate. All 412 packaged seed/runtime files passed their checksums; the
+news seed matched committed content and excluded local drafts/private media.
+The bundled signed Node loaded Canvas, executed SQLite and passed all five CAP
+checks in the isolated managed workspace. No optional model install, voice/photo
+enrollment, actual episode render or online worker pairing was triggered.
+
+File: `SAP-Shorts-0.1.2-arm64-signed-preview.dmg` (346,876,010 bytes).
+
+```text
+916b96b9c552ed8b895927a12ebbaedd6ebcb4b41ad621f8d2f6abb47e0abcef
+```
+
+The signed preview remains labeled `notarized-preview` with
+`redistributionReviewed: false`. The GitHub release is prepared as a private draft
+for the user-selected signed-preview testing workflow. Public release was not
+selected and the redistribution-review flag remains false. The running installed
+0.1.1 app and its workspace were left unchanged. Save edits and quit it before
+replacing it from this DMG; application data is retained by the update workflow.
+
+
+The completed draft is saved on GitHub at
+[0.1.2 installer draft](https://github.com/Moty/sap-developer-shorts/releases)
+(owner access required). Both the DMG and its `.sha256` file are attached, alongside
+the two automatic source archives. GitHub's displayed SHA-256 digests match the
+local files: the DMG matches the hash above, and the 108-byte checksum file matches
+`9ddb201e89c725436a1b2d545966dba70a911cf55b7c7cc48e4104752b8d97fe`.
+The upload was completed using the standard macOS file picker; no extension
+permission was changed. The stale upload-pending note was removed and the draft
+saved. The release remains private for the user-selected testing workflow; it has
+not been publicly published. Both verified files remain under `desktop/out/`.
+
+### 0.1.2 upgrade regression and recovery
+
+An upgrade from an existing 0.1.1 workspace could stop with `News episode NEWS-10
+needs a draft-ready news backlog entry`. The installer added the new episode but
+treated the older backlog as an indivisible user seed and never added its matching
+record. This was an upgrade migration defect; rendering dependencies were not
+missing. The fresh-workspace installer check did not exercise this case.
+
+The source fix merges only missing bundled backlog records, after payload checksum
+verification and before installing new episodes. Existing scripts, backlog fields,
+editorial statuses and preferences are preserved. Backups retain the original
+bytes; repeated launches do not duplicate records or backups. A malformed saved
+backlog fails before new episodes are copied and is never replaced. This does not
+promote an existing research-only item or bypass source/production validation.
+
+Startup now checks engine availability before building the studio, reports checks
+that could not finish, and offers **Retry workspace preparation** when the backend
+can retry. A content error no longer leaves every tool labeled “Checking…”.
+
+The installed Mac was repaired using the verified bundled `NEWS-10` backlog entry
+and the same migration code. All six existing records were preserved, as were 24
+other content, photo and production-config files checked by hash. The original
+backlog is in the backup directory above. The app reopened with **Studio ready**,
+all four rendering tools ready, seven stories/19 versions and the existing produced
+video available for review.
+
+Validation: 403 workflow tests (unmodified Node 22), 18 desktop tests, typecheck,
+build and five live CAP checks passed. The real upgrade replay reproduced the
+failure in a copy of the existing content, repaired it without altering the six
+older records, and served the studio with HTTP 200. The regression tests cover
+priority conflicts, backup preservation, repeated updates, malformed saved data,
+and retrying startup after a content repair. Repository-wide pre-existing lint
+failures remain documented in the UX handoff.
+
+The permanent migration and launcher improvements are source changes for the next
+requested installer milestone. The signed 0.1.2 bundle and uploaded DMG have not
+been modified or replaced, and no new installer version was generated.
+
+## Desktop 0.1.3 — accepted creator-studio checkpoint
+
+The November 1, 2026 installer milestone freezes the user-accepted creator flow
+through `a064a88`. Its source/build restore tag is `v0.1.3-preview`; the desktop
+package, lockfile, app metadata and DMG filename use **0.1.3**. The preview label
+continues the existing testing distribution while public redistribution review
+remains pending. It does not change existing tags or publish/merge `main`.
+
+This batches the changes after 0.1.2:
+
+- Backlog upgrade migration and retryable startup, including the NEWS-10 fix.
+- Story briefs, production presets, version comparison, archive/favorite/series
+  organization, finished-output review handoff and local Kokoro scene caching.
+- Advanced slide looks, layouts, charts and local images, with automatic scene
+  previews and compact visual controls.
+- Independent writing tasks with scoped instructions, visible Hyperspace cost
+  notices, and selected-angle confirmation beside the clicked card. Continue to
+  Rewrite reveals the chosen angle and settings without starting a request.
+
+Heart remains the default stock narrator. Personal Qwen voices, photo alignment
+and realistic local Ditto portraits remain optional installations. Updating the
+app preserves desktop content and models; source-checkout data is still separate.
+Save edits and quit the installed app before replacing it from the new DMG.
+The build excludes local drafts, personal media and credentials.
+
+The signed installer and its SHA-256 file are created under `desktop/out/`.
+Installer-specific evidence is recorded below after verification of the actual
+DMG, including a fresh workspace and a replay of an older workspace upgrade.
+
+### 0.1.3 signed preview verification — November 1, 2026
+
+Built from `9b03ceb` at the pushed `v0.1.3-preview` tag. All 439 workflow tests,
+18 desktop tests, five live CAP checks, typecheck/build, content validation and
+scoped version-file lint passed before packaging. The accepted editor changes
+retain their independent Astra review recorded in [WRITING_ENGINES.md](WRITING_ENGINES.md).
+
+- Apple accepted the app (`a4f07adc-2f89-41cb-b865-d74f50e70f48`) and DMG
+  (`593576b3-542b-4514-972d-e87f9acd5b07`) with no issues. App and DMG tickets
+  were stapled and validated; Gatekeeper accepted both as **Notarized Developer ID**.
+- The final DMG was mounted read-only, its app copied outside the repository and
+  the image ejected. That copy started with an empty, isolated data directory and
+  served the studio with HTTP 200. The app's short version and build version,
+  payload manifest and filename all identify 0.1.3; the manifest records the tag's
+  exact source revision.
+- All 20 native binaries passed signature, team, secure-timestamp and Hardened
+  Runtime checks. All 437 seed/runtime checksums passed. Seed content matched the
+  committed source and excluded local drafts, personal photos and credentials.
+  The bundled signed Node loaded Canvas, executed SQLite and passed the five CAP
+  checks without relying on source-checkout dependencies.
+- Upgrade replay used the actual 0.1.1 DMG's payload in a separate workspace.
+  Startup succeeded with HTTP 200, preserved all six original backlog records,
+  added the required draft-ready NEWS-10 record and backed up the original backlog
+  bytes. Four local-data sentinel files remained unchanged. A second launch
+  preserved the backlog and sentinels without creating another migration backup.
+
+File: `desktop/out/SAP-Shorts-0.1.3-arm64-signed-preview.dmg`
+(342,629,398 bytes), with adjacent `.dmg.sha256` file:
+
+```text
+4be5140c80fd66c33f91c9fe0a6fb605a4371a342228cdfb10c5dfa58ab894c9
+```
+
+Evidence is retained locally under `.state/desktop-013/`. The installed app and
+its data were not replaced by verification. No optional model download, paid AI
+request, new voice/photo enrollment or full episode render was performed in this
+installer check. Another physical Mac remains a separate installation test.
+This artifact remains a signed testing preview; public redistribution review
+and public release remain pending.

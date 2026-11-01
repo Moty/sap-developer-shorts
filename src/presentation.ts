@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 import type { ContentEpisode } from "./domain.js";
 import { assertVoiceReference, isClonedVoice, voiceIdentity } from "./media/voice-reference.js";
 import { projectRoot } from "./paths.js";
-import { parsePresentationDesign } from "./presentation-design.js";
+import { parsePresentationDesign, sceneSupportsCharts } from "./presentation-design.js";
+import { parseStoryBrief } from "./story-brief.js";
 
 export const presentationFormats = [
   {
@@ -81,11 +82,30 @@ export function assertPresentation(episode: ContentEpisode): void {
     return;
   }
   const count = value.format === "dialogue" ? 2 : 1;
+  if (value.brief !== undefined) parseStoryBrief(value.brief);
   if (value.design !== undefined)
     parsePresentationDesign(
       value.design,
       episode.scenes.map((scene) => scene.id),
+      episode.claims.map((claim) => claim.id),
     );
+  for (const [index, direction] of (value.design?.scenes ?? []).entries())
+    if (direction.composition && episode.scenes[index]?.visual.kind !== "presenter")
+      throw new Error(
+        "Use custom visual compositions on presenter/explanation scenes; verified code, result and news cards retain their evidence layout.",
+      );
+  for (const [index, direction] of (value.design?.scenes ?? []).entries()) {
+    const kind = episode.scenes[index]?.visual.kind;
+    if (
+      direction.dataView &&
+      !sceneSupportsCharts(episode.scenes[index] as ContentEpisode["scenes"][number])
+    )
+      throw new Error("Charts use captured product/stock rows; choose a captured output scene.");
+    if (direction.image?.treatment === "card" && kind !== "presenter")
+      throw new Error(
+        "Framed illustrations belong on explanation scenes; code and source cards retain their evidence.",
+      );
+  }
   if (
     value.speakers.length !== count ||
     new Set(value.speakers.map((speaker) => speaker.id)).size !== count

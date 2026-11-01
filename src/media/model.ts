@@ -83,6 +83,7 @@ export interface Cue {
   endSeconds: number;
 }
 export interface LegacyNarrationTiming {
+  sceneReuse?: { reused: number; generated: number; checkpoint: number };
   schemaVersion: 1;
   mode: "local-preview";
   voice: string;

@@ -131,7 +131,7 @@ test("comparison anchors and return links work without scripts and voice text re
     budgetCents: 500,
   });
   const html = String(files["review.html"]);
-  assert.match(html, /class="library-tools" data-enhancement-only hidden/);
+  assert.match(html, /class="shorts-controls" data-enhancement-only hidden/);
   assert.match(html, /href="#compare-CAP-01--duo" data-style-choice>Conversation/);
   assert.match(html, /<article id="compare-CAP-01--duo" class="style-panel" data-comparison-panel/);
   assert.doesNotMatch(html, /<article[^>]*data-comparison-panel[^>]*\bhidden\b/u);
@@ -302,7 +302,6 @@ test("all saved news entry points share dated fallback notices while copied tuto
   for (const path of [
     "review.html",
     "episodes/NEWS-02@duo/review.html",
-    "episodes/NEWS-02@duo/watch.html",
     "episodes/NEWS-02@duo/video/review.html",
     "episodes/NEWS-02@duo/edit.html",
   ]) {
@@ -312,6 +311,10 @@ test("all saved news entry points share dated fallback notices while copied tuto
     assert.match(html, /Automatic date checks require JavaScript/u, path);
     assert.equal((html.match(/id="news-review-freshness-script"/gu) ?? []).length, 1, path);
   }
+  // The watch page frames review.html, which already carries the notice; repeating it showed it twice.
+  const watch = String(pages["episodes/NEWS-02@duo/watch.html"]);
+  assert.match(watch, /<iframe class="episode-frame" src="review.html"/u);
+  assert.doesNotMatch(watch, /data-news-review-notice|news-review-freshness/u);
   assert.match(String(pages["episodes/NEWS-02@duo/video/review.html"]), /review.html#episodes/u);
   assert.match(
     String(pages["episodes/NEWS-02@duo/edit.html"]),
@@ -329,7 +332,7 @@ test("all saved news entry points share dated fallback notices while copied tuto
   ])
     assert.doesNotMatch(
       String(pages[path]),
-      /data-news-review-notice|news-review-freshness/u,
+      /<section\b[^>]*\sdata-news-review-notice(?:\s|=|>)|id="news-review-freshness/u,
       path,
     );
 });

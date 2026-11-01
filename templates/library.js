@@ -4,20 +4,52 @@
     const node = (id) => document.getElementById(id);
     let current = null;
     let busy = false;
+    let approved = false;
+    // Four concrete checks replace the single confirmation; the request still sends one boolean.
+    const checks = [...release.querySelectorAll("[data-review-check]")];
+    const reviewed = () => checks.length > 0 && checks.every((check) => check.checked);
+    const setStep = (id, value) => {
+      const step = node(id);
+      if (step) step.dataset.stepState = value;
+    };
     function render(state) {
       current = state;
-      release.dataset.stage = state.stage;
-      node("release-state").textContent = state.label;
-      node("approve-video").disabled =
-        busy ||
-        state.reviewBlocked ||
-        !node("review-confirmed").checked ||
-        !!state.record?.reviewedAt;
-      node("record-publication").disabled =
-        busy || state.reviewBlocked || !state.record?.reviewedAt;
-      node("reopen-review").hidden = !state.record?.reviewedAt;
-      node("reopen-review").disabled = busy;
+      const reviewedAt = !!state.record?.reviewedAt;
       const publication = state.record?.publication;
+      // A cleared approval needs a fresh, complete review.
+      if (approved && !reviewedAt) for (const check of checks) check.checked = false;
+      approved = reviewedAt;
+      release.dataset.stage = state.stage;
+      document.body.dataset.releaseStage = ["review", "publish", "published"].includes(state.stage)
+        ? state.stage
+        : "none";
+      node("release-state").textContent = state.label;
+      node("release-state").dataset.badge = state.stage;
+      for (const check of checks) {
+        if (reviewedAt) check.checked = true;
+        check.disabled = busy || reviewedAt;
+      }
+      node("approve-video").disabled = busy || state.reviewBlocked || !reviewed() || reviewedAt;
+      const mobileApprove = node("mbar-approve");
+      if (mobileApprove) {
+        mobileApprove.disabled = busy || state.reviewBlocked || reviewedAt;
+        const label = mobileApprove.querySelector(".ep-label");
+        if (label) label.textContent = reviewed() ? "Approve" : "Review 4 checks";
+      }
+      node("record-publication").disabled = busy || state.reviewBlocked || !reviewedAt;
+      node("reopen-review").hidden = !reviewedAt;
+      node("reopen-review").disabled = busy;
+      const note = release.querySelector("[data-approved-note]");
+      if (note) note.hidden = !reviewedAt;
+      setStep("release-approval", reviewedAt ? "done" : "current");
+      setStep(
+        "release-post-step",
+        publication ? "done" : reviewedAt && !state.reviewBlocked ? "current" : "locked",
+      );
+      setStep(
+        "release-publication",
+        publication ? "done" : reviewedAt && !state.reviewBlocked ? "todo" : "locked",
+      );
       node("publication-record").hidden = !publication;
       if (publication) {
         const link = document.createElement("a");
@@ -53,7 +85,7 @@
             selector: release.dataset.selector,
             renderKey: release.dataset.renderKey,
             action,
-            reviewed: node("review-confirmed").checked,
+            reviewed: reviewed(),
             url: node("publication-url").value.trim(),
           }),
         });
@@ -67,10 +99,18 @@
         node("release-message").textContent = error.message;
       }
     }
-    node("review-confirmed").addEventListener("change", () => {
-      if (current) render(current);
-    });
+    for (const check of checks)
+      check.addEventListener("change", () => {
+        if (current) render(current);
+      });
     node("approve-video").addEventListener("click", () => change("approve"));
+    node("mbar-approve")?.addEventListener("click", () => {
+      if (reviewed()) node("approve-video").click();
+      else {
+        node("release-approval").scrollIntoView({ block: "start", behavior: "instant" });
+        checks.find((check) => !check.checked)?.focus({ preventScroll: true });
+      }
+    });
     node("record-publication").addEventListener("click", () => {
       if (!node("publication-url").value.trim() || !node("publication-url").reportValidity()) {
         node("release-message").textContent =
@@ -81,7 +121,7 @@
       change("publish");
     });
     node("reopen-review").addEventListener("click", () => change("reopen"));
-    node("copy-post").addEventListener("click", async () => {
+    async function copyPost() {
       try {
         await navigator.clipboard.writeText(node("release-post").value);
         node("release-message").textContent = "Companion post copied.";
@@ -90,7 +130,78 @@
         node("release-post").select();
         node("release-message").textContent = "Select and copy the post text above.";
       }
-    });
+    }
+    node("copy-post").addEventListener("click", copyPost);
+    node("mbar-copy")?.addEventListener("click", copyPost);
+    // Transcript / Sources / Details become tabs; without scripts all three panels stay visible.
+    const tabList = release.querySelector?.("[role=tablist]");
+    if (tabList) {
+      const tabs = [...tabList.querySelectorAll("[role=tab]")];
+      const select = (tab, moveFocus = false) => {
+        for (const item of tabs) {
+          const active = item === tab;
+          item.setAttribute("aria-selected", String(active));
+          item.tabIndex = active ? 0 : -1;
+          const panel = node(item.getAttribute("aria-controls"));
+          if (panel) panel.hidden = !active;
+        }
+        if (moveFocus) tab.focus();
+      };
+      for (const tab of tabs) {
+        const panel = node(tab.getAttribute("aria-controls"));
+        panel?.setAttribute("role", "tabpanel");
+        panel?.setAttribute("aria-labelledby", tab.id);
+        panel?.setAttribute("tabindex", "0");
+        tab.addEventListener("click", () => select(tab));
+        tab.addEventListener("keydown", (event) => {
+          const index = tabs.indexOf(tab);
+          const next =
+            event.key === "ArrowRight"
+              ? tabs[(index + 1) % tabs.length]
+              : event.key === "ArrowLeft"
+                ? tabs[(index - 1 + tabs.length) % tabs.length]
+                : event.key === "Home"
+                  ? tabs[0]
+                  : event.key === "End"
+                    ? tabs[tabs.length - 1]
+                    : null;
+          if (!next) return;
+          event.preventDefault();
+          select(next, true);
+        });
+      }
+      release.querySelector("[data-release-tabs]")?.classList.add("is-tabbed");
+      tabList.hidden = false;
+      select(tabs.find((tab) => tab.getAttribute("aria-selected") === "true") ?? tabs[0]);
+    }
+    // Chapter markers seek the player; they are only shown when scripts can use them.
+    const video = node("release-video");
+    const chapters = [...(release.querySelectorAll?.("[data-seek]") ?? [])];
+    const chapterList = release.querySelector?.("[data-chapters]");
+    const chapterNow = release.querySelector?.("[data-chapter-now]");
+    if (video && chapterList && chapters.length) {
+      chapterList.hidden = false;
+      if (chapterNow) chapterNow.hidden = false;
+      const markCurrent = () => {
+        let active = chapters[0];
+        for (const chapter of chapters)
+          if (Number(chapter.dataset.seek) <= video.currentTime + 0.05) active = chapter;
+        for (const chapter of chapters) {
+          if (chapter === active) chapter.setAttribute("aria-current", "true");
+          else chapter.removeAttribute("aria-current");
+        }
+        if (chapterNow)
+          chapterNow.textContent = `Chapter ${chapters.indexOf(active) + 1} of ${chapters.length} · ${active.dataset.label ?? ""}`;
+      };
+      for (const chapter of chapters)
+        chapter.addEventListener("click", () => {
+          video.currentTime = Number(chapter.dataset.seek);
+          markCurrent();
+        });
+      video.addEventListener("timeupdate", markCurrent);
+      video.addEventListener("seeked", markCurrent);
+      markCurrent();
+    }
     fetch("/api/workflow")
       .then(async (response) => {
         if (!response.ok)
@@ -98,6 +209,7 @@
             "Review status is unavailable. Open this page from the running local studio to save progress.",
           );
         const data = await response.json();
+        globalThis.shortsEpisodeShell?.setStages(data.episodes);
         const state = data.episodes.find((entry) => entry.selector === release.dataset.selector);
         if (!state)
           throw new Error(
@@ -144,7 +256,20 @@
   window.addEventListener("popstate", chooseStyle);
   chooseStyle();
   const input = document.querySelector("#episode-search");
-  const cards = [...document.querySelectorAll(".episode-card")];
+  const stories = [...document.querySelectorAll(".story")];
+  const lib = globalThis.shortsStories;
+  const organizationView = document.querySelector("#creator-library-view");
+  const organizationFavorites = document.querySelector("#creator-favorites");
+  const organizationSeries = document.querySelector("#creator-series");
+  const organizationMatch = (story) =>
+    (!organizationView ||
+      organizationView.value === "all" ||
+      (organizationView.value === "archived"
+        ? story.dataset.archived === "true"
+        : story.dataset.archived !== "true")) &&
+    (!organizationFavorites?.checked || story.dataset.favorite === "true") &&
+    (!organizationSeries?.value || story.dataset.series === organizationSeries.value);
+
   const buttons = [...document.querySelectorAll("[data-format]")];
   const clear = document.querySelector("#clear-search");
   const status = document.querySelector("#filter-status");
@@ -167,45 +292,137 @@
   }
 
   if (attentionFilter) attentionFilter.checked = rememberedFilters.attention === true;
+  const searchTerms = () => (input.value ?? "").trim().toLowerCase().split(/\s+/u).filter(Boolean);
+  const versionRows = (story) => [...story.querySelectorAll("[data-version]")];
+  const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  // A story is one row; its search index covers every saved version.
+  for (const story of stories)
+    story.dataset.search = versionRows(story)
+      .map((row) => row.dataset.search)
+      .join(" ");
+  const rememberedOpen = new Set(
+    Array.isArray(rememberedFilters.open) ? rememberedFilters.open : [],
+  );
+
+  function applyDrawer(story) {
+    const drawer = story.querySelector(".versions");
+    const open = story.dataset.open === "true";
+    if (drawer) drawer.hidden = !open;
+    story.querySelector("[data-versions-toggle]")?.setAttribute("aria-expanded", String(open));
+  }
+  // Searching opens the drawers whose versions match and marks the matching versions.
+  function applySearch() {
+    const terms = searchTerms();
+    for (const story of stories) {
+      let matched = 0;
+      for (const row of versionRows(story)) {
+        const match =
+          terms.length > 0 &&
+          terms.every((term) => row.dataset.search.includes(term)) &&
+          (stage === "all" || row.dataset.stage === stage);
+        row.classList.toggle("is-match", match);
+        if (match) matched++;
+      }
+      story.dataset.open = String(matched > 0 || story.dataset.manualOpen === "true");
+      applyDrawer(story);
+    }
+  }
+  for (const story of stories) {
+    story.dataset.manualOpen = String(rememberedOpen.has(story.dataset.story));
+    for (const control of story.querySelectorAll("[data-versions-toggle]")) {
+      control.hidden = false;
+      control.addEventListener("click", () => {
+        const open = story.dataset.open !== "true";
+        story.dataset.open = String(open);
+        story.dataset.manualOpen = String(open);
+        applyDrawer(story);
+        saveFilters();
+      });
+    }
+    for (const label of story.querySelectorAll(".ver-static")) label.hidden = true;
+  }
+
   const episodeCollection = collections?.create({
     id: "shorts",
     root: document.querySelector("#shorts-list"),
     query: input,
     status,
     empty,
-    label: "shorts",
-    pageSize: 8,
+    label: "stories",
+    pageSize: 10,
     scrollTarget: document.querySelector("#episodes"),
-    match: (card) =>
-      (format === "all" || card.dataset.kind === format) &&
-      (stage === "all" || card.dataset.stage === stage) &&
-      (!attentionFilter?.checked || card.dataset.attention === "true"),
+    match: (story) =>
+      organizationMatch(story) &&
+      (format === "all" || story.dataset.kind === format) &&
+      (stage === "all" || story.dataset.stages.split(" ").includes(stage)) &&
+      (!attentionFilter?.checked || story.dataset.attention === "true"),
+    onRender: ({ ordered, start, perPage }) => {
+      const versions = ordered.reduce((sum, story) => sum + Number(story.dataset.versions), 0);
+      const total = stories.length;
+      const range =
+        ordered.length > perPage
+          ? `${start + 1}–${Math.min(start + perPage, ordered.length)} of ${ordered.length}`
+          : ordered.length === total
+            ? String(total)
+            : `${ordered.length} of ${total}`;
+      if (status)
+        status.textContent = ordered.length
+          ? `${range} ${total === 1 ? "story" : "stories"} · ${plural(versions, "version")}`
+          : `No matching stories (${total} total)`;
+    },
   });
-  function update(reset = false) {
-    const terms = input.value.trim().toLowerCase().split(/\s+/u).filter(Boolean);
-    let visible = 0;
-    for (const card of cards) {
-      const matches =
-        (format === "all" || card.dataset.kind === format) &&
-        (stage === "all" || card.dataset.stage === stage) &&
-        (!attentionFilter?.checked || card.dataset.attention === "true") &&
-        terms.every((term) => card.dataset.search.includes(term));
-      card.hidden = !matches;
-      if (matches) visible++;
-    }
-    for (const button of buttons)
-      button.setAttribute("aria-pressed", String(button.dataset.format === format));
-    for (const button of stageButtons)
-      button.setAttribute("aria-pressed", String(button.dataset.stageFilter === stage));
-    clear.hidden = !input.value;
-    empty.hidden = visible !== 0;
-    status.textContent = `${visible} ${visible === 1 ? "version" : "versions"}`;
-    episodeCollection?.render({ reset });
+  function saveFilters() {
     collections?.save("shorts:episode-filters", {
       format,
       stage,
       attention: !!attentionFilter?.checked,
+      open: stories
+        .filter((story) => story.dataset.manualOpen === "true")
+        .map((s) => s.dataset.story),
     });
+  }
+  function update(reset = false) {
+    if (lib) for (const story of stories) lib.syncStory(story, stage);
+    applySearch();
+    for (const button of buttons)
+      button.setAttribute("aria-pressed", String(button.dataset.format === format));
+    for (const button of stageButtons)
+      button.setAttribute("aria-pressed", String(button.dataset.stageFilter === stage));
+    for (const count of document.querySelectorAll("[data-stage-count]"))
+      count.textContent = String(
+        count.dataset.stageCount === "all"
+          ? stories.filter(organizationMatch).length
+          : stories.filter(
+              (story) =>
+                organizationMatch(story) &&
+                story.dataset.stages.split(" ").includes(count.dataset.stageCount),
+            ).length,
+      );
+    clear.hidden = !input.value;
+    episodeCollection?.render({ reset });
+    saveFilters();
+    refreshNeeds();
+  }
+  // "Needs you" is derived from the same version rows that the workflow poll keeps current.
+  function refreshNeeds() {
+    const section = document.querySelector("#needs-you");
+    if (!lib || !section || stories.length === 0) return;
+    const ideas = [...document.querySelectorAll("#live-news-grid .news-story-card")].filter(
+      (card) => !card.querySelector(".story-existing"),
+    ).length;
+    lib.renderNeedsYou(
+      section,
+      lib.needsYou(
+        stories
+          .filter((story) => story.dataset.archived !== "true")
+          .map((story) => ({
+            id: story.dataset.story,
+            title: story.dataset.title,
+            versions: versionRows(story).map(lib.readVersion),
+          })),
+        { ideas },
+      ),
+    );
   }
   for (const button of stageButtons)
     button.addEventListener("click", () => {
@@ -221,9 +438,13 @@
       format = button.dataset.format;
       update(true);
     });
-  input.addEventListener("input", () => update(true));
+  input.addEventListener("input", () => {
+    applySearch();
+    update(true);
+  });
   clear.addEventListener("click", () => {
     input.value = "";
+    applySearch();
     update(true);
     input.focus();
   });
@@ -237,9 +458,262 @@
       window.history.replaceState(null, "", url);
     }
     input.value = "";
+    applySearch();
     update(true);
     input.focus();
   });
+  if (organizationView) {
+    const organizationStatus = document.querySelector("#creator-library-status");
+    let metadata = {};
+    let organizationBusy = false;
+    let organizationLoaded = false;
+    const organizationControls = [
+      ...document.querySelectorAll(
+        "[data-story-favorite], [data-story-archive], [data-story-series-save]",
+      ),
+    ];
+    for (const control of organizationControls) control.disabled = true;
+    async function creatorRequest(path, body) {
+      await fetch("/api/local-voices/session");
+      const response = await fetch(
+        `/api/creator/${path}`,
+        body
+          ? {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            }
+          : {},
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Studio action unavailable.");
+      return data;
+    }
+    function applyOrganization(data) {
+      const previousMetadata = metadata;
+      metadata = data.stories;
+      for (const story of stories) {
+        const meta = metadata[story.dataset.story] ?? {
+          archived: false,
+          favorite: false,
+          series: "",
+        };
+        story.dataset.archived = String(meta.archived);
+        story.dataset.favorite = String(meta.favorite);
+        story.dataset.series = meta.series;
+        const favorite = story.querySelector("[data-story-favorite]");
+        if (favorite) {
+          favorite.textContent = meta.favorite ? "★ Favorited" : "☆ Favorite";
+          favorite.setAttribute("aria-pressed", String(meta.favorite));
+        }
+        const archive = story.querySelector("[data-story-archive]");
+        if (archive) archive.textContent = meta.archived ? "Restore story" : "Archive story";
+        const series = story.querySelector("[data-story-series]");
+        if (
+          series &&
+          (series.value === (previousMetadata[story.dataset.story]?.series ?? "") ||
+            series.value === meta.series)
+        )
+          series.value = meta.series;
+        const label = story.querySelector("[data-story-meta-label]");
+        if (label)
+          label.textContent = [
+            meta.archived ? "Archived · files kept" : "",
+            meta.favorite ? "Favorite" : "",
+            meta.series,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+      }
+      const previous = organizationSeries.value;
+      organizationSeries.replaceChildren();
+      for (const name of [
+        "",
+        ...new Set(
+          Object.values(metadata)
+            .map((item) => item.series)
+            .filter(Boolean),
+        ),
+      ].sort()) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name || "All series";
+        organizationSeries.append(option);
+      }
+      organizationSeries.value = Array.from(organizationSeries.options).some(
+        (item) => item.value === previous,
+      )
+        ? previous
+        : "";
+      update(true);
+    }
+    for (const control of [organizationView, organizationFavorites, organizationSeries])
+      control.addEventListener("change", () => update(true));
+    document.querySelector("#reset-filters").addEventListener("click", () => {
+      organizationView.value = "active";
+      organizationFavorites.checked = false;
+      organizationSeries.value = "";
+      update(true);
+    });
+    for (const story of stories) {
+      async function saveOrganization(patch) {
+        if (organizationBusy || !organizationLoaded) return;
+        organizationBusy = true;
+        const controls = [
+          ...document.querySelectorAll(
+            "[data-story-favorite], [data-story-archive], [data-story-series-save]",
+          ),
+        ];
+        for (const control of controls) control.disabled = true;
+        try {
+          const id = story.dataset.story;
+          const data = await creatorRequest("library", {
+            id,
+            metadata: patch,
+          });
+          applyOrganization(data);
+          organizationStatus.textContent =
+            "Organization saved on this Mac. Archiving keeps every script, video and approval; restore it from Archived stories.";
+        } catch (error) {
+          organizationStatus.textContent = error.message;
+        } finally {
+          organizationBusy = false;
+          for (const control of controls) control.disabled = false;
+        }
+      }
+      story
+        .querySelector("[data-story-favorite]")
+        ?.addEventListener("click", () =>
+          saveOrganization({ favorite: story.dataset.favorite !== "true" }),
+        );
+      story
+        .querySelector("[data-story-archive]")
+        ?.addEventListener("click", () =>
+          saveOrganization({ archived: story.dataset.archived !== "true" }),
+        );
+      story
+        .querySelector("[data-story-series-save]")
+        ?.addEventListener("click", () =>
+          saveOrganization({ series: story.querySelector("[data-story-series]").value }),
+        );
+    }
+    const comparison = document.querySelector("#creator-compare-dialog");
+    const pauseComparison = () => {
+      for (const video of comparison.querySelectorAll("video")) video.pause();
+    };
+    comparison.addEventListener("close", pauseComparison);
+    comparison.addEventListener("cancel", pauseComparison);
+
+    function openComparison(story) {
+      const left = document.querySelector("#creator-compare-left");
+      const right = document.querySelector("#creator-compare-right");
+      const versions = story
+        ? [...story.querySelectorAll("[data-version]")].map((row) => row.dataset.selector)
+        : Array.from(left.options).map((option) => option.value);
+      left.value = versions[0] ?? left.value;
+      right.value = versions[1] ?? versions[0] ?? right.value;
+      document.querySelector("#creator-compare-results").replaceChildren();
+      document.querySelector("#creator-compare-status").textContent =
+        "Choose two versions, then compare.";
+      comparison.showModal();
+    }
+    document
+      .getElementById("creator-compare-open")
+      .addEventListener("click", () => openComparison());
+    for (const story of stories)
+      story
+        .querySelector("[data-compare-story]")
+        ?.addEventListener("click", () => openComparison(story));
+    document.querySelector("#creator-compare-run").addEventListener("click", async () => {
+      const button = document.querySelector("#creator-compare-run");
+      const message = document.querySelector("#creator-compare-status");
+      button.disabled = true;
+      const left = document.querySelector("#creator-compare-left").value;
+      const right = document.querySelector("#creator-compare-right").value;
+      try {
+        const data = await creatorRequest(
+          `compare?left=${encodeURIComponent(left)}&right=${encodeURIComponent(right)}`,
+        );
+        if (
+          left !== document.querySelector("#creator-compare-left").value ||
+          right !== document.querySelector("#creator-compare-right").value
+        )
+          throw new Error("Selection changed. Compare the current pair.");
+        const results = document.querySelector("#creator-compare-results");
+        results.replaceChildren();
+        for (const version of data.versions) {
+          const column = document.createElement("section");
+          const text = (tag, value) => {
+            const node = document.createElement(tag);
+            node.textContent = value;
+            column.append(node);
+          };
+          text("h3", version.title);
+          text("code", version.selector);
+          text(
+            "p",
+            `${version.stage} · ${version.style} · ${version.plannedSeconds}s planned${version.measuredSeconds ? ` · ${version.measuredSeconds.toFixed(1)}s measured` : ""}`,
+          );
+          for (const speaker of version.speakers)
+            text(
+              "p",
+              `${speaker.name}: ${typeof speaker.voice === "string" ? speaker.voice : `Personal Qwen voice ${speaker.voice.profileId.slice(0, 8)}`} · ${speaker.portrait}`,
+            );
+          if (version.video) {
+            const video = document.createElement("video");
+            video.controls = true;
+            video.preload = "none";
+            video.src = version.video.href;
+            video.setAttribute("playsinline", "");
+            video.addEventListener("play", () => {
+              for (const other of comparison.querySelectorAll("video"))
+                if (other !== video) other.pause();
+            });
+            video.addEventListener("error", () => {
+              message.textContent =
+                "The compared video changed or is unavailable. Compare the current versions again.";
+            });
+            column.append(video);
+            const fingerprint = document.createElement("small");
+            fingerprint.textContent = `MP4 ${version.video.hash.slice(0, 12)}`;
+            column.append(fingerprint);
+          }
+          for (const scene of version.scenes) {
+            text("h4", `${scene.id} · ${scene.visualHeadline}`);
+            text("p", scene.narration);
+            if (scene.composition)
+              text(
+                "p",
+                `${scene.composition.kind}: ${scene.composition.items.map((item) => item.label).join(" / ")}`,
+              );
+          }
+          text("h4", "Companion post");
+          text("p", version.companionPost);
+          const edit = document.createElement("a");
+          edit.href = `episodes/${encodeURIComponent(version.selector)}/edit.html`;
+          edit.textContent = "Edit this version";
+          column.append(edit);
+          results.append(column);
+        }
+        message.textContent =
+          "Saved versions compared. Playback starts only when you choose Play; approvals remain separate.";
+      } catch (error) {
+        message.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+    creatorRequest("library")
+      .then((data) => {
+        applyOrganization(data);
+        organizationLoaded = true;
+        for (const control of organizationControls) control.disabled = false;
+      })
+      .catch((error) => {
+        organizationStatus.textContent = error.message;
+      });
+  }
+  applySearch();
   update();
   document.querySelector("[data-enhancement-only]").hidden = false;
 
@@ -254,51 +728,19 @@
       const response = await fetch("/api/workflow");
       if (!response.ok) throw new Error("Status unavailable");
       const data = await response.json();
-      for (const card of cards) {
-        const state = data.episodes.find((entry) => entry.selector === card.dataset.selector);
-        if (!state) continue;
-        card.dataset.stage = state.stage;
-        card.dataset.attention = String(state.attention);
-        card.querySelector("[data-work-stage]").textContent = state.label;
-        const next = {
-          editing: "Script saved · continue when ready",
-          producing: "Running on this Mac",
-          review: "Video produced · awaiting your review",
-          publish: "Approved · ready to post",
-          published: "Live post link recorded",
-        };
-        card.querySelector("[data-work-next]").textContent =
-          state.productionStage === "BLOCKED" || state.productionStage === "FAILED"
-            ? "No MP4 yet · open this saved version to resolve the issue"
-            : next[state.stage];
-        const issue = card.querySelector("[data-work-issue]");
-        if (state.issue) {
-          issue.hidden = false;
-          issue.textContent = state.issue;
-        }
-        const action = card.querySelector("[data-work-action]");
-        if (["review", "publish", "published"].includes(state.stage)) {
-          action.textContent =
-            state.stage === "review"
-              ? "Review video"
-              : state.stage === "publish"
-                ? "Finish publishing"
-                : "View publication";
-          action.href = `episodes/${encodeURIComponent(state.selector)}/publish.html`;
-        }
-        if (state.stage === "producing") {
-          action.textContent = "View progress";
-          action.href = "#studio-produce-banner";
-        } else if (state.stage === "editing") {
-          action.textContent =
-            state.productionStage === "BLOCKED" ? "Fix saved version" : "Continue editing";
-          action.href = `episodes/${encodeURIComponent(state.selector)}/edit.html`;
-        }
-      }
-      for (const count of document.querySelectorAll("[data-stage-count]"))
-        count.textContent = String(
-          cards.filter((card) => card.dataset.stage === count.dataset.stageCount).length,
+      if (lib) {
+        const rows = new Map(
+          [...document.querySelectorAll("[data-version]")].map((row) => [
+            row.dataset.selector,
+            row,
+          ]),
         );
+        for (const state of data.episodes) {
+          const row = rows.get(state.selector);
+          if (row) lib.applyWorkflowState(row, state);
+        }
+        for (const story of stories) lib.syncStory(story);
+      }
       const job = data.activeJob;
       if (job && banner) {
         banner.hidden = false;
@@ -447,7 +889,9 @@
       const createBtn = e.target?.closest ? e.target.closest(".create-short-from-news-btn") : null;
       if (createBtn?.dataset?.url) {
         e.preventDefault();
-        createShortDraft(createBtn.dataset.url, createBtn);
+        if (globalThis.shortsNewShort)
+          globalThis.shortsNewShort.open({ url: createBtn.dataset.url });
+        else createShortDraft(createBtn.dataset.url, createBtn);
         return;
       }
 
@@ -520,29 +964,92 @@
       }
     }
 
+    const escapeHtml = (value) =>
+      String(value ?? "").replace(
+        /[&<>"']/g,
+        (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+      );
+    // Keep in step with src/news/story-fit.ts.
+    const normalizeUrl = (url) => {
+      try {
+        const parsed = new URL(url);
+        return `${parsed.hostname.replace(/^www\./, "").toLowerCase()}${parsed.pathname.replace(/\/+$/, "")}`;
+      } catch {
+        return String(url).trim().toLowerCase();
+      }
+    };
+    const normalizeTitle = (title) =>
+      String(title)
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .trim();
+    const fitFor = (score) => {
+      const steps =
+        [
+          [160, 5],
+          [125, 4],
+          [90, 3],
+          [50, 2],
+        ].find(([minimum]) => score >= minimum)?.[1] ?? 1;
+      return { steps, label: steps >= 5 ? "High" : steps >= 3 ? "Good" : "Low" };
+    };
+    let existingShorts = [];
+    try {
+      const parsed = JSON.parse(newsGrid?.dataset?.existingShorts || "");
+      if (Array.isArray(parsed?.shorts)) existingShorts = parsed.shorts;
+    } catch {}
+    const svgIcon = (path) =>
+      `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${path}</svg>`;
+
     function renderStoryCard(story) {
       const card = document.createElement("article");
       card.className = "news-story-card";
       card.dataset.url = story.link;
       card.dataset.updated = story.publishedIso || "";
       card.dataset.score = String(story.relevanceScore || 0);
-      const scoreClass = story.relevanceScore >= 120 ? "high-score" : "med-score";
+      const score = Number(story.relevanceScore) || 0;
+      const fit = fitFor(score);
+      const fitText = `${fit.label} fit`;
+      const title = normalizeTitle(story.title || "");
+      const url = normalizeUrl(story.link);
+      const titleMatches = (item) =>
+        (!item.url || item.url === url) &&
+        (item.title === title ||
+          (item.truncated && title.startsWith(`${item.title} `)) ||
+          (item.truncated && item.title.length >= 58 && title.startsWith(item.title)));
+      const lookup = (items) => items.find(titleMatches) || items.find((item) => item.url === url);
+      const existing =
+        lookup(existingShorts.filter((item) => item.kind === "short")) ||
+        lookup(existingShorts.filter((item) => item.kind === "draft"));
       const tagsHtml = (story.categories || [])
         .slice(0, 3)
-        .map((c) => `<span class="tag-chip">${c}</span>`)
+        .map((c) => `<span class="tag-chip">${escapeHtml(c)}</span>`)
         .join("");
+      const pips = [1, 2, 3, 4, 5]
+        .map((step) => `<i${step <= fit.steps ? ' class="on"' : ""}></i>`)
+        .join("");
+      const existingLabel = existing
+        ? existing.kind === "draft"
+          ? `Already a short · ${existing.id} · staged draft`
+          : `Already a short · ${existing.id} · ${existing.versions} ${existing.versions === 1 ? "version" : "versions"}`
+        : "";
+      const badge = existing
+        ? `<div class="story-existing">${svgIcon('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/>')}<span>${escapeHtml(existingLabel)}</span><a href="${escapeHtml(existing.href)}">Open</a></div>`
+        : "";
+      const action = existing
+        ? `<button type="button" class="create-short-from-news-btn secondary-action" data-url="${escapeHtml(story.link)}">New angle</button>`
+        : `<button type="button" class="create-short-from-news-btn primary-action" data-url="${escapeHtml(story.link)}">${svgIcon('<path d="M12 5v14M5 12h14"/>')}Start short</button>`;
 
       card.innerHTML = `
         <div class="story-meta">
-          <span class="score-badge ${scoreClass}">Score: ${story.relevanceScore}</span>
-          <span class="story-date">${story.publishedIso || ""}</span>
+          <span class="fit-meter" role="img" title="Fit score ${score}" aria-label="${fitText} for a short (score ${score})"><span class="fit-pips" aria-hidden="true">${pips}</span><span class="fit-label" aria-hidden="true">${fitText}</span></span>
+          <span class="story-date">${escapeHtml(story.publishedIso || "")}</span>
           <div class="story-tags">${tagsHtml}</div>
         </div>
-        <h4 class="story-title"><a href="${story.link}" target="_blank" rel="noreferrer">${story.title} ↗</a></h4>
-        <p class="story-angle"><strong>Suggested Angle:</strong> ${story.angleSuggestion || ""}</p>
-        <div class="story-card-actions">
-          <button type="button" class="create-short-from-news-btn primary-action" data-url="${story.link}">+ Create 55s Short Draft</button>
-        </div>
+        <h4 class="story-title"><a href="${escapeHtml(story.link)}" target="_blank" rel="noreferrer">${escapeHtml(story.title)} ↗</a></h4>
+        <p class="story-angle"><strong>Suggested angle:</strong> ${escapeHtml(story.angleSuggestion || "")}</p>
+        ${badge}
+        <div class="story-card-actions">${action}</div>
       `;
       return card;
     }
@@ -581,7 +1088,7 @@
 
     async function createShortDraft(url, btn) {
       if (!url) return;
-      const originalText = btn ? btn.textContent : "";
+      const originalHtml = btn ? btn.innerHTML : "";
       if (btn) {
         btn.disabled = true;
         btn.textContent = "Synthesizing draft…";
@@ -632,7 +1139,7 @@
       } finally {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = originalText;
+          btn.innerHTML = originalHtml;
         }
       }
     }
@@ -643,9 +1150,157 @@
       e.preventDefault();
       const url = customNewsUrl?.value?.trim();
       if (url) {
-        createShortDraft(url, document.querySelector("#custom-news-submit"));
-        if (customNewsUrl) customNewsUrl.value = "";
+        if (globalThis.shortsNewShort) globalThis.shortsNewShort.open({ url });
+        else createShortDraft(url, document.querySelector("#custom-news-submit"));
       }
     });
   }
+})();
+
+// Exact-output advisory review; this never changes the approval checks.
+(() => {
+  const root = document.querySelector("#output-review");
+  const release = document.querySelector("#release-review");
+  if (!root || !release) return;
+  const status = document.querySelector("#output-review-status");
+  const reviewPlayer = document.querySelector("#release-video");
+  const reviewMediaLinks = [...document.querySelectorAll('a[href="video/short.mp4"]')];
+  let liveMedia = location.protocol !== "file:";
+  let reviewSessionEstablished = false;
+  const savedMediaSource = reviewPlayer.getAttribute("src");
+  const savedMediaLinks = reviewMediaLinks.map((link) => ({
+    link,
+    href: link.getAttribute("href"),
+  }));
+  if (liveMedia) {
+    reviewPlayer.pause();
+    reviewPlayer.removeAttribute("src");
+    reviewPlayer.load();
+    for (const link of reviewMediaLinks) {
+      link.removeAttribute("href");
+      link.setAttribute("aria-disabled", "true");
+    }
+  }
+
+  const findings = document.querySelector("#output-review-findings");
+  const endpoint = `/api/creator/output-review?selector=${encodeURIComponent(release.dataset.selector)}&renderKey=${encodeURIComponent(release.dataset.renderKey)}`;
+  async function request(body) {
+    const session = await fetch("/api/local-voices/session");
+    if (!session.ok) {
+      if (session.status === 404 && !reviewSessionEstablished) {
+        liveMedia = false;
+        if (savedMediaSource) {
+          reviewPlayer.src = savedMediaSource;
+          reviewPlayer.load();
+        }
+        for (const item of savedMediaLinks)
+          if (item.href) {
+            item.link.href = item.href;
+            item.link.removeAttribute("aria-disabled");
+          }
+        throw new Error(
+          "This is a static studio copy. Open the local app for verified review tools.",
+        );
+      }
+      throw new Error("Reopen this local studio to review outputs.");
+    }
+    reviewSessionEstablished = true;
+    const response = await fetch(
+      endpoint,
+      body
+        ? {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          }
+        : {},
+    );
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Review unavailable.");
+    if (data.kit) {
+      if (data.kit.renderKey !== release.dataset.renderKey)
+        throw new Error("This page shows an older MP4. Reload to review the current output.");
+      const exact = `/api/creator/video?selector=${encodeURIComponent(data.kit.selector)}&renderKey=${encodeURIComponent(data.kit.renderKey)}&videoHash=${data.kit.videoHash}`;
+      const player = document.querySelector("#release-video");
+      if (player.getAttribute("src") !== exact) {
+        player.src = exact;
+        player.addEventListener(
+          "error",
+          () => {
+            status.textContent = "This MP4 changed or is unavailable. Reload before reviewing it.";
+          },
+          { once: true },
+        );
+      }
+      for (const link of reviewMediaLinks) {
+        link.href = exact;
+        link.download = "short.mp4";
+        link.removeAttribute("aria-disabled");
+      }
+    }
+    return data;
+  }
+  function render(review, stale) {
+    findings.replaceChildren();
+    status.textContent = stale
+      ? "A saved review belongs to an older MP4. Get a new kit."
+      : review
+        ? `External advisory review · ${review.reviewer}. Human approval is still required.`
+        : "No external review saved for this MP4.";
+    if (!review) return;
+    const summary = document.createElement("p");
+    summary.textContent = review.summary;
+    findings.append(summary);
+    for (const item of review.findings) {
+      const card = document.createElement("article");
+      const seek = document.createElement("button");
+      seek.type = "button";
+      seek.textContent = `${item.seconds.toFixed(1)}s · ${item.severity} · ${item.area}`;
+      seek.addEventListener("click", () => {
+        document.querySelector("#release-video").currentTime = item.seconds;
+      });
+      const evidence = document.createElement("p");
+      evidence.textContent = item.observation;
+      const fix = document.createElement("p");
+      fix.textContent = item.suggestion;
+      const edit = document.createElement("a");
+      edit.href = "edit.html";
+      edit.textContent = "Edit as a new version";
+      card.append(seek, evidence, fix, edit);
+      findings.append(card);
+    }
+  }
+  document.querySelector("#review-kit-download").addEventListener("click", async () => {
+    try {
+      const data = await request();
+      render(data.review, data.stale);
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(data.kit, null, 2)], { type: "application/json" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${release.dataset.selector}-review-kit.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      status.textContent =
+        "Kit downloaded. Upload it with the exact MP4 yourself; paste the JSON review below.";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  document.querySelector("#output-review-import").addEventListener("click", async () => {
+    try {
+      const data = await request(JSON.parse(document.querySelector("#output-review-json").value));
+      render(data.review, false);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  request()
+    .then((data) => render(data.review, data.stale))
+    .catch((error) => {
+      status.textContent = liveMedia
+        ? `${error.message} The live player and exact-MP4 download stay unavailable until the output is verified. Reopen the current local studio.`
+        : "Saved media can play in this static copy. Open the current local studio to download a verified review kit or save feedback.";
+    });
 })();

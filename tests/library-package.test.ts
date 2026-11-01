@@ -248,6 +248,9 @@ test("current portrait provenance and optional publication screens remain portab
         [
           "src/workflow.ts",
           "src/publish-review.ts",
+          "templates/final-review.js",
+          "templates/editor-workspace.js",
+          "templates/editor-workspace.css",
           "scripts/setup-portrait.py",
           "config/portrait-runtime.json",
           "config/portrait-requirements.txt",
@@ -413,10 +416,15 @@ test("studio packages retain complete presentation files for scripts and videos,
     "templates/presentation.css",
     "templates/presentation.js",
     "templates/library-collections.js",
+    "templates/library-stories.js",
     "templates/library-navigation.js",
     "templates/library-browser.css",
     "templates/voice-library.css",
     "templates/local-actions.js",
+    "templates/episode-shell.css",
+    "templates/episode-shell.js",
+    "templates/writing-assistant.css",
+    "templates/writing-assistant.js",
   ])
     f.manifest.sourceHashes[name] = hash(name);
   const generation = {

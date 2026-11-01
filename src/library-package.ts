@@ -7,6 +7,7 @@ import { hash } from "./digest.js";
 import { supportsKokoroVoice } from "./media/voices.js";
 import { projectRoot } from "./paths.js";
 import { shortTiming } from "./timing-policy.js";
+import { validateVersionOrder } from "./version-order.js";
 
 const maximumManifestBytes = 1024 * 1024;
 const maximumArtifacts = 4096;
@@ -103,8 +104,9 @@ function validateManifest(value: unknown) {
       "voiceSamples",
       "episodes",
     ],
-    ["localOnly"],
+    ["localOnly", "versionOrder"],
   );
+  if (Object.hasOwn(manifest, "versionOrder")) validateVersionOrder(manifest.versionOrder);
   if (Object.hasOwn(manifest, "localOnly"))
     check(manifest.localOnly === true, "invalid local-only marker");
   check(
@@ -119,14 +121,22 @@ function validateManifest(value: unknown) {
   const allowed = new Set(["review.html"]);
   const expectedSources = new Set(sourceInputs);
   for (const name of [
+    "templates/advanced-visuals.js",
     "templates/voice-profiles.js",
     "templates/local-actions.js",
     "templates/voice-library.css",
     "templates/library-browser.css",
     "templates/library-collections.js",
+    "templates/library-stories.js",
+    "templates/workspace-panels.css",
+    "templates/workspace-panels.js",
     "templates/library-navigation.js",
     "templates/presentation.css",
     "templates/presentation.js",
+    "templates/episode-shell.css",
+    "templates/episode-shell.js",
+    "templates/writing-assistant.css",
+    "templates/writing-assistant.js",
   ])
     if (Object.hasOwn(object(manifest.sourceHashes), name)) expectedSources.add(name);
   const allowPresentation = (prefix: string) => {
@@ -333,6 +343,11 @@ function validateManifest(value: unknown) {
     (name) =>
       /^(?:src|dist\/src)\/(?:[a-z][a-z0-9-]*\/)*[a-z][a-z0-9-]*\.(?:ts|js|py)$/u.test(name) ||
       [
+        "templates/final-review.js",
+        "templates/production-workspace.js",
+        "templates/production-workspace.css",
+        "templates/editor-workspace.js",
+        "templates/editor-workspace.css",
         "config/qwen-voice.json",
         "config/qwen-voice-requirements.txt",
         "schemas/narration-timing-v2.schema.json",

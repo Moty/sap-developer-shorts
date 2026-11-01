@@ -116,7 +116,7 @@
         pager.querySelector('[data-page="next"]').disabled = page === pages;
       }
       save(key, { query: query?.value ?? "", sort: sort?.value, size: size?.value, page });
-      options.onRender?.();
+      options.onRender?.({ ordered, start, perPage, pages, page });
       return { page, pages, count: ordered.length, visible: visible.size };
     }
     const scrollToList = () => options.scrollTarget?.scrollIntoView({ block: "start" });

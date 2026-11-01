@@ -296,9 +296,15 @@
           "additionalProperties": false,
           "required": ["schemaVersion", "theme", "motion", "scenes"],
           "properties": {
-            "schemaVersion": { "const": 1 },
-            "theme": { "enum": ["electric", "ocean", "sunset"] },
-            "motion": { "enum": ["snappy", "smooth", "minimal"] },
+            "schemaVersion": {
+              "const": 1
+            },
+            "theme": {
+              "enum": ["electric", "ocean", "sunset"]
+            },
+            "motion": {
+              "enum": ["snappy", "smooth", "minimal"]
+            },
             "scenes": {
               "type": "array",
               "minItems": 7,
@@ -308,11 +314,96 @@
                 "additionalProperties": false,
                 "required": ["id", "headline", "emphasis"],
                 "properties": {
-                  "id": { "type": "string", "minLength": 1 },
-                  "headline": { "type": "string", "minLength": 1, "maxLength": 48 },
-                  "emphasis": { "enum": ["balanced", "headline", "evidence"] }
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "headline": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 48
+                  },
+                  "emphasis": {
+                    "enum": ["balanced", "headline", "evidence"]
+                  },
+                  "composition": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "items"],
+                    "properties": {
+                      "kind": {
+                        "enum": ["callout", "steps", "comparison", "flow", "timeline"]
+                      },
+                      "items": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 4,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": ["label"],
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 32
+                            },
+                            "claimId": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9-]*$"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "dataView": {
+                    "enum": ["rows", "bars", "dots"]
+                  },
+                  "image": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["assetId", "fit", "treatment", "focalX", "focalY", "alt"],
+                    "properties": {
+                      "assetId": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "fit": {
+                        "enum": ["contain", "cover"]
+                      },
+                      "treatment": {
+                        "enum": ["card", "background"]
+                      },
+                      "focalX": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "focalY": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "alt": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 160
+                      },
+                      "caption": {
+                        "type": "string",
+                        "maxLength": 96
+                      }
+                    }
+                  }
                 }
               }
+            },
+            "background": {
+              "enum": ["classic", "aurora", "blueprint", "spotlight", "editorial"]
+            },
+            "effect": {
+              "enum": ["none", "drift", "particles"]
             }
           }
         },
@@ -493,6 +584,33 @@
               }
             },
             "required": ["id", "name", "voice"]
+          }
+        },
+        "brief": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["audience", "viewerProblem", "takeaway", "angle", "targetSeconds"],
+          "properties": {
+            "audience": {
+              "enum": ["developer", "architect", "consultant", "business"]
+            },
+            "viewerProblem": {
+              "type": "string",
+              "maxLength": 240
+            },
+            "takeaway": {
+              "type": "string",
+              "maxLength": 240
+            },
+            "angle": {
+              "type": "string",
+              "maxLength": 240
+            },
+            "targetSeconds": {
+              "type": "integer",
+              "minimum": 15,
+              "maximum": 90
+            }
           }
         }
       },

@@ -6,10 +6,17 @@ import { type ContentEpisode, type DemoEvidence, isNewsEpisode } from "./domain.
 import type { NarrationTiming } from "./media/model.js";
 import { availabilityLabels } from "./news/contracts.js";
 import { sourceFile } from "./paths.js";
-import { episodeSelector } from "./presentation.js";
+import { assertPresentation, episodeSelector } from "./presentation.js";
 import { escapeHtml as esc } from "./review.js";
 import { feedSceneDesign } from "./video/feed-design.js";
 import { storySteps } from "./video/motion.js";
+import {
+  chartPlan,
+  imagePlacement,
+  sequenceGeometry,
+  visualLabelLines,
+} from "./video/visual-plan.js";
+import { type ResolvedVisualAsset, resolveVisualAssets } from "./visual-assets.js";
 
 export const presentationAssets = ["templates/presentation.css", "templates/presentation.js"];
 export interface PresentationInput {
@@ -21,9 +28,33 @@ export interface PresentationInput {
   audioSrc?: "narration.wav" | "short.mp4";
   sourceReviewExpired?: boolean;
   workspaceHref?: "../../review.html#episodes";
+  visualAssets?: Record<string, ResolvedVisualAsset>;
+  allowMissingVisualAssets?: boolean;
+}
+/** Placeholder replaced by the shared episode header when the library copies the deck. */
+export const deckShellMarker = "<!--EPISODE_SHELL-->";
+const workspaceLink = (href: string) => `<a href="${href}">← Workspace</a>`;
+
+/** Put a library deck inside the shared episode header; other decks are returned unchanged. */
+export function withDeckShell(html: string, header: string, script: string): string {
+  if (!html.includes(deckShellMarker)) return html;
+  const closing = html.lastIndexOf("</body>");
+  const withScript =
+    closing < 0
+      ? html
+      : `${html.slice(0, closing)}<script>${script.replace(/<\/script/giu, "<\\/script")}</script>${html.slice(closing)}`;
+  return withScript
+    .replace(/<body\b([^>]*)>/u, (_body, attributes: string) =>
+      /\bclass="/u.test(attributes)
+        ? `<body data-episode-shell${attributes.replace(/\bclass="/u, 'class="ep-page ')}>`
+        : `<body data-episode-shell class="ep-page"${attributes}>`,
+    )
+    .replace(deckShellMarker, () => header)
+    .replace(workspaceLink("../../review.html#episodes"), "");
 }
 export function presentationPlan(input: PresentationInput) {
   const { episode, code, evidence, timing } = input;
+  assertPresentation(episode);
   const scenes = episode.scenes.map((scene, index) => {
     const measured = timing?.scenes.find((item) => item.id === scene.id);
     if (timing && !measured) throw new Error(`Presentation timing is missing ${scene.id}`);
@@ -109,8 +140,27 @@ export function presentationPlan(input: PresentationInput) {
       })) ?? [],
     steps: storySteps(episode),
     sources: episode.sources,
-    claims: episode.claims.map((claim) => ({ text: claim.text, sourceIds: claim.sourceIds })),
+    claims: episode.claims.map((claim) => ({
+      id: claim.id,
+      text: claim.text,
+      sourceIds: claim.sourceIds,
+    })),
     scenes,
+    missingVisuals:
+      episode.presentation?.design?.scenes.some(
+        (scene) => scene.image && !input.visualAssets?.[scene.image.assetId],
+      ) ?? false,
+    allowMissingVisualAssets: !!input.allowMissingVisualAssets,
+    visualAssets: Object.fromEntries(
+      Object.entries(input.visualAssets ?? {})
+        .filter(([id]) =>
+          episode.presentation?.design?.scenes.some((scene) => scene.image?.assetId === id),
+        )
+        .map(([id, { dataUrl, label, credit, width, height }]) => [
+          id,
+          { dataUrl, label, credit, width, height },
+        ]),
+    ),
     inputHash: hash(JSON.stringify(episode)),
   };
 }
@@ -171,17 +221,89 @@ function sceneHtml(scene: PresentationPlan["scenes"][number], plan: Presentation
             .join("")}</details></article>`,
       )
       .join("")}</div>`;
-  return `<section class="deck-slide scene-${scene.kind} feed-${scene.design.kind} emphasis-${scene.design.emphasis}${scene.design.custom ? " custom-design" : ""}" style="--motion-duration:${scene.design.entranceSeconds}s;--scene-accent:${scene.design.accent};--scene-secondary:${scene.design.secondary};--scene-surface:${scene.design.surface}" data-scene="${scene.index}" data-auto-animate data-transition="fade"><div class="ambient-field" aria-hidden="true"></div><header class="slide-topline"><span>SAP DEVELOPER SHORTS</span><span>${String(scene.index + 1).padStart(2, "0")} / ${String(plan.scenes.length).padStart(2, "0")}</span></header><h2 data-id="headline">${esc(scene.title)}</h2><div class="slide-main">${content}</div><footer class="slide-footer"><span>${esc(scene.label)}</span><div class="narration-caption" aria-live="off"></div><div class="scene-progress"><i></i></div></footer></section>`;
+  if (scene.design.composition) {
+    const composition = scene.design.composition;
+    content = `<div class="story-composition composition-${composition.kind}" aria-label="${composition.kind} visual explanation">${composition.items
+      .map((item, index) => {
+        const evidence = plan.claims.find((claim) => claim.id === item.claimId);
+        return `<details class="composition-card" data-composition-item="${index}"${index === 0 ? ' data-active="true"' : ""}><summary><span class="composition-index">${composition.kind === "comparison" ? (index === 0 ? "A" : "B") : String(index + 1).padStart(2, "0")}</span><strong>${esc(item.label)}</strong><span class="composition-arrow" aria-hidden="true">${composition.kind === "steps" ? "↓" : "+"}</span></summary><p>${esc(evidence?.text ?? scene.narration)}</p>${evidence ? `<small>Saved evidence · ${esc(evidence.id)}</small>` : ""}</details>`;
+      })
+      .join("")}</div>`;
+  }
+  if (scene.kind === "results" && scene.design.dataView !== "rows") {
+    const chart = chartPlan(scene.rows ?? [], 1, true);
+    content = `<div class="advanced-chart" data-chart-style="${scene.design.dataView}"><h3>Stock in captured results</h3>${scene.instructions.length ? `<details class="request-details"><summary>Request &amp; command</summary><pre>${scene.instructions.map(esc).join("\n")}</pre></details>` : ""}${chart.rows.map((row) => `<div class="advanced-chart-row"><div><strong>${esc(row.label)}</strong><b>${row.value}</b></div><div class="advanced-chart-track"><i data-chart-fraction="${row.fraction}" style="--fraction:${row.fraction}"></i></div></div>`).join("")}<p>Zero baseline · ${chart.rows.length} saved rows · stock units</p><details><summary>See captured data table</summary><table><thead><tr><th>Product</th><th>Stock</th></tr></thead><tbody>${chart.rows.map((row) => `<tr><td>${esc(row.label)}</td><td>${row.value}</td></tr>`).join("")}</tbody></table></details></div>`;
+  }
+  if (scene.design.composition && ["flow", "timeline"].includes(scene.design.composition.kind)) {
+    const composition = scene.design.composition;
+    const nodes = sequenceGeometry(composition.kind, composition.items.length, {
+      x: 0,
+      y: 10,
+      width: 900,
+      height: 680,
+    });
+    content = `<svg class="sequence-graphic" viewBox="0 0 900 700" role="img" aria-label="${esc(composition.items.map((item) => item.label).join(" → "))}">${composition.kind === "timeline" ? '<path d="M18 10V690" stroke="var(--scene-accent)" stroke-width="4"/>' : ""}${nodes
+      .map((node, index) => {
+        const item = composition.items[index];
+        if (!item) return "";
+        return `<g data-composition-item="${index}" data-active="${index === 0}"><rect x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}" rx="24" fill="var(--scene-surface)" stroke="var(--scene-accent)" stroke-width="3"/>${composition.kind === "timeline" ? `<circle cx="${node.markerX}" cy="${node.markerY}" r="10" fill="var(--scene-accent)"/>` : ""}<text x="${node.x + 28}" y="${node.y + 32}" class="sequence-number">${String(index + 1).padStart(2, "0")}</text><text x="${node.x + 28}" y="${node.y + 78}">${visualLabelLines(
+          item.label,
+        )
+          .map(
+            (line, lineIndex) =>
+              `<tspan x="${node.x + 28}" dy="${lineIndex ? 46 : 0}">${esc(line)}</tspan>`,
+          )
+          .join(
+            "",
+          )}</text>${composition.kind === "flow" && index < nodes.length - 1 ? `<path d="M${node.x + node.width / 2} ${node.y + node.height + 2}v23m-8-8 8 8 8-8" stroke="var(--scene-accent)" stroke-width="3" fill="none"/>` : ""}</g>`;
+      })
+      .join(
+        "",
+      )}</svg><p class="sequence-note">${composition.kind === "timeline" ? "Ordered milestones" : "Follow the mechanism from one step to the next."}</p>`;
+  }
+  const image = scene.design.image ? plan.visualAssets[scene.design.image.assetId] : undefined;
+  let backdropImage = "";
+  if (scene.design.image && !image) {
+    if (!plan.allowMissingVisualAssets)
+      throw new Error("Selected presentation image is unavailable.");
+    const warning =
+      '<p class="missing-visual" role="status">Restore the selected image in Advanced presentation to rebuild this design.</p>';
+    if (scene.design.image.treatment === "card") content = warning;
+    else backdropImage = warning;
+  }
+  if (scene.design.image && image) {
+    const graphic = scene.design.image;
+    if (graphic.treatment === "background")
+      backdropImage = `<div class="visual-image-background" aria-hidden="true"><img src="${image.dataUrl}" alt="" style="object-fit:${graphic.fit};object-position:${graphic.focalX * 100}% ${graphic.focalY * 100}%"></div>${image.credit ? `<small class="background-image-credit">Image: ${esc(image.credit)}</small>` : ""}`;
+    else {
+      const placed = imagePlacement(
+        image.width,
+        image.height,
+        { x: 0, y: 0, width: 800, height: 500 },
+        graphic.fit,
+        graphic.focalX,
+        graphic.focalY,
+      );
+      content = `<figure class="visual-image-figure"><svg viewBox="0 0 800 500" role="img" aria-label="${esc(graphic.alt)}"><defs><clipPath id="image-clip-${scene.index}"><rect width="800" height="500" rx="20"/></clipPath></defs><image href="${image.dataUrl}" x="${placed.x}" y="${placed.y}" width="${placed.width}" height="${placed.height}" preserveAspectRatio="none" clip-path="url(#image-clip-${scene.index})"/></svg><figcaption>${esc(graphic.caption ?? "Illustration")}<small>${esc(image.credit)}</small></figcaption></figure>`;
+    }
+  }
+  return `<section class="deck-slide scene-${scene.kind} feed-${scene.design.kind} emphasis-${scene.design.emphasis}${scene.design.custom ? " custom-design" : ""}" style="--motion-duration:${scene.design.entranceSeconds}s;--scene-accent:${scene.design.accent};--scene-secondary:${scene.design.secondary};--scene-surface:${scene.design.surface}" data-scene="${scene.index}" data-auto-animate data-transition="fade">${backdropImage}<div class="advanced-backdrop" aria-hidden="true"></div><div class="ambient-field" aria-hidden="true"></div><header class="slide-topline"><span>SAP DEVELOPER SHORTS</span><span>${String(scene.index + 1).padStart(2, "0")} / ${String(plan.scenes.length).padStart(2, "0")}</span></header><h2 data-id="headline">${esc(scene.title)}</h2><div class="slide-main">${content}</div><footer class="slide-footer"><span>${esc(scene.label)}</span><div class="narration-caption" aria-live="off"></div><div class="scene-progress"><i></i></div></footer></section>`;
 }
 export async function createPresentationDeck(input: PresentationInput) {
-  const plan = presentationPlan(input);
-  const [assets, css, js] = await Promise.all([
+  const plan = presentationPlan({
+    ...input,
+    visualAssets:
+      input.visualAssets ??
+      (await resolveVisualAssets(input.episode, undefined, input.allowMissingVisualAssets)),
+  });
+  const [assets, css, js, visualJs] = await Promise.all([
     revealAssets(),
     readFile(await sourceFile("templates/presentation.css"), "utf8"),
     readFile(await sourceFile("templates/presentation.js"), "utf8"),
+    readFile(await sourceFile("src/video/visual-plan.js"), "utf8"),
   ]);
   const data = JSON.stringify(plan).replaceAll("<", "\\u003c");
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src 'self'; connect-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'"><title>${esc(plan.title)} · Interactive presentation</title><style>${assets.css}\n${css}</style></head><body${input.previewOnly ? ' class="design-preview"' : ""}><main class="presentation-workspace"><header class="presentation-heading">${input.previewOnly ? "" : input.workspaceHref ? `<a href="${input.workspaceHref}">← Workspace</a>` : `<a href="review.html">← Video review</a>`}<div><p>SAP SHORTS / INTERACTIVE PRESENTATION</p><h1>${esc(plan.title)}</h1><span>${esc(plan.basis)} · ${esc(plan.timing)}</span></div></header>${plan.sourceReviewExpired ? '<p class="stale-source-warning">Saved source review has expired. Recheck official sources before producing or sharing current news.</p>' : ""}<div class="presentation-layout"><div class="presentation-stage"><div class="phone-stage"><div class="reveal"><div class="slides">${plan.scenes.map((scene) => sceneHtml(scene, plan)).join("")}</div></div></div><div class="playback-controls"><button type="button" id="deck-previous" aria-label="Previous scene">←</button><button type="button" id="deck-play">Play ${plan.audioSrc ? "with narration" : "silent preview"}</button><button type="button" id="deck-next" aria-label="Next scene">→</button><button type="button" id="deck-focus" aria-pressed="false">Focus view</button><output id="deck-time">0:00</output></div><label class="timeline-label">Presentation timeline<input id="deck-seek" type="range" min="0" max="${plan.duration}" step="0.01" value="0"></label><p class="playback-note" role="status" id="deck-status">Explore the controls inside each scene, or play the timed story. Interactions are available in this deck; exported videos use a fixed animation timeline.</p>${plan.audioSrc ? `<audio id="deck-audio" src="${plan.audioSrc}" preload="metadata"></audio>` : ""}</div><aside class="presentation-inspector"><h2>Story & evidence</h2><nav aria-label="Presentation scenes">${plan.scenes.map((scene) => `<button type="button" data-jump="${scene.index}"><span>${String(scene.index + 1).padStart(2, "0")}</span><strong>${esc(scene.title)}</strong><small>${scene.start.toFixed(1)}–${scene.end.toFixed(1)}s</small></button>`).join("")}</nav><details class="evidence-details"><summary>Read the script</summary>${plan.scenes.map((scene) => `<h3>${esc(scene.title)}</h3><p>${esc(scene.narration)}</p>`).join("")}</details><details class="evidence-details"><summary>Sources & claims</summary>${plan.sources.map((source) => `<a href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.title)} ↗</a><small>Read ${esc(source.retrievedOn)}</small>`).join("")}${plan.claims.map((claim) => `<p>${esc(claim.text)}</p><small>Sources: ${claim.sourceIds.map(esc).join(", ")}</small>`).join("")}</details>${input.workspaceHref ? '<a href="edit.html#presentation">Enhance presentation with a prompt ↗</a>' : ""}${input.previewOnly ? "" : '<a href="presentation.json" download>Download scene plan</a><a href="reveal-LICENSE.txt">Reveal.js license</a>'}</aside></div></main><script type="application/json" id="presentation-data">${data}</script><script>${assets.js.replace(/<\/script/giu, "<\\/script")}\n${js}</script><noscript><p>This interactive presentation requires JavaScript. Read the script and sources above.</p></noscript></body></html>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src 'self'; connect-src 'none'; img-src 'self' data:; base-uri 'none'; form-action 'none'"><title>${esc(plan.title)} · Interactive presentation</title><style>${assets.css}\n${css}</style></head><body${input.previewOnly ? ' class="design-preview"' : ""}>${input.workspaceHref ? deckShellMarker : ""}<main class="presentation-workspace"><header class="presentation-heading">${input.previewOnly ? "" : input.workspaceHref ? workspaceLink(input.workspaceHref) : `<a href="review.html">← Video review</a>`}<div><p>SAP SHORTS / INTERACTIVE PRESENTATION</p><h1>${esc(plan.title)}</h1><span>${esc(plan.basis)} · ${esc(plan.timing)}</span></div></header>${plan.missingVisuals ? '<p class="stale-source-warning" role="alert">A selected local image is unavailable. Restore it or choose another image before producing. Saved MP4s remain available.</p>' : ""}${plan.sourceReviewExpired ? '<p class="stale-source-warning">Saved source review has expired. Recheck official sources before producing or sharing current news.</p>' : ""}<div class="presentation-layout"><div class="presentation-stage"><div class="phone-stage"><div class="reveal"><div class="slides">${plan.scenes.map((scene) => sceneHtml(scene, plan)).join("")}</div></div></div><div class="playback-controls"><button type="button" id="deck-previous" aria-label="Previous scene">←</button><button type="button" id="deck-play">Play ${plan.audioSrc ? "with narration" : "silent preview"}</button><button type="button" id="deck-next" aria-label="Next scene">→</button><button type="button" id="deck-focus" aria-pressed="false">Focus view</button><output id="deck-time">0:00</output></div><label class="timeline-label">Presentation timeline<input id="deck-seek" type="range" min="0" max="${plan.duration}" step="0.01" value="0"></label><p class="playback-note" role="status" id="deck-status">Explore the controls inside each scene, or play the timed story. Interactions are available in this deck; exported videos use a fixed animation timeline.</p>${plan.audioSrc ? `<audio id="deck-audio" src="${plan.audioSrc}" preload="metadata"></audio>` : ""}</div><aside class="presentation-inspector"><h2>Story & evidence</h2><nav aria-label="Presentation scenes">${plan.scenes.map((scene) => `<button type="button" data-jump="${scene.index}"><span>${String(scene.index + 1).padStart(2, "0")}</span><strong>${esc(scene.title)}</strong><small>${scene.start.toFixed(1)}–${scene.end.toFixed(1)}s</small></button>`).join("")}</nav><details class="evidence-details"><summary>Read the script</summary>${plan.scenes.map((scene) => `<h3>${esc(scene.title)}</h3><p>${esc(scene.narration)}</p>`).join("")}</details><details class="evidence-details"><summary>Sources & claims</summary>${plan.sources.map((source) => `<a href="${esc(source.url)}" target="_blank" rel="noreferrer">${esc(source.title)} ↗</a><small>Read ${esc(source.retrievedOn)}</small>`).join("")}${plan.claims.map((claim) => `<p>${esc(claim.text)}</p><small>Sources: ${claim.sourceIds.map(esc).join(", ")}</small>`).join("")}</details>${input.workspaceHref ? '<a href="edit.html#presentation">Enhance presentation with a prompt ↗</a>' : ""}${input.previewOnly ? "" : '<a href="presentation.json" download>Download scene plan</a><a href="reveal-LICENSE.txt">Reveal.js license</a>'}</aside></div></main><script type="application/json" id="presentation-data">${data}</script><script>${assets.js.replace(/<\/script/giu, "<\\/script")}\n${visualJs.replace(/^export /gm, "")}\n${js}</script><noscript><p>This interactive presentation requires JavaScript. Read the script and sources above.</p></noscript></body></html>`;
   return {
     "presentation.html": html,
     "presentation.json": `${JSON.stringify(plan, null, 2)}\n`,

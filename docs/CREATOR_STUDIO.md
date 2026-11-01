@@ -1,15 +1,37 @@
 # Creator studio: ideas to publication
 
-Local Apple Silicon studios also offer **Voice & portrait → My voice** for
+Local Apple Silicon studios also offer **Voice & presenter → My voice** for
 recording/uploading a sample, auditioning Qwen narration and assigning an accepted
 profile to each speaker. The default stays Heart. See [personal voice setup and
 privacy](QWEN_VOICES.md). This feature is local-only; hosted studios use stock voices.
 
-The workspace opens on the work list. Every row names the topic and the exact
-version, shows its stage, and offers one primary next action. Search, type,
-stage and **Needs attention** filters work together. Desktop uses compact rows;
-phones use stacked cards and a two-row stage selector. Nothing starts playing
-or rendering merely because a stage or version is selected.
+The workspace opens on the work list. **My shorts** shows one row per story (one
+episode id such as CAP-01), however many versions you saved. A row shows the
+opening frame (or a placeholder for drafts), the latest title, the id, type,
+length (measured or planned), the story's stage, its last update and one primary
+next action. **N versions ▾** opens a drawer listing every saved version, newest
+first, as v1…vN using stable saved-version ordinals; the real selector
+(for example `NEWS-01@my-edit`) stays visible beside each label, with its own
+stage, length, voice, last update, Edit/Review action, Presentation link and
+More menu. Drawers start collapsed; without JavaScript they stay open.
+
+The row's stage and primary action come from the story's **representative
+version**: the most advanced actionable state wins in this order — Producing
+(active job) > To review > To publish > Editing > Published. Ties go to the most
+newest saved version ordinal. With a stage filter, the action comes from a version in that stage. So a story with an unreviewed video offers **Review
+video** even if you are also editing a newer draft; open the drawer to continue
+the draft.
+
+A **Needs you** strip (up to three cards, hidden when empty) comes from live
+status: stories waiting for review (oldest first), the latest version of a story
+whose production failed or was interrupted (Ready to retry), news whose source
+review has expired or ends within three days, and the number of official SAP
+stories that have no short yet. The stage row below shows how many stories have at
+least one version in each stage; **All** counts stories. Search, type, stage and
+the **Needs attention** chip work on stories: a story matches when any version
+does, and searching opens the drawers of matching stories and highlights the
+matching versions. Phones scroll the stage row and the needs-you cards sideways.
+Nothing starts playing or rendering merely because a stage or version is selected.
 
 | Stage | What it means | Next action |
 | --- | --- | --- |
@@ -28,23 +50,47 @@ reviews and interrupted/failed production remain visible beside the next action.
 
 ## Editing and saving
 
+Every page of one version shares the same header and four steps:
+**1 Script · 2 Voice & presenter · 3 Produce · 4 Review & publish**. The header
+returns to **Shorts**, shows the story thumbnail, title, episode ID and a version
+switcher (v1 = oldest; each entry shows its stage and opens that version's
+editor or Review & publish page; it is a plain list of links without JavaScript).
+Steps 1–3 are the editor panes; step 4 opens `publish.html` once this version has
+a verified MP4 and is otherwise shown locked with "Produce the video first". The
+watch page, MP4 details page and deck preview use the same header with an
+**Open Review & publish** or **Edit script** action. On phones the stepper shows
+numbered dots with the current step's label, and the step's main action sits in a
+bottom bar.
+
 1. **Script:** choose a scene in the left outline, then edit its headline and
    narration in a focused card. **Previous / Next scene** moves through the story
    without showing seven stacked forms. **Episode details** holds the title and
-   version name; **Writing & visuals** opens the writing/presentation assistant.
+   version name; **Writing & visuals** opens the writing/presentation assistant. It shows a status
+   chip for the saved engine (model · provider · Free or May incur cost ·
+   Connected) with a **Change in Settings ↗** link; engine, budgets and API key
+   are configured once in the workspace **Settings** (`review.html#settings`,
+   the older `#writing` link still works).
    On desktop, an on-screen text cue previews the current headline and narration.
    It is a text preview, not the rendered deck; **Open saved deck** shows that deck.
-2. **Voice & portrait:** choose local voices and a presenter. Mouth calibration
+2. **Voice & presenter:** choose local voices and a presenter. Mouth calibration
    and pronunciation tools are optional disclosures. The existing local portrait
    renderer, face calibration, auditions and recovery behavior are preserved.
-3. **Review & produce:** use the pinned **Companion post**, **AI content review**,
-   and **Produce video** tabs. AI review is optional; its provider, cost consent
-   and exact-content validity checks are unchanged. Production validation and
-   **Review changes** live in Produce video.
+3. **Produce:** one checklist covers Script, Voice, Presenter, Sources, Companion
+   post and optional AI review. Readiness comes from the existing draft/voice
+   validation. Presenter runtime and alignment are checked during production;
+   the checklist does not claim a render has already passed. Open **Companion
+   post** or **Optional AI content review** only when needed. AI review remains
+   optional, with the selected provider and a visible Hyperspace cost notice.
 
-The sticky top bar offers **Save draft**, current save/validation status and a
-continue action in every view. The left outline remains available on desktop;
-on phones, **Episode sections** opens a drawer. Choosing an entry closes it;
+The sticky header offers **Saved deck**, **Save draft**, and one status line.
+**Next: Voice & presenter** and **Next: Produce** navigate the first two steps.
+In Produce, **Save & produce** invokes the same explicit production action as
+its checklist sidebar; the phone bottom bar mirrors that action and its blocked
+state. Earlier steps are not marked complete merely because you visited them.
+Saved portraits appear by a readable name (for example **Moty headshot 2026**, or
+**Uploaded photo 1** for generated file names); the stored image is unchanged. The left outline (Episode details, Scenes, Writing &
+visuals) belongs to step 1 and is shown on desktop while editing the script;
+on phones, **Episode sections** opens it as a drawer. Choosing an entry closes it;
 Escape dismisses it. **Sources** opens a separate evidence drawer with the saved
 source dates and claims. Navigation changes visibility only: fields, personal
 voice selections, portrait canvases, auditions and unsaved edits stay mounted.
@@ -62,8 +108,17 @@ Producing a just-saved draft submits its existing selector, avoiding a duplicate
 import. Producing unsaved changes saves that revision first. If another job is
 running, the request is rejected before importing another revision. Local
 production continues when navigating away; the workspace polls its status.
-After completion it reloads the refreshed library. An unfinished saved production
-report with no active worker is shown as interrupted, not as a running job.
+The Produce pane reveals the active stages after an explicit start, records the
+exact accepted job in this tab and reconnects after a reload, including after the
+saved draft acquires a new suggested version name. It never automatically retries
+a job. An unfinished saved receipt with no active worker is shown as interrupted.
+
+The timing range uses comparable fresh generation history, excluding reused
+speech/video. It states its sample count and pipeline basis; hardware, script
+length and caches can differ. With no comparable history it offers no ETA.
+Elapsed time and completed stage times come from the actual job. **Review &
+publish** appears only after the server has refreshed the workspace; a failed
+refresh reports the saved result without offering an unavailable editor/video.
 
 Invalid unfinished edits remain recoverable in the same browser tab, subject to
 browser storage availability. **Save draft** requires a valid script. **Download
@@ -72,13 +127,49 @@ unsaved recovery data. If the library rebuild fails after a successful save, the
 editor explicitly reports that the draft was saved but the workspace refresh is
 pending; the saved file remains available for CLI production.
 
+
+## Starting a short and managing presenters
+
+**New short** opens a source/format/tone/planned-length/narrator sheet. Choose a
+scanned official SAP story or paste its official article URL. Creating fetches
+complete source excerpts and saves an editable seven-scene draft; it does not
+make an LLM request. Format/tone are delivery settings and do not rewrite facts
+or narration. A conversation assigns complete scenes to two distinct installed
+stock voices. Use the writing assistant to rewrite and review the actual words.
+**Default / decide later** permits a solo draft before voices are installed;
+select an accepted personal voice in the editor when ready. Tutorials still
+start from prepared scripts in My shorts. A saved draft whose workspace refresh
+fails is identified by ID and cannot be accidentally submitted again in that sheet.
+
+**Formats** pairs format descriptions with prepared examples. **Voices &
+presenters** keeps personal styles, stock samples and saved photos together.
+**Add a voice style** opens the existing record/upload, transcript and consent
+controls in two steps. Saving a sample still requires a generated audition,
+your listening and acceptance before it is offered for episodes. Search/filter
+personal recordings by name or style; cards play saved recordings or auditions.
+Photos show friendly names and links to a script for alignment. Alignment is
+saved per script, so a gallery label is not a global guarantee for every use.
+
+The desktop launcher now separates core studio, writing, voice, portrait and
+worker readiness. Private-studio section names match the creator workflow; its
+existing sign-in, workspace isolation and render-engine controls are unchanged.
+
 ## Review and publication
 
-Each produced version has `episodes/SELECTOR/publish.html` with its video, final
-review confirmation, MP4/package downloads, companion text, source links and
-publication record. Approve only after watching the whole short and checking
-speech, face movement, captions and factual accuracy. Copy the post text, publish
-on your chosen platform, then enter the live post URL. **Return to review / clear
+Each produced version has `episodes/SELECTOR/publish.html`, step 4 of the
+episode workspace. The player shows chapter markers per scene when measured
+timing is available; **Transcript**, **Sources** (with the dated source-review
+notice) and **Details** (generation time as a stacked bar) sit below it. The
+final check has four boxes — speech, face and lip movement, captions, and facts
+against the sources including the review-valid-through date — and **Approve
+video** stays disabled until all four are ticked. Approval still sends the same
+single confirmation to the workflow API. **Download & post** (MP4/package
+downloads, a social-post preview with character count and **Copy post text**)
+and **Record where it’s live** stay locked until the video is approved; without
+the running studio (a static copy) nothing is locked and the page explains that
+review status is unavailable. **Needs changes · edit as new version** opens the
+editor. Copy the post text, publish on your chosen platform, then enter the live
+post URL. **Return to review / clear
 publication record** removes the local approval and publication record; it does
 not remove an external post.
 
@@ -198,23 +289,30 @@ unmodified files; validation logs and screenshots are saved locally under
 
 ## Browse a growing workspace
 
+A **New short** button tops the sidebar (top right of the header strip on phones). For now it
+opens Ideas → Official stories and focuses the article URL field.
+
 The sidebar switches between **My shorts**, **Ideas**, **Delivery styles**, and
 **Voice library**. Only the selected section is shown. Existing comparison,
 editor return and voice-library links still open their matching section; browser
 Back and Forward follow section navigation. Static copies keep all content
 readable when JavaScript is disabled.
 
-My shorts shows eight entries per page by default. Search examines all saved
-versions, including their narration, rather than only the current page. Combine
-it with the stage, tutorial/news and attention filters. Sort by **Recently
-updated**, **Oldest updated**, **Title A–Z**, or **Episode ID**. Update time uses
-the later of the local script file modification and its recorded preview time;
-after a fresh clone, script dates reflect the checkout. Choose 8, 16 or 32 per
-page, use Previous/Next, or jump directly to a page at either end of the list.
-Result counts distinguish filtered matches from the complete library.
+My shorts shows ten stories per page by default. Search examines every saved
+version of every story, including narration, rather than only the current page.
+Combine it with the stage, tutorial/news and attention filters. Sort by **Recently
+updated**, **Oldest updated**, **Title A–Z**, or **Episode ID**. A story's update
+time is its newest version's: the later of the local script file modification and
+its recorded preview time; after a fresh clone, script dates reflect the
+checkout. Choose 10, 20 or 40 per page, use Previous/Next, or jump directly to a
+page at either end of the list. Result counts read like “9 stories · 62
+versions” and distinguish filtered matches from the complete library.
 
 Ideas separates official stories, staged drafts, the news backlog and tutorial
-ideas. Each collection has its own search, sort and page controls. New drafts
+ideas. Story cards show a five-step **fit** meter (High, Good or Low; the numeric
+score is in the tooltip). A story that already has a saved short or staged draft
+shows **Already a short · NEWS-06 · 8 versions** with an **Open** link and a
+secondary **New angle** button; only stories without one get **Start short**. Each collection has its own search, sort and page controls. New drafts
 open in the staged view even if its previous search would hide them. Story
 refreshes update the existing collection. Both the saved stock samples and the
 complete stock voice catalog are paged and searchable; personal recordings have
@@ -222,7 +320,8 @@ name/style search alongside their delivery-style filter.
 
 Search, sorting, page size and page number are remembered separately for each
 collection in this browser tab's session storage. Shorts also remember their
-stage/type/attention filters. Filtering or changing sort/page size returns to the
+stage/type/attention filters and which version drawers you opened, so returning
+from a video review lands on the same view. Filtering or changing sort/page size returns to the
 first page; live workflow polling keeps the current page, clamping it if the
 result list becomes shorter. Storage being unavailable does not prevent browsing.
 Switching sections pauses their media and stops any active microphone recording,
@@ -243,11 +342,25 @@ evidence is under `.state/private-tests/library-browser-*`.
 
 ## Explore the generated presentation
 
-Each saved short has a **Presentation** link in its workspace row. This opens a
-dark 9:16 interactive deck generated from the saved script and its available
+Each saved short has a **Presentation** link in its workspace row. This opens the
+episode header around a dark 9:16 interactive deck generated from the saved script and its available
 evidence. Play the narration, inspect code lines, switch captured results to a
 stock chart, explore a captured-row filter, or expand news scope and sources.
 Focus view enlarges the canvas. New MP4 exports use the refreshed motion design
 and include the interactive deck in their portable package. See
 [Interactive portrait presentations](PRESENTATIONS.md) for the renderer choice,
 data boundaries, local setup and export behavior.
+
+### Stable version history
+
+Version numbers are assigned once in `ARTIFACT_ROOT/.studio-versions/order.sqlite`;
+rendering or touching an older file updates activity without changing its number
+or superseding a newer review. Removed versions leave gaps. Library manifests
+carry the ledger, so keeping a recent library snapshot can restore a lost local
+index. Keep the ledger or a recent snapshot when moving a working studio between
+Macs. The first migration preserves the existing display order; it cannot infer
+historical creation dates that were never recorded. Stage filters choose the primary action from a matching version without expanding
+long drawers; searching still opens and highlights matching versions.
+
+
+The [creative workflow enhancements](CREATIVE_WORKFLOW_ENHANCEMENTS.md) add saved story briefs, visual compositions, exact-output external review, verified stock-scene reuse, production presets, and story organization/version comparison to the local source studio. See that guide for controls, storage and current limits.

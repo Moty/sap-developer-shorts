@@ -49,6 +49,41 @@ async function atomic(path, bytes) {
     await fs.rm(temporary, { force: true });
   }
 }
+const backlogPaths = new Set(["content/news/backlog.json", "content/topics/backlog.json"]);
+function mergeBacklogSeed(existing, incoming, { prioritized = false } = {}) {
+  for (const entries of [existing, incoming]) {
+    if (
+      !Array.isArray(entries) ||
+      entries.some(
+        (entry) =>
+          !entry ||
+          typeof entry.id !== "string" ||
+          !entry.id ||
+          (prioritized && (!Number.isSafeInteger(entry.priority) || entry.priority < 1)),
+      ) ||
+      new Set(entries.map((entry) => entry.id)).size !== entries.length ||
+      (prioritized && new Set(entries.map((entry) => entry.priority)).size !== entries.length)
+    )
+      throw new Error("Backlog IDs and priorities must be valid and unique");
+  }
+  const ids = new Set(existing.map((entry) => entry.id));
+  const priorities = new Set(prioritized ? existing.map((entry) => entry.priority) : []);
+  const added = incoming.filter((entry) => !ids.has(entry.id));
+  if (!added.length) return null;
+  const merged = [...existing];
+  for (const entry of added) {
+    if (!prioritized) {
+      merged.push({ ...entry });
+      continue;
+    }
+    let priority = entry.priority;
+    if (priorities.has(priority)) priority = Math.max(...priorities) + 1;
+    if (!Number.isSafeInteger(priority)) throw new Error("Backlog priority is out of range");
+    priorities.add(priority);
+    merged.push({ ...entry, priority });
+  }
+  return merged;
+}
 async function installWorkspace(payload, workspace) {
   const manifest = JSON.parse(await fs.readFile(resolve(payload, "manifest.json"), "utf8"));
   if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.files))
@@ -87,6 +122,36 @@ async function installWorkspace(payload, workspace) {
         "Choose an empty desktop workspace; existing folders are not imported automatically",
       );
     await atomic(marker, JSON.stringify({ application: "sap-shorts-desktop", installing: true }));
+  }
+  // New episode seeds and their backlog records must arrive together on upgrades.
+  // Preserve every existing record, including editorial status and user priorities.
+  const backlogUpdates = [];
+  for (const file of manifest.files.filter((entry) => backlogPaths.has(entry.path))) {
+    await safeParents(workspace, file.path);
+    const target = resolve(workspace, file.path);
+    if (!(await regular(target))) continue;
+    const original = await fs.readFile(target);
+    try {
+      const merged = mergeBacklogSeed(
+        JSON.parse(original),
+        JSON.parse(await fs.readFile(resolve(payload, "seed", file.path), "utf8")),
+        { prioritized: file.path === "content/news/backlog.json" },
+      );
+      if (merged) backlogUpdates.push({ path: file.path, target, original, merged });
+    } catch (error) {
+      throw new Error(
+        `Cannot update ${file.path}: ${error.message}. Your saved backlog was not replaced.`,
+      );
+    }
+  }
+  const backupRoot = `.state/desktop-backups/${randomUUID()}`;
+  for (const update of backlogUpdates) {
+    if (sha(await fs.readFile(update.target)) !== sha(update.original))
+      throw new Error("The backlog changed during startup. Restart to retry without losing edits.");
+    const backup = `${backupRoot}/${update.path}`;
+    await safeParents(workspace, backup);
+    await atomic(resolve(workspace, backup), update.original);
+    await atomic(update.target, `${JSON.stringify(update.merged, null, 2)}\n`);
   }
   for (const file of manifest.files) {
     await safeParents(workspace, file.path);
@@ -203,6 +268,7 @@ function allowedExternal(value) {
 module.exports = {
   sha,
   safeRelative,
+  mergeBacklogSeed,
   installWorkspace,
   desktopEnvironment,
   workerInput,

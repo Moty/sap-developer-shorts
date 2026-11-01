@@ -149,3 +149,16 @@ export function generationTimingHtml(summary: GenerationSummary | undefined): st
   const detail = summary.stages;
   return `<section aria-label="Generation time"><h2>Generation time</h2><p><strong>${summary.basis === "generation" ? "Total to MP4" : "Total recorded run"}: ${formatGenerationTime(summary.totalMs)}</strong></p>${detail ? `<dl><dt>Preparation</dt><dd>${formatGenerationTime(detail.preparationMs)}</dd><dt>Audio &amp; captions${summary.reusedAudio ? " · reused" : ""}</dt><dd>${formatGenerationTime(detail.audioMs)}</dd><dt>Video &amp; portrait${summary.reusedVideo ? " · reused" : ""}</dt><dd>${formatGenerationTime(detail.videoMs)}</dd></dl><p class="note">Measured on the machine that ran this production, through the verified MP4. Studio packaging is excluded. Audio includes caption alignment; video includes portrait animation, encoding and checks.</p>` : `<p class="note">This older run saved only overall start and finish times, including studio packaging. Audio and video times were not recorded separately.${summary.reusedAudio || summary.reusedVideo ? " This run reused saved media." : ""}</p>`}${detail && (summary.reusedAudio || summary.reusedVideo) ? '<p class="note">Reused stages show retrieval and verification time, rather than a fresh generation.</p>' : ""}</section>`;
 }
+
+/** Stacked bar and legend for the Review & publish details; the same totals as the text list. */
+export function generationTimingBar(summary: GenerationSummary | undefined): string {
+  const detail = summary?.stages;
+  if (!summary || !detail) return generationTimingHtml(summary);
+  const parts = [
+    ["prep", "Preparation", detail.preparationMs, false],
+    ["audio", "Audio &amp; captions", detail.audioMs, summary.reusedAudio],
+    ["video", "Video &amp; portrait", detail.videoMs, summary.reusedVideo],
+  ] as const;
+  const total = parts.reduce((sum, [, , ms]) => sum + ms, 0) || 1;
+  return `<section class="gen-time" aria-label="Generation time"><h3>Generation time</h3><p><strong>${summary.basis === "generation" ? "Total to MP4" : "Total recorded run"}: ${formatGenerationTime(summary.totalMs)}</strong></p><div class="gen-bar" aria-hidden="true">${parts.map(([key, , ms]) => `<i class="gen-${key}" style="flex-grow:${((ms / total) * 100).toFixed(2)}"></i>`).join("")}</div><ul class="gen-legend">${parts.map(([key, label, ms, reused]) => `<li><i class="gen-${key}" aria-hidden="true"></i>${label}${reused ? " · reused" : ""} <b>${formatGenerationTime(ms)}</b></li>`).join("")}</ul><p class="note">Measured on the machine that ran this production, through the verified MP4. Studio packaging is excluded. Audio includes caption alignment; video includes portrait animation, encoding and checks.</p>${summary.reusedAudio || summary.reusedVideo ? '<p class="note">Reused stages show retrieval and verification time, rather than a fresh generation.</p>' : ""}</section>`;
+}

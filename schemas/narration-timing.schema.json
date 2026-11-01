@@ -106,6 +106,28 @@
     },
     "alignment": {
       "const": "model-estimated-phrase-boundaries"
+    },
+    "sceneReuse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reused": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "generated": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
+        "checkpoint": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        }
+      },
+      "required": ["reused", "generated", "checkpoint"]
     }
   },
   "required": [

@@ -18,7 +18,17 @@ export interface PackageVideoReceipt {
   sourceCodeCommit?: string | null;
   updatedAt: string;
   artifactHashes: Record<string, string>;
-  quality: { durationSeconds: number; decoded: boolean; audioChecked: boolean };
+  quality: {
+    durationSeconds: number;
+    decoded: boolean;
+    audioChecked: boolean;
+    width?: number;
+    height?: number;
+    fps?: number;
+    integratedLufs?: number;
+    truePeakDb?: number;
+    captions?: string;
+  };
 }
 
 export interface EpisodeDownload {

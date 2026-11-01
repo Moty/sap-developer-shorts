@@ -17,6 +17,7 @@ import {
   type EpisodeDownload,
   type PackageVideoReceipt,
 } from "./episode-package.js";
+import { episodeShellTemplates } from "./episode-shell.js";
 import {
   type GenerationSummary,
   generationForOutput,
@@ -35,6 +36,7 @@ import { episodeSelector, episodeSourceFiles } from "./presentation.js";
 import { createPresentationDeck, presentationAssets } from "./presentation-deck.js";
 import { readRuntimeFiles } from "./provenance.js";
 import { shortDurationAllowed } from "./timing-policy.js";
+import { allocateVersionOrder } from "./version-order.js";
 import { assertVideoQuality, readVideoReceipt } from "./video/receipt.js";
 
 export interface LibraryPreview {
@@ -62,6 +64,7 @@ export interface LibraryEntry {
   download?: EpisodeDownload;
   deck?: Record<string, string | Buffer>;
   updatedAt?: string;
+  ordinal?: number | undefined;
   recordedVoiceLabel?: string;
   generation?: GenerationSummary;
 }
@@ -357,6 +360,7 @@ export async function buildLibrary(
       );
     entry.deck = await createPresentationDeck({
       workspaceHref: "../../review.html#episodes",
+      allowMissingVisualAssets: true,
       episode: entry.episode,
       code,
       ...(evidence ? { evidence } : {}),
@@ -371,6 +375,14 @@ export async function buildLibrary(
     const download = buildEpisodePackage(entry, now);
     if (download) entry.download = download;
   }
+  const versionOrder = await allocateVersionOrder(
+    artifactRoot,
+    library.entries.map((entry) => ({
+      selector: episodeSelector(entry.episode),
+      updatedAt: entry.updatedAt ?? "",
+    })),
+  );
+  for (const entry of library.entries) entry.ordinal = versionOrder[episodeSelector(entry.episode)];
   const sourceHashes: Record<string, string> = {};
   for (const name of [
     ...presentationAssets,
@@ -378,14 +390,19 @@ export async function buildLibrary(
     "templates/library.js",
     "templates/library-browser.css",
     "templates/library-collections.js",
+    "templates/library-stories.js",
+    "templates/workspace-panels.css",
+    "templates/workspace-panels.js",
     "templates/library-navigation.js",
     "templates/local-actions.js",
     "templates/voice-library.css",
     "templates/script-editor.css",
     "templates/script-editor.js",
+    "templates/advanced-visuals.js",
     "templates/voice-profiles.js",
     "templates/writing-assistant.css",
     "templates/writing-assistant.js",
+    ...episodeShellTemplates,
     "config/production.json",
     "content/topics/backlog.json",
     "content/news/backlog.json",
@@ -429,6 +446,7 @@ export async function buildLibrary(
   const manifest = {
     schemaVersion: 1,
     kind: "review-library",
+    versionOrder,
     ...(episodes.some(hasClonedVoices) ? { localOnly: true } : {}),
     builtAt: now.toISOString(),
     sourceHashes,

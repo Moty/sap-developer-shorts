@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAP Shorts — full-journey UX analysis</title>
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<link rel="stylesheet" href="styles.css">
+<style>
+body{overflow:auto;background:var(--bg);color:var(--text)}
+.doc{max-width:1120px;margin:0 auto;padding:40px 24px 120px}
+.doc h1{font-size:clamp(30px,4vw,44px);letter-spacing:-.03em;line-height:1.08;margin:8px 0 12px}
+.doc h2{font-size:24px;margin:56px 0 6px;letter-spacing:-.02em}
+.doc h3{font-size:17px;margin:0 0 6px}
+.doc p,.doc li{font-size:15.5px;line-height:1.6}
+.lead{font-size:18px!important;color:var(--muted);max-width:780px}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:22px 0 0}
+.toc a{text-decoration:none}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:28px 0}
+.kpi{padding:16px;border-radius:16px;background:var(--surface);border:1px solid var(--border)}
+.kpi b{display:block;font-size:30px;letter-spacing:-.03em;line-height:1.1}
+.kpi span{font-size:13px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.find{display:grid;grid-template-columns:64px minmax(0,1fr);gap:16px;padding:18px 0;border-top:1px solid var(--border)}
+.sev{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:8px;padding:4px 0;text-align:center;height:fit-content}
+.sev.h{background:var(--danger-soft);color:var(--danger)} .sev.m{background:var(--warn-soft);color:var(--warn)} .sev.l{background:var(--info-soft);color:var(--info)}
+.find p{margin:4px 0 0;color:var(--muted)}
+.find .ev{font-size:13px;color:var(--faint);margin-top:6px}
+.screen{display:grid;grid-template-columns:300px minmax(0,1fr);gap:22px;padding:22px;border-radius:20px;background:var(--surface);border:1px solid var(--border);margin-top:16px}
+.screen img{width:100%;border-radius:12px;border:1px solid var(--border);display:block;max-height:340px;object-fit:cover;object-position:top}
+.screen .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.screen ul{margin:6px 0 0;padding-left:18px}
+.screen li{font-size:14px;margin:3px 0}
+.screen .new{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--brand-soft);color:var(--brand-ink);font-size:14px}
+.screen .new a{font-weight:700}
+.tag{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.journey{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:16px}
+.jstep{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px;font-size:13px}
+.jstep b{display:block;font-size:13.5px;margin-bottom:6px}
+.jstep .now{color:var(--danger);margin-bottom:6px}
+.jstep .next{color:var(--brand)}
+.mood{display:flex;align-items:flex-end;gap:8px;height:70px;margin-top:10px}
+.mood i{flex:1;border-radius:8px 8px 0 0;background:var(--h-c,var(--brand))}
+.ia{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.ia>*,.two>*,.screen>*{min-width:0}
+.road-wrap{overflow-x:auto;margin-top:12px;border-radius:16px}
+.road-wrap table.road{margin-top:0;min-width:720px}
+.tree{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:1.7;white-space:pre;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;overflow:auto}
+table.road{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px;background:var(--surface);border-radius:16px;overflow:hidden}
+table.road th,table.road td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+table.road th{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+table.road code{font-size:12px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}
+.gallery a{display:grid;gap:4px;text-decoration:none;color:var(--text);font-size:13px;font-weight:600;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.gallery a:hover{border-color:var(--brand)}
+.gallery small{color:var(--faint);font-weight:500}
+@media (max-width:860px){
+  .kpis{grid-template-columns:1fr 1fr}.two,.ia{grid-template-columns:minmax(0,1fr)}
+  .screen{grid-template-columns:1fr}.screen .cols{grid-template-columns:1fr}
+  .journey{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:70%;overflow-x:auto}
+  .find{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<main class="doc">
+  <div class="row wrap"><span class="logo">S</span><b>SAP Shorts</b><span class="sp"></span><a class="btn primary" href="index.html#shorts">Open the clickable prototype →</a></div>
+  <div class="eyebrow" style="margin-top:32px">Full-journey UX review · October 28, 2026</div>
+  <h1>From idea to published: making SAP Shorts feel like one product</h1>
+  <p class="lead">I walked every surface of the current studio at 1440px and 390px wide, using the real local library. This page covers what gets in the way, the information architecture I'd move to, and the specific changes for each screen. Each change links to a clickable mockup with desktop and phone layouts.</p>
+  <div class="toc">
+    <a class="chip" href="#summary">Summary</a><a class="chip" href="#journey">Journey map</a><a class="chip" href="#findings">Cross-cutting findings</a>
+    <a class="chip" href="#ia">New structure</a><a class="chip" href="#screens">Screen by screen</a><a class="chip" href="#roadmap">Roadmap</a><a class="chip" href="#mockups">All mockups</a>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><b>62 → 9</b><span>Rows on the home list: 62 saved versions belong to just 9 stories (CAP-01 alone has 23)</span></div>
+    <div class="kpi"><b>5 → 1</b><span>Page types a single episode spreads across (edit, publish, watch, video details, presentation)</span></div>
+    <div class="kpi"><b>4</b><span>Separate visual languages: light studio, dark editor rail, near-black deck, and the navy/lime desktop launcher</span></div>
+    <div class="kpi"><b>0</b><span>“New short” buttons on the home screen. You have to go through Ideas to create one.</span></div>
+  </div>
+
+  <h2 id="summary">Summary</h2>
+  <div class="two">
+    <div class="card pad"><h3>What already works</h3><ul>
+      <li>A clear lifecycle: Ideas → Editing → Producing → To review → To publish → Published.</li>
+      <li>The facelifted editor: scene outline, one focused scene and a live phone cue.</li>
+      <li>Strong trust and safety: dated source windows, an exact-MP4 approval, local-only data and explicit cost consent.</li>
+      <li>A calm, consistent green palette in the workspace, plus usable phone layouts.</li>
+    </ul></div>
+    <div class="card pad"><h3>The five moves I'd prioritise</h3><ol>
+      <li><b>Group versions under stories.</b> The home list shows stories, with versions in a drawer. Name versions v1…vN with an optional note.</li>
+      <li><b>Give each episode one workspace.</b> Script → Voice &amp; presenter → Produce → Review &amp; publish share one header and stepper.</li>
+      <li><b>Make creation a first-class action.</b> A global “New short” opens a single sheet: source, format, tone, length and narrator.</li>
+      <li><b>Lead with what needs you.</b> The home screen opens with review, retry and expiring-source cards, plus a stage pipeline.</li>
+      <li><b>Use one design system on every surface.</b> The desktop launcher, private workspace and deck use the same tokens and section names. Settings and disclaimers live in one place each.</li>
+    </ol></div>
+  </div>
+
+  <h2 id="journey">Journey map</h2>
+  <p class="muted">The current friction at each stage, and how the redesign removes it. Bar height is a rough estimate of effort or confusion.</p>
+  <div class="journey">
+    <div class="jstep"><b>1 · Set up</b><div class="now">The launcher uses a different brand. “Open creator studio” looks disabled while tools are checked.</div><div class="next">A readiness checklist (3/4). You can start writing while models install.</div></div>
+    <div class="jstep"><b>2 · Find a story</b><div class="now">Ideas pages show a raw “Score: 181”, the same angle text on every card, and no “already drafted” signal.</div><div class="next">A fit meter, a distinct angle per story and an “Already a short · NEWS-06” badge.</div></div>
+    <div class="jstep"><b>3 · Create</b><div class="now">Each card has a heavy “+ Create 55s Short Draft” button, with no choice of format, tone or voice.</div><div class="next">A New short sheet: source, format, tone, length, narrator, then Create draft.</div></div>
+    <div class="jstep"><b>4 · Write</b><div class="now">Episode details is a separate pane. Writing engine settings are repeated inside the editor.</div><div class="next">Details fold into the Script step. The assistant appears as inline chips and checks.</div></div>
+    <div class="jstep"><b>5 · Voice</b><div class="now">Voices use dropdowns, portraits are listed by UUID filename, the slider is native blue, and there are 4 nested disclosures.</div><div class="next">Playable voice cards, portrait thumbnails, segmented delivery and render cost per option.</div></div>
+    <div class="jstep"><b>6 · Produce</b><div class="now">Five paragraphs of repeated rules, about 10 minutes of silence, and no progress view.</div><div class="next">A pre-flight checklist, an ETA from history, and staged progress you can leave.</div></div>
+    <div class="jstep"><b>7 · Review &amp; post</b><div class="now">Three different pages show the same video. Steps 2–3 look active before approval. The source banner appears twice.</div><div class="next">One page: player, transcript, sources and details. Approve with guided checks, then download, copy and record the link.</div></div>
+  </div>
+  <div class="mood" aria-hidden="true">
+    <i style="height:55%;--h-c:var(--warn)"></i><i style="height:45%;--h-c:var(--warn)"></i><i style="height:70%;--h-c:var(--danger)"></i><i style="height:50%;--h-c:var(--warn)"></i><i style="height:80%;--h-c:var(--danger)"></i><i style="height:75%;--h-c:var(--danger)"></i><i style="height:85%;--h-c:var(--danger)"></i>
+  </div>
+
+  <h2 id="findings">Cross-cutting findings</h2>
+  <div class="find"><span class="sev h">High</span><div><h3>Versions are shown as separate shorts</h3><p>The library lists 62 rows for 9 stories. The same title appears several times, for example “SAP finance: follow the money” twice on page 1. Slug names grow without limit: <code>NEWS-01@my-edit-edit-edit-edit-new1-edit</code>. With 8 rows per page, a creator pages through duplicates to find work.</p><div class="ev">Evidence: library manifest (CAP-01 has 23 versions, NEWS-01 has 12). My shorts page 1 of 8.</div></div></div>
+  <div class="find"><span class="sev h">High</span><div><h3>Each episode spreads across five page types with different chrome</h3><p>These are <code>edit.html</code> (top bar and dark rail), <code>publish.html</code> (only “← Workspace”), <code>watch.html</code> (“← All episodes”, its own header, banner shown twice), <code>video/review.html</code> (“← All episodes and styles”), and <code>presentation.html</code> (a dark theme). Back links, titles and layout change on every hop, and the same generation-time block appears on three pages.</p><div class="ev">Evidence: screenshots 07, 10, 11 and 09. The freshness banner is rendered by both the wrapper and the embedded review (<code>src/news/freshness.ts</code>).</div></div></div>
+  <div class="find"><span class="sev h">High</span><div><h3>There is no primary way to create a short</h3><p>Each page header offers “Explore ideas ↗”, even on the Ideas page. The ↗ suggests an external link, but it goes to an in-page anchor. Creation exists only as six identical dark buttons on news cards.</p></div></div>
+  <div class="find"><span class="sev m">Medium</span><div><h3>Four visual languages, and a fifth set of section names</h3><p>The workspace is light green, the editor rail is dark green, the deck is near-black and teal, and the desktop launcher is navy and lime. The launcher is the very first touchpoint, so the brand changes before you reach the studio. The private studio matches the palette but uses its own header, components and section names.</p></div></div>
+  <div class="find"><span class="sev m">Medium</span><div><h3>Settings and warnings are duplicated</h3><p>Provider, model, budgets and the API key appear in Writing engine <em>and</em> in the editor’s Writing &amp; visuals pane. The Hyperspace cost warning appears in three places, each with its own consent checkbox that disables the buttons beside it. Produce repeats “target 45–60s, 15–90s accepted” twice in consecutive sentences.</p></div></div>
+  <div class="find"><span class="sev m">Medium</span><div><h3>Unclear controls and status</h3><p>Several controls are disabled with no reason given: Voice library actions before a voice is selected, a primary-styled “Use automatic presentation design”, “Upload Photo”, and “Approve”. The status reads as two stacked fragments, “Unsaved changes / Draft checked”. The main button label changes in every pane: “Continue to voice”, “Review &amp; produce”, “Ready to produce”, “Back to script”.</p></div></div>
+  <div class="find"><span class="sev m">Medium</span><div><h3>Long jobs give no feedback</h3><p>A short takes about 10 minutes to render (audio 1m 25s, portrait 8m 38s), but no progress screen, ETA or completion notice exists. Status shows only as a “Producing” count on the home list. The 15–90s timing change also left older versions “Ready to retry” without a clear path.</p></div></div>
+  <div class="find"><span class="sev m">Medium</span><div><h3>Phones bury the content</h3><p>The section tabs overflow (“Writi…”). The stage tiles, type filter, attention checkbox and sort/per-page/page selects push the first short to about 1,000px down. Native selects are used for pagination.</p></div></div>
+  <div class="find"><span class="sev l">Low</span><div><h3>Technical details reach the creator</h3><p>Examples include portrait names such as <code>d29f457b-4dcd-…png</code>, “Score: 113” in monospace, selectors with “@”, titles cut mid-phrase (“…Agents to Advance”), and terminal alternatives next to buttons.</p></div></div>
+  <div class="find"><span class="sev l">Low</span><div><h3>Accessibility and polish</h3><p>Issues include emoji icons (“🔊 Audition Line”), an unstyled range input, 11px faint text in the dark rail, and a checkbox <em>plus</em> a disabled button for one approval. The redesign keeps visible labels, at least 32px targets, focus rings, reduced-motion support and dark mode.</p></div></div>
+
+  <h2 id="ia">New structure</h2>
+  <div class="ia">
+    <div><span class="tag">Today</span><div class="tree">Desktop launcher (separate brand)
+  ├─ Create on this Mac · Rendering engine
+review.html
+  ├─ My shorts      62 rows (versions)
+  ├─ Ideas          news · drafts · backlog · tutorials
+  ├─ Delivery styles formats + CAP compare
+  ├─ Voice library  personal + stock
+  └─ Writing engine
+episodes/SEL/edit.html
+  ├─ Episode details · Script · Writing &amp; visuals
+  ├─ Voice &amp; portrait
+  └─ Review &amp; produce  post · AI review · produce
+episodes/SEL/publish.html      approve · post · record
+episodes/SEL/watch.html        player + review page
+episodes/SEL/video/review.html details (duplicate)
+episodes/SEL/presentation.html deck (dark)
+Private studio: Scripts &amp; videos · SAP News Discovery
+               · My voices · My photos · Rendering engines</div></div>
+    <div><span class="tag">Proposed</span><div class="tree">[+ New short]          global, always visible
+Shorts                 9 stories → versions drawer
+  ├─ Needs you         review · retry · expiring sources
+  └─ List | Board      stage pipeline filter
+Ideas                  SAP news · drafts · backlog · tutorials
+Voices &amp; presenters    my voices · stock · photos/hosts
+Formats                gallery + tone comparison
+Settings               writing engine · this Mac · data · publishing
+Episode (one shell, one header, version switcher)
+  1 Script             outline · scene · preview · checks
+  2 Voice &amp; presenter  voice cards · photo · render mode
+  3 Produce            pre-flight → live progress
+  4 Review &amp; publish   player + transcript/sources/details
+                       approve → download &amp; post → record
+  ⌁ Deck preview       same shell, utility action
+Private workspace      same IA and labels, plus sign-in</div></div>
+  </div>
+
+  <h2 id="screens">Screen by screen</h2>
+  <p class="muted">Each card shows the current screen, the main issues and what changes. “Open mockup” goes to the matching screen in the prototype. Switch between Desktop and Phone in its top bar.</p>
+
+  <section class="screen"><img src="current/20-desktop-launcher-full.jpg" alt="Current desktop launcher"><div>
+    <span class="tag">Desktop app launcher</span><h3>Set up this Mac</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>A separate navy/lime brand.</li><li>Four “Checking” chips, and no overall progress or required/optional split.</li><li>The main button looks disabled while tools are checked.</li><li>The activity log sits beside the main actions.</li></ul></div>
+    <div><b>Change</b><ul><li>A progress ring (3/4) and a list of tools marked required or optional, with download sizes.</li><li>Installs run inline with an ETA.</li><li>“Start your first short” works immediately, because writing doesn’t need the render models.</li><li>The log moves into a disclosure.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#setup">Set up this Mac</a></div></div></section>
+
+  <section class="screen"><img src="current/21-private-signin.jpg" alt="Current private studio sign-in"><div>
+    <span class="tag">Private workspace</span><h3>Sign in</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>A single centred card with its own header and components, rather than the studio’s.</li><li>When configuration is missing, it shows the raw text “Client error: Script error.”</li><li>Its sections use different names (“Scripts &amp; videos”, “SAP News Discovery”, “My photos”).</li></ul></div>
+    <div><b>Change</b><ul><li>A split brand panel and a form, built from the same tokens.</li><li>The same section names as the local studio, with photos under Voices &amp; presenters.</li><li>Errors say what is wrong and what to do next.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#signin">Sign in</a></div></div></section>
+
+  <section class="screen"><img src="current/01-workspace-desktop.jpg" alt="Current My shorts"><div>
+    <span class="tag">review.html · My shorts</span><h3>Shorts (home)</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>62 version rows, with duplicate titles and slug names.</li><li>A 240px hero that repeats on every section.</li><li>Large stage tiles, and pagination in a heavy grey panel.</li><li>“More” opens a disclaimer essay.</li><li>Unrendered drafts show a “NEWS” placeholder.</li></ul></div>
+    <div><b>Change</b><ul><li><b>Needs you</b> cards for review, retry and new stories.</li><li>A compact pipeline filter with counts.</li><li>One row per story, with a versions drawer (v8 … v4, note, stage, length, voice, Watch, Compare).</li><li>A list or board (kanban) view, and an active job shown in the sidebar.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#shorts">Shorts</a> · <a href="index.html#shorts~phone">phone</a></div></div></section>
+
+  <section class="screen"><img src="current/02-ideas-full.jpg" alt="Current Ideas"><div>
+    <span class="tag">Ideas &amp; SAP News Hub</span><h3>Ideas → New short sheet</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>Three stacked headings say the same thing.</li><li>A raw score in monospace.</li><li>The same suggested angle on every card.</li><li>Six equally heavy primary buttons.</li><li>No signal that a story already has a short (NEWS-06 exists).</li></ul></div>
+    <div><b>Change</b><ul><li>A URL bar as the quickest way in.</li><li>A five-step fit meter, a distinct angle per story, and an “Already a short · NEWS-06 · 8 versions” badge.</li><li>“Start short” opens the <b>New short</b> sheet, where you pick source, format, tone, length and narrator, then Create draft.</li></ul></div></div>
+    <div class="new">Open mockups: <a href="index.html#ideas">Ideas</a> · <a href="index.html#new">New short sheet</a></div></div></section>
+
+  <section class="screen"><img src="current/03-styles-full.jpg" alt="Current Delivery styles"><div>
+    <span class="tag">Delivery styles</span><h3>Formats</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>Mixes a format catalogue with a CAP pilot demo.</li><li>Status lines read like build output (“Script prepared · preview pending”).</li><li>Tone tabs wrap onto a second row.</li></ul></div>
+    <div><b>Change</b><ul><li>A gallery with a 9:16 example, “best for”, scene rhythm bars and “Use format”.</li><li>A “Same story, four tones” comparison.</li><li>Formats also appear as the picker in the New short sheet.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#formats">Formats</a></div></div></section>
+
+  <section class="screen"><img src="current/04-voices-full.jpg" alt="Current Voice library"><div>
+    <span class="tag">Voice library</span><h3>Voices &amp; presenters</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>Personal voices sit behind a select box, with three disabled actions until one is chosen.</li><li>Only 2 stock voices are visible, and 28 are hidden.</li><li>The default narrator shows as a disabled button.</li><li>Presenters exist only inside each episode.</li></ul></div>
+    <div><b>Change</b><ul><li>Playable cards with waveforms, a default star and inline Approve or Install.</li><li>A clear “needs your listen” callout.</li><li>A Presenters gallery with friendly names and alignment status.</li><li>A two-step <b>Add a voice style</b> sheet: record, then listen and approve.</li></ul></div></div>
+    <div class="new">Open mockups: <a href="index.html#voices">Voices &amp; presenters</a> · <a href="index.html#addvoice">Add a voice style</a></div></div></section>
+
+  <section class="screen"><img src="current/05-writing.jpg" alt="Current Writing engine"><div>
+    <span class="tag">Writing engine</span><h3>Settings</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>A main-navigation slot for a setting you configure once.</li><li>The same panel is repeated in the editor.</li><li>Rendering tools live only in the desktop launcher.</li><li>No view of spend.</li></ul></div>
+    <div><b>Change</b><ul><li>Settings has four sections: Writing engine, This Mac, Storage &amp; data, Publishing.</li><li>Providers are radio cards marked “Free” or “May incur cost”.</li><li>A single consent policy (once per session, every request, or never).</li><li>Recent requests with cost.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#settings">Settings</a></div></div></section>
+
+  <section class="screen"><img src="current/06-editor.jpg" alt="Current editor script"><div>
+    <span class="tag">edit.html · Script + Episode details + Writing &amp; visuals</span><h3>Episode · 1 Script</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>Episode details is its own pane with two fields and a disabled primary-styled button.</li><li>The writing assistant repeats engine settings and needs a cost checkbox per request.</li><li>The timing line is plain text (“5 spoken words · 3s planned”).</li><li>Emoji buttons.</li></ul></div>
+    <div><b>Change</b><ul><li>A scene rail with timing bars, flagged in amber when over.</li><li>Inline assistant chips (punchier, shorten, simplify, fact-check).</li><li>A word and time meter, plus a Checks panel with “Suggest trim” and “Go to scene”.</li><li>Episode details collapse under the scene.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#script">Script</a> · see also the earlier <a href="file:///Users/I851396/.copilot/chats/5923f21c-a30b-4dc7-97b0-2505bc13a3a8/joule-redesign/index.html">four-layout editor study</a></div></div></section>
+
+  <section class="screen"><img src="current/14-ed-voice-full.jpg" alt="Current Voice & portrait"><div>
+    <span class="tag">edit.html · Voice &amp; portrait</span><h3>Episode · 2 Voice &amp; presenter</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>Every choice is a select box.</li><li>The portrait is named by UUID filename.</li><li>A large primary button for the optional “Detect face”.</li><li>A native blue slider.</li><li>Four nested disclosures, and pronunciation hidden at the bottom.</li></ul></div>
+    <div><b>Change</b><ul><li>Two cards side by side.</li><li><b>Voice:</b> playable narrator cards that “hear scene 1”, segmented delivery and pronunciation chips.</li><li><b>Presenter:</b> a large portrait with the mouth outline and thumbnails to switch.</li><li>Render modes show their time cost (~9 min, ~1 min or slides only), with a styled movement slider.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#voice">Voice &amp; presenter</a></div></div></section>
+
+  <section class="screen"><img src="current/15-ed-review-produce-full.jpg" alt="Current Review & produce"><div>
+    <span class="tag">edit.html · Review &amp; produce (post · AI review · produce)</span><h3>Episode · 3 Produce</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>Produce is the last of three tabs.</li><li>Five paragraphs of overlapping rules.</li><li>AI review sits in its own tab, with a consent checkbox and three buttons.</li><li>No ETA, and nothing to watch during the ~10-minute render.</li></ul></div>
+    <div><b>Change</b><ul><li>A pre-flight checklist (Script, Voice, Presenter, Sources, Companion post), each with Edit.</li><li>AI review as an optional row (“Run with Gemma · free”).</li><li>An ETA from history and “Save &amp; produce v8”.</li><li>Then staged progress you can leave, with a notification when done.</li></ul></div></div>
+    <div class="new">Open mockups: <a href="index.html#produce">Produce</a> · progress view via the sidebar job card or “Save &amp; produce”</div></div></section>
+
+  <section class="screen"><img src="current/07-publish-review-full.jpg" alt="Current Review & publish"><div>
+    <span class="tag">publish.html + watch.html + video/review.html</span><h3>Episode · 4 Review &amp; publish</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>Three pages show the same video.</li><li>Download &amp; post looks active before approval.</li><li>Approval asks for one generic checkbox.</li><li>The companion post is a small textarea, and Copy is a text link.</li><li>Generation time is an indented list.</li></ul></div>
+    <div><b>Change</b><ul><li>One page: a player with chapter markers, plus Transcript, Sources and Details tabs (with a timing bar).</li><li>Approval uses four concrete checks (speech, lip-sync, captions, facts).</li><li>Steps 2–3 stay locked until approval.</li><li>A LinkedIn-style preview with a character count and Copy, then save the live link.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#review">Review &amp; publish</a></div></div></section>
+
+  <section class="screen"><img src="current/09-presentation.jpg" alt="Current presentation"><div>
+    <span class="tag">presentation.html</span><h3>Deck preview</h3>
+    <div class="cols"><div><b>Issues</b><ul><li>A separate dark theme and its own back link.</li><li>Reached only from a “Presentation ↗” link on each row.</li><li>A large empty area in the phone frame.</li></ul></div>
+    <div><b>Change</b><ul><li>Opens inside the episode shell as a utility (“Preview deck”).</li><li>Only the stage is dark, so you keep context and the version switcher.</li><li>Restyle requests go to the assistant.</li></ul></div></div>
+    <div class="new">Open mockup: <a href="index.html#deck">Deck preview</a></div></div></section>
+
+  <h2 id="roadmap">Roadmap</h2>
+  <div class="road-wrap"><table class="road">
+    <thead><tr><th>Phase</th><th>Change</th><th>Where (today)</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td><b>Quick wins</b></td><td>Remove the duplicate freshness banner on watch.html. Drop “Explore ideas ↗” from section heroes. Replace emoji and native slider styling. Give the editor one consistent “Next” label. Show friendly portrait names.</td><td><code>src/library-review.ts</code>, <code>src/news/freshness.ts</code>, <code>templates/library.js</code>, <code>templates/script-editor.*</code></td><td>1–2 days</td></tr>
+      <tr><td><b>Quick wins</b></td><td>Add a global <b>New short</b> button. Add “Already a short” badges to news cards. Replace the raw score with a fit meter. Generate a distinct angle per story.</td><td><code>src/library-review.ts</code>, <code>templates/library-collections.js</code>, <code>src/news/*</code></td><td>2–3 days</td></tr>
+      <tr><td><b>Phase 1</b></td><td>Group the home list by story, with a versions drawer and v1…vN numbering plus an optional note (keep slugs internally). Add “Needs you” cards and the pipeline filter.</td><td><code>src/library.ts</code> manifest grouping, <code>templates/library-navigation.js</code>, <code>library-browser.css</code></td><td>1 week</td></tr>
+      <tr><td><b>Phase 1</b></td><td>Move all writing engine settings to Settings. In the editor, show a status chip and a session-level cost consent.</td><td><code>templates/writing-assistant.*</code>, <code>src/editorial/manager.ts</code></td><td>3–4 days</td></tr>
+      <tr><td><b>Phase 2</b></td><td>One episode shell: fold publish, watch and video details into step 4, with deck preview as a utility. Use a 4-step stepper and a version switcher.</td><td><code>src/script-editor.ts</code>, <code>src/publish-review.ts</code>, <code>src/review.ts</code>, <code>src/presentation.ts</code></td><td>1–2 weeks</td></tr>
+      <tr><td><b>Phase 2</b></td><td>A Produce pre-flight checklist, an ETA from <code>generation.stages</code> history, a staged progress view and a completion notification.</td><td><code>src/production.ts</code>, <code>/api/workflow</code> polling, <code>templates/final-review.js</code></td><td>1 week</td></tr>
+      <tr><td><b>Phase 3</b></td><td>Voices &amp; presenters (presenter library), the New short sheet, and Settings → This Mac (replacing the launcher’s rendering-engine page). Align the desktop launcher and private studio to the shared tokens and IA.</td><td><code>src/voice-library-panel.ts</code>, <code>templates/voice-*.js</code>, <code>desktop/ui/*</code>, <code>src/web/private/*</code></td><td>2 weeks</td></tr>
+    </tbody>
+  </table></div>
+  <p class="hint">Unchanged throughout: local-only processing, exact-MP4 approval binding, source review windows, explicit cost consent, existing saved versions and recordings.</p>
+
+  <h2 id="mockups">All mockups</h2>
+  <div class="gallery">
+    <a href="index.html#setup">Set up this Mac<small>First run</small></a>
+    <a href="index.html#signin">Sign in<small>Private workspace</small></a>
+    <a href="index.html#shorts">Shorts — home<small>List · board · versions</small></a>
+    <a href="index.html#new">New short<small>Sheet</small></a>
+    <a href="index.html#ideas">Ideas &amp; SAP news<small>Workspace</small></a>
+    <a href="index.html#formats">Formats<small>Workspace</small></a>
+    <a href="index.html#voices">Voices &amp; presenters<small>Workspace</small></a>
+    <a href="index.html#addvoice">Add a voice style<small>Sheet</small></a>
+    <a href="index.html#settings">Settings<small>4 sections</small></a>
+    <a href="index.html#script">1 · Script<small>Episode</small></a>
+    <a href="index.html#voice">2 · Voice &amp; presenter<small>Episode</small></a>
+    <a href="index.html#produce">3 · Produce<small>Pre-flight · progress</small></a>
+    <a href="index.html#review">4 · Review &amp; publish<small>Approve · post · record</small></a>
+    <a href="index.html#deck">Deck preview<small>Episode utility</small></a>
+  </div>
+  <p class="hint" style="margin-top:14px">Append <code>~phone</code> to any link (for example <code>index.html#review~phone</code>) to open the phone frame. Press <span class="kbd">[</span> and <span class="kbd">]</span> to step through screens. The prototype is static: actions show toasts and nothing is saved.</p>
+</main>
+</body>
+</html>

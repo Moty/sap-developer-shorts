@@ -60,11 +60,9 @@ export async function startPreviewServer(
         ...(privateVoiceToken ? { privateVoiceToken } : {}),
         libraryDirectory: () => root,
         onLibraryUpdated: async (newDirectory) => {
-          try {
-            root = await realpath(newDirectory);
-          } catch {
-            /* retain current root on error */
-          }
+          // Retain the current root if resolution fails, and let the caller report
+          // that the saved result has not yet become available in this workspace.
+          root = await realpath(newDirectory);
         },
       });
       if (handled) return;
